@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="index.html">deconflate</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0.9000</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -19,7 +19,9 @@
 <li class="nav-item"><a class="nav-link" href="reference/index.html">Reference</a></li>
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
-  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="articles/reproducing-published.html">Reproducing the published analyses</a></li>
+  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="articles/own-data.html">Using your own data</a></li>
+    <li><a class="dropdown-item" href="articles/culling-hazard-ratios.html">Culling and hazard ratios</a></li>
+    <li><a class="dropdown-item" href="articles/reproducing-published.html">Reproducing the published analyses</a></li>
     <li><a class="dropdown-item" href="articles/interactions.html">Disease combinations, interactions and attribution</a></li>
     <li><a class="dropdown-item" href="articles/uncertainty.html">Uncertainty, scenarios and sensitivity</a></li>
   </ul></li>
@@ -36,13 +38,13 @@
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Roadmap</h1>
-      <small class="dont-index">Source: <a href="https://github.com/rasmussenphilip/deconflate/blob/v0.1.0/ROADMAP.md" class="external-link"><code>ROADMAP.md</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/rasmussenphilip/deconflate/blob/master/ROADMAP.md" class="external-link"><code>ROADMAP.md</code></a></small>
     </div>
 
 <div id="roadmap" class="section level1">
 
 <div class="section level2">
-<h2 id="v01-in-progress-version-0009001">v0.1 (in progress: version 0.0.0.9001)<a class="anchor" aria-label="anchor" href="#v01-in-progress-version-0009001"></a></h2>
+<h2 id="v01-released-as-010">v0.1 (released as 0.1.0)<a class="anchor" aria-label="anchor" href="#v01-released-as-010"></a></h2>
 <ul class="task-list"><li><label><input type="checkbox" checked>Input constructors with metadata.</label></li>
 <li><label><input type="checkbox" checked>Association measures: OR, RR, RD, conditional probability, phi, contingency table, independent and unknown.</label></li>
 <li><label><input type="checkbox" checked>Three adjustment methods: published, simultaneous (default) and global (IPF/MaxEnt with pairwise interactions).</label></li>
@@ -58,14 +60,24 @@
 <li><label><input type="checkbox" checked>Run <code>devtools::document()</code>, <code>test()</code> and <code>check()</code> on 0.0.0.9001 and fix any issues.</label></li>
 <li><label><input type="checkbox" checked>GitHub Actions: <code>usethis::use_github_action("check-standard")</code> and <code>usethis::use_pkgdown_github_pages()</code>.</label></li>
 <li><label><input type="checkbox" checked>Review the reproduction vignette against the original analysis files (2024: 1st-revision code and inputs; 2022: original files unavailable, corrigendum checked).</label></li>
-<li><label><input type="checkbox">Tag v0.1.0.</label></li>
+<li><label><input type="checkbox" checked>Tag v0.1.0.</label></li>
 </ul></div>
 <div class="section level2">
-<h2 id="after-v01">After v0.1<a class="anchor" aria-label="anchor" href="#after-v01"></a></h2>
-<ul><li>Advanced component accounting.</li>
-<li>Threshold searches: input values at which conclusions or rankings change.</li>
-<li>Higher-order and non-linear interaction models in the adjustment itself (a per-cell loss function and a non-linear solve).</li>
-<li>Scaling beyond about 20 diseases, e.g. a pseudo-likelihood Ising fit or sampling instead of the full 2^n table.</li>
+<h2 id="v02-in-progress">v0.2 (in progress)<a class="anchor" aria-label="anchor" href="#v02-in-progress"></a></h2>
+<ul class="task-list"><li><label><input type="checkbox" checked>Culling hazard ratios: exact multiplicative model (global), first-order log-linear (simultaneous) and the 2024 approach (published).</label></li>
+<li><label><input type="checkbox" checked><code><a href="reference/attributable_risk.html">attributable_risk()</a></code>: culling attributable to disease without double counting, with Shapley allocation.</label></li>
+<li><label><input type="checkbox" checked>Reading inputs from CSV files or data frames, with all problems reported at once; template files.</label></li>
+<li><label><input type="checkbox" checked>Method comparison tables for models and for Monte Carlo runs (several methods on the same draws).</label></li>
+<li><label><input type="checkbox" checked>Monte Carlo stability diagnostics with suggestions; Latin hypercube and importance sampling.</label></li>
+<li><label><input type="checkbox">Run <code>devtools::document()</code>, <code>test()</code> and <code>check()</code>, and fix any issues.</label></li>
+</ul></div>
+<div class="section level2">
+<h2 id="to-discuss">To discuss<a class="anchor" aria-label="anchor" href="#to-discuss"></a></h2>
+<ul><li>Threshold searches: input values at which conclusions or rankings change.</li>
+<li>Advanced component accounting.</li>
+<li>Lost productive life as a culling outcome.</li>
+<li>Scaling beyond about 20 diseases (the global method and the exact culling model enumerate all 2^n combinations), e.g. a pseudo-likelihood Ising fit or sampling.</li>
+<li>Higher-order and non-linear interaction models in the adjustment itself.</li>
 </ul></div>
 </div>
 

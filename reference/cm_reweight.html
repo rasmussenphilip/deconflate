@@ -15,7 +15,7 @@ cm_reweight() directly for custom targets."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">deconflate</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0.9000</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -27,7 +27,9 @@ cm_reweight() directly for custom targets."></head><body>
 <li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
-  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/reproducing-published.html">Reproducing the published analyses</a></li>
+  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/own-data.html">Using your own data</a></li>
+    <li><a class="dropdown-item" href="../articles/culling-hazard-ratios.html">Culling and hazard ratios</a></li>
+    <li><a class="dropdown-item" href="../articles/reproducing-published.html">Reproducing the published analyses</a></li>
     <li><a class="dropdown-item" href="../articles/interactions.html">Disease combinations, interactions and attribution</a></li>
     <li><a class="dropdown-item" href="../articles/uncertainty.html">Uncertainty, scenarios and sensitivity</a></li>
   </ul></li>
@@ -44,7 +46,7 @@ cm_reweight() directly for custom targets."></head><body>
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Reweight Monte Carlo draws (importance sampling)</h1>
-      <small class="dont-index">Source: <a href="https://github.com/rasmussenphilip/deconflate/blob/v0.1.0/R/montecarlo.R" class="external-link"><code>R/montecarlo.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/rasmussenphilip/deconflate/blob/master/R/montecarlo.R" class="external-link"><code>R/montecarlo.R</code></a></small>
       <div class="d-none name"><code>cm_reweight.Rd</code></div>
     </div>
 
@@ -77,7 +79,8 @@ and returning <code>log(target density / proposal density)</code> for each row.<
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p><code>mc</code> with updated <code>weights</code> and <code>ess</code> (effective sample size,
-<code>1 / sum(w^2)</code>).</p>
+<code>1 / sum(w^2)</code>). Importance weights from the original run (see the
+<code>proposal</code> argument of <code><a href="cm_monte_carlo.html">cm_monte_carlo()</a></code>) are kept.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>

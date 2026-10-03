@@ -29,7 +29,10 @@ cm_reweight(mc, log_ratio)
 ## Value
 
 `mc` with updated `weights` and `ess` (effective sample size,
-`1 / sum(w^2)`).
+`1 / sum(w^2)`). Importance weights from the original run (see the
+`proposal` argument of
+[`cm_monte_carlo()`](https://rasmussenphilip.github.io/deconflate/reference/cm_monte_carlo.md))
+are kept.
 
 ## Details
 

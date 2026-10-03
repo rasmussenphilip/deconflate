@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">deconflate</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0.9000</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -19,7 +19,9 @@
 <li class="nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
-  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/reproducing-published.html">Reproducing the published analyses</a></li>
+  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/own-data.html">Using your own data</a></li>
+    <li><a class="dropdown-item" href="../articles/culling-hazard-ratios.html">Culling and hazard ratios</a></li>
+    <li><a class="dropdown-item" href="../articles/reproducing-published.html">Reproducing the published analyses</a></li>
     <li><a class="dropdown-item" href="../articles/interactions.html">Disease combinations, interactions and attribution</a></li>
     <li><a class="dropdown-item" href="../articles/uncertainty.html">Uncertainty, scenarios and sensitivity</a></li>
   </ul></li>
@@ -36,9 +38,58 @@
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Changelog</h1>
-      <small>Source: <a href="https://github.com/rasmussenphilip/deconflate/blob/v0.1.0/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
+      <small>Source: <a href="https://github.com/rasmussenphilip/deconflate/blob/master/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="development version" id="deconflate-development-version">deconflate (development version)<a class="anchor" aria-label="anchor" href="#deconflate-development-version"></a></h2>
+<p>Work towards 0.2.0.</p>
+<div class="section level3">
+<h3 id="culling-hazard-ratios-development-version">Culling hazard ratios<a class="anchor" aria-label="anchor" href="#culling-hazard-ratios-development-version"></a></h3>
+<ul><li>
+<code><a href="../reference/cm_impacts.html">cm_impacts()</a></code> accepts <code>scale = "hazard_ratio"</code>. Hazard ratios are adjusted under a multiplicative (Cox-type) model:
+<ul><li>
+<code>method = "global"</code> solves the model exactly over the distribution of disease combinations, so that the adjusted hazard ratios reproduce the raw ones;</li>
+<li>
+<code>method = "simultaneous"</code> uses the first-order (log-linear) version;</li>
+<li>
+<code>method = "published"</code> reproduces Rasmussen et al. (2024) (<code>HR - 1</code> with eq. 16).</li>
+</ul></li>
+<li>New <code><a href="../reference/attributable_risk.html">attributable_risk()</a></code>: the culling (or mortality) attributable to disease, without counting an animal with several diseases more than once, allocated to diseases by Shapley values. <code><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary()</a></code>, <code><a href="../reference/contribution_table.html">contribution_table()</a></code> and <code><a href="../reference/compare_methods.html">compare_methods()</a></code> use it to value hazard-ratio outcomes.</li>
+<li>
+<code><a href="../reference/example_global_dairy.html">example_global_dairy()</a></code> and <code><a href="../reference/sampler_global_dairy.html">sampler_global_dairy()</a></code> gain <code>culling_scale = c("excess_hr", "hazard_ratio")</code>.</li>
+<li>New vignette: “Culling and hazard ratios”.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="reading-your-own-data-development-version">Reading your own data<a class="anchor" aria-label="anchor" href="#reading-your-own-data-development-version"></a></h3>
+<ul><li>New <code><a href="../reference/cm_read_inputs.html">cm_read_inputs()</a></code>: builds a model (and a Monte Carlo sampler) from CSV files or data frames, after checking every table and reporting all problems at once. <code><a href="../reference/cm_check_inputs.html">cm_check_inputs()</a></code> returns the problems without stopping.</li>
+<li>New <code><a href="../reference/cm_template.html">cm_template()</a></code> (example CSV files) and <code><a href="../reference/cm_dist_table.html">cm_dist_table()</a></code> (distributions from an uncertainty table).</li>
+<li>New vignette: “Using your own data”.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="comparing-methods-development-version">Comparing methods<a class="anchor" aria-label="anchor" href="#comparing-methods-development-version"></a></h3>
+<ul><li>
+<strong>Breaking:</strong> <code><a href="../reference/compare_methods.html">compare_methods()</a></code> now returns a <code>cm_comparison</code> object with side-by-side tables of adjusted impacts, relative changes, sign changes, totals and (with <code>economics</code>) gaps and values per method, and records methods that fail. The adjusted impacts are in <code>$impacts</code>.</li>
+<li>
+<code><a href="../reference/cm_monte_carlo.html">cm_monte_carlo()</a></code> accepts several methods (<code>method = c("published", "simultaneous")</code>) and applies them to the same draws; <code><a href="../reference/compare_methods.html">compare_methods()</a></code> compares their summaries.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="monte-carlo-stability-development-version">Monte Carlo stability<a class="anchor" aria-label="anchor" href="#monte-carlo-stability-development-version"></a></h3>
+<ul><li>
+<code><a href="../reference/summary.cm_mc.html">summary.cm_mc()</a></code> gains a <code>method</code> column, a trimmed mean and stability diagnostics (<code>rel_mcse</code>, <code>tail_share</code>, <code>stability</code>), and prints suggestions when estimates look unstable. It distinguishes means that do not exist (the published approximation dividing by a quantity that changes sign) from heavy tails and imprecision.</li>
+<li>New <code><a href="../reference/cm_diagnose.html">cm_diagnose()</a></code> (flagged estimates with suggestions) and <code><a href="../reference/cm_suggest_proposal.html">cm_suggest_proposal()</a></code> (a defensive-mixture importance-sampling proposal).</li>
+<li>
+<code><a href="../reference/cm_monte_carlo.html">cm_monte_carlo()</a></code> gains <code>sampling = "lhs"</code> (Latin hypercube sampling) and <code>proposal</code> (importance sampling). Importance weights carry through <code><a href="../reference/cm_scenario.html">cm_scenario()</a></code> and <code><a href="../reference/cm_reweight.html">cm_reweight()</a></code>.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="other-changes-development-version">Other changes<a class="anchor" aria-label="anchor" href="#other-changes-development-version"></a></h3>
+<ul><li>
+<code><a href="../reference/attribute_burden.html">attribute_burden()</a></code> and <code><a href="../reference/productivity_gap.html">productivity_gap()</a></code> skip hazard-ratio outcomes (use <code><a href="../reference/attributable_risk.html">attributable_risk()</a></code>).</li>
+<li>
+<code><a href="../reference/plots.html">plot.cm_mc()</a></code> gains a <code>method</code> argument and plots hazard ratios on their own scale.</li>
+<li>Added <code>inst/validation/reference_v02.py</code>.</li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.1.0" id="deconflate-010">deconflate 0.1.0<a class="anchor" aria-label="anchor" href="#deconflate-010"></a></h2>
 <div class="section level3">

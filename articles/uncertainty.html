@@ -20,7 +20,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">deconflate</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0.9000</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -34,7 +34,9 @@
 <li class="active nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
-<li><a class="dropdown-item" href="../articles/reproducing-published.html">Reproducing the published analyses</a></li>
+<li><a class="dropdown-item" href="../articles/own-data.html">Using your own data</a></li>
+    <li><a class="dropdown-item" href="../articles/culling-hazard-ratios.html">Culling and hazard ratios</a></li>
+    <li><a class="dropdown-item" href="../articles/reproducing-published.html">Reproducing the published analyses</a></li>
     <li><a class="dropdown-item" href="../articles/interactions.html">Disease combinations, interactions and attribution</a></li>
     <li><a class="dropdown-item" href="../articles/uncertainty.html">Uncertainty, scenarios and sensitivity</a></li>
   </ul>
@@ -62,7 +64,7 @@
       <h1>Uncertainty, scenarios and sensitivity</h1>
             
       
-      <small class="dont-index">Source: <a href="https://github.com/rasmussenphilip/deconflate/blob/v0.1.0/vignettes/uncertainty.Rmd" class="external-link"><code>vignettes/uncertainty.Rmd</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/rasmussenphilip/deconflate/blob/master/vignettes/uncertainty.Rmd" class="external-link"><code>vignettes/uncertainty.Rmd</code></a></small>
       <div class="d-none name"><code>uncertainty.Rmd</code></div>
     </div>
 
@@ -120,16 +122,169 @@ copula):</p>
 <span><span class="va">mc</span></span>
 <span><span class="co">#&gt; &lt;cm_mc&gt; method: simultaneous</span></span>
 <span><span class="co">#&gt;   Draws: 200, rejected as infeasible: 0 (0.0%)</span></span>
+<span><span class="co">#&gt;   Sampling: random</span></span>
+<span><span class="co">#&gt;   Effective sample size: 200.0</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">mc</span>, what <span class="op">=</span> <span class="st">"total"</span><span class="op">)</span></span>
-<span><span class="co">#&gt;     outcome disease      mean       sd      mcse    q0.025      q0.5    q0.975</span></span>
-<span><span class="co">#&gt; 1   culling     all  58.78375  3.45915 0.2445989  51.54509  58.74946  64.82462</span></span>
-<span><span class="co">#&gt; 2 fertility     all  95.44686 11.02336 0.7794689  76.09317  94.12680 120.57118</span></span>
-<span><span class="co">#&gt; 3     total     all 322.43849 23.08920 1.6326528 275.35343 322.75810 372.44177</span></span>
-<span><span class="co">#&gt; 4     yield     all 168.20789 11.23947 0.7947506 146.12134 168.49768 189.95906</span></span></code></pre></div>
+<span><span class="co">#&gt;     outcome disease       method      mean       sd      mcse    q0.025</span></span>
+<span><span class="co">#&gt; 1   culling     all simultaneous  58.78375  3.45915 0.2445989  51.54509</span></span>
+<span><span class="co">#&gt; 2 fertility     all simultaneous  95.44686 11.02336 0.7794689  76.09317</span></span>
+<span><span class="co">#&gt; 3     yield     all simultaneous 168.20789 11.23947 0.7947506 146.12134</span></span>
+<span><span class="co">#&gt; 4     total     all simultaneous 322.43849 23.08920 1.6326528 275.35343</span></span>
+<span><span class="co">#&gt;        q0.5    q0.975 trimmed_mean    rel_mcse tail_share stability</span></span>
+<span><span class="co">#&gt; 1  58.74946  64.82462     58.76218 0.004160995 0.09153850        ok</span></span>
+<span><span class="co">#&gt; 2  94.12680 120.57118     94.98735 0.008166523 0.07612709        ok</span></span>
+<span><span class="co">#&gt; 3 168.49768 189.95906    168.03140 0.004724811 0.08047083        ok</span></span>
+<span><span class="co">#&gt; 4 322.75810 372.44177    321.92942 0.005063455 0.06821893        ok</span></span></code></pre></div>
 <p>Draws with impossible inputs (e.g. a probability outside (0, 1), or
 an association incompatible with the sampled probabilities) are rejected
 and counted. Report the rejection rate: conditioning on feasibility
 changes the effective input distribution.</p>
+</div>
+<div class="section level2">
+<h2 id="comparing-methods-on-the-same-draws">Comparing methods on the same draws<a class="anchor" aria-label="anchor" href="#comparing-methods-on-the-same-draws"></a>
+</h2>
+<p>Give several methods to <code><a href="../reference/cm_monte_carlo.html">cm_monte_carlo()</a></code> and every
+accepted draw is adjusted with each of them.
+<code><a href="../reference/compare_methods.html">compare_methods()</a></code> then tabulates the results:</p>
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">mc2</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cm_monte_carlo.html">cm_monte_carlo</a></span><span class="op">(</span><span class="va">s</span>, <span class="fl">200</span>, method <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"published"</span>, <span class="st">"simultaneous"</span><span class="op">)</span>, seed <span class="op">=</span> <span class="fl">1</span><span class="op">)</span></span>
+<span><span class="fu"><a href="../reference/compare_methods.html">compare_methods</a></span><span class="op">(</span><span class="va">mc2</span><span class="op">)</span></span>
+<span><span class="co">#&gt; &lt;cm_comparison&gt; methods: published, simultaneous</span></span>
+<span><span class="co">#&gt; Monte Carlo: 200 draws (0 rejected); statistic: mean</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Adjusted impacts:</span></span>
+<span><span class="co">#&gt;    outcome disease unit raw_mean published simultaneous</span></span>
+<span><span class="co">#&gt;      yield      CO    %     0.00     0.000    -6.04e-01</span></span>
+<span><span class="co">#&gt;      yield      DA    %     4.04     2.370     2.20e+00</span></span>
+<span><span class="co">#&gt;      yield     DYS    %     4.05     2.940     2.95e+00</span></span>
+<span><span class="co">#&gt;      yield     FAS    %     7.33     7.330     7.33e+00</span></span>
+<span><span class="co">#&gt;      yield     GIN    %     3.28     3.280     3.28e+00</span></span>
+<span><span class="co">#&gt;      yield     LAM    %     5.49     4.800     5.00e+00</span></span>
+<span><span class="co">#&gt;      yield     MAS    %     4.57     3.760     4.08e+00</span></span>
+<span><span class="co">#&gt;      yield     MET    %     3.95     2.410     1.87e+00</span></span>
+<span><span class="co">#&gt;      yield      MF    %     0.41     0.100    -5.13e-01</span></span>
+<span><span class="co">#&gt;      yield     NEO    %     4.20     4.200     4.20e+00</span></span>
+<span><span class="co">#&gt;      yield     PTB    %     5.90     4.490     4.20e+00</span></span>
+<span><span class="co">#&gt;      yield      RP    %     7.38     6.100     6.58e+00</span></span>
+<span><span class="co">#&gt;      yield     SCK    %     3.05     1.930     1.67e+00</span></span>
+<span><span class="co">#&gt;  fertility      CO    %    11.30    11.100     1.14e+01</span></span>
+<span><span class="co">#&gt;  fertility      DA    %     0.00     0.000    -4.08e-01</span></span>
+<span><span class="co">#&gt;  fertility     DYS    %     6.96     6.020     6.08e+00</span></span>
+<span><span class="co">#&gt;  fertility     FAS    %     0.00     0.000    -1.23e-16</span></span>
+<span><span class="co">#&gt;  fertility     GIN    %     1.20     1.200     1.20e+00</span></span>
+<span><span class="co">#&gt;  fertility     LAM    %    12.50    11.900     1.24e+01</span></span>
+<span><span class="co">#&gt;  fertility     MAS    %     0.00     0.000    -9.48e-01</span></span>
+<span><span class="co">#&gt;  fertility     MET    %     4.74     4.100     4.61e+00</span></span>
+<span><span class="co">#&gt;  fertility      MF    %     0.00     0.000     2.88e-01</span></span>
+<span><span class="co">#&gt;  fertility     NEO    %     7.21     7.210     7.21e+00</span></span>
+<span><span class="co">#&gt;  fertility     PTB    %     5.79     4.000     3.14e+00</span></span>
+<span><span class="co">#&gt;  fertility      RP    %     2.74     1.680     1.17e+00</span></span>
+<span><span class="co">#&gt;  fertility     SCK    %     1.50     0.563    -9.18e-01</span></span>
+<span><span class="co">#&gt;    culling      CO    %     0.00     0.000    -2.67e+00</span></span>
+<span><span class="co">#&gt;    culling      DA    %    31.40    21.900     2.25e+01</span></span>
+<span><span class="co">#&gt;    culling     DYS    %    14.20    11.900     1.28e+01</span></span>
+<span><span class="co">#&gt;    culling     FAS    %     0.00     0.000    -7.58e-16</span></span>
+<span><span class="co">#&gt;    culling     GIN    %     0.00     0.000    -5.90e-16</span></span>
+<span><span class="co">#&gt;    culling     LAM    %    25.60    22.600     2.38e+01</span></span>
+<span><span class="co">#&gt;    culling     MAS    %    21.30    16.900     1.78e+01</span></span>
+<span><span class="co">#&gt;    culling     MET    %    17.40    12.300     1.26e+01</span></span>
+<span><span class="co">#&gt;    culling      MF    %    20.60    15.600     1.60e+01</span></span>
+<span><span class="co">#&gt;    culling     NEO    %     9.89     9.890     9.89e+00</span></span>
+<span><span class="co">#&gt;    culling     PTB    %    19.60    13.600     1.17e+01</span></span>
+<span><span class="co">#&gt;    culling      RP    %     0.00     0.000    -5.18e+00</span></span>
+<span><span class="co">#&gt;    culling     SCK    %    15.70     9.710     7.70e+00</span></span></code></pre></div>
+</div>
+<div class="section level2">
+<h2 id="unstable-estimates">Unstable estimates<a class="anchor" aria-label="anchor" href="#unstable-estimates"></a>
+</h2>
+<p>Monte Carlo means can be unstable. <code><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary()</a></code> checks
+every estimate and, when one looks unstable, prints why and what to do.
+Here the raw yield impact of <code>d2</code> is uncertain enough to be
+near zero or negative:</p>
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">s_d2</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cm_sampler.html">cm_sampler</a></span><span class="op">(</span><span class="fu"><a href="../reference/example_supplement.html">example_supplement</a></span><span class="op">(</span><span class="op">)</span>,</span>
+<span>                   impacts <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="st">"yield:d2"</span> <span class="op">=</span> <span class="fu"><a href="../reference/distributions.html">dist_normal</a></span><span class="op">(</span><span class="fl">0.5</span>, <span class="fl">1.5</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="va">mc_d2</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cm_monte_carlo.html">cm_monte_carlo</a></span><span class="op">(</span><span class="va">s_d2</span>, <span class="fl">400</span>, method <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"published"</span>, <span class="st">"simultaneous"</span><span class="op">)</span>, seed <span class="op">=</span> <span class="fl">2</span><span class="op">)</span></span>
+<span><span class="va">sm</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">mc_d2</span><span class="op">)</span></span>
+<span><span class="co">#&gt; 2 Monte Carlo estimate(s) may be unstable:</span></span>
+<span><span class="co">#&gt; * yield / d2 (published): the published approximation divides by m + c, which changes sign in 8.0% of draws, so the mean does not exist.</span></span>
+<span><span class="co">#&gt;     Suggestion: report the median or trimmed_mean, or use method = "simultaneous" (exact, no division). More draws, Latin hypercube or importance sampling will not make this mean converge.</span></span>
+<span><span class="co">#&gt; * yield / d2 (simultaneous): the Monte Carlo standard error is 5.8% of the mean.</span></span>
+<span><span class="co">#&gt;     Suggestion: increase n_draws to about 3,400 for a 2% standard error, or use sampling = "lhs" (Latin hypercube).</span></span>
+<span><span class="co">#&gt; (See ?cm_diagnose; use summary(..., diagnose = FALSE) to silence this message.)</span></span>
+<span><span class="va">sm</span><span class="op">[</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"disease"</span>, <span class="st">"method"</span>, <span class="st">"mean"</span>, <span class="st">"q0.5"</span>, <span class="st">"trimmed_mean"</span>, <span class="st">"stability"</span><span class="op">)</span><span class="op">]</span></span>
+<span><span class="co">#&gt;   disease       method        mean         q0.5 trimmed_mean stability</span></span>
+<span><span class="co">#&gt; 1      d1    published  0.02466043  0.024622674  0.024630193        ok</span></span>
+<span><span class="co">#&gt; 2      d2    published -0.04036952  0.004811604  0.004388501   no_mean</span></span>
+<span><span class="co">#&gt; 3      d3    published  0.07438133  0.074397288  0.074357484        ok</span></span>
+<span><span class="co">#&gt; 4      d1 simultaneous  0.02646521  0.026534324  0.026467940        ok</span></span>
+<span><span class="co">#&gt; 5      d2 simultaneous -0.01391114 -0.014658329 -0.014088810 imprecise</span></span>
+<span><span class="co">#&gt; 6      d3 simultaneous  0.07732377  0.077433377  0.077328094        ok</span></span></code></pre></div>
+<p>There are three kinds of instability (see
+<code><a href="../reference/cm_diagnose.html">?cm_diagnose</a></code>):</p>
+<ul>
+<li>
+<strong><code>no_mean</code></strong>: the published approximation,
+<code>m^2 / (m + c)</code>, divides by a quantity that changes sign
+across draws. Its distribution then has no mean, so no number of draws,
+and no sampling scheme, makes the mean converge. Report the median or
+trimmed mean, or use the exact method.</li>
+<li>
+<strong><code>heavy_tail</code></strong>: a few draws dominate the
+variance. Importance sampling can help (below).</li>
+<li>
+<strong><code>imprecise</code></strong>: the Monte Carlo error is
+large relative to the mean. Use more draws, or Latin hypercube
+sampling.</li>
+</ul>
+<p><code><a href="../reference/cm_diagnose.html">cm_diagnose()</a></code> lists the flagged estimates with the
+suggestions:</p>
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="../reference/cm_diagnose.html">cm_diagnose</a></span><span class="op">(</span><span class="va">mc_d2</span><span class="op">)</span></span>
+<span><span class="co">#&gt; 2 Monte Carlo estimate(s) may be unstable:</span></span>
+<span><span class="co">#&gt; * yield / d2 (published): the published approximation divides by m + c, which changes sign in 8.0% of draws, so the mean does not exist.</span></span>
+<span><span class="co">#&gt;     Suggestion: report the median or trimmed_mean, or use method = "simultaneous" (exact, no division). More draws, Latin hypercube or importance sampling will not make this mean converge.</span></span>
+<span><span class="co">#&gt; * yield / d2 (simultaneous): the Monte Carlo standard error is 5.8% of the mean.</span></span>
+<span><span class="co">#&gt;     Suggestion: increase n_draws to about 3,400 for a 2% standard error, or use sampling = "lhs" (Latin hypercube).</span></span>
+<span><span class="co">#&gt; (See ?cm_diagnose; use summary(..., diagnose = FALSE) to silence this message.)</span></span></code></pre></div>
+<div class="section level3">
+<h3 id="latin-hypercube-sampling">Latin hypercube sampling<a class="anchor" aria-label="anchor" href="#latin-hypercube-sampling"></a>
+</h3>
+<p><code>sampling = "lhs"</code> stratifies each input’s distribution,
+which usually reduces the Monte Carlo error of means:</p>
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">mc_lhs</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cm_monte_carlo.html">cm_monte_carlo</a></span><span class="op">(</span><span class="va">s_d2</span>, <span class="fl">400</span>, method <span class="op">=</span> <span class="st">"simultaneous"</span>, sampling <span class="op">=</span> <span class="st">"lhs"</span>, seed <span class="op">=</span> <span class="fl">2</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">mc_lhs</span>, diagnose <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span><span class="op">[</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"disease"</span>, <span class="st">"mean"</span>, <span class="st">"mcse"</span><span class="op">)</span><span class="op">]</span></span>
+<span><span class="co">#&gt;   disease        mean         mcse</span></span>
+<span><span class="co">#&gt; 1      d1  0.02638348 8.241601e-05</span></span>
+<span><span class="co">#&gt; 2      d2 -0.01313510 7.824806e-04</span></span>
+<span><span class="co">#&gt; 3      d3  0.07719414 1.307085e-04</span></span></code></pre></div>
+</div>
+<div class="section level3">
+<h3 id="importance-sampling">Importance sampling<a class="anchor" aria-label="anchor" href="#importance-sampling"></a>
+</h3>
+<p>When extreme values come from one region of one input,
+<code><a href="../reference/cm_suggest_proposal.html">cm_suggest_proposal()</a></code> builds a defensive mixture that
+samples that region more often. The draws are then weighted by the ratio
+of the densities, so the estimates still refer to the original input
+distributions:</p>
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">prop</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cm_suggest_proposal.html">cm_suggest_proposal</a></span><span class="op">(</span><span class="va">mc_d2</span>, <span class="st">"yield"</span>, <span class="st">"d2"</span>, method <span class="op">=</span> <span class="st">"simultaneous"</span><span class="op">)</span></span>
+<span><span class="co">#&gt; Proposal for impact:yield:d2: 50% its own distribution, 50% uniform on [-3.972, 5.56], the range of impact:yield:d2 in the 8 most extreme draws of yield / d2 (simultaneous).</span></span>
+<span><span class="va">mc_is</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cm_monte_carlo.html">cm_monte_carlo</a></span><span class="op">(</span><span class="va">s_d2</span>, <span class="fl">400</span>, method <span class="op">=</span> <span class="st">"simultaneous"</span>, proposal <span class="op">=</span> <span class="va">prop</span>, seed <span class="op">=</span> <span class="fl">3</span><span class="op">)</span></span>
+<span><span class="va">mc_is</span></span>
+<span><span class="co">#&gt; &lt;cm_mc&gt; method: simultaneous</span></span>
+<span><span class="co">#&gt;   Draws: 400, rejected as infeasible: 0 (0.0%)</span></span>
+<span><span class="co">#&gt;   Sampling: random, importance sampling of impact:yield:d2</span></span>
+<span><span class="co">#&gt;   Effective sample size: 329.8</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">mc_is</span>, diagnose <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span><span class="op">[</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"disease"</span>, <span class="st">"mean"</span>, <span class="st">"mcse"</span><span class="op">)</span><span class="op">]</span></span>
+<span><span class="co">#&gt;   disease        mean         mcse</span></span>
+<span><span class="co">#&gt; 1      d1  0.02638857 8.872334e-05</span></span>
+<span><span class="co">#&gt; 2      d2 -0.01318345 8.423642e-04</span></span>
+<span><span class="co">#&gt; 3      d3  0.07720221 1.407117e-04</span></span></code></pre></div>
+<p>Importance sampling reduces the error of a mean that exists. It
+cannot fix a <code>no_mean</code> estimate.</p>
+</div>
 </div>
 <div class="section level2">
 <h2 id="scenarios-by-reweighting">Scenarios by reweighting<a class="anchor" aria-label="anchor" href="#scenarios-by-reweighting"></a>
@@ -139,16 +294,21 @@ the existing draws (importance sampling), so no re-run is needed. Here
 the sampler used a defensive mixture for the lameness-paratuberculosis
 odds ratio, so a scenario with a stronger association still has
 support:</p>
-<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">sc</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cm_scenario.html">cm_scenario</a></span><span class="op">(</span><span class="va">mc</span>, <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="st">"assoc:LAM:PTB"</span> <span class="op">=</span> <span class="fu"><a href="../reference/distributions.html">dist_lognormal_ci</a></span><span class="op">(</span><span class="fl">4</span>, <span class="fl">2.5</span>, <span class="fl">6.4</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="va">sc</span><span class="op">$</span><span class="va">ess</span></span>
 <span><span class="co">#&gt; [1] 71.16948</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">sc</span>, what <span class="op">=</span> <span class="st">"total"</span><span class="op">)</span></span>
-<span><span class="co">#&gt;     outcome disease      mean        sd     mcse    q0.025      q0.5    q0.975</span></span>
-<span><span class="co">#&gt; 1   culling     all  58.51338  3.639799 0.431450  50.74542  58.33510  65.74893</span></span>
-<span><span class="co">#&gt; 2 fertility     all  94.67543 11.854718 1.405220  76.78881  92.33746 124.24201</span></span>
-<span><span class="co">#&gt; 3     total     all 320.66220 23.084688 2.736384 272.15182 321.06635 379.84216</span></span>
-<span><span class="co">#&gt; 4     yield     all 167.47339 10.797443 1.279894 148.26144 167.60112 190.77552</span></span></code></pre></div>
+<span><span class="co">#&gt;     outcome disease       method      mean        sd     mcse    q0.025</span></span>
+<span><span class="co">#&gt; 1   culling     all simultaneous  58.51338  3.639799 0.431450  50.74542</span></span>
+<span><span class="co">#&gt; 2 fertility     all simultaneous  94.67543 11.854718 1.405220  76.78881</span></span>
+<span><span class="co">#&gt; 3     yield     all simultaneous 167.47339 10.797443 1.279894 148.26144</span></span>
+<span><span class="co">#&gt; 4     total     all simultaneous 320.66220 23.084688 2.736384 272.15182</span></span>
+<span><span class="co">#&gt;        q0.5    q0.975 trimmed_mean    rel_mcse tail_share stability</span></span>
+<span><span class="co">#&gt; 1  58.33510  65.74893     58.56282 0.007373527  0.1790683        ok</span></span>
+<span><span class="co">#&gt; 2  92.33746 124.24201     93.98920 0.014842500  0.2615265        ok</span></span>
+<span><span class="co">#&gt; 3 167.60112 190.77552    167.57575 0.007642373  0.1952306        ok</span></span>
+<span><span class="co">#&gt; 4 321.06635 379.84216    320.24870 0.008533542  0.2348487        ok</span></span></code></pre></div>
 <p>Check the effective sample size: a small value means the scenario is
 poorly covered by the original draws. Inputs drawn with an outcome
 correlation cannot be reweighted individually.</p>
@@ -157,7 +317,7 @@ correlation cannot be reweighted individually.</p>
 <h2 id="sensitivity">Sensitivity<a class="anchor" aria-label="anchor" href="#sensitivity"></a>
 </h2>
 <p>One-at-a-time sensitivity (as in Rasmussen et al. 2024, Fig. 7):</p>
-<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">oat</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/sensitivity_oat.html">sensitivity_oat</a></span><span class="op">(</span><span class="fu"><a href="../reference/example_supplement.html">example_supplement</a></span><span class="op">(</span><span class="op">)</span>, variation <span class="op">=</span> <span class="fl">0.2</span><span class="op">)</span></span>
 <span><span class="va">oat</span></span>
 <span><span class="co">#&gt;             input value  total_low total_high        swing  rel_swing</span></span>
@@ -172,7 +332,7 @@ correlation cannot be reweighted individually.</p>
 <span><span class="co">#&gt; 9     assoc:d1:d2  2.00 0.02127728 0.02093846 0.0003388228 0.01606382</span></span></code></pre></div>
 <p>Screening associations, including pairs with no estimate, to find
 those worth estimating:</p>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/screen_associations.html">screen_associations</a></span><span class="op">(</span><span class="fu"><a href="../reference/example_supplement.html">example_supplement</a></span><span class="op">(</span><span class="op">)</span>, or_values <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0.5</span>, <span class="fl">2</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt; &lt;cm_screen&gt; 6 scenarios; baseline total 0.02109</span></span>
 <span><span class="co">#&gt;   pair    status scenario  total    change rel_change max_rank_shift rank_corr</span></span>
@@ -183,7 +343,7 @@ those worth estimating:</p>
 <span><span class="co">#&gt;  d1:d2 specified   OR x 2 0.0205 -0.000582    -0.0276              0         1</span></span>
 <span><span class="co">#&gt;  d1:d2 specified OR x 0.5 0.0216  0.000549     0.0260              0         1</span></span></code></pre></div>
 <p>Comparing complete scenarios:</p>
-<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">base</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/example_supplement.html">example_supplement</a></span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="fu"><a href="../reference/compare_scenarios.html">compare_scenarios</a></span><span class="op">(</span>base <span class="op">=</span> <span class="va">base</span>, d1_d3_linked <span class="op">=</span> <span class="fu"><a href="../reference/set_association.html">set_association</a></span><span class="op">(</span><span class="va">base</span>, <span class="st">"d1"</span>, <span class="st">"d3"</span>, <span class="fl">2</span><span class="op">)</span><span class="op">)</span><span class="op">$</span><span class="va">totals</span></span>
 <span><span class="co">#&gt;       scenario      total rel_to_first</span></span>

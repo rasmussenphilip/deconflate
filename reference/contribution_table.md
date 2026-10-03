@@ -23,10 +23,13 @@ contribution_table(result, economics = NULL)
 
   Optional list with `observed` and `unit_value` (see
   [`value_losses()`](https://rasmussenphilip.github.io/deconflate/reference/value_losses.md)).
+  Hazard-ratio outcomes are valued with
+  [`attributable_risk()`](https://rasmussenphilip.github.io/deconflate/reference/attributable_risk.md)
+  (`observed` = overall risk, `unit_value` = value per animal removed).
 
 ## Value
 
-A data frame.
+A data frame. Burden columns are `NA` for hazard-ratio outcomes.
 
 ## Examples
 

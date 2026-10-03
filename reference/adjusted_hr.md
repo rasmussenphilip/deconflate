@@ -37,13 +37,16 @@ adjusted_hr(
     conversion with each disease's unexposed risk
     ([`excess_to_hr()`](https://rasmussenphilip.github.io/deconflate/reference/excess_to_hr.md)).
 
-  - `"published"`: rescales the raw hazard ratio by the ratio of
-    adjusted to raw excess risk (Rasmussen et al. 2022, eq. 23).
+    - `"published"`: rescales the raw hazard ratio by the ratio of
+      adjusted to raw excess risk (Rasmussen et al. 2022, eq. 23).
 
-  - `"excess_hr"`: the impacts are hazard ratios minus 1, adjusted
-    directly (Rasmussen et al. 2024; see
-    [`example_global_dairy()`](https://rasmussenphilip.github.io/deconflate/reference/example_global_dairy.md)),
-    so the adjusted hazard ratio is the adjusted impact plus 1.
+    - `"excess_hr"`: the impacts are hazard ratios minus 1, adjusted
+      directly (Rasmussen et al. 2024; see
+      [`example_global_dairy()`](https://rasmussenphilip.github.io/deconflate/reference/example_global_dairy.md)),
+      so the adjusted hazard ratio is the adjusted impact plus 1.
+
+    Outcomes on the `"hazard_ratio"` scale are already hazard ratios;
+    they are returned as they are, whatever the method.
 
 ## Value
 

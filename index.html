@@ -22,7 +22,7 @@
 
     <a class="navbar-brand me-2" href="index.html">deconflate</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0.9000</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -36,7 +36,9 @@
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
-<li><a class="dropdown-item" href="articles/reproducing-published.html">Reproducing the published analyses</a></li>
+<li><a class="dropdown-item" href="articles/own-data.html">Using your own data</a></li>
+    <li><a class="dropdown-item" href="articles/culling-hazard-ratios.html">Culling and hazard ratios</a></li>
+    <li><a class="dropdown-item" href="articles/reproducing-published.html">Reproducing the published analyses</a></li>
     <li><a class="dropdown-item" href="articles/interactions.html">Disease combinations, interactions and attribution</a></li>
     <li><a class="dropdown-item" href="articles/uncertainty.html">Uncertainty, scenarios and sensitivity</a></li>
   </ul>
@@ -60,7 +62,7 @@
 </h1></div>
 <p>Comorbidity adjustment (“de-conflation”) of disease impact estimates, so that the impacts of multiple associated diseases can be aggregated without double counting. Based on Rasmussen et al. (2022, <em>Prev. Vet. Med.</em> 203:105617) and Rasmussen et al. (2024, <em>J. Dairy Sci.</em> 107:6945–6970).</p>
 <blockquote>
-<p><strong>Status:</strong> development version (0.0.0.9001), working towards v0.1.0. The test reference values were computed independently in Python (<code>inst/validation/python_reference.py</code>).</p>
+<p><strong>Status:</strong> development version (0.1.0.9000), working towards v0.2.0. The test reference values were computed independently in Python (<code>inst/validation/python_reference.py</code>).</p>
 </blockquote>
 <div class="section level2">
 <h2 id="installation">Installation<a class="anchor" aria-label="anchor" href="#installation"></a>
@@ -127,19 +129,21 @@
 <li>
 <strong>Inputs</strong> with metadata (probability type and time horizon, effect scale, reference population, prior adjustment). Association measures: OR, RR, RD, conditional probability, phi, contingency tables, independent and unknown.</li>
 <li>
-<strong>Adjustment:</strong> <code><a href="reference/deconflate.html">deconflate()</a></code> and <code><a href="reference/compare_methods.html">compare_methods()</a></code>. Interactions between diseases are supported with the global method.</li>
+<strong>Your own data:</strong> <code><a href="reference/cm_read_inputs.html">cm_read_inputs()</a></code> reads CSV files or data frames and reports every problem at once; <code><a href="reference/cm_template.html">cm_template()</a></code> writes example files.</li>
+<li>
+<strong>Adjustment:</strong> <code><a href="reference/deconflate.html">deconflate()</a></code>, and <code><a href="reference/compare_methods.html">compare_methods()</a></code> for side-by-side tables of the methods (also for Monte Carlo runs). Interactions between diseases are supported with the global method.</li>
 <li>
 <strong>Joint distribution and feasibility:</strong> <code><a href="reference/fit_joint.html">fit_joint()</a></code>, <code><a href="reference/combination_probs.html">combination_probs()</a></code> and <code><a href="reference/check_feasibility.html">check_feasibility()</a></code>.</li>
 <li>
 <strong>Gaps, losses and attribution:</strong> <code><a href="reference/productivity_gap.html">productivity_gap()</a></code>, <code><a href="reference/value_losses.html">value_losses()</a></code>, <code><a href="reference/attribute_burden.html">attribute_burden()</a></code>, <code><a href="reference/shapley_by_cell.html">shapley_by_cell()</a></code> and <code><a href="reference/contribution_table.html">contribution_table()</a></code>.</li>
 <li>
-<strong>Culling:</strong> <code><a href="reference/hr_conversion.html">hr_conversion()</a></code>, <code><a href="reference/as_impacts.html">as_impacts()</a></code> and <code><a href="reference/adjusted_hr.html">adjusted_hr()</a></code> (proportional hazards, or the published approaches of 2022 and 2024).</li>
+<strong>Culling:</strong> hazard ratios adjusted under a multiplicative model (exact or first-order), <code><a href="reference/attributable_risk.html">attributable_risk()</a></code> for the culling attributable to disease, and the published approaches of 2022 and 2024 (<code><a href="reference/hr_conversion.html">hr_conversion()</a></code>, <code><a href="reference/as_impacts.html">as_impacts()</a></code>, <code><a href="reference/adjusted_hr.html">adjusted_hr()</a></code>).</li>
 <li>
-<strong>Uncertainty:</strong> <code>dist_*()</code> distributions, <code><a href="reference/cm_sampler.html">cm_sampler()</a></code> (with optional correlation across outcomes), <code><a href="reference/cm_monte_carlo.html">cm_monte_carlo()</a></code> (with rejection reporting) and <code><a href="reference/cm_scenario.html">cm_scenario()</a></code> (importance reweighting).</li>
+<strong>Uncertainty:</strong> <code>dist_*()</code> distributions, <code><a href="reference/cm_sampler.html">cm_sampler()</a></code> (with optional correlation across outcomes), <code><a href="reference/cm_monte_carlo.html">cm_monte_carlo()</a></code> (several methods on the same draws, rejection reporting, Latin hypercube and importance sampling), stability checks with suggestions (<code><a href="reference/cm_diagnose.html">cm_diagnose()</a></code>) and <code><a href="reference/cm_scenario.html">cm_scenario()</a></code> (importance reweighting).</li>
 <li>
 <strong>Sensitivity:</strong> <code><a href="reference/sensitivity_oat.html">sensitivity_oat()</a></code>, <code><a href="reference/screen_associations.html">screen_associations()</a></code>, <code><a href="reference/screen_interactions.html">screen_interactions()</a></code> and <code><a href="reference/compare_scenarios.html">compare_scenarios()</a></code>.</li>
 <li>
-<strong>Plots</strong> (base graphics) and four vignettes. Start with <code><a href="articles/deconflate.html">vignette("deconflate")</a></code>.</li>
+<strong>Plots</strong> (base graphics) and six vignettes. Start with <code><a href="articles/deconflate.html">vignette("deconflate")</a></code>.</li>
 </ul>
 </div>
 <div class="section level2">

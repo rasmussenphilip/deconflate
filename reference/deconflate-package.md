@@ -16,6 +16,10 @@ estimates so that they can be aggregated.
     [`cm_interactions()`](https://rasmussenphilip.github.io/deconflate/reference/cm_interactions.md),
     then combine them with
     [`cm_model()`](https://rasmussenphilip.github.io/deconflate/reference/cm_model.md).
+    Or read the same tables from CSV files or data frames with
+    [`cm_read_inputs()`](https://rasmussenphilip.github.io/deconflate/reference/cm_read_inputs.md)
+    (see
+    [`cm_template()`](https://rasmussenphilip.github.io/deconflate/reference/cm_template.md)).
 
 2.  Adjust impacts with
     [`deconflate()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate.md),
@@ -38,11 +42,12 @@ estimates so that they can be aggregated.
     [`attribute_burden()`](https://rasmussenphilip.github.io/deconflate/reference/attribute_burden.md)
     and
     [`contribution_table()`](https://rasmussenphilip.github.io/deconflate/reference/contribution_table.md).
-    Culling hazard ratios go through
-    [`hr_conversion()`](https://rasmussenphilip.github.io/deconflate/reference/hr_conversion.md),
-    [`as_impacts()`](https://rasmussenphilip.github.io/deconflate/reference/as_impacts.md)
-    and
-    [`adjusted_hr()`](https://rasmussenphilip.github.io/deconflate/reference/adjusted_hr.md).
+    Culling hazard ratios can be adjusted directly
+    (`scale = "hazard_ratio"`) and turned into culling attributable to
+    disease with
+    [`attributable_risk()`](https://rasmussenphilip.github.io/deconflate/reference/attributable_risk.md);
+    [`compare_methods()`](https://rasmussenphilip.github.io/deconflate/reference/compare_methods.md)
+    tabulates the methods side by side.
 
 4.  Check joint feasibility with
     [`check_feasibility()`](https://rasmussenphilip.github.io/deconflate/reference/check_feasibility.md).
@@ -50,7 +55,9 @@ estimates so that they can be aggregated.
 5.  Propagate uncertainty with
     [`cm_sampler()`](https://rasmussenphilip.github.io/deconflate/reference/cm_sampler.md)
     and
-    [`cm_monte_carlo()`](https://rasmussenphilip.github.io/deconflate/reference/cm_monte_carlo.md),
+    [`cm_monte_carlo()`](https://rasmussenphilip.github.io/deconflate/reference/cm_monte_carlo.md)
+    (check stability with
+    [`cm_diagnose()`](https://rasmussenphilip.github.io/deconflate/reference/cm_diagnose.md)),
     and explore scenarios with
     [`cm_scenario()`](https://rasmussenphilip.github.io/deconflate/reference/cm_scenario.md),
     [`sensitivity_oat()`](https://rasmussenphilip.github.io/deconflate/reference/sensitivity_oat.md),

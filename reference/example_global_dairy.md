@@ -10,7 +10,11 @@ normal distributions and modes of PERT distributions.
 ## Usage
 
 ``` r
-example_global_dairy(inputs = c("analysis", "tables"), culling = TRUE)
+example_global_dairy(
+  inputs = c("analysis", "tables"),
+  culling = TRUE,
+  culling_scale = c("excess_hr", "hazard_ratio")
+)
 ```
 
 ## Arguments
@@ -22,6 +26,11 @@ example_global_dairy(inputs = c("analysis", "tables"), culling = TRUE)
 - culling:
 
   Include the culling outcome?
+
+- culling_scale:
+
+  `"excess_hr"` (HR - 1, as in the paper) or `"hazard_ratio"`; see the
+  section on culling.
 
 ## Value
 
@@ -52,7 +61,8 @@ with outcomes `"yield"`, `"fertility"` and, if `culling = TRUE`,
 
 ## Culling
 
-Culling impacts are hazard ratios minus 1 on the `"absolute"` scale, so
+With `culling_scale = "excess_hr"` (default, as in the analysis),
+culling impacts are hazard ratios minus 1 on the `"absolute"` scale, so
 that
 [`deconflate()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate.md)
 adjusts the excess hazard ratio. Convert results back with
@@ -61,6 +71,15 @@ risks, so do not pass them to
 [`productivity_gap()`](https://rasmussenphilip.github.io/deconflate/reference/productivity_gap.md);
 the paper converts adjusted hazard ratios to excess culling risk with
 `hr_to_risk(..., method = "overall_odds")`.
+
+With `culling_scale = "hazard_ratio"`, culling impacts are hazard ratios
+(see
+[`cm_impacts()`](https://rasmussenphilip.github.io/deconflate/reference/cm_impacts.md)).
+`method = "published"` then gives the same adjusted hazard ratios as the
+paper, while `"simultaneous"` and `"global"` use the multiplicative
+model;
+[`attributable_risk()`](https://rasmussenphilip.github.io/deconflate/reference/attributable_risk.md)
+gives the culling attributable to disease.
 
 The paper's Table 5 reports means of adjusted impacts over Monte Carlo
 draws
@@ -86,4 +105,58 @@ adjusted_hr(res, method = "excess_hr")
 #> 10      RP 1.599928 0.599928      0.28449635    1.284496
 #> 11     SCK 1.920000 0.920000      0.67525327    1.675253
 #> 12     SCM 1.449996 0.449996      0.25492756    1.254928
+
+# Culling hazard ratios under the multiplicative model
+m <- example_global_dairy(culling_scale = "hazard_ratio")
+compare_methods(m, methods = c("published", "simultaneous"))
+#> <cm_comparison> methods: published, simultaneous
+#> 
+#> Adjusted impacts:
+#>    outcome disease unit    raw published simultaneous
+#>      yield      CK    %  0.432    0.0247      -5.3700
+#>      yield      CM    %  3.250    1.3300      -0.3380
+#>      yield      DA    %  2.840    0.7940      -2.6300
+#>      yield     DYS    %  4.920    3.5700       4.3100
+#>      yield     LAM    %  4.810    2.5300       1.9800
+#>      yield     MET    %  5.610    2.8400       2.7900
+#>      yield      MF    %  0.537    0.0690      -1.5400
+#>      yield      OC    %  3.750    2.6400       3.2200
+#>      yield     PTB    %  4.300    3.2300       3.9400
+#>      yield      RP    %  4.200    2.2600       2.4700
+#>      yield     SCK    %  8.400    7.1000       8.2800
+#>      yield     SCM    %  6.290    5.5900       6.5800
+#>  fertility      CK    %  1.450    0.3260      -1.5600
+#>  fertility      CM    %  8.420    6.2000       7.5600
+#>  fertility      DA    %  1.080    0.1530      -3.3300
+#>  fertility     DYS    %  2.400    1.0600       0.9910
+#>  fertility     LAM    %  3.300    1.1200      -2.0400
+#>  fertility     MET    % 14.700   10.8000      13.0000
+#>  fertility      MF    %  2.410    1.0600       2.0000
+#>  fertility      OC    %  9.690    7.8500       9.0400
+#>  fertility     PTB    %  5.350    3.9900       4.7400
+#>  fertility      RP    %  6.760    3.7100       2.5500
+#>  fertility     SCK    %  1.120    0.3490      -0.0399
+#>  fertility     SCM    %  0.264    0.0322      -1.2500
+#>    culling      CK   HR  1.500    1.1800       0.9620
+#>    culling      CM   HR  2.300    1.9000       1.8400
+#>    culling      DA   HR  2.850    2.2000       1.8300
+#>    culling     DYS   HR  1.260    1.1000       1.1200
+#>    culling     LAM   HR  1.740    1.3800       1.2900
+#>    culling     MET   HR  1.120    1.0100       0.7370
+#>    culling      MF   HR  3.000    2.6500       2.6200
+#>    culling      OC   HR  1.620    1.4600       1.5500
+#>    culling     PTB   HR  2.310    2.0500       2.0200
+#>    culling      RP   HR  1.600    1.2800       1.2300
+#>    culling     SCK   HR  1.920    1.6800       1.7400
+#>    culling     SCM   HR  1.450    1.2500       1.2500
+#> 
+#> Sign changes (adjusted impact on the other side of zero, or of 1 for hazard ratios):
+#>   simultaneous: yield CK, yield CM, yield DA, yield MF, fertility CK, fertility DA, fertility LAM, fertility SCK, fertility SCM, culling CK, culling MET
+#> 
+#> Totals:
+#>    outcome       method raw_loss adjusted_loss
+#>  fertility    published  0.07472       0.04794
+#>      yield    published  0.09931       0.07281
+#>  fertility simultaneous  0.07472       0.03934
+#>      yield simultaneous  0.09931       0.07494
 ```

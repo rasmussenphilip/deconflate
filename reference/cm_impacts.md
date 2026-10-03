@@ -34,10 +34,20 @@ cm_impacts(
 
 - scale:
 
-  `"proportion"` (proportional change relative to the disease-free
-  value, e.g. `0.025`), `"percent"` (converted to proportion) or
-  `"absolute"` (in `units`). The scale must be constant within an
-  outcome. Productivity gaps require proportion or percent.
+  The scale of `value`, constant within an outcome:
+
+  - `"proportion"`: proportional change relative to the disease-free
+    value (e.g. `0.025`);
+
+  - `"percent"`: converted to a proportion;
+
+  - `"absolute"`: in `units` (e.g. excess culling risk);
+
+  - `"hazard_ratio"`: a hazard ratio (e.g. for culling or mortality),
+    adjusted on the log scale; see
+    [`deconflate()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate.md)
+    and
+    [`attributable_risk()`](https://rasmussenphilip.github.io/deconflate/reference/attributable_risk.md).
 
 - units:
 
@@ -48,6 +58,7 @@ cm_impacts(
   `"decrease"` if disease lowers the outcome (e.g. yield) or
   `"increase"` if it raises it (e.g. calving interval). Used by
   [`productivity_gap()`](https://rasmussenphilip.github.io/deconflate/reference/productivity_gap.md).
+  Set to `"increase"` for hazard ratios.
 
 - adjusted_for:
 
@@ -76,4 +87,14 @@ cm_impacts(c("d1", "d2", "d3"), c(2.5, 5, 7.5), outcome = "yield",
 #> 1     percent
 #> 2     percent
 #> 3     percent
+cm_impacts(c("d1", "d2", "d3"), c(1.5, 2.3, 1.1), outcome = "culling",
+           scale = "hazard_ratio")
+#>   disease outcome value        scale        units direction adjusted_for source
+#> 1      d1 culling   1.5 hazard_ratio hazard ratio  increase         <NA>   <NA>
+#> 2      d2 culling   2.3 hazard_ratio hazard ratio  increase         <NA>   <NA>
+#> 3      d3 culling   1.1 hazard_ratio hazard ratio  increase         <NA>   <NA>
+#>    input_scale
+#> 1 hazard_ratio
+#> 2 hazard_ratio
+#> 3 hazard_ratio
 ```

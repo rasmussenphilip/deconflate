@@ -1,6 +1,6 @@
 # Roadmap
 
-## v0.1 (in progress: version 0.0.0.9001)
+## v0.1 (released as 0.1.0)
 
 Input constructors with metadata.
 
@@ -47,12 +47,34 @@ corrigendum checked).
 
 Tag v0.1.0.
 
-## After v0.1
+## v0.2 (in progress)
 
-- Advanced component accounting.
+Culling hazard ratios: exact multiplicative model (global), first-order
+log-linear (simultaneous) and the 2024 approach (published).
+
+[`attributable_risk()`](https://rasmussenphilip.github.io/deconflate/reference/attributable_risk.md):
+culling attributable to disease without double counting, with Shapley
+allocation.
+
+Reading inputs from CSV files or data frames, with all problems reported
+at once; template files.
+
+Method comparison tables for models and for Monte Carlo runs (several
+methods on the same draws).
+
+Monte Carlo stability diagnostics with suggestions; Latin hypercube and
+importance sampling.
+
+Run `devtools::document()`, `test()` and `check()`, and fix any issues.
+
+## To discuss
+
 - Threshold searches: input values at which conclusions or rankings
   change.
+- Advanced component accounting.
+- Lost productive life as a culling outcome.
+- Scaling beyond about 20 diseases (the global method and the exact
+  culling model enumerate all 2^n combinations), e.g. a
+  pseudo-likelihood Ising fit or sampling.
 - Higher-order and non-linear interaction models in the adjustment
-  itself (a per-cell loss function and a non-linear solve).
-- Scaling beyond about 20 diseases, e.g. a pseudo-likelihood Ising fit
-  or sampling instead of the full 2^n table.
+  itself.

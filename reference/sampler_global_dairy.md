@@ -8,7 +8,11 @@ and normal distributions of odds ratios are truncated at zero.
 ## Usage
 
 ``` r
-sampler_global_dairy(inputs = c("analysis", "tables"), culling = TRUE)
+sampler_global_dairy(
+  inputs = c("analysis", "tables"),
+  culling = TRUE,
+  culling_scale = c("excess_hr", "hazard_ratio")
+)
 ```
 
 ## Arguments
@@ -20,6 +24,12 @@ sampler_global_dairy(inputs = c("analysis", "tables"), culling = TRUE)
 - culling:
 
   Include the culling outcome?
+
+- culling_scale:
+
+  `"excess_hr"` (HR - 1) or `"hazard_ratio"`, as in
+  [`example_global_dairy()`](https://rasmussenphilip.github.io/deconflate/reference/example_global_dairy.md).
+  Hazard-ratio distributions are the HR - 1 distributions shifted by 1.
 
 ## Value
 
@@ -58,20 +68,38 @@ unstable under the published approximation. See
 # \donttest{
 mc <- cm_monte_carlo(sampler_global_dairy(), 200, method = "published", seed = 1)
 s <- summary(mc)
+#> 8 Monte Carlo estimate(s) may be unstable:
+#> * yield / DA (published): the Monte Carlo standard error is 5.9% of the mean.
+#>     Suggestion: increase n_draws to about 1,760 for a 2% standard error, or use sampling = "lhs" (Latin hypercube).
+#> * fertility / DA (published): the published approximation divides by m + c, which changes sign in 0.5% of draws, so the mean does not exist.
+#>     Suggestion: report the median or trimmed_mean, or use method = "simultaneous" (exact, no division). More draws, Latin hypercube or importance sampling will not make this mean converge.
+#> * culling / DYS (published): the Monte Carlo standard error is 6.7% of the mean.
+#>     Suggestion: increase n_draws to about 2,222 for a 2% standard error, or use sampling = "lhs" (Latin hypercube).
+#> * fertility / MET (published): the published approximation divides by m + c, which changes sign in 0.5% of draws, so the mean does not exist.
+#>     Suggestion: report the median or trimmed_mean, or use method = "simultaneous" (exact, no division). More draws, Latin hypercube or importance sampling will not make this mean converge.
+#> * culling / MET (published): the Monte Carlo standard error is 8.1% of the mean.
+#>     Suggestion: increase n_draws to about 3,317 for a 2% standard error, or use sampling = "lhs" (Latin hypercube).
+#> * fertility / PTB (published): the published approximation divides by m + c, which changes sign in 0.5% of draws, so the mean does not exist.
+#>     Suggestion: report the median or trimmed_mean, or use method = "simultaneous" (exact, no division). More draws, Latin hypercube or importance sampling will not make this mean converge.
+#> * fertility / SCK (published): the published approximation divides by m + c, which changes sign in 1.5% of draws, so the mean does not exist.
+#>     Suggestion: report the median or trimmed_mean, or use method = "simultaneous" (exact, no division). More draws, Latin hypercube or importance sampling will not make this mean converge.
+#> * fertility / SCM (published): the Monte Carlo standard error is 8.1% of the mean.
+#>     Suggestion: increase n_draws to about 3,321 for a 2% standard error, or use sampling = "lhs" (Latin hypercube).
+#> (See ?cm_diagnose; use summary(..., diagnose = FALSE) to silence this message.)
 s[s$outcome == "yield", c("disease", "mean")]
 #>    disease         mean
-#> 3       CK 0.0003629443
-#> 6       CM 0.0139387593
-#> 9       DA 0.0123009108
-#> 12     DYS 0.0341056713
-#> 15     LAM 0.0265759525
-#> 18     MET 0.0296544668
-#> 21      MF 0.0006981994
-#> 24      OC 0.0247995885
-#> 27     PTB 0.0319448378
-#> 30      RP 0.0233288844
-#> 33     SCK 0.0711448636
-#> 36     SCM 0.0565964340
+#> 1       CK 0.0003629443
+#> 4       CM 0.0139387593
+#> 7       DA 0.0123009108
+#> 10     DYS 0.0341056713
+#> 13     LAM 0.0265759525
+#> 16     MET 0.0296544668
+#> 19      MF 0.0006981994
+#> 22      OC 0.0247995885
+#> 25     PTB 0.0319448378
+#> 28      RP 0.0233288844
+#> 31     SCK 0.0711448636
+#> 34     SCM 0.0565964340
 # Culling: adjusted hazard ratio = adjusted (HR - 1) + 1
 cull <- s[s$outcome == "culling", ]
 data.frame(disease = cull$disease, hr_adjusted = 1 + cull$mean)

@@ -20,7 +20,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">deconflate</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0.9000</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -34,7 +34,9 @@
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
-<li><a class="dropdown-item" href="../articles/reproducing-published.html">Reproducing the published analyses</a></li>
+<li><a class="dropdown-item" href="../articles/own-data.html">Using your own data</a></li>
+    <li><a class="dropdown-item" href="../articles/culling-hazard-ratios.html">Culling and hazard ratios</a></li>
+    <li><a class="dropdown-item" href="../articles/reproducing-published.html">Reproducing the published analyses</a></li>
     <li><a class="dropdown-item" href="../articles/interactions.html">Disease combinations, interactions and attribution</a></li>
     <li><a class="dropdown-item" href="../articles/uncertainty.html">Uncertainty, scenarios and sensitivity</a></li>
   </ul>
@@ -62,7 +64,7 @@
       <h1>Getting started with deconflate</h1>
             
       
-      <small class="dont-index">Source: <a href="https://github.com/rasmussenphilip/deconflate/blob/v0.1.0/vignettes/deconflate.Rmd" class="external-link"><code>vignettes/deconflate.Rmd</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/rasmussenphilip/deconflate/blob/master/vignettes/deconflate.Rmd" class="external-link"><code>vignettes/deconflate.Rmd</code></a></small>
       <div class="d-none name"><code>deconflate.Rmd</code></div>
     </div>
 
@@ -108,21 +110,35 @@ different assumption (see <code><a href="../articles/interactions.html">vignette
 </h2>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/compare_methods.html">compare_methods</a></span><span class="op">(</span><span class="va">m</span><span class="op">)</span></span>
-<span><span class="co">#&gt;   outcome disease   raw  published simultaneous     global</span></span>
-<span><span class="co">#&gt; 1   yield      d1 0.025 0.02065001   0.02143250 0.02143250</span></span>
-<span><span class="co">#&gt; 2   yield      d2 0.050 0.03699294   0.03387080 0.03387080</span></span>
-<span><span class="co">#&gt; 3   yield      d3 0.075 0.06748473   0.06934209 0.06934209</span></span></code></pre></div>
+<span><span class="co">#&gt; &lt;cm_comparison&gt; methods: published, simultaneous, global</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Adjusted impacts:</span></span>
+<span><span class="co">#&gt;  outcome disease unit raw published simultaneous global</span></span>
+<span><span class="co">#&gt;    yield      d1    % 2.5      2.07         2.14   2.14</span></span>
+<span><span class="co">#&gt;    yield      d2    % 5.0      3.70         3.39   3.39</span></span>
+<span><span class="co">#&gt;    yield      d3    % 7.5      6.75         6.93   6.93</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Totals:</span></span>
+<span><span class="co">#&gt;  outcome       method raw_loss adjusted_loss</span></span>
+<span><span class="co">#&gt;    yield    published    0.025       0.02111</span></span>
+<span><span class="co">#&gt;    yield simultaneous    0.025       0.02109</span></span>
+<span><span class="co">#&gt;    yield       global    0.025       0.02109</span></span></code></pre></div>
 <ul>
 <li>
-<code>"simultaneous"</code> (the default) solves the additive impact
-equations exactly.</li>
+<code>"simultaneous"</code> (the default) solves the system of
+impact equations exactly.</li>
 <li>
-<code>"published"</code> is the proportional approximation of
-Rasmussen et al. (2022), kept for reproduction and comparison.</li>
+<code>"published"</code> is the simple proportional approximation
+used in Rasmussen et al. (2022, 2024), kept for reproduction and
+comparison.</li>
 <li>
-<code>"global"</code> fits the distribution of disease combinations
-and can include impact interactions.</li>
+<code>"global"</code> is the iterative model: it fits the
+distribution of disease combinations and can include impact
+interactions.</li>
 </ul>
+<p><code><a href="../reference/compare_methods.html">compare_methods()</a></code> runs all three and tabulates them side
+by side; with <code>economics</code> it also compares the gaps and their
+values.</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">res</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/deconflate.html">deconflate</a></span><span class="op">(</span><span class="va">m</span><span class="op">)</span></span>
 <span><span class="va">res</span></span>
@@ -167,15 +183,29 @@ Adjusting them should recover the truth:</p>
 <span><span class="va">m_sim</span> <span class="op">&lt;-</span> <span class="va">m</span></span>
 <span><span class="va">m_sim</span><span class="op">$</span><span class="va">impacts</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/simulate_raw_impacts.html">simulate_raw_impacts</a></span><span class="op">(</span><span class="va">m</span>, <span class="va">truth</span>, outcome <span class="op">=</span> <span class="st">"yield"</span><span class="op">)</span></span>
 <span><span class="fu"><a href="../reference/compare_methods.html">compare_methods</a></span><span class="op">(</span><span class="va">m_sim</span>, methods <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"published"</span>, <span class="st">"simultaneous"</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="co">#&gt;   outcome disease        raw  published simultaneous</span></span>
-<span><span class="co">#&gt; 1   yield      d1 0.02421306 0.01960287         0.02</span></span>
-<span><span class="co">#&gt; 2   yield      d2 0.05406438 0.04185061         0.04</span></span>
-<span><span class="co">#&gt; 3   yield      d3 0.06668175 0.05872788         0.06</span></span></code></pre></div>
+<span><span class="co">#&gt; &lt;cm_comparison&gt; methods: published, simultaneous</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Adjusted impacts:</span></span>
+<span><span class="co">#&gt;  outcome disease unit  raw published simultaneous</span></span>
+<span><span class="co">#&gt;    yield      d1    % 2.42      1.96            2</span></span>
+<span><span class="co">#&gt;    yield      d2    % 5.41      4.19            4</span></span>
+<span><span class="co">#&gt;    yield      d3    % 6.67      5.87            6</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Totals:</span></span>
+<span><span class="co">#&gt;  outcome       method raw_loss adjusted_loss</span></span>
+<span><span class="co">#&gt;    yield    published  0.02387       0.01998</span></span>
+<span><span class="co">#&gt;    yield simultaneous  0.02387       0.02000</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="where-next">Where next<a class="anchor" aria-label="anchor" href="#where-next"></a>
 </h2>
 <ul>
+<li>
+<code><a href="../articles/own-data.html">vignette("own-data")</a></code>: reading your own inputs from CSV
+files.</li>
+<li>
+<code><a href="../articles/culling-hazard-ratios.html">vignette("culling-hazard-ratios")</a></code>: culling hazard
+ratios and the culling attributable to disease.</li>
 <li>
 <code><a href="../articles/reproducing-published.html">vignette("reproducing-published")</a></code>: the 2022 and 2024
 analyses.</li>
@@ -183,8 +213,9 @@ analyses.</li>
 <code><a href="../articles/interactions.html">vignette("interactions")</a></code>: the joint distribution,
 unknown associations, impact interactions and attribution.</li>
 <li>
-<code><a href="../articles/uncertainty.html">vignette("uncertainty")</a></code>: Monte Carlo analysis,
-correlated outcomes, scenarios and sensitivity screening.</li>
+<code><a href="../articles/uncertainty.html">vignette("uncertainty")</a></code>: Monte Carlo analysis, method
+comparison, stability checks, correlated outcomes, scenarios and
+sensitivity screening.</li>
 </ul>
 </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

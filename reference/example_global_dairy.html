@@ -17,7 +17,7 @@ normal distributions and modes of PERT distributions."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">deconflate</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0.9000</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -29,7 +29,9 @@ normal distributions and modes of PERT distributions."></head><body>
 <li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
-  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/reproducing-published.html">Reproducing the published analyses</a></li>
+  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/own-data.html">Using your own data</a></li>
+    <li><a class="dropdown-item" href="../articles/culling-hazard-ratios.html">Culling and hazard ratios</a></li>
+    <li><a class="dropdown-item" href="../articles/reproducing-published.html">Reproducing the published analyses</a></li>
     <li><a class="dropdown-item" href="../articles/interactions.html">Disease combinations, interactions and attribution</a></li>
     <li><a class="dropdown-item" href="../articles/uncertainty.html">Uncertainty, scenarios and sensitivity</a></li>
   </ul></li>
@@ -46,7 +48,7 @@ normal distributions and modes of PERT distributions."></head><body>
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Global dairy inputs from Rasmussen et al. (2024), at their central values</h1>
-      <small class="dont-index">Source: <a href="https://github.com/rasmussenphilip/deconflate/blob/v0.1.0/R/examples.R" class="external-link"><code>R/examples.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/rasmussenphilip/deconflate/blob/master/R/examples.R" class="external-link"><code>R/examples.R</code></a></small>
       <div class="d-none name"><code>example_global_dairy.Rd</code></div>
     </div>
 
@@ -61,7 +63,11 @@ normal distributions and modes of PERT distributions.</p>
 
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">example_global_dairy</span><span class="op">(</span>inputs <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"analysis"</span>, <span class="st">"tables"</span><span class="op">)</span>, culling <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></code></pre></div>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">example_global_dairy</span><span class="op">(</span></span>
+<span>  inputs <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"analysis"</span>, <span class="st">"tables"</span><span class="op">)</span>,</span>
+<span>  culling <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  culling_scale <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"excess_hr"</span>, <span class="st">"hazard_ratio"</span><span class="op">)</span></span>
+<span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -74,6 +80,11 @@ normal distributions and modes of PERT distributions.</p>
 
 <dt id="arg-culling">culling<a class="anchor" aria-label="anchor" href="#arg-culling"></a></dt>
 <dd><p>Include the culling outcome?</p></dd>
+
+
+<dt id="arg-culling-scale">culling_scale<a class="anchor" aria-label="anchor" href="#arg-culling-scale"></a></dt>
+<dd><p><code>"excess_hr"</code> (HR - 1, as in the paper) or
+<code>"hazard_ratio"</code>; see the section on culling.</p></dd>
 
 </dl></div>
     <div class="section level2">
@@ -102,12 +113,18 @@ for every disease except PTB.</p></li>
     <h2 id="culling">Culling<a class="anchor" aria-label="anchor" href="#culling"></a></h2>
 
 
-<p>Culling impacts are hazard ratios minus 1 on the <code>"absolute"</code> scale, so
-that <code><a href="deconflate.html">deconflate()</a></code> adjusts the excess hazard ratio. Convert results back
-with <code>adjusted_hr(res, method = "excess_hr")</code>. These impacts are not
-excess risks, so do not pass them to <code><a href="productivity_gap.html">productivity_gap()</a></code>; the paper
-converts adjusted hazard ratios to excess culling risk with
+<p>With <code>culling_scale = "excess_hr"</code> (default, as in the analysis), culling
+impacts are hazard ratios minus 1 on the <code>"absolute"</code> scale, so that
+<code><a href="deconflate.html">deconflate()</a></code> adjusts the excess hazard ratio. Convert results back with
+<code>adjusted_hr(res, method = "excess_hr")</code>. These impacts are not excess
+risks, so do not pass them to <code><a href="productivity_gap.html">productivity_gap()</a></code>; the paper converts
+adjusted hazard ratios to excess culling risk with
 <code>hr_to_risk(..., method = "overall_odds")</code>.</p>
+<p>With <code>culling_scale = "hazard_ratio"</code>, culling impacts are hazard ratios
+(see <code><a href="cm_impacts.html">cm_impacts()</a></code>). <code>method = "published"</code> then gives the same adjusted
+hazard ratios as the paper, while <code>"simultaneous"</code> and <code>"global"</code> use the
+multiplicative model; <code><a href="attributable_risk.html">attributable_risk()</a></code> gives the culling attributable
+to disease.</p>
 <p>The paper's Table 5 reports means of adjusted impacts over Monte Carlo
 draws (<code><a href="sampler_global_dairy.html">sampler_global_dairy()</a></code>), which differ from adjusting the central
 values (e.g. displaced abomasum yield: 1.18 vs 0.79).</p>
@@ -130,6 +147,60 @@ values (e.g. displaced abomasum yield: 1.18 vs 0.79).</p>
 <span class="r-out co"><span class="r-pr">#&gt;</span> 10      RP 1.599928 0.599928      0.28449635    1.284496</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> 11     SCK 1.920000 0.920000      0.67525327    1.675253</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> 12     SCM 1.449996 0.449996      0.25492756    1.254928</span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># Culling hazard ratios under the multiplicative model</span></span></span>
+<span class="r-in"><span><span class="va">m</span> <span class="op">&lt;-</span> <span class="fu">example_global_dairy</span><span class="op">(</span>culling_scale <span class="op">=</span> <span class="st">"hazard_ratio"</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="fu"><a href="compare_methods.html">compare_methods</a></span><span class="op">(</span><span class="va">m</span>, methods <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"published"</span>, <span class="st">"simultaneous"</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> &lt;cm_comparison&gt; methods: published, simultaneous</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Adjusted impacts:</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>    outcome disease unit    raw published simultaneous</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>      yield      CK    %  0.432    0.0247      -5.3700</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>      yield      CM    %  3.250    1.3300      -0.3380</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>      yield      DA    %  2.840    0.7940      -2.6300</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>      yield     DYS    %  4.920    3.5700       4.3100</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>      yield     LAM    %  4.810    2.5300       1.9800</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>      yield     MET    %  5.610    2.8400       2.7900</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>      yield      MF    %  0.537    0.0690      -1.5400</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>      yield      OC    %  3.750    2.6400       3.2200</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>      yield     PTB    %  4.300    3.2300       3.9400</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>      yield      RP    %  4.200    2.2600       2.4700</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>      yield     SCK    %  8.400    7.1000       8.2800</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>      yield     SCM    %  6.290    5.5900       6.5800</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  fertility      CK    %  1.450    0.3260      -1.5600</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  fertility      CM    %  8.420    6.2000       7.5600</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  fertility      DA    %  1.080    0.1530      -3.3300</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  fertility     DYS    %  2.400    1.0600       0.9910</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  fertility     LAM    %  3.300    1.1200      -2.0400</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  fertility     MET    % 14.700   10.8000      13.0000</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  fertility      MF    %  2.410    1.0600       2.0000</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  fertility      OC    %  9.690    7.8500       9.0400</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  fertility     PTB    %  5.350    3.9900       4.7400</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  fertility      RP    %  6.760    3.7100       2.5500</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  fertility     SCK    %  1.120    0.3490      -0.0399</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  fertility     SCM    %  0.264    0.0322      -1.2500</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>    culling      CK   HR  1.500    1.1800       0.9620</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>    culling      CM   HR  2.300    1.9000       1.8400</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>    culling      DA   HR  2.850    2.2000       1.8300</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>    culling     DYS   HR  1.260    1.1000       1.1200</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>    culling     LAM   HR  1.740    1.3800       1.2900</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>    culling     MET   HR  1.120    1.0100       0.7370</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>    culling      MF   HR  3.000    2.6500       2.6200</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>    culling      OC   HR  1.620    1.4600       1.5500</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>    culling     PTB   HR  2.310    2.0500       2.0200</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>    culling      RP   HR  1.600    1.2800       1.2300</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>    culling     SCK   HR  1.920    1.6800       1.7400</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>    culling     SCM   HR  1.450    1.2500       1.2500</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Sign changes (adjusted impact on the other side of zero, or of 1 for hazard ratios):</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   simultaneous: yield CK, yield CM, yield DA, yield MF, fertility CK, fertility DA, fertility LAM, fertility SCK, fertility SCM, culling CK, culling MET</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Totals:</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>    outcome       method raw_loss adjusted_loss</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  fertility    published  0.07472       0.04794</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>      yield    published  0.09931       0.07281</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  fertility simultaneous  0.07472       0.03934</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>      yield simultaneous  0.09931       0.07494</span>
 </code></pre></div>
     </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

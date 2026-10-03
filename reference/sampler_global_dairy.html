@@ -11,7 +11,7 @@ of odds ratios are truncated at zero."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">deconflate</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0.9000</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -23,7 +23,9 @@ of odds ratios are truncated at zero."></head><body>
 <li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
-  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/reproducing-published.html">Reproducing the published analyses</a></li>
+  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/own-data.html">Using your own data</a></li>
+    <li><a class="dropdown-item" href="../articles/culling-hazard-ratios.html">Culling and hazard ratios</a></li>
+    <li><a class="dropdown-item" href="../articles/reproducing-published.html">Reproducing the published analyses</a></li>
     <li><a class="dropdown-item" href="../articles/interactions.html">Disease combinations, interactions and attribution</a></li>
     <li><a class="dropdown-item" href="../articles/uncertainty.html">Uncertainty, scenarios and sensitivity</a></li>
   </ul></li>
@@ -40,7 +42,7 @@ of odds ratios are truncated at zero."></head><body>
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Monte Carlo sampler for the global dairy inputs (Rasmussen et al. 2024)</h1>
-      <small class="dont-index">Source: <a href="https://github.com/rasmussenphilip/deconflate/blob/v0.1.0/R/examples.R" class="external-link"><code>R/examples.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/rasmussenphilip/deconflate/blob/master/R/examples.R" class="external-link"><code>R/examples.R</code></a></small>
       <div class="d-none name"><code>sampler_global_dairy.Rd</code></div>
     </div>
 
@@ -52,7 +54,11 @@ of odds ratios are truncated at zero.</p>
 
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">sampler_global_dairy</span><span class="op">(</span>inputs <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"analysis"</span>, <span class="st">"tables"</span><span class="op">)</span>, culling <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></code></pre></div>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">sampler_global_dairy</span><span class="op">(</span></span>
+<span>  inputs <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"analysis"</span>, <span class="st">"tables"</span><span class="op">)</span>,</span>
+<span>  culling <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  culling_scale <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"excess_hr"</span>, <span class="st">"hazard_ratio"</span><span class="op">)</span></span>
+<span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -65,6 +71,12 @@ of odds ratios are truncated at zero.</p>
 
 <dt id="arg-culling">culling<a class="anchor" aria-label="anchor" href="#arg-culling"></a></dt>
 <dd><p>Include the culling outcome?</p></dd>
+
+
+<dt id="arg-culling-scale">culling_scale<a class="anchor" aria-label="anchor" href="#arg-culling-scale"></a></dt>
+<dd><p><code>"excess_hr"</code> (HR - 1) or <code>"hazard_ratio"</code>, as in
+<code><a href="example_global_dairy.html">example_global_dairy()</a></code>. Hazard-ratio distributions are the HR - 1
+distributions shifted by 1.</p></dd>
 
 </dl></div>
     <div class="section level2">
@@ -105,20 +117,38 @@ published approximation. See <code><a href="../articles/reproducing-published.ht
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="co"># \donttest{</span></span></span>
 <span class="r-in"><span><span class="va">mc</span> <span class="op">&lt;-</span> <span class="fu"><a href="cm_monte_carlo.html">cm_monte_carlo</a></span><span class="op">(</span><span class="fu">sampler_global_dairy</span><span class="op">(</span><span class="op">)</span>, <span class="fl">200</span>, method <span class="op">=</span> <span class="st">"published"</span>, seed <span class="op">=</span> <span class="fl">1</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">s</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">mc</span><span class="op">)</span></span></span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> 8 Monte Carlo estimate(s) may be unstable:</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> * yield / DA (published): the Monte Carlo standard error is 5.9% of the mean.</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span>     Suggestion: increase n_draws to about 1,760 for a 2% standard error, or use sampling = "lhs" (Latin hypercube).</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> * fertility / DA (published): the published approximation divides by m + c, which changes sign in 0.5% of draws, so the mean does not exist.</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span>     Suggestion: report the median or trimmed_mean, or use method = "simultaneous" (exact, no division). More draws, Latin hypercube or importance sampling will not make this mean converge.</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> * culling / DYS (published): the Monte Carlo standard error is 6.7% of the mean.</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span>     Suggestion: increase n_draws to about 2,222 for a 2% standard error, or use sampling = "lhs" (Latin hypercube).</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> * fertility / MET (published): the published approximation divides by m + c, which changes sign in 0.5% of draws, so the mean does not exist.</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span>     Suggestion: report the median or trimmed_mean, or use method = "simultaneous" (exact, no division). More draws, Latin hypercube or importance sampling will not make this mean converge.</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> * culling / MET (published): the Monte Carlo standard error is 8.1% of the mean.</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span>     Suggestion: increase n_draws to about 3,317 for a 2% standard error, or use sampling = "lhs" (Latin hypercube).</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> * fertility / PTB (published): the published approximation divides by m + c, which changes sign in 0.5% of draws, so the mean does not exist.</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span>     Suggestion: report the median or trimmed_mean, or use method = "simultaneous" (exact, no division). More draws, Latin hypercube or importance sampling will not make this mean converge.</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> * fertility / SCK (published): the published approximation divides by m + c, which changes sign in 1.5% of draws, so the mean does not exist.</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span>     Suggestion: report the median or trimmed_mean, or use method = "simultaneous" (exact, no division). More draws, Latin hypercube or importance sampling will not make this mean converge.</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> * fertility / SCM (published): the Monte Carlo standard error is 8.1% of the mean.</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span>     Suggestion: increase n_draws to about 3,321 for a 2% standard error, or use sampling = "lhs" (Latin hypercube).</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> (See ?cm_diagnose; use summary(..., diagnose = FALSE) to silence this message.)</span>
 <span class="r-in"><span><span class="va">s</span><span class="op">[</span><span class="va">s</span><span class="op">$</span><span class="va">outcome</span> <span class="op">==</span> <span class="st">"yield"</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"disease"</span>, <span class="st">"mean"</span><span class="op">)</span><span class="op">]</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>    disease         mean</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 3       CK 0.0003629443</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 6       CM 0.0139387593</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 9       DA 0.0123009108</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 12     DYS 0.0341056713</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 15     LAM 0.0265759525</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 18     MET 0.0296544668</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 21      MF 0.0006981994</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 24      OC 0.0247995885</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 27     PTB 0.0319448378</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 30      RP 0.0233288844</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 33     SCK 0.0711448636</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 36     SCM 0.0565964340</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 1       CK 0.0003629443</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 4       CM 0.0139387593</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 7       DA 0.0123009108</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 10     DYS 0.0341056713</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 13     LAM 0.0265759525</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 16     MET 0.0296544668</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 19      MF 0.0006981994</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 22      OC 0.0247995885</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 25     PTB 0.0319448378</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 28      RP 0.0233288844</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 31     SCK 0.0711448636</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 34     SCM 0.0565964340</span>
 <span class="r-in"><span><span class="co"># Culling: adjusted hazard ratio = adjusted (HR - 1) + 1</span></span></span>
 <span class="r-in"><span><span class="va">cull</span> <span class="op">&lt;-</span> <span class="va">s</span><span class="op">[</span><span class="va">s</span><span class="op">$</span><span class="va">outcome</span> <span class="op">==</span> <span class="st">"culling"</span>, <span class="op">]</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span>disease <span class="op">=</span> <span class="va">cull</span><span class="op">$</span><span class="va">disease</span>, hr_adjusted <span class="op">=</span> <span class="fl">1</span> <span class="op">+</span> <span class="va">cull</span><span class="op">$</span><span class="va">mean</span><span class="op">)</span></span></span>

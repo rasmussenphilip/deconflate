@@ -31,3 +31,8 @@ accounting convention, the Shapley value of each disease is its own term
 plus an equal share of every interaction term it is involved in:
 `s[i] = m[i] P(i) + 1/2 sum_k delta[i, k] P(i and k)`. The shares sum to
 `L`.
+
+Outcomes on the hazard-ratio scale are not additive burdens and are
+skipped; use
+[`attributable_risk()`](https://rasmussenphilip.github.io/deconflate/reference/attributable_risk.md)
+for them.

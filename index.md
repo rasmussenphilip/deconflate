@@ -6,7 +6,7 @@ without double counting. Based on Rasmussen et al. (2022, *Prev. Vet.
 Med.* 203:105617) and Rasmussen et al. (2024, *J. Dairy Sci.*
 107:6945–6970).
 
-> **Status:** development version (0.0.0.9001), working towards v0.1.0.
+> **Status:** development version (0.1.0.9000), working towards v0.2.0.
 > The test reference values were computed independently in Python
 > (`inst/validation/python_reference.py`).
 
@@ -57,10 +57,16 @@ summary(mc)
   scale, reference population, prior adjustment). Association measures:
   OR, RR, RD, conditional probability, phi, contingency tables,
   independent and unknown.
+- **Your own data:**
+  [`cm_read_inputs()`](https://rasmussenphilip.github.io/deconflate/reference/cm_read_inputs.md)
+  reads CSV files or data frames and reports every problem at once;
+  [`cm_template()`](https://rasmussenphilip.github.io/deconflate/reference/cm_template.md)
+  writes example files.
 - **Adjustment:**
-  [`deconflate()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate.md)
+  [`deconflate()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate.md),
   and
-  [`compare_methods()`](https://rasmussenphilip.github.io/deconflate/reference/compare_methods.md).
+  [`compare_methods()`](https://rasmussenphilip.github.io/deconflate/reference/compare_methods.md)
+  for side-by-side tables of the methods (also for Monte Carlo runs).
   Interactions between diseases are supported with the global method.
 - **Joint distribution and feasibility:**
   [`fit_joint()`](https://rasmussenphilip.github.io/deconflate/reference/fit_joint.md),
@@ -74,17 +80,22 @@ summary(mc)
   [`shapley_by_cell()`](https://rasmussenphilip.github.io/deconflate/reference/shapley_by_cell.md)
   and
   [`contribution_table()`](https://rasmussenphilip.github.io/deconflate/reference/contribution_table.md).
-- **Culling:**
-  [`hr_conversion()`](https://rasmussenphilip.github.io/deconflate/reference/hr_conversion.md),
-  [`as_impacts()`](https://rasmussenphilip.github.io/deconflate/reference/as_impacts.md)
-  and
-  [`adjusted_hr()`](https://rasmussenphilip.github.io/deconflate/reference/adjusted_hr.md)
-  (proportional hazards, or the published approaches of 2022 and 2024).
+- **Culling:** hazard ratios adjusted under a multiplicative model
+  (exact or first-order),
+  [`attributable_risk()`](https://rasmussenphilip.github.io/deconflate/reference/attributable_risk.md)
+  for the culling attributable to disease, and the published approaches
+  of 2022 and 2024
+  ([`hr_conversion()`](https://rasmussenphilip.github.io/deconflate/reference/hr_conversion.md),
+  [`as_impacts()`](https://rasmussenphilip.github.io/deconflate/reference/as_impacts.md),
+  [`adjusted_hr()`](https://rasmussenphilip.github.io/deconflate/reference/adjusted_hr.md)).
 - **Uncertainty:** `dist_*()` distributions,
   [`cm_sampler()`](https://rasmussenphilip.github.io/deconflate/reference/cm_sampler.md)
   (with optional correlation across outcomes),
   [`cm_monte_carlo()`](https://rasmussenphilip.github.io/deconflate/reference/cm_monte_carlo.md)
-  (with rejection reporting) and
+  (several methods on the same draws, rejection reporting, Latin
+  hypercube and importance sampling), stability checks with suggestions
+  ([`cm_diagnose()`](https://rasmussenphilip.github.io/deconflate/reference/cm_diagnose.md))
+  and
   [`cm_scenario()`](https://rasmussenphilip.github.io/deconflate/reference/cm_scenario.md)
   (importance reweighting).
 - **Sensitivity:**
@@ -93,7 +104,7 @@ summary(mc)
   [`screen_interactions()`](https://rasmussenphilip.github.io/deconflate/reference/screen_interactions.md)
   and
   [`compare_scenarios()`](https://rasmussenphilip.github.io/deconflate/reference/compare_scenarios.md).
-- **Plots** (base graphics) and four vignettes. Start with
+- **Plots** (base graphics) and six vignettes. Start with
   [`vignette("deconflate")`](https://rasmussenphilip.github.io/deconflate/articles/deconflate.md).
 
 ## Development

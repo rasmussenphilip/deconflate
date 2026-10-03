@@ -13,7 +13,7 @@ importance reweighting in cm_scenario())."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">deconflate</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0.9000</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -25,7 +25,9 @@ importance reweighting in cm_scenario())."></head><body>
 <li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
-  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/reproducing-published.html">Reproducing the published analyses</a></li>
+  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/own-data.html">Using your own data</a></li>
+    <li><a class="dropdown-item" href="../articles/culling-hazard-ratios.html">Culling and hazard ratios</a></li>
+    <li><a class="dropdown-item" href="../articles/reproducing-published.html">Reproducing the published analyses</a></li>
     <li><a class="dropdown-item" href="../articles/interactions.html">Disease combinations, interactions and attribution</a></li>
     <li><a class="dropdown-item" href="../articles/uncertainty.html">Uncertainty, scenarios and sensitivity</a></li>
   </ul></li>
@@ -42,7 +44,7 @@ importance reweighting in cm_scenario())."></head><body>
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Input distributions for Monte Carlo analysis</h1>
-      <small class="dont-index">Source: <a href="https://github.com/rasmussenphilip/deconflate/blob/v0.1.0/R/distributions.R" class="external-link"><code>R/distributions.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/rasmussenphilip/deconflate/blob/master/R/distributions.R" class="external-link"><code>R/distributions.R</code></a></small>
       <div class="d-none name"><code>distributions.Rd</code></div>
     </div>
 
@@ -150,7 +152,7 @@ distribution and a wider one, so that scenario reweighting has support.</p></li>
 <span class="r-in"><span><span class="va">d</span><span class="op">$</span><span class="va">mean</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> [1] 4.183333</span>
 <span class="r-in"><span><span class="va">d</span><span class="op">$</span><span class="fu">r</span><span class="op">(</span><span class="fl">5</span><span class="op">)</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 5.909687 4.459766 2.436098 1.408591 3.823904</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 3.323926 2.959934 8.614279 4.627753 2.702472</span>
 <span class="r-in"><span><span class="fu">dist_lognormal_ci</span><span class="op">(</span><span class="fl">2.7</span>, <span class="fl">1.5</span>, <span class="fl">4.9</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> &lt;cm_dist&gt; lognormal(meanlog = 0.9933, sdlog = 0.302), mean 2.826</span>
 </code></pre></div>

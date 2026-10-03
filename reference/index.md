@@ -19,6 +19,17 @@
 - [`set_interaction()`](https://rasmussenphilip.github.io/deconflate/reference/set_interaction.md)
   : Set or replace one pairwise interaction in a model
 
+## Reading inputs
+
+- [`cm_read_inputs()`](https://rasmussenphilip.github.io/deconflate/reference/cm_read_inputs.md)
+  : Read model inputs from CSV files or data frames
+- [`cm_check_inputs()`](https://rasmussenphilip.github.io/deconflate/reference/cm_check_inputs.md)
+  : Check model input tables
+- [`cm_dist_table()`](https://rasmussenphilip.github.io/deconflate/reference/cm_dist_table.md)
+  : Build distributions from an uncertainty table
+- [`cm_template()`](https://rasmussenphilip.github.io/deconflate/reference/cm_template.md)
+  : Write a template set of input files
+
 ## Adjustment
 
 - [`deconflate()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate.md)
@@ -76,6 +87,8 @@
   : Turn a hazard-ratio conversion into impacts
 - [`adjusted_hr()`](https://rasmussenphilip.github.io/deconflate/reference/adjusted_hr.md)
   : Convert adjusted culling impacts back to hazard ratios
+- [`attributable_risk()`](https://rasmussenphilip.github.io/deconflate/reference/attributable_risk.md)
+  : Culling (or mortality) attributable to disease
 
 ## Uncertainty and scenarios
 
@@ -99,6 +112,10 @@
   : Reweight Monte Carlo draws (importance sampling)
 - [`cm_scenario()`](https://rasmussenphilip.github.io/deconflate/reference/cm_scenario.md)
   : Scenario analysis by reweighting Monte Carlo draws
+- [`cm_diagnose()`](https://rasmussenphilip.github.io/deconflate/reference/cm_diagnose.md)
+  : Diagnose unstable Monte Carlo estimates
+- [`cm_suggest_proposal()`](https://rasmussenphilip.github.io/deconflate/reference/cm_suggest_proposal.md)
+  : Suggest an importance-sampling proposal for an unstable estimate
 
 ## Sensitivity
 

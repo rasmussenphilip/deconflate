@@ -13,7 +13,7 @@ its monetary value."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">deconflate</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0.9000</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -25,7 +25,9 @@ its monetary value."></head><body>
 <li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
-  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/reproducing-published.html">Reproducing the published analyses</a></li>
+  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/own-data.html">Using your own data</a></li>
+    <li><a class="dropdown-item" href="../articles/culling-hazard-ratios.html">Culling and hazard ratios</a></li>
+    <li><a class="dropdown-item" href="../articles/reproducing-published.html">Reproducing the published analyses</a></li>
     <li><a class="dropdown-item" href="../articles/interactions.html">Disease combinations, interactions and attribution</a></li>
     <li><a class="dropdown-item" href="../articles/uncertainty.html">Uncertainty, scenarios and sensitivity</a></li>
   </ul></li>
@@ -42,7 +44,7 @@ its monetary value."></head><body>
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Contribution table</h1>
-      <small class="dont-index">Source: <a href="https://github.com/rasmussenphilip/deconflate/blob/v0.1.0/R/report.R" class="external-link"><code>R/report.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/rasmussenphilip/deconflate/blob/master/R/report.R" class="external-link"><code>R/report.R</code></a></small>
       <div class="d-none name"><code>contribution_table.Rd</code></div>
     </div>
 
@@ -68,12 +70,14 @@ its monetary value.</p>
 
 <dt id="arg-economics">economics<a class="anchor" aria-label="anchor" href="#arg-economics"></a></dt>
 <dd><p>Optional list with <code>observed</code> and <code>unit_value</code> (see
-<code><a href="value_losses.html">value_losses()</a></code>).</p></dd>
+<code><a href="value_losses.html">value_losses()</a></code>). Hazard-ratio outcomes are valued with
+<code><a href="attributable_risk.html">attributable_risk()</a></code> (<code>observed</code> = overall risk, <code>unit_value</code> = value
+per animal removed).</p></dd>
 
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>A data frame.</p>
+    <p>A data frame. Burden columns are <code>NA</code> for hazard-ratio outcomes.</p>
     </div>
 
     <div class="section level2">

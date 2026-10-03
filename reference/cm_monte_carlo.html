@@ -13,7 +13,7 @@ within a draw, so the outcomes' uncertainty stays dependent."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">deconflate</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0.9000</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -25,7 +25,9 @@ within a draw, so the outcomes' uncertainty stays dependent."></head><body>
 <li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
-  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/reproducing-published.html">Reproducing the published analyses</a></li>
+  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/own-data.html">Using your own data</a></li>
+    <li><a class="dropdown-item" href="../articles/culling-hazard-ratios.html">Culling and hazard ratios</a></li>
+    <li><a class="dropdown-item" href="../articles/reproducing-published.html">Reproducing the published analyses</a></li>
     <li><a class="dropdown-item" href="../articles/interactions.html">Disease combinations, interactions and attribution</a></li>
     <li><a class="dropdown-item" href="../articles/uncertainty.html">Uncertainty, scenarios and sensitivity</a></li>
   </ul></li>
@@ -42,7 +44,7 @@ within a draw, so the outcomes' uncertainty stays dependent."></head><body>
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Monte Carlo propagation of input uncertainty</h1>
-      <small class="dont-index">Source: <a href="https://github.com/rasmussenphilip/deconflate/blob/v0.1.0/R/montecarlo.R" class="external-link"><code>R/montecarlo.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/rasmussenphilip/deconflate/blob/master/R/montecarlo.R" class="external-link"><code>R/montecarlo.R</code></a></small>
       <div class="d-none name"><code>cm_monte_carlo.Rd</code></div>
     </div>
 
@@ -62,6 +64,8 @@ within a draw, so the outcomes' uncertainty stays dependent.</p>
 <span>  economics <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  seed <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  progress <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  sampling <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"random"</span>, <span class="st">"lhs"</span><span class="op">)</span>,</span>
+<span>  proposal <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  <span class="va">...</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
@@ -71,8 +75,8 @@ within a draw, so the outcomes' uncertainty stays dependent.</p>
 
 
 <dl><dt id="arg-sampler">sampler<a class="anchor" aria-label="anchor" href="#arg-sampler"></a></dt>
-<dd><p>A function of one argument (the draw index) returning a
-<code><a href="cm_model.html">cm_model()</a></code>, typically from <code><a href="cm_sampler.html">cm_sampler()</a></code>.</p></dd>
+<dd><p>A function of the draw index returning a <code><a href="cm_model.html">cm_model()</a></code>,
+typically from <code><a href="cm_sampler.html">cm_sampler()</a></code>.</p></dd>
 
 
 <dt id="arg-n-draws">n_draws<a class="anchor" aria-label="anchor" href="#arg-n-draws"></a></dt>
@@ -80,7 +84,8 @@ within a draw, so the outcomes' uncertainty stays dependent.</p>
 
 
 <dt id="arg-method">method<a class="anchor" aria-label="anchor" href="#arg-method"></a></dt>
-<dd><p>Adjustment method passed to <code><a href="deconflate.html">deconflate()</a></code>.</p></dd>
+<dd><p>Adjustment method(s) passed to <code><a href="deconflate.html">deconflate()</a></code>: one or more
+of <code>"simultaneous"</code>, <code>"published"</code> and <code>"global"</code>.</p></dd>
 
 
 <dt id="arg-economics">economics<a class="anchor" aria-label="anchor" href="#arg-economics"></a></dt>
@@ -88,7 +93,8 @@ within a draw, so the outcomes' uncertainty stays dependent.</p>
 <code>unit_value</code> (and optionally <code>additional</code>), as in <code><a href="value_losses.html">value_losses()</a></code>.
 Elements may be numbers or <code>cm_dist</code> objects (drawn per draw). When
 given, productivity gaps and monetary losses are computed for every
-draw.</p></dd>
+draw. Hazard-ratio outcomes cannot be valued here; use
+<code><a href="attributable_risk.html">attributable_risk()</a></code> on individual results.</p></dd>
 
 
 <dt id="arg-seed">seed<a class="anchor" aria-label="anchor" href="#arg-seed"></a></dt>
@@ -99,20 +105,33 @@ draw.</p></dd>
 <dd><p>Logical: print progress every 10% of draws?</p></dd>
 
 
+<dt id="arg-sampling">sampling<a class="anchor" aria-label="anchor" href="#arg-sampling"></a></dt>
+<dd><p><code>"random"</code> (default) or <code>"lhs"</code> (Latin hypercube; needs a
+<code><a href="cm_sampler.html">cm_sampler()</a></code>).</p></dd>
+
+
+<dt id="arg-proposal">proposal<a class="anchor" aria-label="anchor" href="#arg-proposal"></a></dt>
+<dd><p>Optional named list of <code>cm_dist</code> objects (importance
+sampling proposals), keyed as in <code>params</code> (e.g.
+<code>"impact:fertility:SCK"</code>). Needs a <code><a href="cm_sampler.html">cm_sampler()</a></code>.</p></dd>
+
+
 <dt id="arg--">...<a class="anchor" aria-label="anchor" href="#arg--"></a></dt>
 <dd><p>Passed to <code><a href="deconflate.html">deconflate()</a></code>.</p></dd>
 
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>A <code>cm_mc</code> object with elements:</p><ul><li><p><code>draws</code>: long data frame of raw and adjusted impacts by draw;</p></li>
-<li><p><code>losses</code>: long data frame of gaps and values by draw, outcome and
-disease (if <code>economics</code> was given);</p></li>
+    <p>A <code>cm_mc</code> object with elements:</p><ul><li><p><code>draws</code>: long data frame of raw and adjusted impacts by draw and
+method;</p></li>
+<li><p><code>losses</code>: long data frame of gaps and values by draw, method, outcome
+and disease (if <code>economics</code> was given);</p></li>
 <li><p><code>params</code>: one row per accepted draw with the sampled inputs, keyed
 <code>prob:&lt;id&gt;</code>, <code>assoc:&lt;d1&gt;:&lt;d2&gt;</code>, <code>impact:&lt;outcome&gt;:&lt;disease&gt;</code>,
 <code>inter:&lt;outcome&gt;:&lt;d1&gt;:&lt;d2&gt;</code>, <code>observed:&lt;outcome&gt;</code>, <code>unit_value:&lt;outcome&gt;</code>;</p></li>
-<li><p><code>weights</code> (initially equal), <code>n_draws</code>, <code>n_rejected</code>, <code>rejections</code>
-(draw and reason), <code>sign_changes</code> and <code>method</code>.</p></li>
+<li><p><code>weights</code> (equal, or importance weights), <code>log_weights</code>, <code>ess</code>,
+<code>n_draws</code>, <code>n_rejected</code>, <code>rejections</code> (draw and reason),
+<code>sign_changes</code>, <code>method</code>, <code>sampling</code> and <code>proposal</code>.</p></li>
 </ul></div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
@@ -122,7 +141,48 @@ infeasible set for the global method) are rejected and counted.
 Conditioning on feasibility changes the effective input distribution, so
 the rejection rate is part of the result and should be reported.</p>
     </div>
+    <div class="section level2">
+    <h2 id="several-methods">Several methods<a class="anchor" aria-label="anchor" href="#several-methods"></a></h2>
 
+
+<p>With more than one <code>method</code>, every accepted draw is adjusted with each
+method, so the methods are compared on identical inputs. A draw is
+rejected if any method fails on it. Use <code><a href="compare_methods.html">compare_methods()</a></code> on the result
+for a side-by-side table.</p>
+    </div>
+    <div class="section level2">
+    <h2 id="stabilising-the-estimates">Stabilising the estimates<a class="anchor" aria-label="anchor" href="#stabilising-the-estimates"></a></h2>
+
+
+<p><code><a href="summary.cm_mc.html">summary.cm_mc()</a></code> flags unstable estimates and suggests remedies (see
+<code><a href="cm_diagnose.html">cm_diagnose()</a></code>). Two variance-reduction options are available here:</p><ul><li><p><code>sampling = "lhs"</code>: Latin hypercube sampling of the inputs that are not
+drawn with an outcome correlation. It stratifies each input's
+distribution and usually reduces the Monte Carlo error of means.</p></li>
+<li><p><code>proposal</code>: importance sampling. Named inputs are drawn from the given
+proposal distributions instead of their own, and each draw is weighted
+by the ratio of the input densities. A proposal must cover the whole
+range of the input's own distribution; a defensive mixture such as the
+one built by <code><a href="cm_suggest_proposal.html">cm_suggest_proposal()</a></code> does. Importance sampling reduces
+the error of means that exist; it cannot fix a mean that does not exist
+(see <code><a href="cm_diagnose.html">cm_diagnose()</a></code>).</p></li>
+</ul></div>
+
+    <div class="section level2">
+    <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="va">s</span> <span class="op">&lt;-</span> <span class="fu"><a href="cm_sampler.html">cm_sampler</a></span><span class="op">(</span><span class="fu"><a href="example_supplement.html">example_supplement</a></span><span class="op">(</span><span class="op">)</span>,</span></span>
+<span class="r-in"><span>                impacts <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="st">"yield:d1"</span> <span class="op">=</span> <span class="fu"><a href="distributions.html">dist_normal</a></span><span class="op">(</span><span class="fl">2.5</span>, <span class="fl">0.5</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">mc</span> <span class="op">&lt;-</span> <span class="fu">cm_monte_carlo</span><span class="op">(</span><span class="va">s</span>, <span class="fl">100</span>, method <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"published"</span>, <span class="st">"simultaneous"</span><span class="op">)</span>, seed <span class="op">=</span> <span class="fl">1</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="fu"><a href="compare_methods.html">compare_methods</a></span><span class="op">(</span><span class="va">mc</span><span class="op">)</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> &lt;cm_comparison&gt; methods: published, simultaneous</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Monte Carlo: 100 draws (0 rejected); statistic: mean</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Adjusted impacts:</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  outcome disease unit raw_mean published simultaneous</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>    yield      d1    %     2.53      2.09         2.17</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>    yield      d2    %     5.00      3.70         3.39</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>    yield      d3    %     7.50      6.75         6.93</span>
+</code></pre></div>
+    </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside></div>
 

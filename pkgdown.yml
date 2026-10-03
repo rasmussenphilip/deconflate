@@ -2,11 +2,13 @@ pandoc: 3.8.3
 pkgdown: 2.2.1
 pkgdown_sha: ~
 articles:
+  culling-hazard-ratios: culling-hazard-ratios.html
   deconflate: deconflate.html
   interactions: interactions.html
+  own-data: own-data.html
   reproducing-published: reproducing-published.html
   uncertainty: uncertainty.html
-last_built: 2026-10-03T11:05Z
+last_built: 2026-10-03T12:20Z
 urls:
   reference: https://rasmussenphilip.github.io/deconflate/reference
   article: https://rasmussenphilip.github.io/deconflate/articles

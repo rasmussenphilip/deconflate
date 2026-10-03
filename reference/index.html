@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">deconflate</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0.9000</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -19,7 +19,9 @@
 <li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
-  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/reproducing-published.html">Reproducing the published analyses</a></li>
+  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/own-data.html">Using your own data</a></li>
+    <li><a class="dropdown-item" href="../articles/culling-hazard-ratios.html">Culling and hazard ratios</a></li>
+    <li><a class="dropdown-item" href="../articles/reproducing-published.html">Reproducing the published analyses</a></li>
     <li><a class="dropdown-item" href="../articles/interactions.html">Disease combinations, interactions and attribution</a></li>
     <li><a class="dropdown-item" href="../articles/uncertainty.html">Uncertainty, scenarios and sensitivity</a></li>
   </ul></li>
@@ -103,6 +105,43 @@
 
         </dt>
         <dd>Set or replace one pairwise interaction in a model</dd>
+      </dl></div><div class="section level2">
+      <h2 id="reading-inputs">Reading inputs<a class="anchor" aria-label="anchor" href="#reading-inputs"></a></h2>
+
+
+
+      <dl></dl></div><div class="section level2">
+
+
+
+
+      <dl><dt>
+
+          <code><a href="cm_read_inputs.html">cm_read_inputs()</a></code>
+
+        </dt>
+        <dd>Read model inputs from CSV files or data frames</dd>
+
+        <dt>
+
+          <code><a href="cm_check_inputs.html">cm_check_inputs()</a></code>
+
+        </dt>
+        <dd>Check model input tables</dd>
+
+        <dt>
+
+          <code><a href="cm_dist_table.html">cm_dist_table()</a></code>
+
+        </dt>
+        <dd>Build distributions from an uncertainty table</dd>
+
+        <dt>
+
+          <code><a href="cm_template.html">cm_template()</a></code>
+
+        </dt>
+        <dd>Write a template set of input files</dd>
       </dl></div><div class="section level2">
       <h2 id="adjustment">Adjustment<a class="anchor" aria-label="anchor" href="#adjustment"></a></h2>
 
@@ -293,6 +332,13 @@
 
         </dt>
         <dd>Convert adjusted culling impacts back to hazard ratios</dd>
+
+        <dt>
+
+          <code><a href="attributable_risk.html">attributable_risk()</a></code>
+
+        </dt>
+        <dd>Culling (or mortality) attributable to disease</dd>
       </dl></div><div class="section level2">
       <h2 id="uncertainty-and-scenarios">Uncertainty and scenarios<a class="anchor" aria-label="anchor" href="#uncertainty-and-scenarios"></a></h2>
 
@@ -344,6 +390,20 @@
 
         </dt>
         <dd>Scenario analysis by reweighting Monte Carlo draws</dd>
+
+        <dt>
+
+          <code><a href="cm_diagnose.html">cm_diagnose()</a></code>
+
+        </dt>
+        <dd>Diagnose unstable Monte Carlo estimates</dd>
+
+        <dt>
+
+          <code><a href="cm_suggest_proposal.html">cm_suggest_proposal()</a></code>
+
+        </dt>
+        <dd>Suggest an importance-sampling proposal for an unstable estimate</dd>
       </dl></div><div class="section level2">
       <h2 id="sensitivity">Sensitivity<a class="anchor" aria-label="anchor" href="#sensitivity"></a></h2>
 

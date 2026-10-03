@@ -28,7 +28,7 @@ plot(x, outcome = NULL, ...)
 plot_burden(result, economics = NULL, ...)
 
 # S3 method for class 'cm_mc'
-plot(x, outcome = NULL, probs = c(0.025, 0.975), ...)
+plot(x, outcome = NULL, probs = c(0.025, 0.975), method = NULL, ...)
 
 # S3 method for class 'cm_screen'
 plot(x, top = 15, ...)
@@ -60,6 +60,11 @@ plot(x, top = 15, ...)
 - probs:
 
   Interval bounds for Monte Carlo plots.
+
+- method:
+
+  For Monte Carlo runs with several methods: the method to show (default
+  the first).
 
 - top:
 

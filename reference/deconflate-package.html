@@ -15,7 +15,7 @@ estimates so that they can be aggregated."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">deconflate</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0.9000</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -27,7 +27,9 @@ estimates so that they can be aggregated."></head><body>
 <li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
-  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/reproducing-published.html">Reproducing the published analyses</a></li>
+  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/own-data.html">Using your own data</a></li>
+    <li><a class="dropdown-item" href="../articles/culling-hazard-ratios.html">Culling and hazard ratios</a></li>
+    <li><a class="dropdown-item" href="../articles/reproducing-published.html">Reproducing the published analyses</a></li>
     <li><a class="dropdown-item" href="../articles/interactions.html">Disease combinations, interactions and attribution</a></li>
     <li><a class="dropdown-item" href="../articles/uncertainty.html">Uncertainty, scenarios and sensitivity</a></li>
   </ul></li>
@@ -44,7 +46,7 @@ estimates so that they can be aggregated."></head><body>
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>deconflate: comorbidity adjustment of disease impact estimates</h1>
-      <small class="dont-index">Source: <a href="https://github.com/rasmussenphilip/deconflate/blob/v0.1.0/R/deconflate-package.R" class="external-link"><code>R/deconflate-package.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/rasmussenphilip/deconflate/blob/master/R/deconflate-package.R" class="external-link"><code>R/deconflate-package.R</code></a></small>
       <div class="d-none name"><code>deconflate-package.Rd</code></div>
     </div>
 
@@ -63,7 +65,8 @@ estimates so that they can be aggregated.</p>
 
 <ol><li><p>Describe the system with <code><a href="cm_diseases.html">cm_diseases()</a></code>, <code><a href="cm_associations.html">cm_associations()</a></code>,
 <code><a href="cm_impacts.html">cm_impacts()</a></code> and, optionally, <code><a href="cm_interactions.html">cm_interactions()</a></code>, then combine them
-with <code><a href="cm_model.html">cm_model()</a></code>.</p></li>
+with <code><a href="cm_model.html">cm_model()</a></code>. Or read the same tables from CSV files or data
+frames with <code><a href="cm_read_inputs.html">cm_read_inputs()</a></code> (see <code><a href="cm_template.html">cm_template()</a></code>).</p></li>
 <li><p>Adjust impacts with <code><a href="deconflate.html">deconflate()</a></code>, using one of three methods:</p><ul><li><p><code>"simultaneous"</code> (default): the exact solution of the additive impact
 equations, built from pairwise 2x2 tables.</p></li>
 <li><p><code>"published"</code>: the proportional approximation of Rasmussen et al.
@@ -74,10 +77,13 @@ interactions.</p></li>
 </ul></li>
 <li><p>Estimate, value and attribute productivity gaps with
 <code><a href="productivity_gap.html">productivity_gap()</a></code>, <code><a href="value_losses.html">value_losses()</a></code>, <code><a href="attribute_burden.html">attribute_burden()</a></code> and
-<code><a href="contribution_table.html">contribution_table()</a></code>. Culling hazard ratios go through
-<code><a href="hr_conversion.html">hr_conversion()</a></code>, <code><a href="as_impacts.html">as_impacts()</a></code> and <code><a href="adjusted_hr.html">adjusted_hr()</a></code>.</p></li>
+<code><a href="contribution_table.html">contribution_table()</a></code>. Culling hazard ratios can be adjusted directly
+(<code>scale = "hazard_ratio"</code>) and turned into culling attributable to
+disease with <code><a href="attributable_risk.html">attributable_risk()</a></code>; <code><a href="compare_methods.html">compare_methods()</a></code> tabulates the
+methods side by side.</p></li>
 <li><p>Check joint feasibility with <code><a href="check_feasibility.html">check_feasibility()</a></code>.</p></li>
-<li><p>Propagate uncertainty with <code><a href="cm_sampler.html">cm_sampler()</a></code> and <code><a href="cm_monte_carlo.html">cm_monte_carlo()</a></code>, and
+<li><p>Propagate uncertainty with <code><a href="cm_sampler.html">cm_sampler()</a></code> and <code><a href="cm_monte_carlo.html">cm_monte_carlo()</a></code> (check
+stability with <code><a href="cm_diagnose.html">cm_diagnose()</a></code>), and
 explore scenarios with <code><a href="cm_scenario.html">cm_scenario()</a></code>, <code><a href="sensitivity_oat.html">sensitivity_oat()</a></code>,
 <code><a href="screen_associations.html">screen_associations()</a></code>, <code><a href="screen_interactions.html">screen_interactions()</a></code> and
 <code><a href="compare_scenarios.html">compare_scenarios()</a></code>.</p></li>

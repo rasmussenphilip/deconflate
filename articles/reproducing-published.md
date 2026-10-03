@@ -211,6 +211,24 @@ here to keep the vignette fast.
 
 mc <- cm_monte_carlo(sampler_global_dairy(), 200, method = "published", seed = 2024)
 s <- summary(mc)
+#> 8 Monte Carlo estimate(s) may be unstable:
+#> * yield / DA (published): the Monte Carlo standard error is 6.3% of the mean.
+#>     Suggestion: increase n_draws to about 2,002 for a 2% standard error, or use sampling = "lhs" (Latin hypercube).
+#> * fertility / DA (published): the most extreme 1% of draws contribute 97% of the variance.
+#>     Suggestion: importance sampling: prop <- cm_suggest_proposal(mc, "fertility", "DA", method = "published"), then cm_monte_carlo(sampler, n_draws, method = "published", proposal = prop). Also report the median.
+#> * culling / DYS (published): the published approximation divides by m + c, which changes sign in 1.0% of draws, so the mean does not exist.
+#>     Suggestion: report the median or trimmed_mean, or use method = "simultaneous" (exact, no division). More draws, Latin hypercube or importance sampling will not make this mean converge.
+#> * fertility / MET (published): the published approximation divides by m + c, which changes sign in 1.0% of draws, so the mean does not exist.
+#>     Suggestion: report the median or trimmed_mean, or use method = "simultaneous" (exact, no division). More draws, Latin hypercube or importance sampling will not make this mean converge.
+#> * culling / MET (published): the Monte Carlo standard error is 7.7% of the mean.
+#>     Suggestion: increase n_draws to about 2,998 for a 2% standard error, or use sampling = "lhs" (Latin hypercube).
+#> * fertility / PTB (published): the published approximation divides by m + c, which changes sign in 0.5% of draws, so the mean does not exist.
+#>     Suggestion: report the median or trimmed_mean, or use method = "simultaneous" (exact, no division). More draws, Latin hypercube or importance sampling will not make this mean converge.
+#> * fertility / SCK (published): the published approximation divides by m + c, which changes sign in 3.5% of draws, so the mean does not exist.
+#>     Suggestion: report the median or trimmed_mean, or use method = "simultaneous" (exact, no division). More draws, Latin hypercube or importance sampling will not make this mean converge.
+#> * fertility / SCM (published): the Monte Carlo standard error is 7.9% of the mean.
+#>     Suggestion: increase n_draws to about 3,101 for a 2% standard error, or use sampling = "lhs" (Latin hypercube).
+#> (See ?cm_diagnose; use summary(..., diagnose = FALSE) to silence this message.)
 s$package <- round(ifelse(s$outcome == "culling", 1 + s$mean, 100 * s$mean), 2)
 table5 <- list(
   yield = c(0.03, 1.36, 1.18, 3.48, 2.62, 2.87, 0.07, 2.59, 3.37, 2.30, 7.11, 5.58),

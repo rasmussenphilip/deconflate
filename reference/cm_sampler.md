@@ -56,7 +56,11 @@ A function of the draw index returning a
 [`cm_model()`](https://rasmussenphilip.github.io/deconflate/reference/cm_model.md),
 with attributes `specs` (the distributions, keyed as in `params` of
 [`cm_monte_carlo()`](https://rasmussenphilip.github.io/deconflate/reference/cm_monte_carlo.md))
-and `correlated` (keys drawn through the copula).
+and `correlated` (keys drawn through the copula). The function also
+accepts `u` (named uniforms, for stratified sampling) and `values`
+(named input values that replace draws, for importance sampling);
+[`cm_monte_carlo()`](https://rasmussenphilip.github.io/deconflate/reference/cm_monte_carlo.md)
+uses these.
 
 ## Details
 
@@ -84,7 +88,7 @@ m <- example_supplement()
 s <- cm_sampler(m, associations = list("d1:d2" = dist_lognormal_ci(2, 1.4, 2.9)))
 s(1)$associations
 #>   disease1 disease2 measure    value adjusted adjusted_for source n11 n10 n01
-#> 1       d1       d2      OR 1.541952    FALSE         <NA>   <NA>  NA  NA  NA
+#> 1       d1       d2      OR 2.153526    FALSE         <NA>   <NA>  NA  NA  NA
 #> 2       d1       d3      OR 1.000000    FALSE         <NA>   <NA>  NA  NA  NA
 #> 3       d2       d3      OR 3.000000    FALSE         <NA>   <NA>  NA  NA  NA
 #>   n00

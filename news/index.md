@@ -1,5 +1,95 @@
 # Changelog
 
+## deconflate (development version)
+
+Work towards 0.2.0.
+
+### Culling hazard ratios
+
+- [`cm_impacts()`](https://rasmussenphilip.github.io/deconflate/reference/cm_impacts.md)
+  accepts `scale = "hazard_ratio"`. Hazard ratios are adjusted under a
+  multiplicative (Cox-type) model:
+  - `method = "global"` solves the model exactly over the distribution
+    of disease combinations, so that the adjusted hazard ratios
+    reproduce the raw ones;
+  - `method = "simultaneous"` uses the first-order (log-linear) version;
+  - `method = "published"` reproduces Rasmussen et al. (2024) (`HR - 1`
+    with eq. 16).
+- New
+  [`attributable_risk()`](https://rasmussenphilip.github.io/deconflate/reference/attributable_risk.md):
+  the culling (or mortality) attributable to disease, without counting
+  an animal with several diseases more than once, allocated to diseases
+  by Shapley values. [`summary()`](https://rdrr.io/r/base/summary.html),
+  [`contribution_table()`](https://rasmussenphilip.github.io/deconflate/reference/contribution_table.md)
+  and
+  [`compare_methods()`](https://rasmussenphilip.github.io/deconflate/reference/compare_methods.md)
+  use it to value hazard-ratio outcomes.
+- [`example_global_dairy()`](https://rasmussenphilip.github.io/deconflate/reference/example_global_dairy.md)
+  and
+  [`sampler_global_dairy()`](https://rasmussenphilip.github.io/deconflate/reference/sampler_global_dairy.md)
+  gain `culling_scale = c("excess_hr", "hazard_ratio")`.
+- New vignette: “Culling and hazard ratios”.
+
+### Reading your own data
+
+- New
+  [`cm_read_inputs()`](https://rasmussenphilip.github.io/deconflate/reference/cm_read_inputs.md):
+  builds a model (and a Monte Carlo sampler) from CSV files or data
+  frames, after checking every table and reporting all problems at once.
+  [`cm_check_inputs()`](https://rasmussenphilip.github.io/deconflate/reference/cm_check_inputs.md)
+  returns the problems without stopping.
+- New
+  [`cm_template()`](https://rasmussenphilip.github.io/deconflate/reference/cm_template.md)
+  (example CSV files) and
+  [`cm_dist_table()`](https://rasmussenphilip.github.io/deconflate/reference/cm_dist_table.md)
+  (distributions from an uncertainty table).
+- New vignette: “Using your own data”.
+
+### Comparing methods
+
+- **Breaking:**
+  [`compare_methods()`](https://rasmussenphilip.github.io/deconflate/reference/compare_methods.md)
+  now returns a `cm_comparison` object with side-by-side tables of
+  adjusted impacts, relative changes, sign changes, totals and (with
+  `economics`) gaps and values per method, and records methods that
+  fail. The adjusted impacts are in `$impacts`.
+- [`cm_monte_carlo()`](https://rasmussenphilip.github.io/deconflate/reference/cm_monte_carlo.md)
+  accepts several methods (`method = c("published", "simultaneous")`)
+  and applies them to the same draws;
+  [`compare_methods()`](https://rasmussenphilip.github.io/deconflate/reference/compare_methods.md)
+  compares their summaries.
+
+### Monte Carlo stability
+
+- [`summary.cm_mc()`](https://rasmussenphilip.github.io/deconflate/reference/summary.cm_mc.md)
+  gains a `method` column, a trimmed mean and stability diagnostics
+  (`rel_mcse`, `tail_share`, `stability`), and prints suggestions when
+  estimates look unstable. It distinguishes means that do not exist (the
+  published approximation dividing by a quantity that changes sign) from
+  heavy tails and imprecision.
+- New
+  [`cm_diagnose()`](https://rasmussenphilip.github.io/deconflate/reference/cm_diagnose.md)
+  (flagged estimates with suggestions) and
+  [`cm_suggest_proposal()`](https://rasmussenphilip.github.io/deconflate/reference/cm_suggest_proposal.md)
+  (a defensive-mixture importance-sampling proposal).
+- [`cm_monte_carlo()`](https://rasmussenphilip.github.io/deconflate/reference/cm_monte_carlo.md)
+  gains `sampling = "lhs"` (Latin hypercube sampling) and `proposal`
+  (importance sampling). Importance weights carry through
+  [`cm_scenario()`](https://rasmussenphilip.github.io/deconflate/reference/cm_scenario.md)
+  and
+  [`cm_reweight()`](https://rasmussenphilip.github.io/deconflate/reference/cm_reweight.md).
+
+### Other changes
+
+- [`attribute_burden()`](https://rasmussenphilip.github.io/deconflate/reference/attribute_burden.md)
+  and
+  [`productivity_gap()`](https://rasmussenphilip.github.io/deconflate/reference/productivity_gap.md)
+  skip hazard-ratio outcomes (use
+  [`attributable_risk()`](https://rasmussenphilip.github.io/deconflate/reference/attributable_risk.md)).
+- [`plot.cm_mc()`](https://rasmussenphilip.github.io/deconflate/reference/plots.md)
+  gains a `method` argument and plots hazard ratios on their own scale.
+- Added `inst/validation/reference_v02.py`.
+
 ## deconflate 0.1.0
 
 ### Reproduction review
