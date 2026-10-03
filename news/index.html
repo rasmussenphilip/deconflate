@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">deconflate</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.0.9001</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -40,9 +40,9 @@
     </div>
 
     <div class="section level2">
-<h2 class="pkg-version" data-toc-text="development version" id="deconflate-development-version">deconflate (development version)<a class="anchor" aria-label="anchor" href="#deconflate-development-version"></a></h2>
+<h2 class="pkg-version" data-toc-text="0.1.0" id="deconflate-010">deconflate 0.1.0<a class="anchor" aria-label="anchor" href="#deconflate-010"></a></h2>
 <div class="section level3">
-<h3 id="reproduction-review-development-version">Reproduction review<a class="anchor" aria-label="anchor" href="#reproduction-review-development-version"></a></h3>
+<h3 id="reproduction-review-0-1-0">Reproduction review<a class="anchor" aria-label="anchor" href="#reproduction-review-0-1-0"></a></h3>
 <p>Checked against the published 2024 analysis code (1st revision) and the 2022 corrigendum.</p>
 <ul><li>
 <strong>Breaking:</strong> <code><a href="../reference/example_global_dairy.html">example_global_dairy()</a></code> and <code><a href="../reference/sampler_global_dairy.html">sampler_global_dairy()</a></code> gain <code>inputs = c("analysis", "tables")</code> and <code>culling = TRUE</code>. The default, <code>"analysis"</code>, uses the inputs of the published analysis code, which reproduce Table 5 of Rasmussen et al. (2024):
@@ -58,22 +58,22 @@
 <li>Added <code>inst/validation/reference_2024_analysis.py</code>.</li>
 </ul></div>
 <div class="section level3">
-<h3 id="id_0009001-development-version">0.0.0.9001<a class="anchor" aria-label="anchor" href="#id_0009001-development-version"></a></h3>
+<h3 id="id_0009001-0-1-0">0.0.0.9001<a class="anchor" aria-label="anchor" href="#id_0009001-0-1-0"></a></h3>
 <p>Builds the remaining v0.1 features.</p>
 <div class="section level4">
-<h4 id="reproduction-of-the-published-analyses-development-version">Reproduction of the published analyses<a class="anchor" aria-label="anchor" href="#reproduction-of-the-published-analyses-development-version"></a></h4>
+<h4 id="reproduction-of-the-published-analyses-0-1-0">Reproduction of the published analyses<a class="anchor" aria-label="anchor" href="#reproduction-of-the-published-analyses-0-1-0"></a></h4>
 <ul><li>Added the UK dairy model of Rasmussen et al. (2022): <code><a href="../reference/example_uk_dairy_2022.html">example_uk_dairy_2022()</a></code> and <code><a href="../reference/uk_dairy_2022_economics.html">uk_dairy_2022_economics()</a></code>. It reproduces the fertility and culling results of Tables 8-10 and documents why the yield results differ (the printed Table 4 differs from the inputs implied by Tables 8-10).</li>
 <li>Added <code><a href="../reference/sampler_global_dairy.html">sampler_global_dairy()</a></code> with the input distributions of Rasmussen et al. (2024). Monte Carlo means of the adjusted yield impacts reproduce Table 5. The central value of the PERT distributions in Tables 2-4 is the mode.</li>
 </ul></div>
 <div class="section level4">
-<h4 id="culling-and-valuation-development-version">Culling and valuation<a class="anchor" aria-label="anchor" href="#culling-and-valuation-development-version"></a></h4>
+<h4 id="culling-and-valuation-0-1-0">Culling and valuation<a class="anchor" aria-label="anchor" href="#culling-and-valuation-0-1-0"></a></h4>
 <ul><li>Added <code><a href="../reference/hr_conversion.html">hr_conversion()</a></code>, <code><a href="../reference/as_impacts.html">as_impacts()</a></code> and <code><a href="../reference/adjusted_hr.html">adjusted_hr()</a></code>, which take culling hazard ratios through to adjusted hazard ratios. They support proportional-hazards and published (odds-ratio) conversions.</li>
 <li>
 <code><a href="../reference/productivity_gap.html">productivity_gap()</a></code> now supports impacts on the absolute scale.</li>
 <li>Added <code><a href="../reference/value_losses.html">value_losses()</a></code> to value gaps in money, and <code><a href="../reference/combine_impacts.html">combine_impacts()</a></code> to stack impact tables.</li>
 </ul></div>
 <div class="section level4">
-<h4 id="uncertainty-development-version">Uncertainty<a class="anchor" aria-label="anchor" href="#uncertainty-development-version"></a></h4>
+<h4 id="uncertainty-0-1-0">Uncertainty<a class="anchor" aria-label="anchor" href="#uncertainty-0-1-0"></a></h4>
 <ul><li>Added input distributions: <code><a href="../reference/distributions.html">dist_fixed()</a></code>, <code><a href="../reference/distributions.html">dist_normal()</a></code> (optionally truncated), <code><a href="../reference/distributions.html">dist_lognormal()</a></code>, <code><a href="../reference/distributions.html">dist_lognormal_ci()</a></code>, <code><a href="../reference/distributions.html">dist_beta()</a></code>, <code><a href="../reference/distributions.html">dist_pert()</a></code>, <code><a href="../reference/distributions.html">dist_pert_mean()</a></code>, <code><a href="../reference/distributions.html">dist_uniform()</a></code> and <code><a href="../reference/distributions.html">dist_mixture()</a></code>.</li>
 <li>Added <code><a href="../reference/cm_sampler.html">cm_sampler()</a></code>, which draws inputs on their entry scale. It supports optional correlation of impacts across outcomes (Gaussian copula).</li>
 <li>
@@ -86,25 +86,25 @@
 <li>Parameter keys are now <code>prob:&lt;id&gt;</code>, <code>assoc:&lt;d1&gt;:&lt;d2&gt;</code>, <code>impact:&lt;outcome&gt;:&lt;disease&gt;</code> and <code>inter:&lt;outcome&gt;:&lt;d1&gt;:&lt;d2&gt;</code>.</li>
 </ul></div>
 <div class="section level4">
-<h4 id="feasibility-attribution-and-sensitivity-development-version">Feasibility, attribution and sensitivity<a class="anchor" aria-label="anchor" href="#feasibility-attribution-and-sensitivity-development-version"></a></h4>
+<h4 id="feasibility-attribution-and-sensitivity-0-1-0">Feasibility, attribution and sensitivity<a class="anchor" aria-label="anchor" href="#feasibility-attribution-and-sensitivity-0-1-0"></a></h4>
 <ul><li>Added <code><a href="../reference/check_feasibility.html">check_feasibility()</a></code>. It runs a triple screen without extra packages and an exact linear-programming check when <code>lpSolve</code> is installed.</li>
 <li>Added <code><a href="../reference/shapley_by_cell.html">shapley_by_cell()</a></code> with <code><a href="../reference/loss_functions.html">loss_additive()</a></code> and <code><a href="../reference/loss_functions.html">loss_multiplicative()</a></code>, for Shapley attribution of general loss functions.</li>
 <li>Added sensitivity tools: <code><a href="../reference/screen_associations.html">screen_associations()</a></code>, <code><a href="../reference/screen_interactions.html">screen_interactions()</a></code>, <code><a href="../reference/sensitivity_oat.html">sensitivity_oat()</a></code> and <code><a href="../reference/compare_scenarios.html">compare_scenarios()</a></code>. Also added <code><a href="../reference/set_association.html">set_association()</a></code> and <code><a href="../reference/set_interaction.html">set_interaction()</a></code> for editing models.</li>
 </ul></div>
 <div class="section level4">
-<h4 id="reporting-development-version">Reporting<a class="anchor" aria-label="anchor" href="#reporting-development-version"></a></h4>
+<h4 id="reporting-0-1-0">Reporting<a class="anchor" aria-label="anchor" href="#reporting-0-1-0"></a></h4>
 <ul><li>Added <code><a href="../reference/contribution_table.html">contribution_table()</a></code>, <code><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary()</a></code> for adjustment results, and base-graphics plots: <code><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot()</a></code> for results, Monte Carlo runs, screens and one-at-a-time sensitivity, plus <code><a href="../reference/plots.html">plot_burden()</a></code>.</li>
 <li>Added four vignettes and a pkgdown configuration.</li>
 </ul></div>
 <div class="section level4">
-<h4 id="other-changes-development-version">Other changes<a class="anchor" aria-label="anchor" href="#other-changes-development-version"></a></h4>
+<h4 id="other-changes-0-1-0">Other changes<a class="anchor" aria-label="anchor" href="#other-changes-0-1-0"></a></h4>
 <ul><li>
 <code><a href="../reference/pair_tables.html">pair_tables()</a></code> is vectorised, which makes Monte Carlo runs faster.</li>
 <li>Hazard ratios of exactly 1 now give exactly zero excess risk.</li>
 </ul></div>
 </div>
 <div class="section level3">
-<h3 id="id_0009000-development-version">0.0.0.9000<a class="anchor" aria-label="anchor" href="#id_0009000-development-version"></a></h3>
+<h3 id="id_0009000-0-1-0">0.0.0.9000<a class="anchor" aria-label="anchor" href="#id_0009000-0-1-0"></a></h3>
 <ul><li>Initial skeleton: input constructors, the three adjustment methods, the joint distribution, productivity gaps, Shapley attribution for pairwise interactions, hazard-ratio conversion and Monte Carlo with reweighting.</li>
 </ul></div>
 </div>
