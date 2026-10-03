@@ -10,35 +10,37 @@ and returns every problem found, without stopping.
 cm_check_inputs(
   diseases = NULL,
   associations = NULL,
+  three_way = NULL,
   impacts = NULL,
   interactions = NULL,
   uncertainty = NULL,
+  hazard_ratios = NULL,
   dir = NULL,
   missing_associations = c("independent", "unknown"),
-  outcome_correlation = NULL
+  adjusted_associations = c("error", "use_as_marginal")
 )
 ```
 
 ## Arguments
 
-- diseases, associations, impacts, interactions, uncertainty:
+- diseases, associations, three_way, hazard_ratios:
 
-  Paths to CSV files or data frames. `NULL` tables are taken from `dir`
-  (if given) or left out.
+  Paths to CSV files or data frames.
+
+- impacts, interactions, uncertainty:
+
+  A path or data frame, or a named list of them (one per analysis; see
+  Files).
 
 - dir:
 
-  Optional folder with the CSV files named as above.
+  Optional folder with CSV files named as in Files. Arguments given
+  explicitly take precedence over files.
 
-- missing_associations:
-
-  Passed to
-  [`cm_model()`](https://rasmussenphilip.github.io/deconflate/reference/cm_model.md).
-
-- outcome_correlation:
+- missing_associations, adjusted_associations:
 
   Passed to
-  [`cm_sampler()`](https://rasmussenphilip.github.io/deconflate/reference/cm_sampler.md).
+  [`cm_population()`](https://rasmussenphilip.github.io/deconflate/reference/cm_population.md).
 
 ## Value
 
@@ -51,11 +53,11 @@ inputs can be read.
 ``` r
 cm_check_inputs(
   diseases = data.frame(id = c("d1", "d2"), value = c(0.10, 1.5)),
-  impacts = data.frame(disease = c("d1", "d3"), outcome = "yield", value = c(2, "x"))
+  impacts = data.frame(disease = c("d1", "d3"), value = c(2, "x"))
 )
 #> Found 4 problem(s) in the inputs:
 #>   diseases, row 2, column 'value': Gives a probability of 1.5; it must be strictly between 0 and 1.
 #>   impacts, row 2, column 'value': 'x' is not a number.
 #>   impacts, row 2, column 'disease': Unknown disease 'd3' (not in the diseases table).
-#>   impacts: Outcome 'yield' has no impact for: d2. Add a row with value 0 for no impact. 
+#>   impacts: No impact for: d2. Add a row with value 0 for no impact. 
 ```

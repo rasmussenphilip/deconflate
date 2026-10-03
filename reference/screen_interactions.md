@@ -2,20 +2,13 @@
 
 Adds a pairwise interaction of each size in `values` to each disease
 pair, one at a time, re-runs the global adjustment and reports the
-change in total burden and rankings. The joint distribution is fitted
-once and reused. Use it to see which assumed interactions would matter,
-before looking for evidence on them.
+change in the aggregate and rankings. The joint distribution is fitted
+once and reused.
 
 ## Usage
 
 ``` r
-screen_interactions(
-  model,
-  outcome,
-  values = c(-0.01, 0.01),
-  pairs = NULL,
-  economics = NULL
-)
+screen_interactions(model, values, pairs = NULL, valuation = NULL)
 ```
 
 ## Arguments
@@ -25,22 +18,18 @@ screen_interactions(
   A
   [`cm_model()`](https://rasmussenphilip.github.io/deconflate/reference/cm_model.md).
 
-- outcome:
-
-  Outcome to add interactions to.
-
 - values:
 
-  Interaction sizes (proportion scale; positive synergistic, negative
-  antagonistic).
+  Interaction sizes (same units as the impacts; positive synergistic,
+  negative antagonistic).
 
 - pairs:
 
   Optional character vector of pairs (`"d1:d2"`).
 
-- economics:
+- valuation:
 
-  Optional economics list; otherwise the burden of `outcome` is the
+  Optional valuation list; otherwise the adjusted aggregate is the
   metric.
 
 ## Value

@@ -1,53 +1,67 @@
-# Combine inputs into a comorbidity model
+# Combine a population with an impact vector
 
-Combine inputs into a comorbidity model
+Combine a population with an impact vector
 
 ## Usage
 
 ``` r
 cm_model(
-  diseases,
-  associations = NULL,
+  population,
   impacts = NULL,
   interactions = NULL,
-  missing_associations = c("independent", "unknown")
+  associations = NULL,
+  three_way = NULL,
+  missing_associations = c("independent", "unknown"),
+  adjusted_associations = c("error", "use_as_marginal")
 )
 ```
 
 ## Arguments
 
-- diseases:
+- population:
 
   A
+  [`cm_population()`](https://rasmussenphilip.github.io/deconflate/reference/cm_population.md).
+  For convenience, a
   [`cm_diseases()`](https://rasmussenphilip.github.io/deconflate/reference/cm_diseases.md)
-  object.
-
-- associations:
-
-  A
-  [`cm_associations()`](https://rasmussenphilip.github.io/deconflate/reference/cm_associations.md)
-  object, or `NULL`.
+  object can be given instead, together with `associations`,
+  `missing_associations` and `three_way`.
 
 - impacts:
 
   A
   [`cm_impacts()`](https://rasmussenphilip.github.io/deconflate/reference/cm_impacts.md)
-  object, or `NULL` (e.g. when only the joint distribution or simulated
-  impacts are needed).
+  object with one value per disease.
 
 - interactions:
 
-  A
+  Optional
   [`cm_interactions()`](https://rasmussenphilip.github.io/deconflate/reference/cm_interactions.md)
-  object, or `NULL`.
+  object.
 
-- missing_associations:
+- associations, three_way, missing_associations, adjusted_associations:
 
-  How to treat disease pairs without a row in `associations`:
-  `"independent"` imposes an odds ratio of 1 (as in Rasmussen et al.
-  2022, 2024); `"unknown"` leaves them unconstrained (only usable with
-  the global method). These are different assumptions.
+  Used only when `population` is a
+  [`cm_diseases()`](https://rasmussenphilip.github.io/deconflate/reference/cm_diseases.md)
+  object; see
+  [`cm_population()`](https://rasmussenphilip.github.io/deconflate/reference/cm_population.md).
 
 ## Value
 
-A `cm_model` object.
+A `cm_model` object (which is also a `cm_population`).
+
+## Examples
+
+``` r
+m <- cm_model(
+  cm_diseases(c("d1", "d2", "d3"), c(0.10, 0.15, 0.20)),
+  cm_impacts(c("d1", "d2", "d3"), c(2.5, 5, 7.5), units = "%"),
+  associations = cm_associations(c("d1", "d2"), c("d2", "d3"), c(2, 3))
+)
+m
+#> <cm_model>
+#>   Diseases: 3 (d1, d2, d3)
+#>   Disease pairs: 3 [independent (default): 1; specified: 2]
+#>   Impacts: (unlabelled) [%]
+#>   Estimands: crude: 3
+```

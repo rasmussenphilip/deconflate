@@ -8,14 +8,19 @@ estimates so that they can be aggregated.
 
 ## Workflow
 
-1.  Describe the system with
+1.  Describe the population with
     [`cm_diseases()`](https://rasmussenphilip.github.io/deconflate/reference/cm_diseases.md),
-    [`cm_associations()`](https://rasmussenphilip.github.io/deconflate/reference/cm_associations.md),
-    [`cm_impacts()`](https://rasmussenphilip.github.io/deconflate/reference/cm_impacts.md)
-    and, optionally,
-    [`cm_interactions()`](https://rasmussenphilip.github.io/deconflate/reference/cm_interactions.md),
-    then combine them with
-    [`cm_model()`](https://rasmussenphilip.github.io/deconflate/reference/cm_model.md).
+    [`cm_associations()`](https://rasmussenphilip.github.io/deconflate/reference/cm_associations.md)
+    and, optionally, three-way scenarios
+    ([`cm_three_way()`](https://rasmussenphilip.github.io/deconflate/reference/cm_three_way.md)),
+    combined with
+    [`cm_population()`](https://rasmussenphilip.github.io/deconflate/reference/cm_population.md).
+    Add one impact vector
+    ([`cm_impacts()`](https://rasmussenphilip.github.io/deconflate/reference/cm_impacts.md))
+    per analysis with
+    [`cm_model()`](https://rasmussenphilip.github.io/deconflate/reference/cm_model.md),
+    or several with
+    [`cm_analyses()`](https://rasmussenphilip.github.io/deconflate/reference/cm_analyses.md).
     Or read the same tables from CSV files or data frames with
     [`cm_read_inputs()`](https://rasmussenphilip.github.io/deconflate/reference/cm_read_inputs.md)
     (see
@@ -26,34 +31,47 @@ estimates so that they can be aggregated.
     using one of three methods:
 
     - `"simultaneous"` (default): the exact solution of the additive
-      impact equations, built from pairwise 2x2 tables.
+      impact equations, built from pairwise 2x2 tables. Crude estimates
+      and coefficients from additive regressions with a recorded
+      adjustment set (`estimand = "adjusted_linear"`) are supported.
 
     - `"published"`: the proportional approximation of Rasmussen et al.
-      (2022), eqs. 15-16, for reproduction and comparison.
+      (2022), eq. 16, for crude estimates, for reproduction and
+      comparison.
 
     - `"global"`: fits a maximum-entropy distribution of disease
       combinations with
       [`fit_joint()`](https://rasmussenphilip.github.io/deconflate/reference/fit_joint.md),
-      then solves the impact equations including pairwise interactions.
+      then solves the impact equations including pairwise interactions
+      ([`cm_interactions()`](https://rasmussenphilip.github.io/deconflate/reference/cm_interactions.md)).
 
-3.  Estimate, value and attribute productivity gaps with
-    [`productivity_gap()`](https://rasmussenphilip.github.io/deconflate/reference/productivity_gap.md),
-    [`value_losses()`](https://rasmussenphilip.github.io/deconflate/reference/value_losses.md),
-    [`attribute_burden()`](https://rasmussenphilip.github.io/deconflate/reference/attribute_burden.md)
+3.  Inspect each disease's contribution to the aggregate
+    ([`attribute_burden()`](https://rasmussenphilip.github.io/deconflate/reference/attribute_burden.md),
+    [`contribution_table()`](https://rasmussenphilip.github.io/deconflate/reference/contribution_table.md));
+    optionally turn the aggregate into a productivity gap and a value
+    with
+    [`productivity_gap()`](https://rasmussenphilip.github.io/deconflate/reference/productivity_gap.md)
     and
-    [`contribution_table()`](https://rasmussenphilip.github.io/deconflate/reference/contribution_table.md).
-    Culling hazard ratios can be adjusted directly
-    (`scale = "hazard_ratio"`) and turned into culling attributable to
-    disease with
-    [`attributable_risk()`](https://rasmussenphilip.github.io/deconflate/reference/attributable_risk.md);
+    [`value_losses()`](https://rasmussenphilip.github.io/deconflate/reference/value_losses.md).
     [`compare_methods()`](https://rasmussenphilip.github.io/deconflate/reference/compare_methods.md)
     tabulates the methods side by side.
 
-4.  Check joint feasibility with
-    [`check_feasibility()`](https://rasmussenphilip.github.io/deconflate/reference/check_feasibility.md).
+4.  Hazard ratios (e.g. of culling) combine multiplicatively and have
+    their own adapter:
+    [`cm_hazard_ratios()`](https://rasmussenphilip.github.io/deconflate/reference/cm_hazard_ratios.md),
+    [`cm_hr_model()`](https://rasmussenphilip.github.io/deconflate/reference/cm_hr_model.md),
+    [`deconflate_hr()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate_hr.md)
+    and
+    [`attributable_risk()`](https://rasmussenphilip.github.io/deconflate/reference/attributable_risk.md).
 
-5.  Propagate uncertainty with
+5.  Check joint feasibility with
+    [`check_feasibility()`](https://rasmussenphilip.github.io/deconflate/reference/check_feasibility.md)
+    (a screen runs by default).
+
+6.  Propagate uncertainty with
     [`cm_sampler()`](https://rasmussenphilip.github.io/deconflate/reference/cm_sampler.md)
+    or
+    [`cm_batch_sampler()`](https://rasmussenphilip.github.io/deconflate/reference/cm_batch_sampler.md)
     and
     [`cm_monte_carlo()`](https://rasmussenphilip.github.io/deconflate/reference/cm_monte_carlo.md)
     (check stability with
@@ -62,26 +80,39 @@ estimates so that they can be aggregated.
     [`cm_scenario()`](https://rasmussenphilip.github.io/deconflate/reference/cm_scenario.md),
     [`sensitivity_oat()`](https://rasmussenphilip.github.io/deconflate/reference/sensitivity_oat.md),
     [`screen_associations()`](https://rasmussenphilip.github.io/deconflate/reference/screen_associations.md),
-    [`screen_interactions()`](https://rasmussenphilip.github.io/deconflate/reference/screen_interactions.md)
+    [`screen_interactions()`](https://rasmussenphilip.github.io/deconflate/reference/screen_interactions.md),
+    [`screen_three_way()`](https://rasmussenphilip.github.io/deconflate/reference/screen_three_way.md)
     and
     [`compare_scenarios()`](https://rasmussenphilip.github.io/deconflate/reference/compare_scenarios.md).
 
-See
+[`reproduce_rasmussen_2022()`](https://rasmussenphilip.github.io/deconflate/reference/reproduce.md)
+and
+[`reproduce_rasmussen_2024()`](https://rasmussenphilip.github.io/deconflate/reference/reproduce.md)
+recompute the published tables. See
 [`vignette("deconflate")`](https://rasmussenphilip.github.io/deconflate/articles/deconflate.md)
 to get started.
 
 ## Conventions
 
-- Impacts on the `"proportion"` scale are proportional changes relative
-  to the disease-free value (e.g. `0.025` for a 2.5% yield reduction).
+- Impacts are additive and in any units, the same within an analysis;
+  results come back in those units.
 
 - `E[k, i]` (see
   [`excess_matrix()`](https://rasmussenphilip.github.io/deconflate/reference/excess_matrix.md))
   is the excess probability of disease `k` among animals with disease
   `i`: `P(k | i) - P(k | not i)`.
 
-- Under additive impacts, the raw (crude) impact of disease `i`
-  satisfies `m_raw[i] = m[i] + sum_k E[k, i] * m[k]` exactly.
+- Under additive impacts, the crude impact of disease `i` satisfies
+  `m_raw[i] = m[i] + sum_k E[k, i] * m[k]` exactly.
+
+- Errors have classes `deconflate_infeasible`, `deconflate_singular`,
+  `deconflate_nonconvergence`, `deconflate_unsupported` and
+  `deconflate_nonfinite` (all also `deconflate_error`); problems found
+  by
+  [`cm_read_inputs()`](https://rasmussenphilip.github.io/deconflate/reference/cm_read_inputs.md)
+  have class `deconflate_input_problems`. Warning classes include
+  `deconflate_sign_change`, `deconflate_nonconvergence` and
+  `deconflate_nonfinite_warning` (all also `deconflate_warning`).
 
 ## References
 

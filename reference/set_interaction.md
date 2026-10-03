@@ -1,11 +1,11 @@
-# Set or replace one pairwise interaction in a model
+# Set or replace one pairwise interaction
 
-Set or replace one pairwise interaction in a model
+Set or replace one pairwise interaction
 
 ## Usage
 
 ``` r
-set_interaction(model, disease1, disease2, value, outcome)
+set_interaction(model, disease1, disease2, value)
 ```
 
 ## Arguments
@@ -21,11 +21,7 @@ set_interaction(model, disease1, disease2, value, outcome)
 
 - value:
 
-  Interaction value on the outcome's proportion scale.
-
-- outcome:
-
-  Outcome label.
+  Interaction value (same units as the impacts).
 
 ## Value
 

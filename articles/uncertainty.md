@@ -24,116 +24,137 @@ dist_normal(2.63, 1.44, lower = 0)  # truncated at zero
 ## Monte Carlo analysis
 
 [`cm_sampler()`](https://rasmussenphilip.github.io/deconflate/reference/cm_sampler.md)
-attaches distributions to a model. Each draw is a complete model, so
-disease probabilities and associations are shared by all outcomes within
-a draw. `outcome_correlation` additionally correlates a disease’s
-impacts across outcomes (Gaussian copula):
+attaches distributions to a model. Keys name the inputs:
+`prob:<disease>`, `assoc:<d1>:<d2>`, `impact:<disease>` and
+`inter:<d1>:<d2>`. Each draw is a complete model, so the uncertainty of
+probabilities, associations and impacts is propagated jointly. Here the
+association of d2 and d3 is given a defensive mixture (a wider component
+with weight 0.2), which is used for a scenario below:
 
 ``` r
 
-m <- example_uk_dairy_2022()
-R <- matrix(c(1, 0.5, 0.5, 1), 2,
-            dimnames = list(c("yield", "fertility"), c("yield", "fertility")))
+m <- example_supplement()
 s <- cm_sampler(
   m,
-  diseases = list(LAM = dist_beta(30, 70), MAS = dist_beta(30, 70)),
-  associations = list("LAM:PTB" = dist_mixture(dist_lognormal_ci(2.7, 1.5, 4.9),
-                                               dist_lognormal(log(2.7), 0.8),
-                                               weights = c(0.8, 0.2)),
-                      "LAM:SCK" = dist_lognormal_ci(2.01, 1.62, 2.49)),
-  impacts = list("yield:LAM" = dist_normal(5.54, 0.8),
-                 "fertility:LAM" = dist_normal(12.47, 2)),
-  outcome_correlation = R
+  diseases = list(d1 = dist_beta(20, 180)),
+  associations = list(
+    "d1:d2" = dist_lognormal_ci(2, 1.4, 2.9),
+    "d2:d3" = dist_mixture(dist_lognormal_ci(3, 2, 4.5), dist_lognormal(log(3), 0.8),
+                           weights = c(0.8, 0.2))
+  ),
+  impacts = list(d1 = dist_normal(2.5, 0.5), d2 = dist_normal(5, 1),
+                 d3 = dist_pert(5, 7.5, 9))
 )
 s
-#> <cm_sampler> 6 uncertain inputs (2 drawn with outcome correlation)
-#>   prob:LAM: beta
-#>   prob:MAS: beta
-#>   assoc:LAM:PTB: mixture
-#>   assoc:LAM:SCK: lognormal
-#>   impact:yield:LAM: normal
-#>   impact:fertility:LAM: normal
-mc <- cm_monte_carlo(s, 200, method = "simultaneous",
-                     economics = uk_dairy_2022_economics(), seed = 1)
+#> <cm_sampler> 6 uncertain inputs
+#>   prob:d1: beta
+#>   assoc:d1:d2: lognormal
+#>   assoc:d2:d3: mixture
+#>   impact:d1: normal
+#>   impact:d2: normal
+#>   impact:d3: pert
+mc <- cm_monte_carlo(s, 400, seed = 1)
 mc
 #> <cm_mc> method: simultaneous
-#>   Draws: 200, rejected as infeasible: 0 (0.0%)
+#>   Analysis: yield [%]
+#>   Draws: 400, rejected: 0 (0.0%)
 #>   Sampling: random
-#>   Effective sample size: 200.0
+#>   Effective sample size: 400.0
+summary(mc)
+#>   disease       method     mean        sd       mcse    q0.025     q0.5
+#> 1      d1 simultaneous 2.076567 0.5145080 0.02572540 1.1335619 2.097841
+#> 2      d2 simultaneous 3.428872 1.2330534 0.06165267 0.9580435 3.407767
+#> 3      d3 simultaneous 6.758133 0.8088373 0.04044186 5.1267784 6.763320
+#>     q0.975 trimmed_mean    rel_mcse tail_share stability
+#> 1 3.021695     2.074861 0.012388427 0.07431351        ok
+#> 2 5.930501     3.411216 0.017980452 0.09468703        ok
+#> 3 8.217512     6.758384 0.005984177 0.05810142        ok
 summary(mc, what = "total")
-#>     outcome disease       method      mean       sd      mcse    q0.025
-#> 1   culling     all simultaneous  58.78375  3.45915 0.2445989  51.54509
-#> 2 fertility     all simultaneous  95.44686 11.02336 0.7794689  76.09317
-#> 3     yield     all simultaneous 168.20789 11.23947 0.7947506 146.12134
-#> 4     total     all simultaneous 322.43849 23.08920 1.6326528 275.35343
-#>        q0.5    q0.975 trimmed_mean    rel_mcse tail_share stability
-#> 1  58.74946  64.82462     58.76218 0.004160995 0.09153850        ok
-#> 2  94.12680 120.57118     94.98735 0.008166523 0.07612709        ok
-#> 3 168.49768 189.95906    168.03140 0.004724811 0.08047083        ok
-#> 4 322.75810 372.44177    321.92942 0.005063455 0.06821893        ok
+#>         quantity       method     mean        sd       mcse   q0.025     q0.5
+#> 1 adjusted_total simultaneous 2.071742 0.2101324 0.01050662 1.678115 2.059572
+#> 2        raw_sum          raw 2.448621 0.2247769 0.01123884 2.004242 2.449640
+#>     q0.975 trimmed_mean    rel_mcse tail_share stability
+#> 1 2.491225     2.068209 0.005071395  0.1216242        ok
+#> 2 2.864391     2.448254 0.004589868  0.1003012        ok
 ```
 
-Draws with impossible inputs (e.g. a probability outside (0, 1), or an
-association incompatible with the sampled probabilities) are rejected
-and counted. Report the rejection rate: conditioning on feasibility
-changes the effective input distribution.
+Draws with impossible inputs (e.g. a probability outside (0, 1), or
+associations that no population can have together) are rejected and
+counted by type with `summary(mc, what = "rejections")`. A draw whose
+results are not finite is rejected as a whole. Report the rejection
+rate: conditioning on acceptance changes the effective input
+distribution.
+
+## Several analyses on shared draws
+
+[`cm_batch_sampler()`](https://rasmussenphilip.github.io/deconflate/reference/cm_batch_sampler.md)
+builds one sampler per analysis of a
+[`cm_analyses()`](https://rasmussenphilip.github.io/deconflate/reference/cm_analyses.md)
+object. Each draw of the disease and association inputs is shared by all
+analyses, with the same draw identifiers; each analysis draws its own
+impacts:
+
+``` r
+
+pop <- cm_population(m$diseases, m$associations)
+a <- cm_analyses(pop,
+  yield = cm_impacts(c("d1", "d2", "d3"), c(2.5, 5, 7.5), units = "%"),
+  calving_interval = cm_impacts(c("d1", "d2", "d3"), c(4, 10, 2), units = "days")
+)
+bs <- cm_batch_sampler(a,
+  diseases = list(d1 = dist_beta(20, 180)),
+  associations = list("d1:d2" = dist_lognormal_ci(2, 1.4, 2.9)),
+  impacts = list(yield = list(d1 = dist_normal(2.5, 0.5)),
+                 calving_interval = list(d2 = dist_normal(10, 3)))
+)
+bs
+#> <cm_batch_sampler> 2 analyses (yield, calving_interval); 2 shared population inputs
+mcb <- cm_monte_carlo(bs, 200, seed = 1)
+mcb
+#> <cm_mc_batch> 200 draws, 2 analyses
+#>   yield: 200 accepted, 0 rejected
+#>   calving_interval: 200 accepted, 0 rejected
+summary(mcb, diagnose = FALSE)[, c("analysis", "disease", "mean", "q0.025", "q0.975")]
+#>           analysis disease      mean     q0.025    q0.975
+#> 1            yield      d1 2.1669988  1.2546517  3.193909
+#> 2            yield      d2 3.3854750  3.2277223  3.478043
+#> 3            yield      d3 6.9344775  6.9188907  6.960504
+#> 4 calving_interval      d1 2.9659706  1.7987533  3.602805
+#> 5 calving_interval      d2 9.6606875  4.2743121 15.179476
+#> 6 calving_interval      d3 0.3862423 -0.6117922  1.271536
+```
+
+Each analysis’s run is in `mcb$analyses`, and can be used with the
+functions below.
 
 ## Comparing methods on the same draws
 
 Give several methods to
 [`cm_monte_carlo()`](https://rasmussenphilip.github.io/deconflate/reference/cm_monte_carlo.md)
-and every accepted draw is adjusted with each of them.
+and every accepted draw is adjusted with each of them (a draw is
+rejected if any method fails on it).
 [`compare_methods()`](https://rasmussenphilip.github.io/deconflate/reference/compare_methods.md)
 then tabulates the results:
 
 ``` r
 
-mc2 <- cm_monte_carlo(s, 200, method = c("published", "simultaneous"), seed = 1)
+mc2 <- cm_monte_carlo(s, 400, method = c("published", "simultaneous"), seed = 1)
 compare_methods(mc2)
 #> <cm_comparison> methods: published, simultaneous
-#> Monte Carlo: 200 draws (0 rejected); statistic: mean
+#> Units: %
+#> Monte Carlo: 400 draws (0 rejected); statistic: mean
 #> 
-#> Adjusted impacts:
-#>    outcome disease unit raw_mean published simultaneous
-#>      yield      CO    %     0.00     0.000    -6.04e-01
-#>      yield      DA    %     4.04     2.370     2.20e+00
-#>      yield     DYS    %     4.05     2.940     2.95e+00
-#>      yield     FAS    %     7.33     7.330     7.33e+00
-#>      yield     GIN    %     3.28     3.280     3.28e+00
-#>      yield     LAM    %     5.49     4.800     5.00e+00
-#>      yield     MAS    %     4.57     3.760     4.08e+00
-#>      yield     MET    %     3.95     2.410     1.87e+00
-#>      yield      MF    %     0.41     0.100    -5.13e-01
-#>      yield     NEO    %     4.20     4.200     4.20e+00
-#>      yield     PTB    %     5.90     4.490     4.20e+00
-#>      yield      RP    %     7.38     6.100     6.58e+00
-#>      yield     SCK    %     3.05     1.930     1.67e+00
-#>  fertility      CO    %    11.30    11.100     1.14e+01
-#>  fertility      DA    %     0.00     0.000    -4.08e-01
-#>  fertility     DYS    %     6.96     6.020     6.08e+00
-#>  fertility     FAS    %     0.00     0.000    -1.23e-16
-#>  fertility     GIN    %     1.20     1.200     1.20e+00
-#>  fertility     LAM    %    12.50    11.900     1.24e+01
-#>  fertility     MAS    %     0.00     0.000    -9.48e-01
-#>  fertility     MET    %     4.74     4.100     4.61e+00
-#>  fertility      MF    %     0.00     0.000     2.88e-01
-#>  fertility     NEO    %     7.21     7.210     7.21e+00
-#>  fertility     PTB    %     5.79     4.000     3.14e+00
-#>  fertility      RP    %     2.74     1.680     1.17e+00
-#>  fertility     SCK    %     1.50     0.563    -9.18e-01
-#>    culling      CO    %     0.00     0.000    -2.67e+00
-#>    culling      DA    %    31.40    21.900     2.25e+01
-#>    culling     DYS    %    14.20    11.900     1.28e+01
-#>    culling     FAS    %     0.00     0.000    -7.58e-16
-#>    culling     GIN    %     0.00     0.000    -5.90e-16
-#>    culling     LAM    %    25.60    22.600     2.38e+01
-#>    culling     MAS    %    21.30    16.900     1.78e+01
-#>    culling     MET    %    17.40    12.300     1.26e+01
-#>    culling      MF    %    20.60    15.600     1.60e+01
-#>    culling     NEO    %     9.89     9.890     9.89e+00
-#>    culling     PTB    %    19.60    13.600     1.17e+01
-#>    culling      RP    %     0.00     0.000    -5.18e+00
-#>    culling     SCK    %    15.70     9.710     7.70e+00
+#> Adjusted values:
+#>  disease raw_mean published simultaneous
+#>       d1     2.45      2.01         2.08
+#>       d2     4.98      3.75         3.43
+#>       d3     7.30      6.57         6.76
+#> 
+#> Totals:
+#>        quantity       method  mean  q0.5 trimmed_mean    mcse stability
+#>  adjusted_total    published 2.076 2.069        2.072 0.01047        ok
+#>  adjusted_total simultaneous 2.072 2.060        2.068 0.01051        ok
+#>         raw_sum          raw 2.449 2.450        2.448 0.01124        ok
 ```
 
 ## Unstable estimates
@@ -141,43 +162,57 @@ compare_methods(mc2)
 Monte Carlo means can be unstable.
 [`summary()`](https://rdrr.io/r/base/summary.html) checks every estimate
 and, when one looks unstable, prints why and what to do. Here the raw
-yield impact of `d2` is uncertain enough to be near zero or negative:
+impact of `d2` is uncertain enough to be near zero or negative:
 
 ``` r
 
-s_d2 <- cm_sampler(example_supplement(),
-                   impacts = list("yield:d2" = dist_normal(0.5, 1.5)))
+s_d2 <- cm_sampler(example_supplement(), impacts = list(d2 = dist_normal(0.5, 1.5)))
 mc_d2 <- cm_monte_carlo(s_d2, 400, method = c("published", "simultaneous"), seed = 2)
 sm <- summary(mc_d2)
 #> 2 Monte Carlo estimate(s) may be unstable:
-#> * yield / d2 (published): the published approximation divides by m + c, which changes sign in 8.0% of draws, so the mean does not exist.
-#>     Suggestion: report the median or trimmed_mean, or use method = "simultaneous" (exact, no division). More draws, Latin hypercube or importance sampling will not make this mean converge.
-#> * yield / d2 (simultaneous): the Monte Carlo standard error is 5.8% of the mean.
+#> * d2 (published): the published approximation divides by m + c, which changes sign within the sampled inputs (in 34.2% of draws its sign differs from m), so the estimate has a pole inside the input distribution and its mean may not exist.
+#>     Suggestion: report quantiles (e.g. the median), or use method = "simultaneous" (exact, no division). A trimmed mean is a different estimand. If the mean does not exist, more draws or importance sampling will not make it converge.
+#> * d2 (simultaneous): the Monte Carlo standard error is 5.8% of the mean.
 #>     Suggestion: increase n_draws to about 3,400 for a 2% standard error, or use sampling = "lhs" (Latin hypercube).
 #> (See ?cm_diagnose; use summary(..., diagnose = FALSE) to silence this message.)
-sm[, c("disease", "method", "mean", "q0.5", "trimmed_mean", "stability")]
-#>   disease       method        mean         q0.5 trimmed_mean stability
-#> 1      d1    published  0.02466043  0.024622674  0.024630193        ok
-#> 2      d2    published -0.04036952  0.004811604  0.004388501   no_mean
-#> 3      d3    published  0.07438133  0.074397288  0.074357484        ok
-#> 4      d1 simultaneous  0.02646521  0.026534324  0.026467940        ok
-#> 5      d2 simultaneous -0.01391114 -0.014658329 -0.014088810 imprecise
-#> 6      d3 simultaneous  0.07732377  0.077433377  0.077328094        ok
+sm[, c("disease", "method", "mean", "q0.5", "trimmed_mean", "mcse", "stability")]
+#>   disease       method      mean       q0.5 trimmed_mean        mcse
+#> 1      d1    published  2.466043  2.4622674    2.4630193 0.007941041
+#> 2      d2    published -4.036952  0.4811604    0.4388501 3.764532112
+#> 3      d3    published  7.438133  7.4397288    7.4357484 0.012726664
+#> 4      d1 simultaneous  2.646521  2.6534324    2.6467940 0.008543511
+#> 5      d2 simultaneous -1.391114 -1.4658329   -1.4088810 0.081114483
+#> 6      d3 simultaneous  7.732377  7.7433377    7.7328094 0.013549669
+#>       stability
+#> 1            ok
+#> 2 possible_pole
+#> 3            ok
+#> 4            ok
+#> 5     imprecise
+#> 6            ok
 ```
 
-There are three kinds of instability (see
+Each estimate gets one of four statuses (see
 [`?cm_diagnose`](https://rasmussenphilip.github.io/deconflate/reference/cm_diagnose.md)):
 
-- **`no_mean`**: the published approximation, `m^2 / (m + c)`, divides
-  by a quantity that changes sign across draws. Its distribution then
-  has no mean, so no number of draws, and no sampling scheme, makes the
-  mean converge. Report the median or trimmed mean, or use the exact
-  method.
-- **`heavy_tail`**: a few draws dominate the variance. Importance
-  sampling can help (below).
-- **`imprecise`**: the Monte Carlo error is large relative to the mean.
-  Use more draws, or Latin hypercube sampling.
+- **`ok`**: no problem detected.
+- **`imprecise`**: the Monte Carlo standard error is more than 5% of the
+  mean. Use more draws, or Latin hypercube sampling.
+- **`heavy_tail`**: the most extreme 1% of draws contribute more than
+  60% of the variance. Importance sampling can help if they come from
+  one region of one input (below).
+- **`possible_pole`**: the published approximation, `m^2 / (m + c)`,
+  divides by `m + c`, which takes both signs within the sampled inputs
+  and in some draws has the opposite sign to `m`. The estimate then has
+  a pole inside the input distribution, and its mean may not exist; no
+  number of draws, and no sampling scheme, makes such a mean converge.
+  Report quantiles (e.g. the median), or use the exact method. A trimmed
+  mean is a different estimand. Removable cases are not flagged: when
+  `c = 0` (e.g. a disease with no associated impacts) the formula
+  reduces to `m`, and a sign change of `m` alone does not create a pole.
 
+Draws that give non-finite results are rejected, and are noted as
+`non_finite`.
 [`cm_diagnose()`](https://rasmussenphilip.github.io/deconflate/reference/cm_diagnose.md)
 lists the flagged estimates with the suggestions:
 
@@ -185,9 +220,9 @@ lists the flagged estimates with the suggestions:
 
 cm_diagnose(mc_d2)
 #> 2 Monte Carlo estimate(s) may be unstable:
-#> * yield / d2 (published): the published approximation divides by m + c, which changes sign in 8.0% of draws, so the mean does not exist.
-#>     Suggestion: report the median or trimmed_mean, or use method = "simultaneous" (exact, no division). More draws, Latin hypercube or importance sampling will not make this mean converge.
-#> * yield / d2 (simultaneous): the Monte Carlo standard error is 5.8% of the mean.
+#> * d2 (published): the published approximation divides by m + c, which changes sign within the sampled inputs (in 34.2% of draws its sign differs from m), so the estimate has a pole inside the input distribution and its mean may not exist.
+#>     Suggestion: report quantiles (e.g. the median), or use method = "simultaneous" (exact, no division). A trimmed mean is a different estimand. If the mean does not exist, more draws or importance sampling will not make it converge.
+#> * d2 (simultaneous): the Monte Carlo standard error is 5.8% of the mean.
 #>     Suggestion: increase n_draws to about 3,400 for a 2% standard error, or use sampling = "lhs" (Latin hypercube).
 #> (See ?cm_diagnose; use summary(..., diagnose = FALSE) to silence this message.)
 ```
@@ -195,16 +230,30 @@ cm_diagnose(mc_d2)
 ### Latin hypercube sampling
 
 `sampling = "lhs"` stratifies each input’s distribution, which usually
-reduces the Monte Carlo error of means:
+reduces the Monte Carlo error of means. LHS draws are not independent,
+so the draws are split into `lhs_replicates` independent blocks (10 by
+default), and the standard error is estimated from the spread of the
+block means:
 
 ``` r
 
 mc_lhs <- cm_monte_carlo(s_d2, 400, method = "simultaneous", sampling = "lhs", seed = 2)
+mc_lhs
+#> <cm_mc> method: simultaneous
+#>   Analysis: yield [%]
+#>   Draws: 400, rejected: 0 (0.0%)
+#>   Sampling: Latin hypercube, 10 replicate blocks
+#>   Effective sample size: 400.0
 summary(mc_lhs, diagnose = FALSE)[, c("disease", "mean", "mcse")]
-#>   disease        mean         mcse
-#> 1      d1  0.02638348 8.241601e-05
-#> 2      d2 -0.01313510 7.824806e-04
-#> 3      d3  0.07719414 1.307085e-04
+#>   disease      mean         mcse
+#> 1      d1  2.638968 0.0004894368
+#> 2      d2 -1.319403 0.0046468501
+#> 3      d3  7.720398 0.0007762274
+sm[sm$method == "simultaneous", c("disease", "mean", "mcse")]
+#>   disease      mean        mcse
+#> 4      d1  2.646521 0.008543511
+#> 5      d2 -1.391114 0.081114483
+#> 6      d3  7.732377 0.013549669
 ```
 
 ### Importance sampling
@@ -217,53 +266,99 @@ still refer to the original input distributions:
 
 ``` r
 
-prop <- cm_suggest_proposal(mc_d2, "yield", "d2", method = "simultaneous")
-#> Proposal for impact:yield:d2: 50% its own distribution, 50% uniform on [-3.972, 5.56], the range of impact:yield:d2 in the 8 most extreme draws of yield / d2 (simultaneous).
+prop <- cm_suggest_proposal(mc_d2, "d2", method = "simultaneous")
+#> Proposal for impact:d2: 50% its own distribution, 50% uniform on [-3.972, 5.56], the range of impact:d2 in the 8 most extreme draws of d2 (simultaneous).
 mc_is <- cm_monte_carlo(s_d2, 400, method = "simultaneous", proposal = prop, seed = 3)
 mc_is
 #> <cm_mc> method: simultaneous
-#>   Draws: 400, rejected as infeasible: 0 (0.0%)
-#>   Sampling: random, importance sampling of impact:yield:d2
+#>   Analysis: yield [%]
+#>   Draws: 400, rejected: 0 (0.0%)
+#>   Sampling: random, importance sampling of impact:d2
 #>   Effective sample size: 329.8
 summary(mc_is, diagnose = FALSE)[, c("disease", "mean", "mcse")]
-#>   disease        mean         mcse
-#> 1      d1  0.02638857 8.872334e-05
-#> 2      d2 -0.01318345 8.423642e-04
-#> 3      d3  0.07720221 1.407117e-04
+#>   disease      mean       mcse
+#> 1      d1  2.638857 0.00727967
+#> 2      d2 -1.318345 0.06911522
+#> 3      d3  7.720221 0.01154527
 ```
 
-Importance sampling reduces the error of a mean that exists. It cannot
-fix a `no_mean` estimate.
+Each proposal must cover the support of the input’s own distribution,
+and point masses (fixed values) cannot be importance-sampled. Both are
+checked before any draw is made:
+
+``` r
+
+tryCatch(cm_monte_carlo(s_d2, 10, proposal = list("impact:d2" = dist_uniform(-5, 5))),
+         deconflate_unsupported = function(e) conditionMessage(e))
+#> [1] "The proposal for 'impact:d2' has support [-5, 5], which does not cover the input's support [-Inf, Inf]; use a defensive mixture that includes the input's own distribution (see cm_suggest_proposal())."
+```
+
+A defensive mixture guarantees support, but not a finite variance or
+better precision: compare the standard errors. Importance sampling
+reduces the error of a mean that exists. It cannot fix a `possible_pole`
+estimate.
 
 ## Scenarios by reweighting
 
 [`cm_scenario()`](https://rasmussenphilip.github.io/deconflate/reference/cm_scenario.md)
 replaces input distributions and reweights the existing draws
-(importance sampling), so no re-run is needed. Here the sampler used a
-defensive mixture for the lameness-paratuberculosis odds ratio, so a
-scenario with a stronger association still has support:
+(importance sampling), so no re-run is needed. The sampler above used a
+defensive mixture for the d2:d3 odds ratio, so a scenario with a
+stronger association still has support:
 
 ``` r
 
-sc <- cm_scenario(mc, list("assoc:LAM:PTB" = dist_lognormal_ci(4, 2.5, 6.4)))
+sc <- cm_scenario(mc, list("assoc:d2:d3" = dist_lognormal_ci(4, 2.5, 6.4)))
 sc$ess
-#> [1] 71.16948
-summary(sc, what = "total")
-#>     outcome disease       method      mean        sd     mcse    q0.025
-#> 1   culling     all simultaneous  58.51338  3.639799 0.431450  50.74542
-#> 2 fertility     all simultaneous  94.67543 11.854718 1.405220  76.78881
-#> 3     yield     all simultaneous 167.47339 10.797443 1.279894 148.26144
-#> 4     total     all simultaneous 320.66220 23.084688 2.736384 272.15182
-#>        q0.5    q0.975 trimmed_mean    rel_mcse tail_share stability
-#> 1  58.33510  65.74893     58.56282 0.007373527  0.1790683        ok
-#> 2  92.33746 124.24201     93.98920 0.014842500  0.2615265        ok
-#> 3 167.60112 190.77552    167.57575 0.007642373  0.1952306        ok
-#> 4 321.06635 379.84216    320.24870 0.008533542  0.2348487        ok
+#> [1] 135.8104
+summary(sc, what = "total", diagnose = FALSE)
+#>         quantity       method     mean        sd       mcse   q0.025     q0.5
+#> 1 adjusted_total simultaneous 1.990148 0.1805131 0.01443515 1.665442 1.994400
+#> 2        raw_sum          raw 2.447616 0.2184128 0.01792253 2.065892 2.436139
+#>     q0.975 trimmed_mean    rel_mcse tail_share stability
+#> 1 2.340430     1.991178 0.007253305  0.1512718        ok
+#> 2 2.862396     2.449011 0.007322444  0.1687684        ok
 ```
 
 Check the effective sample size: a small value means the scenario is
-poorly covered by the original draws. Inputs drawn with an outcome
-correlation cannot be reweighted individually.
+poorly covered by the original draws. A scenario distribution must lie
+within the range the input was sampled from, which is checked.
+Reweighting cannot recover rejected draws.
+
+[`cm_reweight()`](https://rasmussenphilip.github.io/deconflate/reference/cm_reweight.md)
+takes any log density ratio as a function of the sampled inputs
+(`mc$params`). For example, conditioning on a raw impact of d1 above 2%:
+
+``` r
+
+cond <- cm_reweight(mc, function(p) ifelse(p[["impact:d1"]] > 2, 0, -Inf))
+cond$ess
+#> [1] 319
+summary(cond, diagnose = FALSE)[, c("disease", "mean", "q0.5")]
+#>   disease     mean     q0.5
+#> 1      d1 2.246454 2.227384
+#> 2      d2 3.471261 3.508868
+#> 3      d3 6.765979 6.793630
+```
+
+## Productivity gaps over the draws
+
+[`cm_mc_gap()`](https://rasmussenphilip.github.io/deconflate/reference/cm_mc_gap.md)
+applies
+[`productivity_gap()`](https://rasmussenphilip.github.io/deconflate/reference/productivity_gap.md)
+to every accepted draw. The observed mean and the unit value can be
+fixed or drawn:
+
+``` r
+
+g <- cm_mc_gap(mc, observed = 10000, direction = "decrease", effect = "percent",
+               unit_value = dist_uniform(0.25, 0.35), seed = 5)
+g$summary
+#>         method gap_mean gap_q0.025 gap_q0.975 value_mean value_q0.025
+#> 1 simultaneous 211.6042   170.6756   255.4873   63.43205     46.30161
+#>   value_q0.975
+#> 1     82.77978
+```
 
 ## Sensitivity
 
@@ -273,41 +368,89 @@ One-at-a-time sensitivity (as in Rasmussen et al. 2024, Fig. 7):
 
 oat <- sensitivity_oat(example_supplement(), variation = 0.2)
 oat
-#>             input value  total_low total_high        swing  rel_swing
-#> 1 impact:yield:d3  7.50 0.01844070 0.02374387 0.0053031715 0.25142703
-#> 2         prob:d3  0.20 0.01851628 0.02374637 0.0052300893 0.24796215
-#> 3 impact:yield:d2  5.00 0.01998423 0.02220035 0.0022161264 0.10506809
-#> 4         prob:d2  0.15 0.02026335 0.02197276 0.0017094138 0.08104449
-#> 5     assoc:d2:d3  3.00 0.02170224 0.02062015 0.0010820854 0.05130242
-#> 6 impact:yield:d1  2.50 0.02063348 0.02155110 0.0009176175 0.04350488
-#> 7         prob:d1  0.10 0.02069218 0.02149697 0.0008047878 0.03815555
-#> 8     assoc:d1:d3  1.00 0.02138876 0.02084124 0.0005475254 0.02595856
-#> 9     assoc:d1:d2  2.00 0.02127728 0.02093846 0.0003388228 0.01606382
+#>         input value total_low total_high      swing  rel_swing
+#> 1   impact:d3  7.50  1.844070   2.374387 0.53031715 0.25142703
+#> 2     prob:d3  0.20  1.851628   2.374637 0.52300893 0.24796215
+#> 3   impact:d2  5.00  1.998423   2.220035 0.22161264 0.10506809
+#> 4     prob:d2  0.15  2.026335   2.197276 0.17094138 0.08104449
+#> 5 assoc:d2:d3  3.00  2.170224   2.062015 0.10820854 0.05130242
+#> 6   impact:d1  2.50  2.063348   2.155110 0.09176175 0.04350488
+#> 7     prob:d1  0.10  2.069218   2.149697 0.08047878 0.03815555
+#> 8 assoc:d1:d3  1.00  2.138876   2.084124 0.05475254 0.02595856
+#> 9 assoc:d1:d2  2.00  2.127728   2.093846 0.03388228 0.01606382
 ```
 
 Screening associations, including pairs with no estimate, to find those
-worth estimating:
+worth estimating. Specified associations are multiplied by each of
+`multipliers`; pairs without an estimate (here d1 and d3) are set to
+each of `or_values`:
 
 ``` r
 
-screen_associations(example_supplement(), or_values = c(0.5, 2))
-#> <cm_screen> 6 scenarios; baseline total 0.02109
-#>   pair    status scenario  total    change rel_change max_rank_shift rank_corr
-#>  d2:d3 specified OR x 0.5 0.0231  0.001974     0.0936              0         1
-#>  d2:d3 specified   OR x 2 0.0194 -0.001643    -0.0779              0         1
-#>  d1:d3 specified   OR x 2 0.0201 -0.000963    -0.0457              0         1
-#>  d1:d3 specified OR x 0.5 0.0220  0.000859     0.0407              0         1
-#>  d1:d2 specified   OR x 2 0.0205 -0.000582    -0.0276              0         1
-#>  d1:d2 specified OR x 0.5 0.0216  0.000549     0.0260              0         1
+m_pairs <- cm_model(
+  cm_diseases(c("d1", "d2", "d3"), c(0.10, 0.15, 0.20)),
+  cm_impacts(c("d1", "d2", "d3"), c(2.5, 5, 7.5)),
+  associations = cm_associations(c("d1", "d2"), c("d2", "d3"), c(2, 3))
+)
+screen_associations(m_pairs, or_values = c(0.5, 2), multipliers = c(0.5, 2))
+#> <cm_screen> 6 scenarios; baseline total 2.109
+#>   pair                status scenario total  change rel_change max_rank_shift
+#>  d2:d3             specified OR x 0.5  2.31  0.1974     0.0936              0
+#>  d2:d3             specified   OR x 2  1.94 -0.1643    -0.0779              0
+#>  d1:d3 independent (default)   OR = 2  2.01 -0.0963    -0.0457              0
+#>  d1:d3 independent (default) OR = 0.5  2.20  0.0859     0.0407              0
+#>  d1:d2             specified   OR x 2  2.05 -0.0582    -0.0276              0
+#>  d1:d2             specified OR x 0.5  2.16  0.0549     0.0260              0
+#>  rank_corr failed
+#>          1   <NA>
+#>          1   <NA>
+#>          1   <NA>
+#>          1   <NA>
+#>          1   <NA>
+#>          1   <NA>
 ```
 
-Comparing complete scenarios:
+The screens report scenarios that cannot be run, with the reason in
+column `failed`, rather than skipping them. Here, weakening any of three
+strong associations makes the pairs jointly infeasible:
+
+``` r
+
+strong <- cm_model(
+  cm_diseases(c("a", "b", "c"), c(0.5, 0.5, 0.5)),
+  cm_impacts(c("a", "b", "c"), c(1, 2, 3)),
+  associations = cm_associations(c("a", "a", "b"), c("b", "c", "c"), c(20, 20, 20))
+)
+screen_associations(strong, multipliers = c(0.05, 2))
+#> <cm_screen> 6 scenarios; baseline total 1.322
+#>  pair    status  scenario total  change rel_change max_rank_shift rank_corr
+#>   b:c specified    OR x 2  1.24 -0.0824    -0.0624              0         1
+#>   a:c specified    OR x 2  1.29 -0.0323    -0.0244              0         1
+#>   a:b specified    OR x 2  1.34  0.0178     0.0135              0         1
+#>   a:b specified OR x 0.05    NA      NA         NA             NA        NA
+#>   a:c specified OR x 0.05    NA      NA         NA             NA        NA
+#>   b:c specified OR x 0.05    NA      NA         NA             NA        NA
+#>      failed
+#>        <NA>
+#>        <NA>
+#>        <NA>
+#>  infeasible
+#>  infeasible
+#>  infeasible
+```
+
+[`screen_interactions()`](https://rasmussenphilip.github.io/deconflate/reference/screen_interactions.md)
+and
+[`screen_three_way()`](https://rasmussenphilip.github.io/deconflate/reference/screen_three_way.md)
+(see
+[`vignette("interactions")`](https://rasmussenphilip.github.io/deconflate/articles/interactions.md))
+work in the same way. Comparing complete scenarios:
 
 ``` r
 
 base <- example_supplement()
 compare_scenarios(base = base, d1_d3_linked = set_association(base, "d1", "d3", 2))$totals
-#>       scenario      total rel_to_first
-#> 1         base 0.02109229   0.00000000
-#> 2 d1_d3_linked 0.02012881  -0.04567916
+#>       scenario    total rel_to_first
+#> 1         base 2.109229   0.00000000
+#> 2 d1_d3_linked 2.012881  -0.04567916
 ```

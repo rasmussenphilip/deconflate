@@ -21,6 +21,8 @@ check_feasibility(
 - model:
 
   A
+  [`cm_population()`](https://rasmussenphilip.github.io/deconflate/reference/cm_population.md)
+  or
   [`cm_model()`](https://rasmussenphilip.github.io/deconflate/reference/cm_model.md).
 
 - method:
@@ -68,7 +70,7 @@ check_feasibility(example_supplement())
 #> <cm_feasibility> jointly feasible [lp + triples]
 
 # Three strongly linked diseases that cannot all be associated this way:
-bad <- cm_model(
+bad <- cm_population(
   cm_diseases(c("a", "b", "c"), c(0.5, 0.5, 0.5)),
   cm_associations(c("a", "a", "b"), c("b", "c", "c"), c(20, 20, 0.05))
 )

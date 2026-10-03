@@ -60,11 +60,10 @@ diseases.</p>
     <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">attributable_risk</span><span class="op">(</span></span>
 <span>  <span class="va">result</span>,</span>
 <span>  <span class="va">overall_risk</span>,</span>
-<span>  outcome <span class="op">=</span> <span class="st">"culling"</span>,</span>
 <span>  unit_value <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  joint <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  allocate <span class="op">=</span> <span class="cn">TRUE</span>,</span>
-<span>  max_present <span class="op">=</span> <span class="fl">10L</span></span>
+<span>  max_present <span class="op">=</span> <span class="cn">Inf</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -73,17 +72,12 @@ diseases.</p>
 
 
 <dl><dt id="arg-result">result<a class="anchor" aria-label="anchor" href="#arg-result"></a></dt>
-<dd><p>A <code><a href="deconflate.html">deconflate()</a></code> result with a hazard-ratio outcome (see
-<code><a href="cm_impacts.html">cm_impacts()</a></code>).</p></dd>
+<dd><p>A <code><a href="deconflate_hr.html">deconflate_hr()</a></code> result.</p></dd>
 
 
 <dt id="arg-overall-risk">overall_risk<a class="anchor" aria-label="anchor" href="#arg-overall-risk"></a></dt>
 <dd><p>Overall period risk of the event, as a proportion
 (e.g. <code>0.25</code> for an annual culling rate of 25%).</p></dd>
-
-
-<dt id="arg-outcome">outcome<a class="anchor" aria-label="anchor" href="#arg-outcome"></a></dt>
-<dd><p>Outcome label.</p></dd>
 
 
 <dt id="arg-unit-value">unit_value<a class="anchor" aria-label="anchor" href="#arg-unit-value"></a></dt>
@@ -93,24 +87,22 @@ cost less salvage value); adds <code>value</code> columns.</p></dd>
 
 <dt id="arg-joint">joint<a class="anchor" aria-label="anchor" href="#arg-joint"></a></dt>
 <dd><p>Optional <code><a href="fit_joint.html">fit_joint()</a></code> result; by default the result's own
-joint distribution (global method) or a new fit.</p></dd>
+joint distribution or a new fit. It is checked against the population.</p></dd>
 
 
 <dt id="arg-allocate">allocate<a class="anchor" aria-label="anchor" href="#arg-allocate"></a></dt>
-<dd><p>Logical: allocate the attributable risk to diseases?
-This is the slow step for many co-occurring diseases.</p></dd>
+<dd><p>Logical: allocate the attributable risk to diseases?</p></dd>
 
 
 <dt id="arg-max-present">max_present<a class="anchor" aria-label="anchor" href="#arg-max-present"></a></dt>
-<dd><p>Passed to <code><a href="shapley_by_cell.html">shapley_by_cell()</a></code>.</p></dd>
+<dd><p>Passed to <code><a href="shapley_by_cell.html">shapley_by_cell()</a></code> (default: no skipping).</p></dd>
 
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>A <code>cm_attributable</code> list with <code>summary</code> (overall, disease-free and
-attributable risk, attributable fraction and value), <code>by_disease</code>
-(adjusted hazard ratio, attributable risk, share and value),
-<code>skipped_mass</code> and <code>baseline_hazard</code>.</p>
+attributable risk, attributable fraction, value, and any unallocated
+part), <code>by_disease</code> and <code>baseline_hazard</code>.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
@@ -118,30 +110,23 @@ attributable risk, attributable fraction and value), <code>by_disease</code>
 hazard <code>h0 * exp(sum_i beta[i] * x[i])</code>, with <code>beta = log(adjusted HR)</code>.
 The baseline hazard <code>h0</code> is chosen so that the population risk, averaged
 over the distribution of disease combinations (<code><a href="fit_joint.html">fit_joint()</a></code>), equals
-<code>overall_risk</code>:</p>
-<p><code>sum_x P(x) * (1 - exp(-h0 * exp(beta . x))) = overall_risk</code>.</p>
-<p>The disease-free risk is <code>1 - exp(-h0)</code>, and the attributable risk is
-<code>overall_risk - (1 - exp(-h0))</code>. An animal's risk cannot exceed 1, so the
-attributable risk is smaller than the sum of per-disease excess risks
-when diseases co-occur.</p>
-<p>The attributable risk is allocated to diseases by Shapley values over
-disease combinations (<code><a href="shapley_by_cell.html">shapley_by_cell()</a></code>), with the loss
-<code>1 - exp(-h0 * exp(beta . x)) - (1 - exp(-h0))</code>.</p>
-<p>The model is consistent with <code>method = "global"</code> in <code><a href="deconflate.html">deconflate()</a></code>: there,
-the adjusted hazard ratios reproduce the raw ones exactly over the same
-joint distribution. Hazard ratios from the other methods are used as they
-are.</p>
+<code>overall_risk</code>. The disease-free risk is <code>1 - exp(-h0)</code>, and the
+attributable risk is <code>overall_risk - (1 - exp(-h0))</code>. An animal's risk
+cannot exceed 1, so the attributable risk is smaller than the sum of
+per-disease excess risks when diseases co-occur.</p>
+<p>The attributable risk is allocated to diseases by Shapley values over all
+disease combinations (<code><a href="shapley_by_cell.html">shapley_by_cell()</a></code>). Any combinations skipped with
+<code>max_present</code> are reported as unallocated.</p>
+<p>This uses the same snapshot model as <code><a href="deconflate_hr.html">deconflate_hr()</a></code> (constant hazards
+within the period, multiplicative hazard ratios, no change in the mixture
+of diseases over the period).</p>
     </div>
 
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="va">m</span> <span class="op">&lt;-</span> <span class="fu"><a href="example_supplement.html">example_supplement</a></span><span class="op">(</span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="va">m</span><span class="op">$</span><span class="va">impacts</span> <span class="op">&lt;-</span> <span class="fu"><a href="combine_impacts.html">combine_impacts</a></span><span class="op">(</span><span class="va">m</span><span class="op">$</span><span class="va">impacts</span>,</span></span>
-<span class="r-in"><span>  <span class="fu"><a href="cm_impacts.html">cm_impacts</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"d1"</span>, <span class="st">"d2"</span>, <span class="st">"d3"</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1.5</span>, <span class="fl">2.0</span>, <span class="fl">1.3</span><span class="op">)</span>, outcome <span class="op">=</span> <span class="st">"culling"</span>,</span></span>
-<span class="r-in"><span>             scale <span class="op">=</span> <span class="st">"hazard_ratio"</span><span class="op">)</span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="va">res</span> <span class="op">&lt;-</span> <span class="fu"><a href="deconflate.html">deconflate</a></span><span class="op">(</span><span class="va">m</span>, method <span class="op">=</span> <span class="st">"global"</span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="fu">attributable_risk</span><span class="op">(</span><span class="va">res</span>, overall_risk <span class="op">=</span> <span class="fl">0.25</span>, unit_value <span class="op">=</span> <span class="fl">1300</span><span class="op">)</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> &lt;cm_attributable&gt; outcome: culling</span>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="va">hr</span> <span class="op">&lt;-</span> <span class="fu"><a href="cm_hr_model.html">cm_hr_model</a></span><span class="op">(</span><span class="fu"><a href="example_supplement.html">example_supplement</a></span><span class="op">(</span><span class="op">)</span>, <span class="fu"><a href="cm_hazard_ratios.html">cm_hazard_ratios</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"d1"</span>, <span class="st">"d2"</span>, <span class="st">"d3"</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1.5</span>, <span class="fl">2.0</span>, <span class="fl">1.3</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="fu">attributable_risk</span><span class="op">(</span><span class="fu"><a href="deconflate_hr.html">deconflate_hr</a></span><span class="op">(</span><span class="va">hr</span><span class="op">)</span>, overall_risk <span class="op">=</span> <span class="fl">0.25</span>, unit_value <span class="op">=</span> <span class="fl">1300</span><span class="op">)</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> &lt;cm_attributable&gt; snapshot hazard-multiplier model</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   Overall risk 0.25; disease-free risk 0.2134; attributable 0.03665 (14.7% of the overall risk)</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   Value: 47.64</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>

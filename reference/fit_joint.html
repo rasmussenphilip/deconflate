@@ -77,12 +77,12 @@ departs from independence through the pairwise terms.</p>
 
 
 <dl><dt id="arg-model">model<a class="anchor" aria-label="anchor" href="#arg-model"></a></dt>
-<dd><p>A <code><a href="cm_model.html">cm_model()</a></code>.</p></dd>
+<dd><p>A <code><a href="cm_population.html">cm_population()</a></code> or <code><a href="cm_model.html">cm_model()</a></code>.</p></dd>
 
 
 <dt id="arg-tol">tol<a class="anchor" aria-label="anchor" href="#arg-tol"></a></dt>
 <dd><p>Convergence tolerance: maximum absolute deviation of any
-constrained cell probability.</p></dd>
+constrained cell probability, recomputed on the returned distribution.</p></dd>
 
 
 <dt id="arg-max-iter">max_iter<a class="anchor" aria-label="anchor" href="#arg-max-iter"></a></dt>
@@ -97,18 +97,25 @@ constrained cell probability.</p></dd>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>A <code>cm_joint</code> object: <code>cells</code> (2^n x n 0/1 matrix), <code>prob</code>
-(probability of each combination), <code>converged</code>, <code>iterations</code> and
-<code>max_residual</code>.</p>
+(probability of each combination), <code>converged</code>, <code>iterations</code>,
+<code>max_residual</code> and the <code>targets</code> it was fitted to (used by
+<code><a href="deconflate.html">deconflate()</a></code> to check that a supplied joint matches the model).</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
-    <p>Pairs whose measure is <code>"unknown"</code> are not constrained. Pairs set to
+    <p>Three-way terms from <code><a href="cm_three_way.html">cm_three_way()</a></code> are put into the starting
+distribution. IPF keeps every log-linear term of its starting distribution
+that the constraints do not fix, so the fitted distribution matches all
+pairwise tables and has the requested three-way terms.</p>
+<p>Pairs whose measure is <code>"unknown"</code> are not constrained. Pairs set to
 <code>"independent"</code> are constrained to an odds ratio of 1.</p>
 <p>The constraint system is underdetermined for three or more diseases
 (2^n - 1 free probabilities, n(n+1)/2 constraints), which is why the
-maximum-entropy criterion is needed to pick one solution. If the pairwise
-tables are jointly infeasible, IPF does not converge and the result is
-flagged.</p>
+maximum-entropy criterion (an assumption, not something the pairwise
+evidence identifies) is needed to pick one solution. If the pairwise
+tables are jointly infeasible, IPF does not converge; non-convergence
+after <code>max_iter</code> sweeps suggests, but does not prove, infeasibility (see
+<code><a href="check_feasibility.html">check_feasibility()</a></code>).</p>
     </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

@@ -66,7 +66,7 @@ probability-weighted sum over cells.</p>
 
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">shapley_by_cell</span><span class="op">(</span><span class="va">joint</span>, <span class="va">loss</span>, max_present <span class="op">=</span> <span class="fl">10L</span><span class="op">)</span></span></code></pre></div>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">shapley_by_cell</span><span class="op">(</span><span class="va">joint</span>, <span class="va">loss</span>, max_present <span class="op">=</span> <span class="cn">Inf</span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -84,15 +84,20 @@ no disease is assumed. See <code><a href="loss_functions.html">loss_additive()</
 
 
 <dt id="arg-max-present">max_present<a class="anchor" aria-label="anchor" href="#arg-max-present"></a></dt>
-<dd><p>Cells with more diseases present than this are skipped;
-the skipped probability mass is reported.</p></dd>
+<dd><p>Cells with more diseases present than this are skipped
+(the cost grows as 2^k for a cell with k diseases). The default skips
+nothing. Skipped cells are reported: their probability (<code>skipped_mass</code>)
+and their expected loss (<code>skipped_loss</code>), which is the part of the total
+that is not allocated.</p></dd>
 
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>A data frame with each disease's expected Shapley value and share,
-with attributes <code>total</code> (expected loss over the cells evaluated) and
-<code>skipped_mass</code>.</p>
+    <p>A data frame with each disease's expected Shapley value and share
+(of the allocated amount, which is the total only when no cell is
+skipped), with attributes <code>total</code> (expected loss over all cells),
+<code>allocated</code> (the sum of the Shapley values), <code>skipped_mass</code> and
+<code>skipped_loss</code>.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>

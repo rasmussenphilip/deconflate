@@ -2,25 +2,18 @@
 
 Finds the sampled input most associated with the most extreme draws of
 one adjusted impact, and builds a defensive mixture proposal for it:
-half the input's own distribution and half a uniform distribution over
-the range of that input in the extreme draws. Re-running
-[`cm_monte_carlo()`](https://rasmussenphilip.github.io/deconflate/reference/cm_monte_carlo.md)
-with this proposal samples the region that produces extreme values more
-often and down-weights it, which reduces the Monte Carlo error when the
-mean exists. Weights are bounded by `1 / (1 - weight)`, so the run
-cannot be dominated by a single draw.
+part the input's own distribution and part a uniform distribution over
+the range of that input in the extreme draws (within the input's
+support). The mixture always covers the input's support and bounds the
+weights by `1 / (1 - weight)`. It may reduce the Monte Carlo error when
+the extreme values come from that region and the mean exists; it does
+not guarantee a finite variance or better precision, so compare standard
+errors.
 
 ## Usage
 
 ``` r
-cm_suggest_proposal(
-  mc,
-  outcome,
-  disease,
-  method = NULL,
-  top = 0.02,
-  weight = 0.5
-)
+cm_suggest_proposal(mc, disease, method = NULL, top = 0.02, weight = 0.5)
 ```
 
 ## Arguments
@@ -31,9 +24,9 @@ cm_suggest_proposal(
   [`cm_sampler()`](https://rasmussenphilip.github.io/deconflate/reference/cm_sampler.md)-based
   run.
 
-- outcome, disease:
+- disease:
 
-  The estimate to stabilise.
+  The disease whose adjusted impact is unstable.
 
 - method:
 
@@ -52,8 +45,3 @@ cm_suggest_proposal(
 A named list with one `cm_dist`, for the `proposal` argument of
 [`cm_monte_carlo()`](https://rasmussenphilip.github.io/deconflate/reference/cm_monte_carlo.md).
 The attribute `"explanation"` describes it.
-
-## Details
-
-It cannot help when the mean does not exist (stability `"no_mean"`; see
-[`cm_diagnose()`](https://rasmussenphilip.github.io/deconflate/reference/cm_diagnose.md)).

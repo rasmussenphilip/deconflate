@@ -1,6 +1,12 @@
-# Attribute the aggregate burden to diseases (Shapley allocation)
+# Attribute the aggregate to diseases (Shapley allocation)
 
-For outcomes on the proportion scale, the expected proportional loss is
+The expected aggregate impact is
+`sum_i p_i b_i + sum_{j < k} delta[j, k] P(j and k)`. Removing any
+disease involved in a term removes that term, so each disease's Shapley
+value is its own term plus an equal share of every interaction term it
+is involved in. The shares add up to the aggregate. This is the
+`contributions` table of
+[`deconflate()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate.md).
 
 ## Usage
 
@@ -18,21 +24,6 @@ attribute_burden(result)
 
 ## Value
 
-A data frame with, per outcome and disease, the main-effect burden, the
-disease's share of interaction burden, the total and the fraction of
-`L`.
-
-## Details
-
-`L = sum_i m[i] P(i) + sum_{j < k} delta[j, k] P(j and k)`.
-
-Removing any disease involved in a term removes that term. Under this
-accounting convention, the Shapley value of each disease is its own term
-plus an equal share of every interaction term it is involved in:
-`s[i] = m[i] P(i) + 1/2 sum_k delta[i, k] P(i and k)`. The shares sum to
-`L`.
-
-Outcomes on the hazard-ratio scale are not additive burdens and are
-skipped; use
-[`attributable_risk()`](https://rasmussenphilip.github.io/deconflate/reference/attributable_risk.md)
-for them.
+A data frame with, per disease, the main contribution, the share of
+interaction terms, the total and the share of the aggregate (`NA` when
+the aggregate is zero).

@@ -9,76 +9,96 @@ This vignette reproduces the calculations in Rasmussen et al. (2022,
 *Prev. Vet. Med.* 203:105617) and Rasmussen et al. (2024, *J. Dairy
 Sci.* 107:6945-6970), and explains where the package’s results differ
 from the published tables.
+[`reproduce_rasmussen_2022()`](https://rasmussenphilip.github.io/deconflate/reference/reproduce.md)
+and
+[`reproduce_rasmussen_2024()`](https://rasmussenphilip.github.io/deconflate/reference/reproduce.md)
+use the published (eq. 16) method and the hazard-ratio conversions of
+the papers. Those conversions are not offered for new analyses (see
+[`vignette("culling-hazard-ratios")`](https://rasmussenphilip.github.io/deconflate/articles/culling-hazard-ratios.md)).
 
 ## Supplementary File example (2022)
+
+The impacts are entered in percent, so the adjusted impacts are in
+percent:
 
 ``` r
 
 res <- deconflate(example_supplement(), method = "published")
 res$adjusted[, c("disease", "raw", "adjusted")]
-#>   disease   raw   adjusted
-#> 1      d1 0.025 0.02065001
-#> 2      d2 0.050 0.03699294
-#> 3      d3 0.075 0.06748473
-productivity_gap(res, c(yield = 10000))
+#>   disease raw adjusted
+#> 1      d1 2.5 2.065001
+#> 2      d2 5.0 3.699294
+#> 3      d3 7.5 6.748473
+productivity_gap(res, 10000, "decrease", "percent")
 #> $summary
-#>   outcome observed disease_free      gap total_loss_fraction
-#> 1   yield    10000     10215.66 215.6617          0.02111089
+#>   observed disease_free      gap  aggregate direction  effect
+#> 1    10000     10215.66 215.6617 0.02111089  decrease percent
 #> 
 #> $attribution
-#>   outcome disease       gap  gap_main gap_interaction
-#> 1   yield      d1  21.09535  21.09535               0
-#> 2   yield      d2  56.68610  56.68610               0
-#> 3   yield      d3 137.88024 137.88024               0
+#>   disease       gap  gap_main gap_interaction
+#> 1      d1  21.09535  21.09535               0
+#> 2      d2  56.68610  56.68610               0
+#> 3      d3 137.88024 137.88024               0
 ```
 
 The published gap of 10,225 units (20, 61 and 143 units per disease)
-comes from rounding the adjusted impacts to 0.02, 0.04 and 0.07 before
+comes from rounding the adjusted impacts to 2%, 4% and 7% before
 computing the gap. Without rounding, the published method gives 10,215.7
-units.
+units (21.1, 56.7 and 137.9 units per disease).
 
 ## UK dairy example (2022, Tables 8-10)
 
 [`example_uk_dairy_2022()`](https://rasmussenphilip.github.io/deconflate/reference/example_uk_dairy_2022.md)
 contains the 13 diseases, the 19 odds ratios and the yield, fertility
-and culling inputs of Tables 2-6. Culling hazard ratios are converted to
-excess annual culling risk by treating them as odds ratios, as in the
-paper (`culling_method = "or_approx"`).
+and culling inputs of Tables 2-6, as three analyses. Following the
+paper, the culling hazard ratios are converted to excess annual culling
+risks by treating them as odds ratios, and adjusted hazard ratios are
+recovered by rescaling (eq. 23).
+[`uk_dairy_2022_economics()`](https://rasmussenphilip.github.io/deconflate/reference/uk_dairy_2022_economics.md)
+holds the observed means and unit values of Table 1 and the veterinary
+expenditure.
+[`reproduce_rasmussen_2022()`](https://rasmussenphilip.github.io/deconflate/reference/reproduce.md)
+runs the whole calculation:
 
 ``` r
 
-m <- example_uk_dairy_2022()
-eco <- uk_dairy_2022_economics()
-res <- deconflate(m, method = "published")
-gaps <- productivity_gap(res, eco$observed)
-gaps$summary
-#>     outcome observed disease_free        gap total_loss_fraction
-#> 1     yield     8737   9299.20724 562.207239          0.06045754
-#> 2 fertility      401    375.09323  25.906774          0.06906756
-#> 3   culling       27     22.54568   4.454317          0.19756853
-value_losses(gaps, eco$unit_value, eco$additional)$total
-#> [1] 402.2476
-```
-
-Adjusted culling hazard ratios (Table 8, eq. 23):
-
-``` r
-
-adjusted_hr(res, attr(m, "culling_conversion"), method = "published")
-#>    disease   hr     excess excess_adjusted hr_adjusted
-#> 1       CO 1.00 0.00000000      0.00000000    1.000000
-#> 2       DA 3.83 0.31384146      0.21890546    2.671438
-#> 3      DYS 1.90 0.14205130      0.11895883    1.591128
-#> 4      FAS 1.00 0.00000000      0.00000000    1.000000
-#> 5      GIN 1.00 0.00000000      0.00000000    1.000000
-#> 6      LAM 3.40 0.25564849      0.22551778    2.999276
-#> 7      MAS 2.78 0.21306880      0.16920019    2.207627
-#> 8      MET 2.20 0.17385764      0.12260834    1.551490
-#> 9       MF 2.50 0.20567043      0.15552270    1.890436
-#> 10     NEO 1.60 0.09889327      0.09889327    1.600000
-#> 11     PTB 2.40 0.19637306      0.13437261    1.642253
-#> 12      RP 1.00 0.00000000      0.00000000    1.000000
-#> 13     SCK 2.10 0.15726427      0.09665490    1.290664
+r22 <- reproduce_rasmussen_2022()
+r22
+#> <cm_reproduction> Rasmussen et al. (2022)
+#> 
+#> Gaps and values:
+#>   analysis observed disease_free     gap  value
+#>      yield     8737      9299.00 562.200 169.90
+#>  fertility      401       375.10  25.910 101.80
+#>    culling       27        22.55   4.454  59.48
+#> 
+#> Total including veterinary: 402.25
+#> 
+#> Comparison with Table 9:
+#>                quantity  table9 package
+#>      yield_disease_free 9306.00 9299.00
+#>             yield_value  172.00  169.90
+#>  fertility_disease_free  375.10  375.10
+#>         fertility_value  101.80  101.80
+#>    culling_disease_free   22.56   22.55
+#>           culling_value   59.27   59.48
+#>   total_with_veterinary  404.20  402.20
+#> 
+#> Adjusted culling hazard ratios (eq. 23) vs Table 8:
+#>  disease   hr table8 package
+#>       CO 1.00   1.00   1.000
+#>       DA 3.83   2.68   2.671
+#>      DYS 1.90   1.60   1.591
+#>      FAS 1.00   1.00   1.000
+#>      GIN 1.00   1.00   1.000
+#>      LAM 3.40   3.00   2.999
+#>      MAS 2.78   2.22   2.208
+#>      MET 2.20   1.55   1.551
+#>       MF 2.50   1.89   1.890
+#>      NEO 1.60   1.60   1.600
+#>      PTB 2.40   1.64   1.642
+#>       RP 1.00   1.00   1.000
+#>      SCK 2.10   1.29   1.291
 ```
 
 ### Comparison with Table 9
@@ -124,67 +144,102 @@ dystocia loss taken from the literature, GBP 20.97 to GBP 31.92, and the
 directly aggregated total, now GBP 660.26), which is not an input to the
 comorbidity adjustment.
 
-``` r
-
-m389 <- example_uk_dairy_2022(yield_sck = 100 * 340 / 8737)
-y <- deconflate(m389, method = "published")$adjusted
-y[y$outcome == "yield", c("disease", "raw", "adjusted")]
-#>    disease        raw     adjusted
-#> 1       CO 0.00000000 0.0000000000
-#> 2       DA 0.04040000 0.0227781090
-#> 3      DYS 0.04050000 0.0293974969
-#> 4      FAS 0.07330000 0.0733000000
-#> 5      GIN 0.03280000 0.0328000000
-#> 6      LAM 0.05540000 0.0475073442
-#> 7      MAS 0.04570000 0.0371265733
-#> 8      MET 0.03950000 0.0238990351
-#> 9       MF 0.00410000 0.0009302367
-#> 10     NEO 0.04200000 0.0420000000
-#> 11     PTB 0.05900000 0.0443065737
-#> 12      RP 0.07380000 0.0608140196
-#> 13     SCK 0.03891496 0.0266151273
-```
-
-### Corrections the package makes available
-
-- **Exact solution.** `method = "simultaneous"` solves the additive
-  equations instead of approximating them.
-- **Hazard ratios.** `culling_method = "proportional_hazards"` converts
-  hazard ratios to risks under proportional hazards, instead of treating
-  them as odds ratios. This gives larger excess risks.
-- **Additive culling gap.** `culling_scale = "absolute"` subtracts the
-  excess risk from the observed culling rate. The published approach
-  instead treats excess risk as a proportional increase in the rate.
+Adjusted yield impacts (percent) with the printed value of 3.05% and
+with 3.89% for subclinical ketosis:
 
 ``` r
 
-m2 <- example_uk_dairy_2022(culling_method = "proportional_hazards",
-                            culling_scale = "absolute")
-eco2 <- uk_dairy_2022_economics("absolute")
-res2 <- suppressWarnings(deconflate(m2))
-summary(res2, economics = eco2)
-#> Comorbidity adjustment (method: simultaneous)
-#> 
-#>    outcome raw_loss adjusted_loss reduction observed disease_free      gap
-#>    culling  0.30580       0.23648    0.2267     0.27    3.352e-02   0.2365
-#>  fertility  0.07573       0.06448    0.1485   401.00    3.767e+02  24.2919
-#>      yield  0.07168       0.05982    0.1654  8737.00    9.293e+03 555.9154
-#>   value
-#>  315.79
-#>   95.43
-#>  168.00
-#> 
-#> Total value (including additional costs): 650.31
-#> 
-#> Sign changes (raw impacts smaller than associated diseases imply):
-#>   yield: MF
-#>   fertility: SCK
+r389 <- reproduce_rasmussen_2022(yield_sck = 100 * 340 / 8737)
+data.frame(disease = r22$adjusted$disease,
+           sck_3.05 = r22$adjusted$yield,
+           sck_3.89 = r389$adjusted$yield)
+#>    disease   sck_3.05   sck_3.89
+#> 1       CO 0.00000000 0.00000000
+#> 2       DA 2.36694153 2.27781090
+#> 3      DYS 2.93974969 2.93974969
+#> 4      FAS 7.33000000 7.33000000
+#> 5      GIN 3.28000000 3.28000000
+#> 6      LAM 4.83062939 4.75073442
+#> 7      MAS 3.76265428 3.71265733
+#> 8      MET 2.40913756 2.38990351
+#> 9       MF 0.09988662 0.09302367
+#> 10     NEO 4.20000000 4.20000000
+#> 11     PTB 4.43065737 4.43065737
+#> 12      RP 6.10014912 6.08140196
+#> 13     SCK 1.91867269 2.66151273
 ```
+
+### What the package offers instead
+
+**Exact solution.** `method = "simultaneous"` solves the additive
+equations instead of approximating them. With the same inputs and
+valuation (the culling analysis keeps the paper’s conversion), the total
+including veterinary costs falls from GBP 402.25 to 393.13 per cow per
+year:
+
+``` r
+
+uk <- example_uk_dairy_2022()
+eco <- uk_dairy_2022_economics()
+cmp <- compare_methods(uk, methods = c("published", "simultaneous"),
+                       valuation = eco$valuation)
+cmp$totals
+#>    analysis       method   raw_sum adjusted_total        gap     value
+#> 1     yield    published 7.1678000      6.0457545 562.207239 169.89903
+#> 2     yield simultaneous 7.1678000      5.9821423 555.915420 167.99764
+#> 3 fertility    published 7.5734000      6.9067560  25.906774 101.77735
+#> 4 fertility simultaneous 7.5734000      6.4484568  24.291862  95.43301
+#> 5   culling    published 0.2498891      0.1975685   4.454317  59.48117
+#> 6   culling simultaneous 0.2498891      0.1941178   4.389166  58.61117
+tapply(cmp$totals$value, cmp$totals$method, sum) + sum(eco$additional)
+#>    published simultaneous 
+#>     402.2476     393.1318
+```
+
+**Hazard ratios.** For new analyses, the culling hazard ratios are
+adjusted with the hazard-ratio adapter, and the culling attributable to
+disease is computed without counting a cow twice. The hazard ratios of
+Table 6 are attached to the example:
+
+``` r
+
+hr_uk <- cm_hr_model(uk$population, attr(uk, "hazard_ratios"))
+compare_methods(hr_uk, overall_risk = 0.27, joint = fit_joint(uk$population))
+#> <cm_comparison> methods: published, first_order, snapshot
+#> Units: hazard ratio
+#> 
+#> Adjusted values:
+#>  disease  raw published first_order snapshot
+#>       CO 1.00      1.00       0.878    0.878
+#>       DA 3.83      3.09       2.530    2.490
+#>      DYS 1.90      1.74       1.790    1.780
+#>      FAS 1.00      1.00       1.000    1.000
+#>      GIN 1.00      1.00       1.000    1.000
+#>      LAM 3.40      3.18       3.130    3.110
+#>      MAS 2.78      2.45       2.390    2.270
+#>      MET 2.20      1.80       1.760    1.690
+#>       MF 2.50      2.11       2.010    1.960
+#>      NEO 1.60      1.60       1.600    1.600
+#>      PTB 2.40      1.88       1.620    1.620
+#>       RP 1.00      1.00       0.795    0.734
+#>      SCK 2.10      1.62       1.440    1.340
+#> 
+#> Totals:
+#>       method overall_risk disease_free_risk attributable
+#>    published         0.27           0.08776       0.1822
+#>  first_order         0.27           0.09699       0.1730
+#>     snapshot         0.27           0.10230       0.1677
+```
+
+The attributable risk times the replacement price (GBP 1335.36) gives
+its value per cow and year;
+[`attributable_risk()`](https://rasmussenphilip.github.io/deconflate/reference/attributable_risk.md)
+does this with `unit_value`.
 
 ## Global dairy analysis (2024, Table 5)
 
 Table 5 reports the means of comorbidity-adjusted impacts over 50,000
-Monte Carlo draws per outcome.
+Monte Carlo draws per analysis.
 [`sampler_global_dairy()`](https://rasmussenphilip.github.io/deconflate/reference/sampler_global_dairy.md)
 encodes the input distributions. By default (`inputs = "analysis"`) it
 follows the published analysis code rather than the printed tables:
@@ -201,59 +256,50 @@ follows the published analysis code rather than the printed tables:
 - **Culling** was adjusted on the hazard ratio scale: HR - 1 was
   adjusted, and 1 was added back. Normal standard deviations were scaled
   by (HR - 1) / HR, and metritis used a PERT distribution (mode 1.12)
-  rather than the normal distribution in Table 4 (mean 1.05).
+  rather than the normal distribution in Table 4 (mean 1.05). This is
+  the analysis `culling_hr_minus_1` of
+  `example_global_dairy(culling = TRUE)`, kept for reproduction only.
 
 `sampler_global_dairy(inputs = "tables")` uses Tables 2-4 as printed
-instead. Run with many more draws for stable estimates; 200 are used
-here to keep the vignette fast.
+instead.
+[`reproduce_rasmussen_2024()`](https://rasmussenphilip.github.io/deconflate/reference/reproduce.md)
+runs the published method on the sampler and sets the means beside Table
+5 (yield and fertility in percent, culling as hazard ratios). Run it
+with many more draws for stable estimates; 200 are used here to keep the
+vignette fast.
 
 ``` r
 
-mc <- cm_monte_carlo(sampler_global_dairy(), 200, method = "published", seed = 2024)
-s <- summary(mc)
-#> 8 Monte Carlo estimate(s) may be unstable:
-#> * yield / DA (published): the Monte Carlo standard error is 6.3% of the mean.
-#>     Suggestion: increase n_draws to about 2,002 for a 2% standard error, or use sampling = "lhs" (Latin hypercube).
-#> * fertility / DA (published): the most extreme 1% of draws contribute 97% of the variance.
-#>     Suggestion: importance sampling: prop <- cm_suggest_proposal(mc, "fertility", "DA", method = "published"), then cm_monte_carlo(sampler, n_draws, method = "published", proposal = prop). Also report the median.
-#> * culling / DYS (published): the published approximation divides by m + c, which changes sign in 1.0% of draws, so the mean does not exist.
-#>     Suggestion: report the median or trimmed_mean, or use method = "simultaneous" (exact, no division). More draws, Latin hypercube or importance sampling will not make this mean converge.
-#> * fertility / MET (published): the published approximation divides by m + c, which changes sign in 1.0% of draws, so the mean does not exist.
-#>     Suggestion: report the median or trimmed_mean, or use method = "simultaneous" (exact, no division). More draws, Latin hypercube or importance sampling will not make this mean converge.
-#> * culling / MET (published): the Monte Carlo standard error is 7.7% of the mean.
-#>     Suggestion: increase n_draws to about 2,998 for a 2% standard error, or use sampling = "lhs" (Latin hypercube).
-#> * fertility / PTB (published): the published approximation divides by m + c, which changes sign in 0.5% of draws, so the mean does not exist.
-#>     Suggestion: report the median or trimmed_mean, or use method = "simultaneous" (exact, no division). More draws, Latin hypercube or importance sampling will not make this mean converge.
-#> * fertility / SCK (published): the published approximation divides by m + c, which changes sign in 3.5% of draws, so the mean does not exist.
-#>     Suggestion: report the median or trimmed_mean, or use method = "simultaneous" (exact, no division). More draws, Latin hypercube or importance sampling will not make this mean converge.
-#> * fertility / SCM (published): the Monte Carlo standard error is 7.9% of the mean.
-#>     Suggestion: increase n_draws to about 3,101 for a 2% standard error, or use sampling = "lhs" (Latin hypercube).
-#> (See ?cm_diagnose; use summary(..., diagnose = FALSE) to silence this message.)
-s$package <- round(ifelse(s$outcome == "culling", 1 + s$mean, 100 * s$mean), 2)
-table5 <- list(
-  yield = c(0.03, 1.36, 1.18, 3.48, 2.62, 2.87, 0.07, 2.59, 3.37, 2.30, 7.11, 5.58),
-  culling = c(1.18, 1.90, 2.75, 1.18, 1.40, 1.03, 2.64, 1.51, 2.07, 1.29, 1.67, 1.25)
-)
-ids <- c("CK", "CM", "DA", "DYS", "LAM", "MET", "MF", "OC", "PTB", "RP", "SCK", "SCM")
-pkg <- function(o) s$package[s$outcome == o][match(ids, s$disease[s$outcome == o])]
-data.frame(
-  disease = ids,
-  yield_package = pkg("yield"), yield_table5 = table5$yield,
-  culling_package = pkg("culling"), culling_table5 = table5$culling
-)
-#>    disease yield_package yield_table5 culling_package culling_table5
-#> 1       CK          0.03         0.03            1.18           1.18
-#> 2       CM          1.33         1.36            1.89           1.90
-#> 3       DA          1.17         1.18            2.77           2.75
-#> 4      DYS          3.46         3.48            1.19           1.18
-#> 5      LAM          2.56         2.62            1.39           1.40
-#> 6      MET          2.91         2.87            1.03           1.03
-#> 7       MF          0.07         0.07            2.67           2.64
-#> 8       OC          2.52         2.59            1.48           1.51
-#> 9      PTB          3.32         3.37            2.06           2.07
-#> 10      RP          2.24         2.30            1.29           1.29
-#> 11     SCK          7.14         7.11            1.67           1.67
-#> 12     SCM          5.70         5.58            1.25           1.25
+r24 <- reproduce_rasmussen_2024(n_draws = 200)
+cmp24 <- r24$comparison
+cmp24[cmp24$analysis == "yield", c("disease", "table5", "mean", "median", "stability")]
+#>    disease table5       mean     median stability
+#> 1       CK   0.03 0.03442976 0.03156076        ok
+#> 2       CM   1.36 1.33089121 1.37155476        ok
+#> 3       DA   1.18 1.16913885 0.98908208 imprecise
+#> 4      DYS   3.48 3.46250651 3.45262679        ok
+#> 5      LAM   2.62 2.56465441 2.52503159        ok
+#> 6      MET   2.87 2.91014635 2.87194129        ok
+#> 7       MF   0.07 0.07037444 0.06873653        ok
+#> 8       OC   2.59 2.51844622 2.56329222        ok
+#> 9      PTB   3.37 3.32022926 3.29087156        ok
+#> 10      RP   2.30 2.23600434 2.22201614        ok
+#> 11     SCK   7.11 7.14187599 7.06581819        ok
+#> 12     SCM   5.58 5.69548041 5.54342870        ok
+cmp24[cmp24$analysis == "culling_hr", c("disease", "table5", "mean", "median", "stability")]
+#>    disease table5     mean   median     stability
+#> 25      CK   1.18 1.184261 1.182960            ok
+#> 26      CM   1.90 1.894408 1.877761            ok
+#> 27      DA   2.75 2.774447 2.644105            ok
+#> 28     DYS   1.18 1.193927 1.125758 possible_pole
+#> 29     LAM   1.40 1.385253 1.379647            ok
+#> 30     MET   1.03 1.027202 1.016015     imprecise
+#> 31      MF   2.64 2.673999 2.654076            ok
+#> 32      OC   1.51 1.478334 1.471560            ok
+#> 33     PTB   2.07 2.058094 2.050252            ok
+#> 34      RP   1.29 1.291959 1.282293            ok
+#> 35     SCK   1.67 1.667363 1.669365            ok
+#> 36     SCM   1.25 1.252106 1.251805            ok
 ```
 
 With 200,000 draws (`inst/validation/reference_2024_analysis.py`), the
@@ -297,43 +343,78 @@ draws in which `m + c` is close to zero produce extreme values. For
 subclinical ketosis the Monte Carlo mean does not settle even with
 200,000 draws, and for subclinical mastitis the archived inputs give
 0.52% rather than the 0.04% in Table 5. Medians, or the exact
-(simultaneous) solution, are more robust summaries.
+(simultaneous) solution, are more robust summaries. The `stability`
+column flags estimates whose means are unreliable (see
+[`vignette("uncertainty")`](https://rasmussenphilip.github.io/deconflate/articles/uncertainty.md)):
+
+``` r
+
+cmp24[cmp24$analysis == "fertility", c("disease", "table5", "mean", "median", "stability")]
+#>    disease table5       mean     median     stability
+#> 13      CK   0.34  0.3111188  0.2747364            ok
+#> 14      CM   6.09  6.1548342  6.1297197            ok
+#> 15      DA   0.78  1.0023297  0.3848882    heavy_tail
+#> 16     DYS   1.11  1.0743470  0.9363284            ok
+#> 17     LAM   1.86  1.9423520  1.7641199            ok
+#> 18     MET  11.22 10.5990086 10.4920940 possible_pole
+#> 19      MF   1.06  1.0573668  1.0456397            ok
+#> 20      OC   9.03  9.0885437  8.4399206            ok
+#> 21     PTB   4.23  3.7642570  3.7627776 possible_pole
+#> 22      RP   3.74  3.6555091  3.5283150            ok
+#> 23     SCK   0.39  0.2131768  0.5177367 possible_pole
+#> 24     SCM   0.04  0.4843150  0.2616170     imprecise
+```
 
 The simultaneous solution at the central values shows the inconsistency
-directly. Several adjusted impacts change sign, while the total burden
-stays similar:
+directly. Several adjusted impacts change sign, while the aggregates
+move less (about 3% for yield and 18% for fertility):
 
 ``` r
 
-res24 <- suppressWarnings(deconflate(example_global_dairy()))
-res24$diagnostics[, c("outcome", "n_sign_changes", "sign_changes")]
-#>     outcome n_sign_changes          sign_changes
-#> 1     yield              4        CK, CM, DA, MF
-#> 2 fertility              5 CK, DA, LAM, SCK, SCM
-#> 3   culling              2               CK, MET
-```
-
-Adjusted culling impacts convert back to hazard ratios with
-`adjusted_hr(..., method = "excess_hr")`. For the losses, the paper
-converted each adjusted hazard ratio to an excess culling risk relative
-to the overall culling rate `r`, `HR * r / (HR * r + 1 - r) - r`; this
-is `hr_to_risk(hr, NA, r, method = "overall_odds")`.
-
-``` r
-
+res24 <- deconflate(example_global_dairy(), warn = FALSE)
+vapply(res24, function(r) r$diagnostics$sign_changes, character(1))
+#>                   yield               fertility 
+#>        "CK, CM, DA, MF" "CK, DA, LAM, SCK, SCM"
 pub24 <- deconflate(example_global_dairy(), method = "published")
-adjusted_hr(pub24, method = "excess_hr")
-#>    disease       hr   excess excess_adjusted hr_adjusted
-#> 1       CK 1.500100 0.500100      0.17758038    1.177580
-#> 2       CM 2.300000 1.300000      0.90394063    1.903941
-#> 3       DA 2.851179 1.851179      1.19792993    2.197930
-#> 4      DYS 1.258143 0.258143      0.09837667    1.098377
-#> 5      LAM 1.744976 0.744976      0.38068270    1.380683
-#> 6      MET 1.116444 0.116444      0.01241058    1.012411
-#> 7       MF 2.999886 1.999886      1.64763745    2.647637
-#> 8       OC 1.620000 0.620000      0.45864412    1.458644
-#> 9      PTB 2.310508 1.310508      1.04723492    2.047235
-#> 10      RP 1.599928 0.599928      0.28449635    1.284496
-#> 11     SCK 1.920000 0.920000      0.67525327    1.675253
-#> 12     SCM 1.449996 0.449996      0.25492756    1.254928
+rbind(published = vapply(pub24, function(r) r$totals$adjusted_total, numeric(1)),
+      simultaneous = vapply(res24, function(r) r$totals$adjusted_total, numeric(1)))
+#>                 yield fertility
+#> published    7.280553  4.794033
+#> simultaneous 7.494192  3.933738
 ```
+
+**Culling losses.** The adjusted culling impacts of the 2024 analysis
+are adjusted HR - 1; adding 1 gives the adjusted hazard ratios. They
+equal the `"published"` method of
+[`deconflate_hr()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate_hr.md)
+at the central values:
+
+``` r
+
+cu <- r24$central$culling_hr_minus_1$adjusted
+hr_pub <- deconflate_hr(example_global_dairy_hr(), method = "published")
+data.frame(disease = cu$disease, hr = 1 + cu$raw, adjusted_hr = 1 + cu$adjusted,
+           deconflate_hr = hr_pub$adjusted$adjusted)
+#>    disease       hr adjusted_hr deconflate_hr
+#> 1       CK 1.500100    1.177580      1.177580
+#> 2       CM 2.300000    1.903941      1.903941
+#> 3       DA 2.851179    2.197930      2.197930
+#> 4      DYS 1.258143    1.098377      1.098377
+#> 5      LAM 1.744976    1.380683      1.380683
+#> 6      MET 1.116444    1.012411      1.012411
+#> 7       MF 2.999886    2.647637      2.647637
+#> 8       OC 1.620000    1.458644      1.458644
+#> 9      PTB 2.310508    2.047235      2.047235
+#> 10      RP 1.599928    1.284496      1.284496
+#> 11     SCK 1.920000    1.675253      1.675253
+#> 12     SCM 1.449996    1.254928      1.254928
+```
+
+For the losses, the paper converted each adjusted hazard ratio to an
+excess culling risk relative to the overall culling rate `r`,
+`HR * r / (HR * r + 1 - r) - r`, which treats the hazard ratio as an
+odds ratio and counts cows with several diseases more than once. For new
+analyses use
+[`attributable_risk()`](https://rasmussenphilip.github.io/deconflate/reference/attributable_risk.md)
+(see
+[`vignette("culling-hazard-ratios")`](https://rasmussenphilip.github.io/deconflate/articles/culling-hazard-ratios.md)).

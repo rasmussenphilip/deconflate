@@ -3,8 +3,9 @@
 Replaces the distributions of some inputs with scenario distributions
 and reweights the existing draws accordingly (see
 [`cm_reweight()`](https://rasmussenphilip.github.io/deconflate/reference/cm_reweight.md)).
-Keys are those of `mc$params`, e.g. `"assoc:LAM:SCK"` or
-`"impact:yield:LAM"`.
+Keys are those of `mc$params`, e.g. `"assoc:LAM:SCK"` or `"impact:LAM"`.
+Each scenario distribution must lie within the support of the
+distribution the input was sampled from.
 
 ## Usage
 
@@ -27,11 +28,3 @@ cm_scenario(mc, changes)
 ## Value
 
 The reweighted `mc` (with `ess`).
-
-## Details
-
-Inputs drawn with an outcome correlation (copula) cannot be reweighted
-individually, because changing a marginal also changes the copula
-coordinates; re-run
-[`cm_monte_carlo()`](https://rasmussenphilip.github.io/deconflate/reference/cm_monte_carlo.md)
-for such scenarios.

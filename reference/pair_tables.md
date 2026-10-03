@@ -13,6 +13,8 @@ pair_tables(model)
 - model:
 
   A
+  [`cm_population()`](https://rasmussenphilip.github.io/deconflate/reference/cm_population.md)
+  or
   [`cm_model()`](https://rasmussenphilip.github.io/deconflate/reference/cm_model.md).
 
 ## Value

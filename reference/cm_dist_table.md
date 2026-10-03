@@ -3,7 +3,7 @@
 Converts a table with columns `key`, `dist` and `p1`-`p4` (see the
 Columns section of
 [`cm_read_inputs()`](https://rasmussenphilip.github.io/deconflate/reference/cm_read_inputs.md))
-into a named list of `cm_dist` objects.
+into a named list of `cm_dist` objects. Keys are kept as given.
 
 ## Usage
 
@@ -24,10 +24,10 @@ A named list of `cm_dist` objects (names = keys).
 ## Examples
 
 ``` r
-cm_dist_table(data.frame(key = c("impact:yield:d1", "assoc:d1:d2"),
+cm_dist_table(data.frame(key = c("impact:d1", "assoc:d1:d2"),
                          dist = c("normal", "lognormal_ci"),
                          p1 = c(2.5, 2), p2 = c(0.5, 1.4), p3 = c(NA, 2.9)))
-#> $`impact:yield:d1`
+#> $`impact:d1`
 #> <cm_dist> normal(mean = 2.5, sd = 0.5, lower = -Inf, upper = Inf), mean 2.5
 #> 
 #> $`assoc:d1:d2`

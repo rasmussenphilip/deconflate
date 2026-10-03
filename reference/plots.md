@@ -2,19 +2,20 @@
 
 Base-graphics plots for the main result types:
 
-- `plot(<cm_result>)`: raw and adjusted impacts by disease, one panel
-  per outcome.
+- `plot(<cm_result>)`: raw and adjusted impacts by disease;
+  `plot(<cm_results>)` one panel per analysis.
 
-- `plot_burden()`: each disease's share of the burden per outcome (main
-  effects and interaction shares), or monetary losses if `economics` is
-  given.
+- `plot_burden()`: each disease's contribution to the aggregate (main
+  effect and interaction share), or its share of the value with
+  `valuation`; for several analyses, one bar per analysis.
 
 - `plot(<cm_mc>)`: Monte Carlo means and intervals of adjusted impacts.
 
-- `plot(<cm_screen>)`: the most influential pairs from
-  [`screen_associations()`](https://rasmussenphilip.github.io/deconflate/reference/screen_associations.md)
+- `plot(<cm_screen>)`: the most influential scenarios from
+  [`screen_associations()`](https://rasmussenphilip.github.io/deconflate/reference/screen_associations.md),
+  [`screen_interactions()`](https://rasmussenphilip.github.io/deconflate/reference/screen_interactions.md)
   or
-  [`screen_interactions()`](https://rasmussenphilip.github.io/deconflate/reference/screen_interactions.md).
+  [`screen_three_way()`](https://rasmussenphilip.github.io/deconflate/reference/screen_three_way.md).
 
 - `plot(<cm_oat>)`: tornado plot from
   [`sensitivity_oat()`](https://rasmussenphilip.github.io/deconflate/reference/sensitivity_oat.md).
@@ -23,12 +24,15 @@ Base-graphics plots for the main result types:
 
 ``` r
 # S3 method for class 'cm_result'
-plot(x, outcome = NULL, ...)
+plot(x, ...)
 
-plot_burden(result, economics = NULL, ...)
+# S3 method for class 'cm_results'
+plot(x, ...)
+
+plot_burden(result, valuation = NULL, ...)
 
 # S3 method for class 'cm_mc'
-plot(x, outcome = NULL, probs = c(0.025, 0.975), method = NULL, ...)
+plot(x, probs = c(0.025, 0.975), method = NULL, ...)
 
 # S3 method for class 'cm_screen'
 plot(x, top = 15, ...)
@@ -43,19 +47,15 @@ plot(x, top = 15, ...)
 
   The object to plot.
 
-- outcome:
-
-  Outcome(s) to show (default all, or the first for Monte Carlo
-  results).
-
 - ...:
 
   Passed to the underlying graphics function.
 
-- economics:
+- valuation:
 
-  Optional economics list (see
-  [`value_losses()`](https://rasmussenphilip.github.io/deconflate/reference/value_losses.md)).
+  Optional valuation list (see
+  [`contribution_table()`](https://rasmussenphilip.github.io/deconflate/reference/contribution_table.md)),
+  or for several analyses a list of them named after the analyses.
 
 - probs:
 
@@ -78,7 +78,7 @@ The input, invisibly.
 
 ``` r
 res <- deconflate(example_uk_dairy_2022(), method = "published")
-plot(res, outcome = "yield")
+plot(res$yield)
 
 plot_burden(res)
 ```

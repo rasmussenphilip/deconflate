@@ -1,6 +1,6 @@
-# Set or replace one association in a model
+# Set or replace one association
 
-Set or replace one association in a model
+Set or replace one association
 
 ## Usage
 
@@ -13,6 +13,8 @@ set_association(model, disease1, disease2, value, measure = "OR")
 - model:
 
   A
+  [`cm_population()`](https://rasmussenphilip.github.io/deconflate/reference/cm_population.md)
+  or
   [`cm_model()`](https://rasmussenphilip.github.io/deconflate/reference/cm_model.md).
 
 - disease1, disease2:
@@ -30,4 +32,4 @@ set_association(model, disease1, disease2, value, measure = "OR")
 
 ## Value
 
-The modified model.
+The modified object.

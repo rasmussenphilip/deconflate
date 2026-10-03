@@ -14,8 +14,7 @@ cm_sampler(
   diseases = list(),
   associations = list(),
   impacts = list(),
-  interactions = list(),
-  outcome_correlation = NULL
+  interactions = list()
 )
 ```
 
@@ -37,28 +36,21 @@ cm_sampler(
 
 - impacts:
 
-  Named list of `cm_dist`, names `"outcome:disease"`.
+  Named list of `cm_dist`, names = disease ids.
 
 - interactions:
 
-  Named list of `cm_dist`, names `"outcome:d1:d2"`.
-
-- outcome_correlation:
-
-  Optional correlation matrix with row and column names equal to outcome
-  labels. Within each disease, the impacts on these outcomes are drawn
-  with this correlation (Gaussian copula); marginal distributions are
-  unchanged. Impacts of different diseases stay independent.
+  Named list of `cm_dist`, names `"d1:d2"` (either order) matching rows
+  of the model's interactions.
 
 ## Value
 
 A function of the draw index returning a
 [`cm_model()`](https://rasmussenphilip.github.io/deconflate/reference/cm_model.md),
-with attributes `specs` (the distributions, keyed as in `params` of
-[`cm_monte_carlo()`](https://rasmussenphilip.github.io/deconflate/reference/cm_monte_carlo.md))
-and `correlated` (keys drawn through the copula). The function also
-accepts `u` (named uniforms, for stratified sampling) and `values`
-(named input values that replace draws, for importance sampling);
+with attribute `specs` (the distributions, keyed as in `params`). It
+also accepts `u` (named uniforms, for stratified sampling) and `values`
+(named input values that replace draws, for importance sampling and for
+batch runs);
 [`cm_monte_carlo()`](https://rasmussenphilip.github.io/deconflate/reference/cm_monte_carlo.md)
 uses these.
 
@@ -73,26 +65,32 @@ Draws are on the scale the inputs were entered on:
 
 - associations: the association measure (e.g. odds ratio);
 
-- impacts and interactions: the input scale (e.g. percent, if entered as
-  percent).
+- impacts and interactions: their own units.
 
 A draw that produces an impossible input (a probability outside (0, 1),
-a non-positive odds ratio) is rejected by
+a non-positive odds ratio, a conditional probability below 0 or above 1)
+is rejected by
 [`cm_monte_carlo()`](https://rasmussenphilip.github.io/deconflate/reference/cm_monte_carlo.md)
 and counted.
+
+Keys (as in `params` of
+[`cm_monte_carlo()`](https://rasmussenphilip.github.io/deconflate/reference/cm_monte_carlo.md)):
+`prob:<disease>`, `assoc:<d1>:<d2>`, `impact:<disease>` and
+`inter:<d1>:<d2>`.
 
 ## Examples
 
 ``` r
-m <- example_supplement()
-s <- cm_sampler(m, associations = list("d1:d2" = dist_lognormal_ci(2, 1.4, 2.9)))
+s <- cm_sampler(example_supplement(),
+                associations = list("d1:d2" = dist_lognormal_ci(2, 1.4, 2.9)),
+                impacts = list(d1 = dist_normal(2.5, 0.5)))
 s(1)$associations
-#>   disease1 disease2 measure    value adjusted adjusted_for source n11 n10 n01
-#> 1       d1       d2      OR 2.153526    FALSE         <NA>   <NA>  NA  NA  NA
-#> 2       d1       d3      OR 1.000000    FALSE         <NA>   <NA>  NA  NA  NA
-#> 3       d2       d3      OR 3.000000    FALSE         <NA>   <NA>  NA  NA  NA
-#>   n00
-#> 1  NA
-#> 2  NA
-#> 3  NA
+#>   disease1 disease2 measure    value adjusted adjusted_for source corrected n11
+#> 1       d1       d2      OR 2.153526    FALSE         <NA>   <NA>     FALSE  NA
+#> 2       d1       d3      OR 1.000000    FALSE         <NA>   <NA>     FALSE  NA
+#> 3       d2       d3      OR 3.000000    FALSE         <NA>   <NA>     FALSE  NA
+#>   n10 n01 n00
+#> 1  NA  NA  NA
+#> 2  NA  NA  NA
+#> 3  NA  NA  NA
 ```

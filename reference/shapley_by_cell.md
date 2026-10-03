@@ -12,7 +12,7 @@ expected Shapley value equals the probability-weighted sum over cells.
 ## Usage
 
 ``` r
-shapley_by_cell(joint, loss, max_present = 10L)
+shapley_by_cell(joint, loss, max_present = Inf)
 ```
 
 ## Arguments
@@ -34,14 +34,18 @@ shapley_by_cell(joint, loss, max_present = 10L)
 
 - max_present:
 
-  Cells with more diseases present than this are skipped; the skipped
-  probability mass is reported.
+  Cells with more diseases present than this are skipped (the cost grows
+  as 2^k for a cell with k diseases). The default skips nothing. Skipped
+  cells are reported: their probability (`skipped_mass`) and their
+  expected loss (`skipped_loss`), which is the part of the total that is
+  not allocated.
 
 ## Value
 
-A data frame with each disease's expected Shapley value and share, with
-attributes `total` (expected loss over the cells evaluated) and
-`skipped_mass`.
+A data frame with each disease's expected Shapley value and share (of
+the allocated amount, which is the total only when no cell is skipped),
+with attributes `total` (expected loss over all cells), `allocated` (the
+sum of the Shapley values), `skipped_mass` and `skipped_loss`.
 
 ## Details
 

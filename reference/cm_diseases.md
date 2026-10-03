@@ -19,7 +19,8 @@ cm_diseases(
 
 - id:
 
-  Character vector of unique disease identifiers.
+  Character vector of unique disease identifiers (no `|`, `;` or `:`;
+  `"all"` is reserved).
 
 - value:
 

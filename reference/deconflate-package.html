@@ -63,42 +63,56 @@ estimates so that they can be aggregated.</p>
     <h2 id="workflow">Workflow<a class="anchor" aria-label="anchor" href="#workflow"></a></h2>
 
 
-<ol><li><p>Describe the system with <code><a href="cm_diseases.html">cm_diseases()</a></code>, <code><a href="cm_associations.html">cm_associations()</a></code>,
-<code><a href="cm_impacts.html">cm_impacts()</a></code> and, optionally, <code><a href="cm_interactions.html">cm_interactions()</a></code>, then combine them
-with <code><a href="cm_model.html">cm_model()</a></code>. Or read the same tables from CSV files or data
-frames with <code><a href="cm_read_inputs.html">cm_read_inputs()</a></code> (see <code><a href="cm_template.html">cm_template()</a></code>).</p></li>
+<ol><li><p>Describe the population with <code><a href="cm_diseases.html">cm_diseases()</a></code>, <code><a href="cm_associations.html">cm_associations()</a></code> and,
+optionally, three-way scenarios (<code><a href="cm_three_way.html">cm_three_way()</a></code>), combined with
+<code><a href="cm_population.html">cm_population()</a></code>. Add one impact vector (<code><a href="cm_impacts.html">cm_impacts()</a></code>) per analysis
+with <code><a href="cm_model.html">cm_model()</a></code>, or several with <code><a href="cm_analyses.html">cm_analyses()</a></code>. Or read the same
+tables from CSV files or data frames with <code><a href="cm_read_inputs.html">cm_read_inputs()</a></code> (see
+<code><a href="cm_template.html">cm_template()</a></code>).</p></li>
 <li><p>Adjust impacts with <code><a href="deconflate.html">deconflate()</a></code>, using one of three methods:</p><ul><li><p><code>"simultaneous"</code> (default): the exact solution of the additive impact
-equations, built from pairwise 2x2 tables.</p></li>
+equations, built from pairwise 2x2 tables. Crude estimates and
+coefficients from additive regressions with a recorded adjustment set
+(<code>estimand = "adjusted_linear"</code>) are supported.</p></li>
 <li><p><code>"published"</code>: the proportional approximation of Rasmussen et al.
-(2022), eqs. 15-16, for reproduction and comparison.</p></li>
-<li><p><code>"global"</code>: fits a maximum-entropy distribution of disease combinations
-with <code><a href="fit_joint.html">fit_joint()</a></code>, then solves the impact equations including pairwise
-interactions.</p></li>
+(2022), eq. 16, for crude estimates, for reproduction and comparison.</p></li>
+<li><p><code>"global"</code>: fits a maximum-entropy distribution of disease
+combinations with <code><a href="fit_joint.html">fit_joint()</a></code>, then solves the impact equations
+including pairwise interactions (<code><a href="cm_interactions.html">cm_interactions()</a></code>).</p></li>
 </ul></li>
-<li><p>Estimate, value and attribute productivity gaps with
-<code><a href="productivity_gap.html">productivity_gap()</a></code>, <code><a href="value_losses.html">value_losses()</a></code>, <code><a href="attribute_burden.html">attribute_burden()</a></code> and
-<code><a href="contribution_table.html">contribution_table()</a></code>. Culling hazard ratios can be adjusted directly
-(<code>scale = "hazard_ratio"</code>) and turned into culling attributable to
-disease with <code><a href="attributable_risk.html">attributable_risk()</a></code>; <code><a href="compare_methods.html">compare_methods()</a></code> tabulates the
-methods side by side.</p></li>
-<li><p>Check joint feasibility with <code><a href="check_feasibility.html">check_feasibility()</a></code>.</p></li>
-<li><p>Propagate uncertainty with <code><a href="cm_sampler.html">cm_sampler()</a></code> and <code><a href="cm_monte_carlo.html">cm_monte_carlo()</a></code> (check
-stability with <code><a href="cm_diagnose.html">cm_diagnose()</a></code>), and
-explore scenarios with <code><a href="cm_scenario.html">cm_scenario()</a></code>, <code><a href="sensitivity_oat.html">sensitivity_oat()</a></code>,
-<code><a href="screen_associations.html">screen_associations()</a></code>, <code><a href="screen_interactions.html">screen_interactions()</a></code> and
-<code><a href="compare_scenarios.html">compare_scenarios()</a></code>.</p></li>
-</ol><p>See <code><a href="../articles/deconflate.html">vignette("deconflate")</a></code> to get started.</p>
+<li><p>Inspect each disease's contribution to the aggregate
+(<code><a href="attribute_burden.html">attribute_burden()</a></code>, <code><a href="contribution_table.html">contribution_table()</a></code>); optionally turn the
+aggregate into a productivity gap and a value with
+<code><a href="productivity_gap.html">productivity_gap()</a></code> and <code><a href="value_losses.html">value_losses()</a></code>. <code><a href="compare_methods.html">compare_methods()</a></code>
+tabulates the methods side by side.</p></li>
+<li><p>Hazard ratios (e.g. of culling) combine multiplicatively and have their
+own adapter: <code><a href="cm_hazard_ratios.html">cm_hazard_ratios()</a></code>, <code><a href="cm_hr_model.html">cm_hr_model()</a></code>, <code><a href="deconflate_hr.html">deconflate_hr()</a></code>
+and <code><a href="attributable_risk.html">attributable_risk()</a></code>.</p></li>
+<li><p>Check joint feasibility with <code><a href="check_feasibility.html">check_feasibility()</a></code> (a screen runs by
+default).</p></li>
+<li><p>Propagate uncertainty with <code><a href="cm_sampler.html">cm_sampler()</a></code> or <code><a href="cm_batch_sampler.html">cm_batch_sampler()</a></code> and
+<code><a href="cm_monte_carlo.html">cm_monte_carlo()</a></code> (check stability with <code><a href="cm_diagnose.html">cm_diagnose()</a></code>), and explore
+scenarios with <code><a href="cm_scenario.html">cm_scenario()</a></code>, <code><a href="sensitivity_oat.html">sensitivity_oat()</a></code>,
+<code><a href="screen_associations.html">screen_associations()</a></code>, <code><a href="screen_interactions.html">screen_interactions()</a></code>, <code><a href="screen_three_way.html">screen_three_way()</a></code>
+and <code><a href="compare_scenarios.html">compare_scenarios()</a></code>.</p></li>
+</ol><p><code><a href="reproduce.html">reproduce_rasmussen_2022()</a></code> and <code><a href="reproduce.html">reproduce_rasmussen_2024()</a></code> recompute
+the published tables. See <code><a href="../articles/deconflate.html">vignette("deconflate")</a></code> to get started.</p>
     </div>
     <div class="section level2">
     <h2 id="conventions">Conventions<a class="anchor" aria-label="anchor" href="#conventions"></a></h2>
 
 
-<ul><li><p>Impacts on the <code>"proportion"</code> scale are proportional changes relative to
-the disease-free value (e.g. <code>0.025</code> for a 2.5% yield reduction).</p></li>
+<ul><li><p>Impacts are additive and in any units, the same within an analysis;
+results come back in those units.</p></li>
 <li><p><code>E[k, i]</code> (see <code><a href="excess_matrix.html">excess_matrix()</a></code>) is the excess probability of disease
 <code>k</code> among animals with disease <code>i</code>: <code>P(k | i) - P(k | not i)</code>.</p></li>
-<li><p>Under additive impacts, the raw (crude) impact of disease <code>i</code> satisfies
+<li><p>Under additive impacts, the crude impact of disease <code>i</code> satisfies
 <code>m_raw[i] = m[i] + sum_k E[k, i] * m[k]</code> exactly.</p></li>
+<li><p>Errors have classes <code>deconflate_infeasible</code>, <code>deconflate_singular</code>,
+<code>deconflate_nonconvergence</code>, <code>deconflate_unsupported</code> and
+<code>deconflate_nonfinite</code> (all also <code>deconflate_error</code>); problems found
+by <code><a href="cm_read_inputs.html">cm_read_inputs()</a></code> have class <code>deconflate_input_problems</code>. Warning classes
+include <code>deconflate_sign_change</code>, <code>deconflate_nonconvergence</code> and
+<code>deconflate_nonfinite_warning</code> (all also <code>deconflate_warning</code>).</p></li>
 </ul></div>
     <div class="section level2">
     <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>

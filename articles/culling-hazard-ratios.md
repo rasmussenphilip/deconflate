@@ -7,150 +7,275 @@ library(deconflate)
 
 Culling (and mortality) impacts are usually reported as hazard ratios
 (HRs) from survival models. A raw HR for one disease is conflated with
-the HRs of associated diseases, just like a yield impact, but HRs
-combine multiplicatively, and the culling they cause has to be counted
-without counting a cow twice. This vignette compares the ways the
-package can handle them.
+the HRs of associated diseases, as a yield impact is, but HRs combine
+multiplicatively and are not additive impacts. They are therefore
+adjusted by a separate adapter, outside the additive engine of
+[`deconflate()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate.md):
 
-## Options
+- [`cm_hazard_ratios()`](https://rasmussenphilip.github.io/deconflate/reference/cm_hazard_ratios.md)
+  describes the raw HRs (one per disease; use 1 for no effect);
+- [`cm_hr_model()`](https://rasmussenphilip.github.io/deconflate/reference/cm_hr_model.md)
+  combines them with a population;
+- [`deconflate_hr()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate_hr.md)
+  adjusts them;
+- [`attributable_risk()`](https://rasmussenphilip.github.io/deconflate/reference/attributable_risk.md)
+  turns adjusted HRs into the part of the overall culling risk that
+  disease causes, and allocates it to diseases.
 
-| Approach | What is adjusted | How diseases combine | How to use it |
-|----|----|----|----|
-| Multiplicative, exact | log HR, over the distribution of disease combinations | HRs multiply | `scale = "hazard_ratio"`, `method = "global"` |
-| Multiplicative, first-order | log HR, pairwise | HRs multiply (approximately) | `scale = "hazard_ratio"`, `method = "simultaneous"` |
-| HR - 1 (Rasmussen et al. 2024) | HR - 1, with eq. 16 | excess HRs add | `scale = "hazard_ratio"`, `method = "published"` |
-| Excess risk (Rasmussen et al. 2022) | excess culling risk | excess risks add | [`hr_conversion()`](https://rasmussenphilip.github.io/deconflate/reference/hr_conversion.md), [`as_impacts()`](https://rasmussenphilip.github.io/deconflate/reference/as_impacts.md) |
-
-Under the multiplicative model, a cow’s hazard is
-`h0 * exp(sum_i beta_i * D_i)`. The raw HR of disease `i` is the ratio
-of the average hazard among cows with and without `i`. The global method
-solves for the `beta`s exactly, so that the adjusted HRs reproduce the
-raw HRs over the fitted distribution of disease combinations. The
-simultaneous method uses the first-order version, which needs only the
-pairwise tables.
-
-If a source HR comes from a model that already included the associated
-diseases, set `adjusted_for` in
-[`cm_impacts()`](https://rasmussenphilip.github.io/deconflate/reference/cm_impacts.md)
-so that it is not adjusted again (with the simultaneous method).
-
-## The global dairy example
-
-`example_global_dairy(culling_scale = "hazard_ratio")` enters the
-culling HRs of Rasmussen et al. (2024) as hazard ratios:
+## Methods
 
 ``` r
 
-m <- example_global_dairy(culling_scale = "hazard_ratio")
-cmp <- compare_methods(m)
-cu <- cmp$impacts[cmp$impacts$outcome == "culling", ]
-cu[, c("disease", "raw", "published", "simultaneous", "global")]
-#>    disease      raw published simultaneous    global
-#> 25      CK 1.500100  1.177580    0.9619070 0.9821306
-#> 26      CM 2.300000  1.903941    1.8350864 1.8193536
-#> 27      DA 2.851179  2.197930    1.8250542 1.8476664
-#> 28     DYS 1.258143  1.098377    1.1165198 1.0505432
-#> 29     LAM 1.744976  1.380683    1.2864923 1.2230210
-#> 30     MET 1.116444  1.012411    0.7369879 0.7198427
-#> 31      MF 2.999886  2.647637    2.6233669 2.6601486
-#> 32      OC 1.620000  1.458644    1.5487477 1.5579660
-#> 33     PTB 2.310508  2.047235    2.0203082 2.0165455
-#> 34      RP 1.599928  1.284496    1.2305974 1.1816995
-#> 35     SCK 1.920000  1.675253    1.7412069 1.7107120
-#> 36     SCM 1.449996  1.254928    1.2520842 1.2109005
+pop <- example_supplement()   # its yield impacts are not used here
+hr <- cm_hr_model(pop, cm_hazard_ratios(c("d1", "d2", "d3"), c(1.5, 2.0, 1.3)))
+hr
+#> <cm_hr_model>
+#> <cm_population>
+#>   Diseases: 3 (d1, d2, d3)
+#>   Disease pairs: 3 [specified: 3]
+#>   Hazard ratios: 3 (0 adjusted)
+compare_methods(hr)
+#> <cm_comparison> methods: published, first_order, snapshot
+#> Units: hazard ratio
+#> 
+#> Adjusted values:
+#>  disease raw published first_order snapshot
+#>       d1 1.5      1.41        1.40     1.38
+#>       d2 2.0      1.91        1.89     1.89
+#>       d3 1.3      1.19        1.17     1.14
+```
+
+- `"snapshot"` (the default) is a snapshot hazard-multiplier model. A
+  cow’s hazard is `h0 * exp(sum_i beta_i * D_i)`, and the raw HR of
+  disease `i` is taken to be the ratio of the average hazard multiplier
+  among cows with and without `i`, over the fitted distribution of
+  disease combinations
+  ([`fit_joint()`](https://rasmussenphilip.github.io/deconflate/reference/fit_joint.md))
+  at the start of follow-up. The `beta`s are solved so that these ratios
+  equal the raw HRs, and `exp(beta)` are the adjusted HRs.
+- `"first_order"` is the log-linear approximation
+  `log(HR_raw) = A beta`, with the conflation matrix `A` of
+  [`deconflate()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate.md).
+  It needs only the pairwise tables.
+- `"published"` is the approach of Rasmussen et al. (2024): HR - 1
+  adjusted with eq. 16 and 1 added back. It is kept for reproduction and
+  comparison.
+
+``` r
+
+deconflate_hr(hr)
+#> <cm_hr_result> method: snapshot
+#> 
+#>  disease raw adjusted   change estimand
+#>       d1 1.5    1.383 -0.07790    crude
+#>       d2 2.0    1.891 -0.05453    crude
+#>       d3 1.3    1.144 -0.12001    crude
+#> 
+#> Diagnostics:
+#>  max_reconstruction_residual n_sign_changes condition_number
+#>                     2.22e-16              0             1.68
+#>                                       feasibility
+#>  joint distribution fitted (max residual 2.5e-11)
+```
+
+## Adjusted hazard ratios
+
+If a source HR comes from a model that already included other diseases,
+set `estimand = "adjusted"` and list them in `adjusted_for` (ids
+separated by `";"`), or `"all"` for every other disease. In the snapshot
+model, the ratio for such an estimate is computed within strata of its
+adjustment set and combined across strata with Mantel-Haenszel-type
+weights. With `adjusted_for = "all"`, the HR is used as it is:
+
+``` r
+
+hr_adj <- cm_hr_model(pop, cm_hazard_ratios(
+  c("d1", "d2", "d3"), c(1.5, 2.0, 1.3),
+  estimand = c("adjusted", "crude", "adjusted"),
+  adjusted_for = c("d2", NA, "all")
+))
+deconflate_hr(hr_adj)$adjusted
+#>   disease raw adjusted       change estimand adjusted_for
+#> 1      d1 1.5 1.509402  0.006268033 adjusted           d2
+#> 2      d2 2.0 1.821704 -0.089148021    crude         <NA>
+#> 3      d3 1.3 1.300000  0.000000000 adjusted          all
+```
+
+The published approach is defined for crude HRs only:
+
+``` r
+
+compare_methods(hr_adj)$failed
+#>                                                                published 
+#> "The published (2024) approach is defined for crude hazard ratios only."
+```
+
+## What the snapshot model is not
+
+A Cox HR estimated over follow-up is not, in general, the snapshot
+ratio: cows with high hazards leave first, so the mixture of disease
+combinations among survivors changes over time, and the marginal HR
+changes with it. The snapshot model is exact for its own estimand
+(instantaneous marginal ratios at baseline). For published Cox
+coefficients it is an approximation, which is reasonable when follow-up
+is short relative to the hazards or the diseases are rare.
+
+## Culling attributable to disease
+
+[`attributable_risk()`](https://rasmussenphilip.github.io/deconflate/reference/attributable_risk.md)
+finds the baseline hazard for which the population culling risk,
+averaged over the distribution of disease combinations, equals the
+observed rate, and compares it with the risk of a disease-free cow. A
+cow’s risk cannot exceed 1, so a cow with several diseases is counted
+once. The attributable risk is allocated to diseases by Shapley values
+over all disease combinations
+([`shapley_by_cell()`](https://rasmussenphilip.github.io/deconflate/reference/shapley_by_cell.md));
+the allocation adds up to the attributable risk.
+
+``` r
+
+attributable_risk(deconflate_hr(hr), overall_risk = 0.25, unit_value = 1300)
+#> <cm_attributable> snapshot hazard-multiplier model
+#>   Overall risk 0.25; disease-free risk 0.2134; attributable 0.03665 (14.7% of the overall risk)
+#>   Value: 47.64
+#> 
+#>  disease hr_adjusted attributable  share  value
+#>       d1       1.383     0.007371 0.2011  9.582
+#>       d2       1.891     0.023488 0.6409 30.534
+#>       d3       1.144     0.005791 0.1580  7.528
+```
+
+`unit_value` is the value of a cow removed (e.g. replacement price less
+salvage value).
+
+## The global dairy example
+
+[`example_global_dairy_hr()`](https://rasmussenphilip.github.io/deconflate/reference/example_global_dairy_hr.md)
+contains the culling HRs of Rasmussen et al. (2024), on the population
+of
+[`example_global_dairy()`](https://rasmussenphilip.github.io/deconflate/reference/example_global_dairy.md).
+[`compare_methods()`](https://rasmussenphilip.github.io/deconflate/reference/compare_methods.md)
+with `overall_risk` adds the attributable risk per method (without the
+allocation). The global average replacement rate is 23.66% (Rasmussen et
+al. 2024, Table 1). The joint distribution of the 12 diseases is fitted
+once and passed on with `joint`, so that it is not refitted for each
+method:
+
+``` r
+
+hr_gd <- example_global_dairy_hr()
+j_gd <- fit_joint(hr_gd$population)
+compare_methods(hr_gd, overall_risk = 0.2366, joint = j_gd)
+#> <cm_comparison> methods: published, first_order, snapshot
+#> Units: hazard ratio
+#> 
+#> Adjusted values:
+#>  disease  raw published first_order snapshot
+#>       CK 1.50      1.18       0.962    0.982
+#>       CM 2.30      1.90       1.840    1.820
+#>       DA 2.85      2.20       1.830    1.850
+#>      DYS 1.26      1.10       1.120    1.050
+#>      LAM 1.74      1.38       1.290    1.220
+#>      MET 1.12      1.01       0.737    0.720
+#>       MF 3.00      2.65       2.620    2.660
+#>       OC 1.62      1.46       1.550    1.560
+#>      PTB 2.31      2.05       2.020    2.020
+#>       RP 1.60      1.28       1.230    1.180
+#>      SCK 1.92      1.68       1.740    1.710
+#>      SCM 1.45      1.25       1.250    1.210
+#> 
+#> Totals:
+#>       method overall_risk disease_free_risk attributable
+#>    published       0.2366            0.1076       0.1290
+#>  first_order       0.2366            0.1144       0.1222
+#>     snapshot       0.2366            0.1200       0.1166
 ```
 
 The published column reproduces the paper’s adjustment at the central
 values (Table 5 reports Monte Carlo means). The methods agree within
 about 0.1 for most diseases, and differ most where comorbidity is
-heaviest (clinical ketosis, lameness, displaced abomasum, metritis).
-
-## Culling attributable to disease
-
-[`attributable_risk()`](https://rasmussenphilip.github.io/deconflate/reference/attributable_risk.md)
-turns adjusted HRs into the part of the overall culling risk that
-disease causes. It finds the baseline hazard for which the population
-culling risk equals the observed rate, and compares it with the risk of
-a disease-free cow. A cow’s risk cannot exceed 1, so a cow with several
-diseases is counted once. The attributable risk is then allocated to
-diseases with Shapley values.
-
-With the global average replacement rate of 23.66% (Rasmussen et
-al. 2024, Table 1):
+heaviest (clinical ketosis, lameness, displaced abomasum, metritis). For
+clinical ketosis and metritis, the snapshot and first-order models give
+adjusted HRs below 1: under the multiplicative model, the raw HRs are
+smaller than the associated diseases alone would produce.
+[`deconflate_hr()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate_hr.md)
+warns about this:
 
 ``` r
 
-glob <- cmp$results$global
-ar <- attributable_risk(glob, overall_risk = 0.2366)
+glob <- deconflate_hr(hr_gd, joint = j_gd)
+#> Warning: Adjusted hazard ratios cross 1 for CK, MET. The raw hazard ratios are
+#> smaller than the associated diseases alone would produce; check the estimands
+#> and source populations.
+ar <- attributable_risk(glob, overall_risk = 0.2366, unit_value = 1299.33 - 785.86)
 ar
-#> <cm_attributable> outcome: culling
+#> <cm_attributable> snapshot hazard-multiplier model
 #>   Overall risk 0.2366; disease-free risk 0.12; attributable 0.1166 (49.3% of the overall risk)
+#>   Value: 59.86
 #> 
-#>  disease hr_adjusted attributable      share
-#>       CK      0.9821   -9.665e-05 -0.0008292
-#>       CM      1.8194    2.981e-02  0.2557165
-#>       DA      1.8477    2.842e-03  0.0243839
-#>      DYS      1.0505    4.714e-04  0.0040443
-#>      LAM      1.2230    7.989e-03  0.0685350
-#>      MET      0.7198   -4.730e-03 -0.0405729
-#>       MF      2.6601    5.123e-03  0.0439501
-#>       OC      1.5580    8.424e-03  0.0722667
-#>      PTB      2.0165    1.455e-02  0.1247869
-#>       RP      1.1817    3.403e-03  0.0291945
-#>      SCK      1.7107    3.590e-02  0.3079776
-#>      SCM      1.2109    1.289e-02  0.1105465
-#> 
-#> Combinations skipped by `max_present`: probability 2.76e-06
+#>  disease hr_adjusted attributable      share    value
+#>       CK      0.9821   -9.666e-05 -0.0008292 -0.04963
+#>       CM      1.8194    2.981e-02  0.2557145 15.30613
+#>       DA      1.8477    2.843e-03  0.0243863  1.45967
+#>      DYS      1.0505    4.715e-04  0.0040444  0.24209
+#>      LAM      1.2230    7.989e-03  0.0685346  4.10223
+#>      MET      0.7198   -4.730e-03 -0.0405736 -2.42859
+#>       MF      2.6601    5.124e-03  0.0439548  2.63097
+#>       OC      1.5580    8.424e-03  0.0722672  4.32565
+#>      PTB      2.0165    1.455e-02  0.1247870  7.46929
+#>       RP      1.1817    3.403e-03  0.0291948  1.74749
+#>      SCK      1.7107    3.590e-02  0.3079742 18.43420
+#>      SCM      1.2109    1.289e-02  0.1105452  6.61683
 ```
 
-The 2024 paper instead converted each adjusted HR to an excess risk
-relative to the overall rate, `HR * r / (HR * r + 1 - r) - r`, and
-summed the excess risks weighted by prevalence. That sum counts cows
-with several diseases more than once:
+(`unit_value` is the replacement price less the culled-cow price,
+Rasmussen et al. 2024, Table 1.)
+
+The model attributes about 11.7 percentage points of the 23.7% culling
+rate to disease. The 2024 paper instead converted each adjusted HR to an
+excess risk relative to the overall rate,
+`HR * r / (HR * r + 1 - r) - r`, and summed these excess risks weighted
+by prevalence. With the published adjusted HRs, that sum is about 14.8
+percentage points, because it counts cows with several diseases more
+than once.
+
+## Culling alongside the additive analyses
+
+Hazard ratios are kept out of
+[`deconflate()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate.md),
+[`productivity_gap()`](https://rasmussenphilip.github.io/deconflate/reference/productivity_gap.md)
+and the contribution tables. Values from the two routes can be put side
+by side. Here the yield analysis follows the paper (published method;
+global average yield of 5013 kg and milk price of 0.5981 per kg,
+Rasmussen et al. 2024, Table 1):
 
 ``` r
 
-r <- 0.2366
-P <- m$diseases$prob
-hr_2024 <- cmp$impacts$published[cmp$impacts$outcome == "culling"]
-sum(P * (hr_2024 * r / (hr_2024 * r + 1 - r) - r))   # paper's approach
-#> [1] 0.1475373
-ar$summary$attributable                               # model-based
-#> [1] 0.1165722
+yres <- deconflate(example_global_dairy()$models$yield, method = "published")
+yv <- value_losses(productivity_gap(yres, 5013, "decrease", "percent"), unit_value = 0.5981)
+c(yield = yv$value, culling = ar$summary$value)
+#>     yield   culling 
+#> 235.43177  59.85632
 ```
 
-The paper’s approach attributes about 14.8 percentage points of the
-23.7% culling rate to disease; the multiplicative model attributes about
-11.7.
+## Methods that are not available for new analyses
 
-## Valuing culling with the other outcomes
+The published analyses converted hazard ratios in ways that the package
+does not offer for new analyses:
 
-In [`summary()`](https://rdrr.io/r/base/summary.html),
-[`contribution_table()`](https://rasmussenphilip.github.io/deconflate/reference/contribution_table.md)
+- Rasmussen et al. (2022) treated each HR as an odds ratio of a 2x2
+  table of disease by culling, to obtain an excess annual culling risk,
+  and recovered adjusted HRs by rescaling (eq. 23);
+- Rasmussen et al. (2024) adjusted HR - 1 as if it were an additive
+  impact, and valued culling with the excess risk relative to the
+  overall rate given above.
+
+These conversions are used only inside
+[`reproduce_rasmussen_2022()`](https://rasmussenphilip.github.io/deconflate/reference/reproduce.md)
 and
-[`compare_methods()`](https://rasmussenphilip.github.io/deconflate/reference/compare_methods.md),
-a hazard-ratio outcome is valued with
-[`attributable_risk()`](https://rasmussenphilip.github.io/deconflate/reference/attributable_risk.md):
-its `observed` value is the overall risk (a proportion) and its
-`unit_value` the value of a cow removed.
-
-``` r
-
-eco <- list(observed = c(yield = 5013, culling = 0.2366),
-            unit_value = c(yield = 0.5981, culling = 1299.33 - 785.86))
-summary(glob, economics = eco)$totals
-#>     outcome   raw_loss adjusted_loss reduction  observed disease_free
-#> 1     yield 0.09931174    0.07494192 0.2453871 5013.0000 5419.1192214
-#> 2   culling         NA            NA        NA    0.2366    0.1200278
-#> 3 fertility 0.07471713    0.03933738 0.4735159        NA           NA
-#>           gap     value
-#> 1 406.1192214 242.89991
-#> 2   0.1165722  59.85632
-#> 3          NA        NA
-```
-
-(Global averages from Rasmussen et al. 2024, Table 1: milk yield, milk
-price per kg, and replacement price less culled-cow price.)
+[`reproduce_rasmussen_2024()`](https://rasmussenphilip.github.io/deconflate/reference/reproduce.md),
+so that the published tables can be recomputed (see
+[`vignette("reproducing-published")`](https://rasmussenphilip.github.io/deconflate/articles/reproducing-published.md)).
 
 ## Caveats
 
@@ -158,8 +283,13 @@ price per kg, and replacement price less culled-cow price.)
   apply for the whole period. Most source HRs come from models in which
   disease status changes during the lactation.
 - Hazard ratios are not collapsible: even without confounding, an
-  average HR differs from the HR within subgroups. The exact
-  multiplicative model accounts for this given the joint distribution;
-  the first-order method and the HR - 1 approach do not.
+  average HR differs from the HR within subgroups. The snapshot model
+  accounts for this given the distribution of disease combinations; the
+  first-order and published methods do not.
+- The snapshot model and
+  [`attributable_risk()`](https://rasmussenphilip.github.io/deconflate/reference/attributable_risk.md)
+  use the whole distribution of disease combinations, so they depend on
+  the maximum-entropy assumption and on any three-way terms
+  ([`vignette("interactions")`](https://rasmussenphilip.github.io/deconflate/articles/interactions.md)).
 - Culling and death compete. Make sure the source HRs are of the same
   kind (cause-specific or subdistribution).

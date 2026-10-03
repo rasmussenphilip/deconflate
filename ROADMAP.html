@@ -64,12 +64,14 @@
 </ul></div>
 <div class="section level2">
 <h2 id="v02-in-progress">v0.2 (in progress)<a class="anchor" aria-label="anchor" href="#v02-in-progress"></a></h2>
-<ul class="task-list"><li><label><input type="checkbox" checked>Culling hazard ratios: exact multiplicative model (global), first-order log-linear (simultaneous) and the 2024 approach (published).</label></li>
+<ul class="task-list"><li><label><input type="checkbox" checked>Culling hazard ratios: a separate multiplicative adapter (<code><a href="reference/deconflate_hr.html">deconflate_hr()</a></code>: snapshot, first-order and published) with stratified adjustment sets.</label></li>
 <li><label><input type="checkbox" checked><code><a href="reference/attributable_risk.html">attributable_risk()</a></code>: culling attributable to disease without double counting, with Shapley allocation.</label></li>
-<li><label><input type="checkbox" checked>Reading inputs from CSV files or data frames, with all problems reported at once; template files.</label></li>
-<li><label><input type="checkbox" checked>Method comparison tables for models and for Monte Carlo runs (several methods on the same draws).</label></li>
-<li><label><input type="checkbox" checked>Monte Carlo stability diagnostics with suggestions; Latin hypercube and importance sampling.</label></li>
-<li><label><input type="checkbox">Run <code>devtools::document()</code>, <code>test()</code> and <code>check()</code>, and fix any issues.</label></li>
+<li><label><input type="checkbox" checked>Reading inputs from CSV files or data frames, with all problems reported at once; template files; one impact file per analysis.</label></li>
+<li><label><input type="checkbox" checked>Method comparison tables for models, analyses, hazard-ratio models and Monte Carlo runs.</label></li>
+<li><label><input type="checkbox" checked>Monte Carlo stability diagnostics with suggestions; Latin hypercube (replicate blocks) and importance sampling (support checks).</label></li>
+<li><label><input type="checkbox" checked>External review (Bob): one impact vector per analysis in arbitrary units; explicit estimands with the exact projection mapping for additive-regression coefficients; feasibility screening by default; condition classes; three-way scenarios; complete Shapley allocation; reproduction functions; the reviewer’s regression tests.</label></li>
+<li><label><input type="checkbox" checked>Run <code>devtools::document()</code>, <code>test()</code> and <code>check()</code>, and fix any issues.</label></li>
+<li><label><input type="checkbox">Tag v0.2.0.</label></li>
 </ul></div>
 <div class="section level2">
 <h2 id="to-discuss">To discuss<a class="anchor" aria-label="anchor" href="#to-discuss"></a></h2>

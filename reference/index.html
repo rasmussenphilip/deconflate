@@ -41,7 +41,7 @@
     </div>
 
     <div class="section level2">
-      <h2 id="describing-a-system">Describing a system<a class="anchor" aria-label="anchor" href="#describing-a-system"></a></h2>
+      <h2 id="describing-the-population-and-impacts">Describing the population and impacts<a class="anchor" aria-label="anchor" href="#describing-the-population-and-impacts"></a></h2>
 
 
 
@@ -66,10 +66,24 @@
 
         <dt>
 
+          <code><a href="cm_three_way.html">cm_three_way()</a></code>
+
+        </dt>
+        <dd>Describe three-way disease associations (scenarios)</dd>
+
+        <dt>
+
+          <code><a href="cm_population.html">cm_population()</a></code>
+
+        </dt>
+        <dd>Describe the population: diseases and their associations</dd>
+
+        <dt>
+
           <code><a href="cm_impacts.html">cm_impacts()</a></code>
 
         </dt>
-        <dd>Describe raw (unadjusted) disease impact estimates</dd>
+        <dd>Describe raw impact estimates (one impact vector)</dd>
 
         <dt>
 
@@ -83,28 +97,35 @@
           <code><a href="cm_model.html">cm_model()</a></code>
 
         </dt>
-        <dd>Combine inputs into a comorbidity model</dd>
+        <dd>Combine a population with an impact vector</dd>
 
         <dt>
 
-          <code><a href="combine_impacts.html">combine_impacts()</a></code>
+          <code><a href="cm_analyses.html">cm_analyses()</a></code>
 
         </dt>
-        <dd>Combine impact tables</dd>
+        <dd>Several impact analyses on one population</dd>
 
         <dt>
 
           <code><a href="set_association.html">set_association()</a></code>
 
         </dt>
-        <dd>Set or replace one association in a model</dd>
+        <dd>Set or replace one association</dd>
 
         <dt>
 
           <code><a href="set_interaction.html">set_interaction()</a></code>
 
         </dt>
-        <dd>Set or replace one pairwise interaction in a model</dd>
+        <dd>Set or replace one pairwise interaction</dd>
+
+        <dt>
+
+          <code><a href="set_three_way.html">set_three_way()</a></code>
+
+        </dt>
+        <dd>Set or replace one three-way association term</dd>
       </dl></div><div class="section level2">
       <h2 id="reading-inputs">Reading inputs<a class="anchor" aria-label="anchor" href="#reading-inputs"></a></h2>
 
@@ -231,7 +252,7 @@
         </dt>
         <dd>Check whether the pairwise associations are jointly feasible</dd>
       </dl></div><div class="section level2">
-      <h2 id="gaps-losses-and-attribution">Gaps, losses and attribution<a class="anchor" aria-label="anchor" href="#gaps-losses-and-attribution"></a></h2>
+      <h2 id="contributions-gaps-and-values">Contributions, gaps and values<a class="anchor" aria-label="anchor" href="#contributions-gaps-and-values"></a></h2>
 
 
 
@@ -242,38 +263,10 @@
 
       <dl><dt>
 
-          <code><a href="productivity_gap.html">productivity_gap()</a></code>
-
-        </dt>
-        <dd>Productivity gaps and their attribution</dd>
-
-        <dt>
-
-          <code><a href="value_losses.html">value_losses()</a></code>
-
-        </dt>
-        <dd>Value productivity gaps in monetary terms</dd>
-
-        <dt>
-
           <code><a href="attribute_burden.html">attribute_burden()</a></code>
 
         </dt>
-        <dd>Attribute the aggregate burden to diseases (Shapley allocation)</dd>
-
-        <dt>
-
-          <code><a href="shapley_by_cell.html">shapley_by_cell()</a></code>
-
-        </dt>
-        <dd>Shapley attribution of a general loss function over disease combinations</dd>
-
-        <dt>
-
-          <code><a href="loss_functions.html">loss_additive()</a></code> <code><a href="loss_functions.html">loss_multiplicative()</a></code>
-
-        </dt>
-        <dd>Loss functions for Shapley attribution</dd>
+        <dd>Attribute the aggregate to diseases (Shapley allocation)</dd>
 
         <dt>
 
@@ -288,8 +281,36 @@
 
         </dt>
         <dd>Summarise an adjustment result</dd>
+
+        <dt>
+
+          <code><a href="productivity_gap.html">productivity_gap()</a></code>
+
+        </dt>
+        <dd>Productivity gap of one adjusted impact vector (optional helper)</dd>
+
+        <dt>
+
+          <code><a href="value_losses.html">value_losses()</a></code>
+
+        </dt>
+        <dd>Value a productivity gap in monetary terms (optional helper)</dd>
+
+        <dt>
+
+          <code><a href="shapley_by_cell.html">shapley_by_cell()</a></code>
+
+        </dt>
+        <dd>Shapley attribution of a general loss function over disease combinations</dd>
+
+        <dt>
+
+          <code><a href="loss_functions.html">loss_additive()</a></code> <code><a href="loss_functions.html">loss_multiplicative()</a></code>
+
+        </dt>
+        <dd>Loss functions for Shapley attribution</dd>
       </dl></div><div class="section level2">
-      <h2 id="culling-and-hazard-ratios">Culling and hazard ratios<a class="anchor" aria-label="anchor" href="#culling-and-hazard-ratios"></a></h2>
+      <h2 id="hazard-ratios-culling-and-mortality-">Hazard ratios (culling and mortality)<a class="anchor" aria-label="anchor" href="#hazard-ratios-culling-and-mortality-"></a></h2>
 
 
 
@@ -300,38 +321,24 @@
 
       <dl><dt>
 
-          <code><a href="hr_to_risk.html">hr_to_risk()</a></code>
+          <code><a href="cm_hazard_ratios.html">cm_hazard_ratios()</a></code>
 
         </dt>
-        <dd>Convert culling (or mortality) hazard ratios to period risks</dd>
+        <dd>Describe raw culling (or mortality) hazard ratios</dd>
 
         <dt>
 
-          <code><a href="excess_to_hr.html">excess_to_hr()</a></code>
+          <code><a href="cm_hr_model.html">cm_hr_model()</a></code>
 
         </dt>
-        <dd>Convert an adjusted excess risk back to a hazard ratio</dd>
+        <dd>Combine a population with hazard ratios</dd>
 
         <dt>
 
-          <code><a href="hr_conversion.html">hr_conversion()</a></code>
+          <code><a href="deconflate_hr.html">deconflate_hr()</a></code>
 
         </dt>
-        <dd>Convert culling hazard ratios into excess-risk impacts</dd>
-
-        <dt>
-
-          <code><a href="as_impacts.html">as_impacts()</a></code>
-
-        </dt>
-        <dd>Turn a hazard-ratio conversion into impacts</dd>
-
-        <dt>
-
-          <code><a href="adjusted_hr.html">adjusted_hr()</a></code>
-
-        </dt>
-        <dd>Convert adjusted culling impacts back to hazard ratios</dd>
+        <dd>Adjust hazard ratios for comorbidity (hazard-ratio adapter)</dd>
 
         <dt>
 
@@ -365,6 +372,13 @@
 
         <dt>
 
+          <code><a href="cm_batch_sampler.html">cm_batch_sampler()</a></code>
+
+        </dt>
+        <dd>Batch sampler: several analyses on shared population draws</dd>
+
+        <dt>
+
           <code><a href="cm_monte_carlo.html">cm_monte_carlo()</a></code>
 
         </dt>
@@ -376,6 +390,13 @@
 
         </dt>
         <dd>Summarise Monte Carlo results</dd>
+
+        <dt>
+
+          <code><a href="cm_mc_gap.html">cm_mc_gap()</a></code>
+
+        </dt>
+        <dd>Productivity gaps over Monte Carlo draws (optional helper)</dd>
 
         <dt>
 
@@ -437,6 +458,13 @@
 
         <dt>
 
+          <code><a href="screen_three_way.html">screen_three_way()</a></code>
+
+        </dt>
+        <dd>Screen three-way association scenarios</dd>
+
+        <dt>
+
           <code><a href="compare_scenarios.html">compare_scenarios()</a></code>
 
         </dt>
@@ -453,12 +481,12 @@
 
       <dl><dt>
 
-          <code><a href="plots.html">plot(<i>&lt;cm_result&gt;</i>)</a></code> <code><a href="plots.html">plot_burden()</a></code> <code><a href="plots.html">plot(<i>&lt;cm_mc&gt;</i>)</a></code> <code><a href="plots.html">plot(<i>&lt;cm_screen&gt;</i>)</a></code> <code><a href="plots.html">plot(<i>&lt;cm_oat&gt;</i>)</a></code>
+          <code><a href="plots.html">plot(<i>&lt;cm_result&gt;</i>)</a></code> <code><a href="plots.html">plot(<i>&lt;cm_results&gt;</i>)</a></code> <code><a href="plots.html">plot_burden()</a></code> <code><a href="plots.html">plot(<i>&lt;cm_mc&gt;</i>)</a></code> <code><a href="plots.html">plot(<i>&lt;cm_screen&gt;</i>)</a></code> <code><a href="plots.html">plot(<i>&lt;cm_oat&gt;</i>)</a></code>
 
         </dt>
         <dd>Plots</dd>
       </dl></div><div class="section level2">
-      <h2 id="examples-and-validation">Examples and validation<a class="anchor" aria-label="anchor" href="#examples-and-validation"></a></h2>
+      <h2 id="examples-reproduction-and-validation">Examples, reproduction and validation<a class="anchor" aria-label="anchor" href="#examples-reproduction-and-validation"></a></h2>
 
 
 
@@ -493,7 +521,14 @@
           <code><a href="example_global_dairy.html">example_global_dairy()</a></code>
 
         </dt>
-        <dd>Global dairy inputs from Rasmussen et al. (2024), at their central values</dd>
+        <dd>Global dairy inputs from Rasmussen et al. (2024)</dd>
+
+        <dt>
+
+          <code><a href="example_global_dairy_hr.html">example_global_dairy_hr()</a></code>
+
+        </dt>
+        <dd>Global dairy culling hazard ratios (Rasmussen et al. 2024)</dd>
 
         <dt>
 
@@ -504,10 +539,17 @@
 
         <dt>
 
+          <code><a href="reproduce.html">reproduce_rasmussen_2022()</a></code> <code><a href="reproduce.html">reproduce_rasmussen_2024()</a></code>
+
+        </dt>
+        <dd>Reproduce the published analyses</dd>
+
+        <dt>
+
           <code><a href="simulate_raw_impacts.html">simulate_raw_impacts()</a></code>
 
         </dt>
-        <dd>Simulate the raw impacts a single-disease study would report</dd>
+        <dd>Simulate the raw impacts that studies would report</dd>
       </dl></div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside></div>

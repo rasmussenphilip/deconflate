@@ -2,33 +2,30 @@
 
 Lists the estimates that
 [`summary.cm_mc()`](https://rasmussenphilip.github.io/deconflate/reference/summary.cm_mc.md)
-flags as unstable, with the reason and a suggested remedy:
+flags, with the reason and a suggested remedy:
 
-- `"no_mean"`: with the published approximation, `m^2 / (m + c)` has a
-  pole where `m + c = 0`. If `m + c` takes both signs across draws, the
-  adjusted impact's distribution has tails so heavy that its mean does
-  not exist, and no sampling scheme makes it converge. Report the median
-  or a trimmed mean, or use the exact (`"simultaneous"`) method.
-  (Strictly, with unbounded input distributions such as the normal, the
-  pole is always inside the support; the flag is raised when draws
-  actually reach it.)
+- `"possible_pole"`: with the published approximation, `m^2 / (m + c)`
+  has a pole where `m + c = 0` and `m != 0`. When the sampled inputs
+  reach both sides of it, the estimate's distribution can have tails so
+  heavy that its mean does not exist; no sampling scheme then makes the
+  mean converge. Report quantiles, or use the exact (`"simultaneous"`)
+  method. (With `c = 0`, e.g. independent diseases, the formula reduces
+  to `m` and is not flagged.)
 
-- `"heavy_tail"`: a few extreme draws dominate the variance. If they
-  come from an identifiable region of one input, importance sampling
-  ([`cm_suggest_proposal()`](https://rasmussenphilip.github.io/deconflate/reference/cm_suggest_proposal.md)
-  and the `proposal` argument of
-  [`cm_monte_carlo()`](https://rasmussenphilip.github.io/deconflate/reference/cm_monte_carlo.md))
-  samples that region more often and down-weights it, which reduces the
-  Monte Carlo error.
+- `"heavy_tail"`: a few extreme draws dominate the variance. Importance
+  sampling may help if they come from one region of one input. The exact
+  method can also be heavy-tailed when sampled inputs make the
+  conflation matrix nearly singular.
 
 - `"imprecise"`: the Monte Carlo standard error is large relative to the
-  mean. Use more draws, or Latin hypercube sampling
-  (`sampling = "lhs"`).
+  mean. Use more draws, or Latin hypercube sampling.
+
+- `"non_finite"`: draws gave non-finite results and were rejected.
 
 ## Usage
 
 ``` r
-cm_diagnose(mc, what = c("adjusted", "loss", "total"))
+cm_diagnose(mc, what = c("adjusted", "contribution", "total"))
 ```
 
 ## Arguments
@@ -45,4 +42,4 @@ cm_diagnose(mc, what = c("adjusted", "loss", "total"))
 ## Value
 
 A data frame (class `cm_diagnosis`) with one row per flagged estimate:
-outcome, disease, method, stability, detail and suggestion.
+item, method, stability, detail and suggestion.

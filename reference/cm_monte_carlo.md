@@ -4,10 +4,10 @@ Draws input sets with a sampler (usually from
 [`cm_sampler()`](https://rasmussenphilip.github.io/deconflate/reference/cm_sampler.md))
 and adjusts each with
 [`deconflate()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate.md).
-Because every draw is a complete
+Every draw is a complete
 [`cm_model()`](https://rasmussenphilip.github.io/deconflate/reference/cm_model.md),
-disease probabilities and associations are shared across all outcomes
-within a draw, so the outcomes' uncertainty stays dependent.
+so the uncertainty of probabilities, associations and impacts is
+propagated jointly.
 
 ## Usage
 
@@ -16,10 +16,10 @@ cm_monte_carlo(
   sampler,
   n_draws,
   method = "simultaneous",
-  economics = NULL,
   seed = NULL,
   progress = FALSE,
   sampling = c("random", "lhs"),
+  lhs_replicates = 10L,
   proposal = NULL,
   ...
 )
@@ -30,9 +30,11 @@ cm_monte_carlo(
 - sampler:
 
   A function of the draw index returning a
-  [`cm_model()`](https://rasmussenphilip.github.io/deconflate/reference/cm_model.md),
-  typically from
-  [`cm_sampler()`](https://rasmussenphilip.github.io/deconflate/reference/cm_sampler.md).
+  [`cm_model()`](https://rasmussenphilip.github.io/deconflate/reference/cm_model.md)
+  (typically from
+  [`cm_sampler()`](https://rasmussenphilip.github.io/deconflate/reference/cm_sampler.md)),
+  or a
+  [`cm_batch_sampler()`](https://rasmussenphilip.github.io/deconflate/reference/cm_batch_sampler.md).
 
 - n_draws:
 
@@ -41,19 +43,7 @@ cm_monte_carlo(
 - method:
 
   Adjustment method(s) passed to
-  [`deconflate()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate.md):
-  one or more of `"simultaneous"`, `"published"` and `"global"`.
-
-- economics:
-
-  Optional list with named elements `observed` and `unit_value` (and
-  optionally `additional`), as in
-  [`value_losses()`](https://rasmussenphilip.github.io/deconflate/reference/value_losses.md).
-  Elements may be numbers or `cm_dist` objects (drawn per draw). When
-  given, productivity gaps and monetary losses are computed for every
-  draw. Hazard-ratio outcomes cannot be valued here; use
-  [`attributable_risk()`](https://rasmussenphilip.github.io/deconflate/reference/attributable_risk.md)
-  on individual results.
+  [`deconflate()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate.md).
 
 - seed:
 
@@ -65,14 +55,17 @@ cm_monte_carlo(
 
 - sampling:
 
-  `"random"` (default) or `"lhs"` (Latin hypercube; needs a
+  `"random"` (default) or `"lhs"` (needs a
   [`cm_sampler()`](https://rasmussenphilip.github.io/deconflate/reference/cm_sampler.md)).
+
+- lhs_replicates:
+
+  Number of independent Latin hypercube blocks.
 
 - proposal:
 
   Optional named list of `cm_dist` objects (importance sampling
-  proposals), keyed as in `params` (e.g. `"impact:fertility:SCK"`).
-  Needs a
+  proposals), keyed as in `params` (e.g. `"impact:SCK"`). Needs a
   [`cm_sampler()`](https://rasmussenphilip.github.io/deconflate/reference/cm_sampler.md).
 
 - ...:
@@ -82,73 +75,84 @@ cm_monte_carlo(
 
 ## Value
 
-A `cm_mc` object with elements:
+A `cm_mc` object (or `cm_mc_batch` for a batch sampler) with:
 
-- `draws`: long data frame of raw and adjusted impacts by draw and
-  method;
+- `draws`: raw and adjusted impacts and contributions by draw, method
+  and disease;
 
-- `losses`: long data frame of gaps and values by draw, method, outcome
-  and disease (if `economics` was given);
+- `totals`: naive and adjusted aggregate by draw and method;
 
-- `params`: one row per accepted draw with the sampled inputs, keyed
-  `prob:<id>`, `assoc:<d1>:<d2>`, `impact:<outcome>:<disease>`,
-  `inter:<outcome>:<d1>:<d2>`, `observed:<outcome>`,
-  `unit_value:<outcome>`;
+- `params`: one row per accepted draw with the sampled inputs;
 
-- `weights` (equal, or importance weights), `log_weights`, `ess`,
-  `n_draws`, `n_rejected`, `rejections` (draw and reason),
-  `sign_changes`, `method`, `sampling` and `proposal`.
+- `weights` (normalised), `log_weights`, `ess` (Kish effective sample
+  size), `block` (LHS block of each accepted draw);
+
+- `n_draws`, `n_rejected`, `rejections` (draw, type, reason),
+  `sign_changes`, `method`, `sampling`, `proposal`, `specs`, `label` and
+  `units`.
 
 ## Details
 
-Draws whose inputs are infeasible (an impossible probability or odds
-ratio, an association incompatible with the sampled marginals, or a
-jointly infeasible set for the global method) are rejected and counted.
-Conditioning on feasibility changes the effective input distribution, so
+Draws that fail are rejected and counted by type (see `rejections`):
+infeasible inputs (an impossible probability or association, or jointly
+infeasible pairs), singular or non-identifiable systems, numerical
+non-convergence, unsupported combinations, and non-finite results.
+Conditioning on acceptance changes the effective input distribution, so
 the rejection rate is part of the result and should be reported.
 
 ## Several methods
 
-With more than one `method`, every accepted draw is adjusted with each
-method, so the methods are compared on identical inputs. A draw is
-rejected if any method fails on it. Use
+With more than one `method`, every draw is adjusted with each method, so
+the methods are compared on identical inputs. A draw is rejected if any
+method fails on it. Use
 [`compare_methods()`](https://rasmussenphilip.github.io/deconflate/reference/compare_methods.md)
-on the result for a side-by-side table.
+on the result.
 
-## Stabilising the estimates
+## Batch runs
 
-[`summary.cm_mc()`](https://rasmussenphilip.github.io/deconflate/reference/summary.cm_mc.md)
-flags unstable estimates and suggests remedies (see
-[`cm_diagnose()`](https://rasmussenphilip.github.io/deconflate/reference/cm_diagnose.md)).
-Two variance-reduction options are available here:
+With a
+[`cm_batch_sampler()`](https://rasmussenphilip.github.io/deconflate/reference/cm_batch_sampler.md),
+each draw of the shared disease and association inputs is used by every
+analysis, with the same draw identifiers; each analysis draws its own
+impacts. A draw that fails in one analysis is rejected for that analysis
+only. Batch runs use simple random sampling.
 
-- `sampling = "lhs"`: Latin hypercube sampling of the inputs that are
-  not drawn with an outcome correlation. It stratifies each input's
-  distribution and usually reduces the Monte Carlo error of means.
+## Variance reduction
 
-- `proposal`: importance sampling. Named inputs are drawn from the given
-  proposal distributions instead of their own, and each draw is weighted
-  by the ratio of the input densities. A proposal must cover the whole
-  range of the input's own distribution; a defensive mixture such as the
-  one built by
-  [`cm_suggest_proposal()`](https://rasmussenphilip.github.io/deconflate/reference/cm_suggest_proposal.md)
-  does. Importance sampling reduces the error of means that exist; it
-  cannot fix a mean that does not exist (see
-  [`cm_diagnose()`](https://rasmussenphilip.github.io/deconflate/reference/cm_diagnose.md)).
+- `sampling = "lhs"`: Latin hypercube sampling, in `lhs_replicates`
+  independent blocks. LHS draws are not independent, so the Monte Carlo
+  standard error is estimated from the spread of the block means.
+
+- `proposal`: importance sampling. Named inputs are drawn from proposal
+  distributions, and each draw is weighted by the ratio of the input's
+  own density to the proposal density (self-normalised). Each proposal
+  must cover the support of the input's own distribution, which is
+  checked from the distributions' supports; point masses (fixed values)
+  cannot be importance-sampled. Self-normalised estimates have a small
+  finite-sample bias. A defensive mixture (see
+  [`cm_suggest_proposal()`](https://rasmussenphilip.github.io/deconflate/reference/cm_suggest_proposal.md))
+  guarantees support but not a finite variance or better precision:
+  compare the standard errors.
 
 ## Examples
 
 ``` r
-s <- cm_sampler(example_supplement(),
-                impacts = list("yield:d1" = dist_normal(2.5, 0.5)))
+s <- cm_sampler(example_supplement(), impacts = list(d1 = dist_normal(2.5, 0.5)))
 mc <- cm_monte_carlo(s, 100, method = c("published", "simultaneous"), seed = 1)
 compare_methods(mc)
 #> <cm_comparison> methods: published, simultaneous
+#> Units: %
 #> Monte Carlo: 100 draws (0 rejected); statistic: mean
 #> 
-#> Adjusted impacts:
-#>  outcome disease unit raw_mean published simultaneous
-#>    yield      d1    %     2.53      2.09         2.17
-#>    yield      d2    %     5.00      3.70         3.39
-#>    yield      d3    %     7.50      6.75         6.93
+#> Adjusted values:
+#>  disease raw_mean published simultaneous
+#>       d1     2.53      2.09         2.17
+#>       d2     5.00      3.70         3.39
+#>       d3     7.50      6.75         6.93
+#> 
+#> Totals:
+#>        quantity       method  mean  q0.5 trimmed_mean     mcse stability
+#>  adjusted_total    published 2.114 2.109        2.113 0.003894        ok
+#>  adjusted_total simultaneous 2.112 2.107        2.111 0.003940        ok
+#>         raw_sum          raw 2.503 2.498        2.502 0.004294        ok
 ```

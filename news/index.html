@@ -43,52 +43,82 @@
 
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="development version" id="deconflate-development-version">deconflate (development version)<a class="anchor" aria-label="anchor" href="#deconflate-development-version"></a></h2>
-<p>Work towards 0.2.0.</p>
+<p>Work towards 0.2.0. This version implements an external review of 0.1.0 and the planned hazard-ratio, import and Monte Carlo work. It changes the interface: models written for 0.1.0 need updating (see “Breaking changes”).</p>
 <div class="section level3">
-<h3 id="culling-hazard-ratios-development-version">Culling hazard ratios<a class="anchor" aria-label="anchor" href="#culling-hazard-ratios-development-version"></a></h3>
+<h3 id="breaking-changes-development-version">Breaking changes<a class="anchor" aria-label="anchor" href="#breaking-changes-development-version"></a></h3>
 <ul><li>
-<code><a href="../reference/cm_impacts.html">cm_impacts()</a></code> accepts <code>scale = "hazard_ratio"</code>. Hazard ratios are adjusted under a multiplicative (Cox-type) model:
-<ul><li>
-<code>method = "global"</code> solves the model exactly over the distribution of disease combinations, so that the adjusted hazard ratios reproduce the raw ones;</li>
+<strong>One impact vector per analysis, in any units.</strong> <code><a href="../reference/cm_impacts.html">cm_impacts()</a></code> no longer has <code>outcome</code>, <code>scale</code> or <code>direction</code>. Each analysis adjusts one set of additive impacts in the units supplied (kg, percent, days, euros, welfare scores); results come back in the same units, with optional <code>label</code> and <code>units</code> metadata. The engine does no unit conversion.</li>
 <li>
-<code>method = "simultaneous"</code> uses the first-order (log-linear) version;</li>
+<strong>Population and analyses.</strong> New <code><a href="../reference/cm_population.html">cm_population()</a></code> holds the diseases, associations and three-way terms. <code>cm_model(population, impacts, interactions)</code> adds one impact vector; <code>cm_analyses(population, yield = ..., fertility = ...)</code> bundles several analyses on one population, and <code><a href="../reference/deconflate.html">deconflate()</a></code> adjusts each of them (one joint fit is shared by the global method). <code><a href="../reference/cm_model.html">cm_model()</a></code> still accepts a <code>cm_diseases</code> object with <code>associations =</code> given by name.</li>
 <li>
-<code>method = "published"</code> reproduces Rasmussen et al. (2024) (<code>HR - 1</code> with eq. 16).</li>
-</ul></li>
-<li>New <code><a href="../reference/attributable_risk.html">attributable_risk()</a></code>: the culling (or mortality) attributable to disease, without counting an animal with several diseases more than once, allocated to diseases by Shapley values. <code><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary()</a></code>, <code><a href="../reference/contribution_table.html">contribution_table()</a></code> and <code><a href="../reference/compare_methods.html">compare_methods()</a></code> use it to value hazard-ratio outcomes.</li>
+<strong>Estimands.</strong> Each impact declares its estimand: <code>"crude"</code> (default) or <code>"adjusted_linear"</code> (the coefficient of an additive regression adjusted for the diseases in <code>adjusted_for</code>, or <code>"all"</code>). Adjusted coefficients are mapped exactly by the population projection of the omitted diseases, with an identifiability check. <code>adjusted_for</code> without <code>"adjusted_linear"</code> is an error: the estimand is never inferred from it. The published method is limited to crude estimates.</li>
 <li>
-<code><a href="../reference/example_global_dairy.html">example_global_dairy()</a></code> and <code><a href="../reference/sampler_global_dairy.html">sampler_global_dairy()</a></code> gain <code>culling_scale = c("excess_hr", "hazard_ratio")</code>.</li>
-<li>New vignette: “Culling and hazard ratios”.</li>
+<strong>Hazard ratios have their own adapter.</strong> <code><a href="../reference/cm_hazard_ratios.html">cm_hazard_ratios()</a></code>, <code><a href="../reference/cm_hr_model.html">cm_hr_model()</a></code> and <code><a href="../reference/deconflate_hr.html">deconflate_hr()</a></code> (methods <code>"snapshot"</code>, a snapshot hazard-multiplier model solved exactly over the joint distribution, <code>"first_order"</code> and <code>"published"</code>), with stratified <code>adjusted_for</code> and <code>"all"</code>. <code><a href="../reference/attributable_risk.html">attributable_risk()</a></code> takes their results.</li>
+<li>
+<strong>Removed:</strong> <code>combine_impacts()</code>, <code>hr_to_risk()</code>, <code>excess_to_hr()</code>, <code>hr_conversion()</code>, <code>as_impacts()</code> and <code>adjusted_hr()</code>. The conversions used in the papers are kept only to reproduce them: hazard ratios as odds ratios and eq. 23 (internal, used by <code><a href="../reference/example_uk_dairy_2022.html">example_uk_dairy_2022()</a></code> and <code><a href="../reference/reproduce.html">reproduce_rasmussen_2022()</a></code>), and HR - 1 adjusted additively (the <code>culling_hr_minus_1</code> analysis of <code>example_global_dairy(culling = TRUE)</code>, used by <code><a href="../reference/reproduce.html">reproduce_rasmussen_2024()</a></code>).</li>
+<li>
+<strong>Gaps and values are helpers outside the engine.</strong> <code>productivity_gap(result, observed, direction, effect)</code> and <code>value_losses(gap, unit_value, additional)</code>; the <code>valuation</code> argument of <code><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary()</a></code>, <code><a href="../reference/contribution_table.html">contribution_table()</a></code> and <code><a href="../reference/compare_methods.html">compare_methods()</a></code> replaces <code>economics</code> and must state <code>direction</code> and <code>effect</code>. Lump-sum costs (e.g. veterinary expenditure) are added with <code>additional</code>, never inside the adjustment.</li>
+<li>
+<strong>Contributions.</strong> <code><a href="../reference/deconflate.html">deconflate()</a></code> returns <code>contributions</code>: the closed-form Shapley value of each disease (its own term plus half of each interaction term it is involved in). They add up to the aggregate; shares are <code>NA</code> when the aggregate is zero. Gaps are attributed without dividing by the aggregate.</li>
+<li>
+<strong>Covariate-adjusted associations</strong> are rejected unless <code>adjusted_associations = "use_as_marginal"</code>.</li>
+<li>
+<strong>Contingency tables:</strong> empty tables are rejected; the zero-cell correction is explicit (<code>zero_cell = c("haldane", "error")</code>) and recorded in <code>corrected</code>.</li>
+<li>
+<strong>Disease ids</strong> must not contain <code>|</code>, <code>;</code> or <code>:</code>; <code>"all"</code> is reserved.</li>
+<li>
+<strong>Monte Carlo keys</strong> in <code><a href="../reference/cm_sampler.html">cm_sampler()</a></code> are <code>impact:&lt;disease&gt;</code> and <code>inter:&lt;d1&gt;:&lt;d2&gt;</code> (input files use <code>impact:&lt;analysis&gt;:&lt;disease&gt;</code> and <code>inter:&lt;analysis&gt;:&lt;d1&gt;:&lt;d2&gt;</code>); the sampler no longer correlates outcomes (<code>outcome_correlation</code> removed).</li>
+<li>
+<code><a href="../reference/cm_read_inputs.html">cm_read_inputs()</a></code> reads one impact table per analysis (see below).</li>
 </ul></div>
 <div class="section level3">
-<h3 id="reading-your-own-data-development-version">Reading your own data<a class="anchor" aria-label="anchor" href="#reading-your-own-data-development-version"></a></h3>
-<ul><li>New <code><a href="../reference/cm_read_inputs.html">cm_read_inputs()</a></code>: builds a model (and a Monte Carlo sampler) from CSV files or data frames, after checking every table and reporting all problems at once. <code><a href="../reference/cm_check_inputs.html">cm_check_inputs()</a></code> returns the problems without stopping.</li>
-<li>New <code><a href="../reference/cm_template.html">cm_template()</a></code> (example CSV files) and <code><a href="../reference/cm_dist_table.html">cm_dist_table()</a></code> (distributions from an uncertainty table).</li>
-<li>Example input files installed with the package: <code>system.file("extdata", "global_dairy_2024", package = "deconflate")</code> (the 2024 analysis inputs, with distributions) and <code>"example_with_errors"</code> (deliberate mistakes).</li>
-<li>New vignette: “Using your own data”.</li>
+<h3 id="new-features-development-version">New features<a class="anchor" aria-label="anchor" href="#new-features-development-version"></a></h3>
+<ul><li>
+<strong>Reading your own data:</strong> <code>impacts_&lt;analysis&gt;.csv</code> files (or a named list of data frames), <code>interactions_&lt;analysis&gt;.csv</code>, <code>three_way.csv</code>, <code>hazard_ratios.csv</code>, and <code>uncertainty.csv</code> / <code>uncertainty_&lt;analysis&gt;.csv</code>. The result has <code>population</code>, <code>analyses</code>, <code>model</code> (one analysis), <code>hr_model</code> and a sampler (a batch sampler for several analyses). Every problem is reported with its table, row and column; <code><a href="../reference/cm_read_inputs.html">cm_read_inputs()</a></code> stops with class <code>deconflate_input_problems</code> when there are errors. The example folders in <code>inst/extdata</code> (<code>global_dairy_2024</code>, <code>example_with_errors</code>) use the new layout.</li>
+<li>
+<code><a href="../reference/compare_methods.html">compare_methods()</a></code> works on models, analyses, hazard-ratio models and Monte Carlo runs. Methods that cannot be run, and valuations that cannot be evaluated for a method, are listed in <code>failed</code> with the reason.</li>
+<li>
+<strong>Three-way scenarios:</strong> <code><a href="../reference/cm_three_way.html">cm_three_way()</a></code> sets the ratio of conditional odds ratios for a triple (a log-linear three-way term in the global fit, with all pairwise tables still matched); <code><a href="../reference/set_three_way.html">set_three_way()</a></code> and <code><a href="../reference/screen_three_way.html">screen_three_way()</a></code>.</li>
+<li>
+<strong>Batch Monte Carlo:</strong> <code><a href="../reference/cm_batch_sampler.html">cm_batch_sampler()</a></code> runs several analyses on shared draws of the disease probabilities and associations.</li>
+<li>
+<strong>Reproduction:</strong> <code><a href="../reference/reproduce.html">reproduce_rasmussen_2022()</a></code> (Tables 8-10) and <code><a href="../reference/reproduce.html">reproduce_rasmussen_2024()</a></code> (Table 5), with the published values beside the package’s.</li>
+<li>
+<code><a href="../reference/cm_mc_gap.html">cm_mc_gap()</a></code>: productivity gaps and values per Monte Carlo draw.</li>
+<li>
+<code><a href="../reference/example_global_dairy_hr.html">example_global_dairy_hr()</a></code>: the 2024 culling hazard ratios as a hazard-ratio model.</li>
 </ul></div>
 <div class="section level3">
-<h3 id="comparing-methods-development-version">Comparing methods<a class="anchor" aria-label="anchor" href="#comparing-methods-development-version"></a></h3>
+<h3 id="corrections-and-checks-development-version">Corrections and checks<a class="anchor" aria-label="anchor" href="#corrections-and-checks-development-version"></a></h3>
 <ul><li>
-<strong>Breaking:</strong> <code><a href="../reference/compare_methods.html">compare_methods()</a></code> now returns a <code>cm_comparison</code> object with side-by-side tables of adjusted impacts, relative changes, sign changes, totals and (with <code>economics</code>) gaps and values per method, and records methods that fail. The adjusted impacts are in <code>$impacts</code>.</li>
+<strong>Feasibility:</strong> the pairwise methods screen every triple of diseases by default (<code>feasibility = c("screen", "lp", "none")</code>); an invertible conflation matrix does not mean the pairs are jointly feasible.</li>
 <li>
-<code><a href="../reference/cm_monte_carlo.html">cm_monte_carlo()</a></code> accepts several methods (<code>method = c("published", "simultaneous")</code>) and applies them to the same draws; <code><a href="../reference/compare_methods.html">compare_methods()</a></code> compares their summaries.</li>
+<strong>Joint distribution:</strong> the IPF rescales every marginal in each sweep and recomputes the final residual; a supplied <code>joint</code> is validated against the model (diseases, probabilities, pairs and three-way terms).</li>
+<li>
+<strong>Importance sampling:</strong> proposals are checked against the support of each input (bounds and point masses), and the Monte Carlo standard error uses the self-normalised estimate <code>sqrt(sum(w^2 (x - mean)^2))</code>.</li>
+<li>
+<strong>Latin hypercube sampling</strong> runs in independent replicate blocks (<code>lhs_replicates</code>), and the standard error comes from the spread of the block means.</li>
+<li>
+<strong>Stability statuses:</strong> <code>no_mean</code> is replaced by <code>possible_pole</code>, flagged only when the published denominator <code>m + c</code> changes sign within the sampled inputs and differs in sign from <code>m</code>; the removable case (<code>c = 0</code>, where the formula reduces to <code>m</code>) is not flagged.</li>
+<li>A draw with a non-finite result is rejected for every method.</li>
+<li>
+<strong>Conditions have classes:</strong> <code>deconflate_infeasible</code>, <code>deconflate_singular</code>, <code>deconflate_nonconvergence</code>, <code>deconflate_unsupported</code> and <code>deconflate_nonfinite</code>.</li>
+<li>
+<code><a href="../reference/shapley_by_cell.html">shapley_by_cell()</a></code> reports the probability and loss of any skipped combinations, and <code><a href="../reference/attributable_risk.html">attributable_risk()</a></code> the unallocated part; the allocated and unallocated parts add up to the total.</li>
+<li>Sensitivity screens report failed scenarios in a <code>failed</code> column instead of dropping them, and reject unknown pairs or triples.</li>
 </ul></div>
 <div class="section level3">
-<h3 id="monte-carlo-stability-development-version">Monte Carlo stability<a class="anchor" aria-label="anchor" href="#monte-carlo-stability-development-version"></a></h3>
-<ul><li>
-<code><a href="../reference/summary.cm_mc.html">summary.cm_mc()</a></code> gains a <code>method</code> column, a trimmed mean and stability diagnostics (<code>rel_mcse</code>, <code>tail_share</code>, <code>stability</code>), and prints suggestions when estimates look unstable. It distinguishes means that do not exist (the published approximation dividing by a quantity that changes sign) from heavy tails and imprecision.</li>
-<li>New <code><a href="../reference/cm_diagnose.html">cm_diagnose()</a></code> (flagged estimates with suggestions) and <code><a href="../reference/cm_suggest_proposal.html">cm_suggest_proposal()</a></code> (a defensive-mixture importance-sampling proposal).</li>
-<li>
-<code><a href="../reference/cm_monte_carlo.html">cm_monte_carlo()</a></code> gains <code>sampling = "lhs"</code> (Latin hypercube sampling) and <code>proposal</code> (importance sampling). Importance weights carry through <code><a href="../reference/cm_scenario.html">cm_scenario()</a></code> and <code><a href="../reference/cm_reweight.html">cm_reweight()</a></code>.</li>
+<h3 id="validation-development-version">Validation<a class="anchor" aria-label="anchor" href="#validation-development-version"></a></h3>
+<ul><li>New Python references: <code>inst/validation/reference_v020.py</code> (estimands, interactions, feasibility, three-way terms) and <code>reference_v020_tests.py</code>.</li>
+<li>Tests cover the reviewer’s list: known-truth recovery for crude, adjusted and fully adjusted estimands, with interactions, in arbitrary units and after rescaling; the projection counterexample; zero, cancelling, singular and non-finite cases; infeasible pairs with a well-conditioned matrix; a stale joint; removable poles; importance-sampling support and standard errors; repeated-run calibration of the standard errors; separate impact files on one population; allocation completeness; and the three-way term of the fitted joint.</li>
 </ul></div>
 <div class="section level3">
-<h3 id="other-changes-development-version">Other changes<a class="anchor" aria-label="anchor" href="#other-changes-development-version"></a></h3>
-<ul><li>
-<code><a href="../reference/attribute_burden.html">attribute_burden()</a></code> and <code><a href="../reference/productivity_gap.html">productivity_gap()</a></code> skip hazard-ratio outcomes (use <code><a href="../reference/attributable_risk.html">attributable_risk()</a></code>).</li>
-<li>
-<code><a href="../reference/plots.html">plot.cm_mc()</a></code> gains a <code>method</code> argument and plots hazard ratios on their own scale.</li>
-<li>Added <code>inst/validation/reference_v02.py</code>.</li>
+<h3 id="known-limitations-development-version">Known limitations<a class="anchor" aria-label="anchor" href="#known-limitations-development-version"></a></h3>
+<ul><li>The adjustment is exact for additive impacts. Adjusted estimands other than coefficients of additive regressions (e.g. matched or propensity-score estimates, or coefficients of non-linear models) are not supported.</li>
+<li>The probabilities and associations must describe the population the impact estimates come from.</li>
+<li>Pairwise associations do not identify three-way structure; the global method assumes maximum entropy unless three-way scenarios are given.</li>
+<li>The global method, the snapshot hazard model and <code><a href="../reference/attributable_risk.html">attributable_risk()</a></code> enumerate all 2^n disease combinations (about 20 diseases at most).</li>
+<li>The triple screen is a necessary condition for joint feasibility only; the exact check needs <code>lpSolve</code>.</li>
 </ul></div>
 </div>
     <div class="section level2">
@@ -103,9 +133,9 @@
 <li>a culling outcome entered as hazard ratio minus 1 (with the analysis’s rescaled standard deviations in the sampler).</li>
 </ul><code>inputs = "tables", culling = FALSE</code> gives the previous behaviour (Tables 2-4 as printed).</li>
 <li>
-<code><a href="../reference/adjusted_hr.html">adjusted_hr()</a></code> gains <code>method = "excess_hr"</code> (adjusted HR - 1, plus 1), for which <code>conversion</code> is not needed.</li>
+<code>adjusted_hr()</code> gains <code>method = "excess_hr"</code> (adjusted HR - 1, plus 1), for which <code>conversion</code> is not needed.</li>
 <li>
-<code><a href="../reference/hr_to_risk.html">hr_to_risk()</a></code> and <code><a href="../reference/hr_conversion.html">hr_conversion()</a></code> gain <code>method = "overall_odds"</code>, the excess culling risk used for the 2024 losses: <code>HR * r / (HR * r + 1 - r) - r</code>.</li>
+<code>hr_to_risk()</code> and <code>hr_conversion()</code> gain <code>method = "overall_odds"</code>, the excess culling risk used for the 2024 losses: <code>HR * r / (HR * r + 1 - r) - r</code>.</li>
 <li>The reproduction vignette now has a comparison with Table 9 of Rasmussen et al. (2022), notes on the yield and fertility-allocation differences and on the corrigendum (which changes Table 7 only), and an updated 2024 section with long-run Monte Carlo means for yield and culling.</li>
 <li>Added <code>inst/validation/reference_2024_analysis.py</code>.</li>
 </ul></div>
@@ -119,10 +149,10 @@
 </ul></div>
 <div class="section level4">
 <h4 id="culling-and-valuation-0-1-0">Culling and valuation<a class="anchor" aria-label="anchor" href="#culling-and-valuation-0-1-0"></a></h4>
-<ul><li>Added <code><a href="../reference/hr_conversion.html">hr_conversion()</a></code>, <code><a href="../reference/as_impacts.html">as_impacts()</a></code> and <code><a href="../reference/adjusted_hr.html">adjusted_hr()</a></code>, which take culling hazard ratios through to adjusted hazard ratios. They support proportional-hazards and published (odds-ratio) conversions.</li>
+<ul><li>Added <code>hr_conversion()</code>, <code>as_impacts()</code> and <code>adjusted_hr()</code>, which take culling hazard ratios through to adjusted hazard ratios. They support proportional-hazards and published (odds-ratio) conversions.</li>
 <li>
 <code><a href="../reference/productivity_gap.html">productivity_gap()</a></code> now supports impacts on the absolute scale.</li>
-<li>Added <code><a href="../reference/value_losses.html">value_losses()</a></code> to value gaps in money, and <code><a href="../reference/combine_impacts.html">combine_impacts()</a></code> to stack impact tables.</li>
+<li>Added <code><a href="../reference/value_losses.html">value_losses()</a></code> to value gaps in money, and <code>combine_impacts()</code> to stack impact tables.</li>
 </ul></div>
 <div class="section level4">
 <h4 id="uncertainty-0-1-0">Uncertainty<a class="anchor" aria-label="anchor" href="#uncertainty-0-1-0"></a></h4>

@@ -77,7 +77,9 @@ dist_mixture(..., weights = NULL)
 
 ## Value
 
-A `cm_dist` object.
+A `cm_dist` object, with the quantile function `q`, distribution
+function `p`, log-density `logd`, sampler `r`, `mean`, and its support
+(`lower`, `upper`; `discrete = TRUE` for point masses).
 
 ## Details
 
@@ -111,7 +113,7 @@ d <- dist_pert(1.19, 3.30, 10.71)
 d$mean
 #> [1] 4.183333
 d$r(5)
-#> [1] 3.323926 2.959934 8.614279 4.627753 2.702472
+#> [1] 2.959934 8.614279 4.627753 2.702472 2.294956
 dist_lognormal_ci(2.7, 1.5, 4.9)
 #> <cm_dist> lognormal(meanlog = 0.9933, sdlog = 0.302), mean 2.826
 ```

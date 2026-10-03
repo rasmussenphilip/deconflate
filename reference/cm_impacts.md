@@ -1,6 +1,11 @@
-# Describe raw (unadjusted) disease impact estimates
+# Describe raw impact estimates (one impact vector)
 
-Describe raw (unadjusted) disease impact estimates
+One analysis adjusts one set of compatible, additive impact estimates:
+one value per disease, all in the same units (e.g. kg of milk per cow,
+percent of yield, days, euros, welfare scores). The engine does not
+convert units; results come back in the units supplied. For several
+types of impact, use one impact vector each
+([`cm_analyses()`](https://rasmussenphilip.github.io/deconflate/reference/cm_analyses.md)).
 
 ## Usage
 
@@ -8,12 +13,11 @@ Describe raw (unadjusted) disease impact estimates
 cm_impacts(
   disease,
   value,
-  outcome = "impact",
-  scale = "proportion",
-  units = NA_character_,
-  direction = "decrease",
+  estimand = "crude",
   adjusted_for = NA_character_,
-  source = NA_character_
+  source = NA_character_,
+  label = NULL,
+  units = NULL
 )
 ```
 
@@ -21,80 +25,60 @@ cm_impacts(
 
 - disease:
 
-  Character vector of disease ids.
+  Character vector of disease ids (one row per disease).
 
 - value:
 
-  Numeric raw impact estimates.
+  Numeric raw impacts. Every disease in the model needs a value (use 0
+  for no impact).
 
-- outcome:
+- estimand:
 
-  Character outcome label(s), e.g. `"yield"`, `"fertility"`. Each
-  disease needs exactly one impact per outcome (use `0` for no impact).
-
-- scale:
-
-  The scale of `value`, constant within an outcome:
-
-  - `"proportion"`: proportional change relative to the disease-free
-    value (e.g. `0.025`);
-
-  - `"percent"`: converted to a proportion;
-
-  - `"absolute"`: in `units` (e.g. excess culling risk);
-
-  - `"hazard_ratio"`: a hazard ratio (e.g. for culling or mortality),
-    adjusted on the log scale; see
-    [`deconflate()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate.md)
-    and
-    [`attributable_risk()`](https://rasmussenphilip.github.io/deconflate/reference/attributable_risk.md).
-
-- units:
-
-  Optional units label (required for `"absolute"`).
-
-- direction:
-
-  `"decrease"` if disease lowers the outcome (e.g. yield) or
-  `"increase"` if it raises it (e.g. calving interval). Used by
-  [`productivity_gap()`](https://rasmussenphilip.github.io/deconflate/reference/productivity_gap.md).
-  Set to `"increase"` for hazard ratios.
+  `"crude"` (default) or `"adjusted_linear"`, one per row or recycled.
 
 - adjusted_for:
 
-  Diseases the raw estimate was already adjusted for, separated by `";"`
-  (e.g. `"LAM; CM"`). Their conflation terms are removed from the
-  adjustment for this impact.
+  For `"adjusted_linear"`: the diseases the estimate was adjusted for,
+  separated by `";"` (e.g. `"LAM; CM"`), or `"all"`.
 
 - source:
 
   Optional citation.
 
+- label, units:
+
+  Optional analysis-level metadata (e.g. `label = "milk yield loss"`,
+  `units = "% of yield"`), carried into the results.
+
 ## Value
 
-A `cm_impacts` data frame.
+A `cm_impacts` data frame (attributes `label` and `units`).
+
+## Estimands
+
+Each value must be one of the supported estimands:
+
+- `"crude"`: the difference in the outcome between animals with and
+  without the disease (unadjusted for other diseases).
+
+- `"adjusted_linear"`: the coefficient of the disease in an additive
+  (linear) regression of the outcome on the disease and the diseases in
+  `adjusted_for`, in the same source population. The adjustment then
+  uses the population projection of the omitted diseases (see
+  [`deconflate()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate.md)).
+  `adjusted_for = "all"` means every other disease in the model.
+
+`adjusted_for` is only used with `estimand = "adjusted_linear"`; it is
+never used to infer the estimand. Other adjusted estimands (e.g. matched
+or propensity-score estimates) are not supported. The probabilities and
+associations must describe the population the estimates come from.
 
 ## Examples
 
 ``` r
-cm_impacts(c("d1", "d2", "d3"), c(2.5, 5, 7.5), outcome = "yield",
-           scale = "percent")
-#>   disease outcome value      scale units direction adjusted_for source
-#> 1      d1   yield 0.025 proportion  <NA>  decrease         <NA>   <NA>
-#> 2      d2   yield 0.050 proportion  <NA>  decrease         <NA>   <NA>
-#> 3      d3   yield 0.075 proportion  <NA>  decrease         <NA>   <NA>
-#>   input_scale
-#> 1     percent
-#> 2     percent
-#> 3     percent
-cm_impacts(c("d1", "d2", "d3"), c(1.5, 2.3, 1.1), outcome = "culling",
-           scale = "hazard_ratio")
-#>   disease outcome value        scale        units direction adjusted_for source
-#> 1      d1 culling   1.5 hazard_ratio hazard ratio  increase         <NA>   <NA>
-#> 2      d2 culling   2.3 hazard_ratio hazard ratio  increase         <NA>   <NA>
-#> 3      d3 culling   1.1 hazard_ratio hazard ratio  increase         <NA>   <NA>
-#>    input_scale
-#> 1 hazard_ratio
-#> 2 hazard_ratio
-#> 3 hazard_ratio
+cm_impacts(c("d1", "d2", "d3"), c(2.5, 5, 7.5), label = "yield", units = "%")
+#>   disease value estimand adjusted_for source
+#> 1      d1   2.5    crude         <NA>   <NA>
+#> 2      d2   5.0    crude         <NA>   <NA>
+#> 3      d3   7.5    crude         <NA>   <NA>
 ```

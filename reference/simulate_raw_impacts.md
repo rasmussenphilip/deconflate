@@ -1,13 +1,14 @@
-# Simulate the raw impacts a single-disease study would report
+# Simulate the raw impacts that studies would report
 
 For validation: given a population whose disease combinations follow the
-maximum-entropy distribution implied by `model` (see
+maximum-entropy distribution of `model` (see
 [`fit_joint()`](https://rasmussenphilip.github.io/deconflate/reference/fit_joint.md)),
 and known true additive impacts (and optional interactions), computes
-the crude difference in outcome between animals with and without each
-disease. With `n = NULL` the exact expectation is returned. With `n`
-set, `n` animals are sampled and the empirical crude differences are
-returned, which adds sampling error.
+what a study would estimate for each disease: the crude difference
+between animals with and without the disease, or the coefficient of an
+additive regression adjusted for other diseases. With `n = NULL` the
+exact population values are returned; with `n` set, `n` animals are
+sampled, which adds sampling error.
 
 ## Usage
 
@@ -16,9 +17,11 @@ simulate_raw_impacts(
   model,
   true_impacts,
   interactions = NULL,
-  outcome = "impact",
+  estimand = "crude",
+  adjusted_for = NA_character_,
   n = NULL,
-  joint = NULL
+  joint = NULL,
+  units = NULL
 )
 ```
 
@@ -27,22 +30,29 @@ simulate_raw_impacts(
 - model:
 
   A
+  [`cm_population()`](https://rasmussenphilip.github.io/deconflate/reference/cm_population.md)
+  or
   [`cm_model()`](https://rasmussenphilip.github.io/deconflate/reference/cm_model.md)
-  (its impacts, if any, are ignored).
+  (its impacts are ignored).
 
 - true_impacts:
 
-  Named numeric vector of true proportional impacts, one per disease.
+  Named numeric vector of true impacts, one per disease (any units).
 
 - interactions:
 
   Optional
   [`cm_interactions()`](https://rasmussenphilip.github.io/deconflate/reference/cm_interactions.md)
-  with true interaction values (only rows for `outcome` are used).
+  with true interaction values (same units).
 
-- outcome:
+- estimand:
 
-  Outcome label for the returned impacts.
+  `"crude"` or `"adjusted_linear"`, one per disease or recycled.
+
+- adjusted_for:
+
+  For `"adjusted_linear"`: adjustment sets (ids separated by `";"`, or
+  `"all"`), one per disease or recycled.
 
 - n:
 
@@ -54,6 +64,10 @@ simulate_raw_impacts(
   [`fit_joint()`](https://rasmussenphilip.github.io/deconflate/reference/fit_joint.md)
   result.
 
+- units:
+
+  Optional units label for the returned impacts.
+
 ## Value
 
 A
@@ -64,15 +78,16 @@ object with the simulated raw impacts.
 
 Adjusting the returned raw impacts with
 [`deconflate()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate.md)
-should recover `true_impacts` (exactly for `"simultaneous"`/`"global"`
-without interactions, and for `"global"` with interactions, when
-`n = NULL`).
+should recover `true_impacts` exactly (for `n = NULL`): with the
+simultaneous or global method without interactions, and with the global
+method with them.
 
 ## Examples
 
 ``` r
-m <- example_supplement()
-raw <- simulate_raw_impacts(m, c(d1 = 0.02, d2 = 0.04, d3 = 0.06))
+raw <- simulate_raw_impacts(example_supplement(), c(d1 = 2, d2 = 4, d3 = 6))
 raw$value
-#> [1] 0.02421306 0.05406438 0.06668175
+#> [1] 2.421306 5.406438 6.668175
+deconflate(cm_model(example_supplement(), raw))$adjusted$adjusted
+#> [1] 2 4 6
 ```

@@ -127,7 +127,9 @@ interval for <code>dist_lognormal_ci()</code>.</p></dd>
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>A <code>cm_dist</code> object.</p>
+    <p>A <code>cm_dist</code> object, with the quantile function <code>q</code>, distribution
+function <code>p</code>, log-density <code>logd</code>, sampler <code>r</code>, <code>mean</code>, and its support
+(<code>lower</code>, <code>upper</code>; <code>discrete = TRUE</code> for point masses).</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
@@ -152,7 +154,7 @@ distribution and a wider one, so that scenario reweighting has support.</p></li>
 <span class="r-in"><span><span class="va">d</span><span class="op">$</span><span class="va">mean</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> [1] 4.183333</span>
 <span class="r-in"><span><span class="va">d</span><span class="op">$</span><span class="fu">r</span><span class="op">(</span><span class="fl">5</span><span class="op">)</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 3.323926 2.959934 8.614279 4.627753 2.702472</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 2.959934 8.614279 4.627753 2.702472 2.294956</span>
 <span class="r-in"><span><span class="fu">dist_lognormal_ci</span><span class="op">(</span><span class="fl">2.7</span>, <span class="fl">1.5</span>, <span class="fl">4.9</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> &lt;cm_dist&gt; lognormal(meanlog = 0.9933, sdlog = 0.302), mean 2.826</span>
 </code></pre></div>
