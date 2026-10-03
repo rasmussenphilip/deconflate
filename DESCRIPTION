@@ -28,3 +28,5 @@ Suggests:
 Config/testthat/edition: 3
 Roxygen: list(markdown = TRUE)
 Config/roxygen2/version: 8.1.0
+URL: https://github.com/rasmussenphilip/deconflate
+BugReports: https://github.com/rasmussenphilip/deconflate/issues
