@@ -31,5 +31,5 @@ The file paths, invisibly.
 
 ``` r
 cm_template(file.path(tempdir(), "my-inputs"), overwrite = TRUE)
-#> Wrote 5 files to /tmp/RtmpP1FJSR/my-inputs
+#> Wrote 5 files to /tmp/Rtmpbx0thx/my-inputs
 ```

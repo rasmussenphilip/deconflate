@@ -43,6 +43,10 @@ Work towards 0.2.0.
   (example CSV files) and
   [`cm_dist_table()`](https://rasmussenphilip.github.io/deconflate/reference/cm_dist_table.md)
   (distributions from an uncertainty table).
+- Example input files installed with the package:
+  `system.file("extdata", "global_dairy_2024", package = "deconflate")`
+  (the 2024 analysis inputs, with distributions) and
+  `"example_with_errors"` (deliberate mistakes).
 - New vignette: “Using your own data”.
 
 ### Comparing methods

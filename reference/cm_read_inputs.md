@@ -109,7 +109,7 @@ a percent impact). Distributions and their parameters:
 ``` r
 dir <- file.path(tempdir(), "deconflate-inputs")
 cm_template(dir, overwrite = TRUE)
-#> Wrote 5 files to /tmp/RtmpP1FJSR/deconflate-inputs
+#> Wrote 5 files to /tmp/Rtmpbx0thx/deconflate-inputs
 inp <- cm_read_inputs(dir = dir)
 inp
 #> <cm_inputs>
@@ -119,21 +119,41 @@ inp
 #>   Outcomes: yield, culling
 #>   Uncertain inputs: 5 (use $sampler with cm_monte_carlo())
 deconflate(inp$model, method = "global")
-#> Warning: Outcome 'culling': adjusted hazard ratios cross 1 for MET. The raw hazard ratios are smaller than the associated diseases alone would produce; check whether these estimates were already adjusted for co-diseases or come from populations with different comorbidity patterns.
 #> <cm_result> method: global
 #> 
 #>  outcome disease    raw adjusted   change
 #>    yield     LAM 0.0481  0.02871 -0.40320
 #>    yield     SCK 0.0840  0.07819 -0.06915
 #>    yield     MET 0.0561  0.03170 -0.43496
-#>  culling     LAM 1.7400  1.62941 -0.06356
-#>  culling     SCK 1.9200  1.80906 -0.05778
-#>  culling     MET 1.1200  0.82814 -0.26059
+#>  culling     LAM 1.7400  1.53155 -0.11980
+#>  culling     SCK 1.9200  1.78606 -0.06976
+#>  culling     MET 1.5000  1.14080 -0.23947
 #> 
 #> Diagnostics:
 #>  outcome max_reconstruction_residual n_sign_changes condition_number
-#>    yield                    6.94e-18              0                2
-#>  culling                    1.22e-13              1                2
+#>    yield                    6.94e-18              0              2.0
+#>  culling                    1.10e-13              0              2.1
+
+# Example files shipped with the package: the 2024 global dairy inputs,
+# and a set with deliberate errors
+gd <- cm_read_inputs(dir = system.file("extdata", "global_dairy_2024", package = "deconflate"))
+gd$model
+#> <cm_model>
+#>   Diseases: 12 (CK, CM, DA, DYS, LAM, MET, MF, OC, PTB, RP, SCK, SCM)
+#>   Disease pairs: 66 [independent (default): 28; specified: 38]
+#>   Outcomes: yield, fertility, culling
+cm_check_inputs(dir = system.file("extdata", "example_with_errors", package = "deconflate"))
+#> Found 10 problem(s) in the inputs:
+#>   diseases, row 4, column 'id': Duplicate disease id 'SCK'.
+#>   diseases, row 3, column 'value': Gives a probability of 1.1; it must be strictly between 0 and 1.
+#>   associations, row 3, column 'disease2': Unknown disease 'CM' (not in the diseases table).
+#>   associations, row 4: Duplicate pair SCK:LAM.
+#>   associations, row 5, column 'value': Missing value for measure OR.
+#>   impacts, row 2, column 'value': '8,40' is not a number.
+#>   impacts, row 5, column 'value': Hazard ratios must be positive.
+#>   impacts: Outcome 'yield' has no impact for: MET. Add a row with value 0 for no impact.
+#>   uncertainty, row 2, column 'dist': 'normal' needs p1 (mean) and p2 (sd).
+#>   uncertainty, row 3, column 'key': Key 'impact:yield:CM' does not match an input (expected prob:<disease>, assoc:<d1>:<d2> with a numeric measure, impact:<outcome>:<disease> or inter:<outcome>:<d1>:<d2>). 
 
 # The same tables typed in R
 inp2 <- cm_read_inputs(

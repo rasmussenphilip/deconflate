@@ -20,7 +20,7 @@ writes an example set of files to a folder:
 
 dir <- file.path(tempdir(), "my-inputs")
 cm_template(dir, overwrite = TRUE)
-#> Wrote 5 files to /tmp/RtmpHL3xwP/my-inputs
+#> Wrote 5 files to /tmp/RtmpcwW4DG/my-inputs
 list.files(dir)
 #> [1] "associations.csv" "diseases.csv"     "impacts.csv"      "interactions.csv"
 #> [5] "uncertainty.csv"
@@ -51,7 +51,7 @@ read.csv(file.path(dir, "impacts.csv"))
 #> 3     MET   yield  5.61      percent  decrease    NA           NA
 #> 4     LAM culling  1.74 hazard_ratio              NA           NA
 #> 5     SCK culling  1.92 hazard_ratio              NA           NA
-#> 6     MET culling  1.12 hazard_ratio              NA           NA
+#> 6     MET culling  1.50 hazard_ratio              NA           NA
 #>                source
 #> 1 Illustrative values
 #> 2 Illustrative values
@@ -65,6 +65,21 @@ Yield impacts are percent decreases; culling impacts are hazard ratios
 (`scale = hazard_ratio`), adjusted on the log scale (see
 [`vignette("culling-hazard-ratios")`](https://rasmussenphilip.github.io/deconflate/articles/culling-hazard-ratios.md)).
 Every disease needs a row for every outcome; use 0 for no impact.
+
+Two more example sets are installed with the package:
+
+- `global_dairy_2024`: the 12 diseases, 38 odds ratios, yield, fertility
+  and culling impacts, and input distributions of Rasmussen et
+  al. (2024), as used in the published analysis (culling as hazard
+  ratios);
+- `example_with_errors`: a small set with deliberate mistakes, to see
+  how problems are reported.
+
+``` r
+
+system.file("extdata", package = "deconflate")
+#> [1] "/home/runner/work/_temp/Library/deconflate/extdata"
+```
 
 ## Read the files
 
@@ -85,18 +100,14 @@ inp
 ``` r
 
 res <- deconflate(inp$model, method = "global")
-#> Warning: Outcome 'culling': adjusted hazard ratios cross 1 for MET. The raw
-#> hazard ratios are smaller than the associated diseases alone would produce;
-#> check whether these estimates were already adjusted for co-diseases or come
-#> from populations with different comorbidity patterns.
 res$adjusted[, c("outcome", "disease", "raw", "adjusted")]
 #>   outcome disease    raw   adjusted
 #> 1   yield     LAM 0.0481 0.02870596
 #> 2   yield     SCK 0.0840 0.07819114
 #> 3   yield     MET 0.0561 0.03169881
-#> 4 culling     LAM 1.7400 1.62940621
-#> 5 culling     SCK 1.9200 1.80906323
-#> 6 culling     MET 1.1200 0.82814177
+#> 4 culling     LAM 1.7400 1.53155018
+#> 5 culling     SCK 1.9200 1.78606195
+#> 6 culling     MET 1.5000 1.14080183
 ```
 
 Compare the methods side by side:
@@ -108,16 +119,12 @@ compare_methods(inp$model)
 #> 
 #> Adjusted impacts:
 #>  outcome disease unit  raw published simultaneous global
-#>    yield     LAM    % 4.81      3.16        2.870  2.870
-#>    yield     SCK    % 8.40      7.51        7.820  7.820
-#>    yield     MET    % 5.61      3.52        3.170  3.170
-#>  culling     LAM   HR 1.74      1.60        1.630  1.630
-#>  culling     SCK   HR 1.92      1.82        1.820  1.810
-#>  culling     MET   HR 1.12      1.03        0.833  0.828
-#> 
-#> Sign changes (adjusted impact on the other side of zero, or of 1 for hazard ratios):
-#>   simultaneous: culling MET
-#>   global: culling MET
+#>    yield     LAM    % 4.81      3.16         2.87   2.87
+#>    yield     SCK    % 8.40      7.51         7.82   7.82
+#>    yield     MET    % 5.61      3.52         3.17   3.17
+#>  culling     LAM   HR 1.74      1.55         1.53   1.53
+#>  culling     SCK   HR 1.92      1.81         1.80   1.79
+#>  culling     MET   HR 1.50      1.26         1.15   1.14
 #> 
 #> Totals:
 #>  outcome       method raw_loss adjusted_loss
@@ -149,7 +156,53 @@ cm_check_inputs(
 ```
 
 [`cm_read_inputs()`](https://rasmussenphilip.github.io/deconflate/reference/cm_read_inputs.md)
-stops with the same list when there are errors.
+stops with the same list when there are errors. The installed example
+with errors shows more cases:
+
+``` r
+
+cm_check_inputs(dir = system.file("extdata", "example_with_errors", package = "deconflate"))
+#> Found 10 problem(s) in the inputs:
+#>   diseases, row 4, column 'id': Duplicate disease id 'SCK'.
+#>   diseases, row 3, column 'value': Gives a probability of 1.1; it must be strictly between 0 and 1.
+#>   associations, row 3, column 'disease2': Unknown disease 'CM' (not in the diseases table).
+#>   associations, row 4: Duplicate pair SCK:LAM.
+#>   associations, row 5, column 'value': Missing value for measure OR.
+#>   impacts, row 2, column 'value': '8,40' is not a number.
+#>   impacts, row 5, column 'value': Hazard ratios must be positive.
+#>   impacts: Outcome 'yield' has no impact for: MET. Add a row with value 0 for no impact.
+#>   uncertainty, row 2, column 'dist': 'normal' needs p1 (mean) and p2 (sd).
+#>   uncertainty, row 3, column 'key': Key 'impact:yield:CM' does not match an input (expected prob:<disease>, assoc:<d1>:<d2> with a numeric measure, impact:<outcome>:<disease> or inter:<outcome>:<d1>:<d2>).
+```
+
+## The global dairy example
+
+``` r
+
+gd <- cm_read_inputs(dir = system.file("extdata", "global_dairy_2024", package = "deconflate"))
+gd
+#> <cm_inputs>
+#> <cm_model>
+#>   Diseases: 12 (CK, CM, DA, DYS, LAM, MET, MF, OC, PTB, RP, SCK, SCM)
+#>   Disease pairs: 66 [independent (default): 28; specified: 38]
+#>   Outcomes: yield, fertility, culling
+#>   Uncertain inputs: 70 (use $sampler with cm_monte_carlo())
+cmp <- compare_methods(gd$model, methods = c("published", "simultaneous"))
+head(cmp$impacts, 12)
+#>    outcome disease      scale         raw    published simultaneous
+#> 1    yield      CK proportion 0.004321944 0.0002473297 -0.053709141
+#> 2    yield      CM proportion 0.032499000 0.0133194993 -0.003380725
+#> 3    yield      DA proportion 0.028369300 0.0079378291 -0.026316316
+#> 4    yield     DYS proportion 0.049190880 0.0356881898  0.043096749
+#> 5    yield     LAM proportion 0.048061000 0.0253240737  0.019792779
+#> 6    yield     MET proportion 0.056130850 0.0284095146  0.027909168
+#> 7    yield      MF proportion 0.005365131 0.0006897532 -0.015399737
+#> 8    yield      OC proportion 0.037478390 0.0263859343  0.032174755
+#> 9    yield     PTB proportion 0.043000000 0.0322917066  0.039410642
+#> 10   yield      RP proportion 0.041986640 0.0225771112  0.024733053
+#> 11   yield     SCK proportion 0.083964720 0.0710307185  0.082785938
+#> 12   yield     SCM proportion 0.062931840 0.0558961905  0.065761493
+```
 
 ## Tables typed in R
 
@@ -212,12 +265,12 @@ compare_methods(mc)
 #> 
 #> Adjusted impacts:
 #>  outcome disease unit raw_mean published simultaneous
-#>    yield     LAM    %     4.83      3.21        2.920
-#>    yield     SCK    %     8.52      7.64        7.940
-#>    yield     MET    %     5.61      3.52        3.130
-#>  culling     LAM   HR     1.75      1.61        1.650
-#>  culling     SCK   HR     1.92      1.82        1.820
-#>  culling     MET   HR     1.12      1.03        0.831
+#>    yield     LAM    %     4.83      3.21         2.92
+#>    yield     SCK    %     8.52      7.64         7.94
+#>    yield     MET    %     5.61      3.52         3.13
+#>  culling     LAM   HR     1.75      1.57         1.55
+#>  culling     SCK   HR     1.92      1.81         1.80
+#>  culling     MET   HR     1.50      1.26         1.14
 ```
 
 [`cm_dist_table()`](https://rasmussenphilip.github.io/deconflate/reference/cm_dist_table.md)
