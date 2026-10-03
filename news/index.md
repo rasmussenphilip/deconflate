@@ -2,6 +2,8 @@
 
 ## deconflate (development version)
 
+## deconflate 0.3.0
+
 This version responds to a second external review of 0.2.0 and adds
 threshold searches, a sampled backend for the global model beyond about
 20 diseases, uncertainty given in the input tables themselves, and a

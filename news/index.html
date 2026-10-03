@@ -44,9 +44,12 @@
 
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="development version" id="deconflate-development-version">deconflate (development version)<a class="anchor" aria-label="anchor" href="#deconflate-development-version"></a></h2>
+</div>
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.3.0" id="deconflate-030">deconflate 0.3.0<a class="anchor" aria-label="anchor" href="#deconflate-030"></a></h2>
 <p>This version responds to a second external review of 0.2.0 and adds threshold searches, a sampled backend for the global model beyond about 20 diseases, uncertainty given in the input tables themselves, and a five-disease example that uses every feature.</p>
 <div class="section level3">
-<h3 id="breaking-changes-development-version">Breaking changes<a class="anchor" aria-label="anchor" href="#breaking-changes-development-version"></a></h3>
+<h3 id="breaking-changes-0-3-0">Breaking changes<a class="anchor" aria-label="anchor" href="#breaking-changes-0-3-0"></a></h3>
 <ul><li>
 <strong>No separate uncertainty files.</strong> An uncertain value now gets its distribution in its own row, in the columns <code>dist</code> and <code>p1</code>-<code>p4</code> of <code>diseases</code>, <code>associations</code>, <code>three_way</code>, <code>impacts_&lt;analysis&gt;</code> and <code>interactions_&lt;analysis&gt;</code> tables; rows with an empty <code>dist</code> are point values, so point values and uncertain values can be mixed in one table. <code><a href="../reference/cm_read_inputs.html">cm_read_inputs()</a></code> and <code><a href="../reference/cm_check_inputs.html">cm_check_inputs()</a></code> lose their <code>uncertainty</code> argument, and files named <code>uncertainty.csv</code> or <code>uncertainty_&lt;analysis&gt;.csv</code> are reported as an error explaining the change. The checks report a distribution with missing or invalid parameters, parameters without a <code>dist</code>, a distribution on a non-numeric association measure (<code>table</code>, <code>independent</code>, <code>unknown</code>) and parameters that are not numbers (once); a point value outside its distribution’s range is a note. Distributions given for hazard ratios are ignored with a note. The shipped <code>global_dairy_2024</code> and <code>example_with_errors</code> folders and <code><a href="../reference/cm_template.html">cm_template()</a></code> use the new layout. Every table can also have a free-text <code>note</code> column.</li>
 <li>
@@ -60,7 +63,7 @@
 <strong><code><a href="../reference/cm_template.html">cm_template()</a></code> writes one analysis by default</strong> (<code>impacts.csv</code>, <code>interactions.csv</code> and the population files, with distributions in the rows of four values), which reads into a model and a single sampler with Latin hypercube and importance sampling. <code>cm_template(dir, type = "analyses")</code> writes the multi-analysis example. Hazard ratios are no longer in the template.</li>
 </ul></div>
 <div class="section level3">
-<h3 id="new-features-development-version">New features<a class="anchor" aria-label="anchor" href="#new-features-development-version"></a></h3>
+<h3 id="new-features-0-3-0">New features<a class="anchor" aria-label="anchor" href="#new-features-0-3-0"></a></h3>
 <ul><li><p><strong>A five-disease example that uses every feature:</strong> <code>system.file("extdata", "five_diseases", package = "deconflate")</code> has all probability types and association measures, a three-way term, crude and adjusted impacts, interactions, snapshot hazard ratios, and every distribution type mixed with point values, in three analyses (yield, calving interval, welfare). Its <code>run_all_features.R</code> runs every part of the package on it; <code>README.md</code> describes the files. Reference values are in <code>inst/validation/reference_five_diseases.py</code>.</p></li>
 <li><p><strong>Three-way ratios can be uncertain:</strong> <code><a href="../reference/cm_sampler.html">cm_sampler()</a></code> and <code><a href="../reference/cm_batch_sampler.html">cm_batch_sampler()</a></code> take <code>three_way</code> distributions (keys <code>three:&lt;d1&gt;:&lt;d2&gt;:&lt;d3&gt;</code>, diseases in any order); in batch runs they are shared population inputs.</p></li>
 <li><p><strong>Threshold searches:</strong> <code><a href="../reference/cm_threshold.html">cm_threshold()</a></code> varies one input (an association, including unknown or unlisted pairs, an interaction, a disease probability, a raw impact or a three-way ratio) over a range and finds where a conclusion changes: two diseases swap rank (by contribution or adjusted impact), an adjusted impact changes sign (a model-implied sign change), the aggregate crosses a target, or the aggregate departs from its baseline by a given relative amount. The range is scanned before crossings are refined by bisection, every crossing is reported, unusable parts of the range (infeasible, singular, undefined, unresolved) are listed separately, and a jump across a pole or a nearly singular system is reported as a discontinuity, never as a threshold. Results just below and above each threshold are returned; <code><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot()</a></code> shows the scan. For the global method, inputs that do not change the population (impacts and interactions) reuse one fitted joint distribution; <code>inter:</code> and <code>three:</code> inputs need the global method. No random numbers are drawn.</p></li>
@@ -69,7 +72,7 @@
 <li><p>The pairwise methods (<code>"simultaneous"</code>, <code>"published"</code>) never enumerate combinations and work for any number of diseases (documented in <code><a href="../reference/deconflate.html">?deconflate</a></code>).</p></li>
 </ul></div>
 <div class="section level3">
-<h3 id="corrections-second-review-development-version">Corrections (second review)<a class="anchor" aria-label="anchor" href="#corrections-second-review-development-version"></a></h3>
+<h3 id="corrections-second-review-0-3-0">Corrections (second review)<a class="anchor" aria-label="anchor" href="#corrections-second-review-0-3-0"></a></h3>
 <ul><li>
 <strong>Importance-sampling support:</strong> distributions now record their support as a set of intervals; a mixture’s support is the union of the supports of its components with positive weight. A proposal must cover the input’s whole support, so a mixture that spans the range but leaves a gap is rejected (it previously converged to a biased estimate with a high effective sample size). The same check applies to <code><a href="../reference/cm_scenario.html">cm_scenario()</a></code>.</li>
 <li>
@@ -84,7 +87,7 @@
 <code><a href="../reference/shapley_by_cell.html">shapley_by_cell()</a></code> caches the loss of each combination by code, which makes <code><a href="../reference/attributable_risk.html">attributable_risk()</a></code> much faster for 10 or more diseases and works with sampled joints.</li>
 </ul></div>
 <div class="section level3">
-<h3 id="validation-development-version">Validation<a class="anchor" aria-label="anchor" href="#validation-development-version"></a></h3>
+<h3 id="validation-0-3-0">Validation<a class="anchor" aria-label="anchor" href="#validation-0-3-0"></a></h3>
 <ul><li>
 <code>inst/validation/reference_v030.py</code>: thresholds, the support counterexample and the reviewer’s three-way counterexample.</li>
 <li>New tests: <code>test-threshold.R</code>, <code>test-joint-sampled.R</code> (against exact enumeration for 3 and 12 diseases, and a 24-disease population) and <code>test-review-v03.R</code> (each item of the second review).</li>

@@ -75,21 +75,46 @@
 <li><label><input type="checkbox" checked>Tag v0.2.0.</label></li>
 </ul></div>
 <div class="section level2">
-<h2 id="v03-in-progress">v0.3 (in progress)<a class="anchor" aria-label="anchor" href="#v03-in-progress"></a></h2>
+<h2 id="v03-released-as-030">v0.3 (released as 0.3.0)<a class="anchor" aria-label="anchor" href="#v03-released-as-030"></a></h2>
 <ul class="task-list"><li><label><input type="checkbox" checked>Second external review: importance-sampling support as intervals, one finiteness check everywhere, <code>insufficient_info</code> precision status, three-way documentation, converged joints for simulation, single-analysis template, explicit snapshot hazard-ratio estimands, historical conversions confined to reproduction.</label></li>
 <li><label><input type="checkbox" checked>Threshold searches (<code><a href="reference/cm_threshold.html">cm_threshold()</a></code>): rank, sign, target and relative-change conclusions for one input at a time.</label></li>
 <li><label><input type="checkbox" checked>Sampled backend for the joint distribution (Monte Carlo moment matching, sampling, raking) beyond about 20 diseases.</label></li>
-<li><label><input type="checkbox">Run <code>devtools::document()</code>, <code>test()</code> and <code>check()</code>, and fix any issues.</label></li>
-<li><label><input type="checkbox">Tag v0.3.0.</label></li>
+<li><label><input type="checkbox" checked>Uncertainty given in the input tables (<code>dist</code>, <code>p1</code>-<code>p4</code>), with no separate uncertainty files; three-way ratios can be uncertain.</label></li>
+<li><label><input type="checkbox" checked>Five-disease example that uses every feature (<code>inst/extdata/five_diseases</code>, with <code>run_all_features.R</code>).</label></li>
+<li><label><input type="checkbox" checked>Run <code>devtools::document()</code>, <code>test()</code> and <code>check()</code> (0 errors, 0 warnings, 0 notes).</label></li>
+<li><label><input type="checkbox" checked>Tag v0.3.0.</label></li>
 </ul></div>
 <div class="section level2">
+<h2 id="v04-planned">v0.4 (planned)<a class="anchor" aria-label="anchor" href="#v04-planned"></a></h2>
+<p>In this order:</p>
+<ol style="list-style-type: decimal"><li>
+<strong>Test 0.3.0 in use.</strong>
+<ul class="task-list"><li><label><input type="checkbox">Run <code>run_all_features.R</code> end to end and review every printed result as a new user would.</label></li>
+<li><label><input type="checkbox">Have someone else work through the CSV workflow with their own data, without help.</label></li>
+<li><label><input type="checkbox">Optional: a short third review of the 0.3 additions (in-table uncertainty, <code><a href="reference/cm_threshold.html">cm_threshold()</a></code>, the sampled backend).</label></li>
+</ul></li>
+<li>
+<strong>Probabilistic thresholds</strong> (the one new feature): combine <code><a href="reference/cm_threshold.html">cm_threshold()</a></code> with Monte Carlo runs, e.g. the input value at which a disease ranks first (or the aggregate exceeds a target) in a given share of draws, with Monte Carlo error.</li>
+<li>
+<strong>Simpler, more intuitive input tables.</strong>
+<ul class="task-list"><li><label><input type="checkbox">Accept missing optional columns everywhere with sensible defaults, and fewer required columns.</label></li>
+<li><label><input type="checkbox">Disease labels (full names) next to the short ids, used in printed tables and plots.</label></li>
+<li><label><input type="checkbox">Clearer column names and messages; review the template and the example folders accordingly.</label></li>
+</ul></li>
+<li>
+<strong>Clearer output and summary tables.</strong> Consistent column names and order across <code><a href="reference/deconflate.html">deconflate()</a></code>, <code><a href="reference/compare_methods.html">compare_methods()</a></code>, <code><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary()</a></code>, <code><a href="reference/contribution_table.html">contribution_table()</a></code> and the Monte Carlo summaries; readable rounding and units; labels.</li>
+<li>
+<strong>Better plots.</strong> A consistent look across plot methods, labels and units on axes, and plots for uncertainty and thresholds.</li>
+<li>
+<strong>Dependencies.</strong> Keep the package on base R (see the Dependencies section of the README); list any new dependency there with its reason.</li>
+</ol><p>Afterwards: a Zenodo DOI for each release, and possibly a CRAN submission and a short software paper.</p>
+</div>
+<div class="section level2">
 <h2 id="to-discuss">To discuss<a class="anchor" aria-label="anchor" href="#to-discuss"></a></h2>
-<ul><li>Probabilistic thresholds (e.g. the input value at which a disease ranks first with 95% probability).</li>
-<li>Advanced component accounting.</li>
-<li>Lost productive life as a culling outcome.</li>
-<li>Pairwise-only bounds as a complementary sensitivity output for large systems; pseudo-likelihood fitting when individual-level disease records are available.</li>
+<ul><li>Pairwise-only bounds as a complementary sensitivity output for large systems; pseudo-likelihood fitting when individual-level disease records are available.</li>
 <li>Higher-order and non-linear interaction models in the adjustment itself.</li>
-</ul></div>
+</ul><p>Dropped (October 2026): advanced component accounting, and lost productive life as a culling outcome.</p>
+</div>
 </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

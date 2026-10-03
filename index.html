@@ -63,7 +63,7 @@
 </h1></div>
 <p>Comorbidity adjustment (“de-conflation”) of disease impact estimates, so that the impacts of multiple associated diseases can be aggregated without double counting. Based on Rasmussen et al. (2022, <em>Prev. Vet. Med.</em> 203:105617) and Rasmussen et al. (2024, <em>J. Dairy Sci.</em> 107:6945–6970).</p>
 <blockquote>
-<p><strong>Status:</strong> development version, working towards v0.3.0 (see <code>NEWS.md</code>). The test reference values were computed independently in Python (<code>inst/validation/</code>).</p>
+<p><strong>Status:</strong> latest release <a href="https://github.com/rasmussenphilip/deconflate/releases" class="external-link">v0.3.0</a>; changes are listed in <code>NEWS.md</code> and plans in <code>ROADMAP.md</code>. The test reference values were computed independently in Python (<code>inst/validation/</code>).</p>
 </blockquote>
 <div class="section level2">
 <h2 id="installation">Installation<a class="anchor" aria-label="anchor" href="#installation"></a>
@@ -71,6 +71,44 @@
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># install.packages("remotes")</span></span>
 <span><span class="fu">remotes</span><span class="fu">::</span><span class="fu">install_github</span><span class="op">(</span><span class="st">"rasmussenphilip/deconflate"</span>, build_vignettes <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></code></pre></div>
+</div>
+<div class="section level2">
+<h2 id="dependencies">Dependencies<a class="anchor" aria-label="anchor" href="#dependencies"></a>
+</h2>
+<p>The package itself needs only R (&gt;= 4.1.0) and the base packages that come with it: <code>graphics</code>, <code>grDevices</code>, <code>stats</code> and <code>utils</code>. Nothing else is installed with it.</p>
+<p>Optional packages (<code>Suggests</code>):</p>
+<table class="table">
+<colgroup>
+<col width="50%">
+<col width="50%">
+</colgroup>
+<thead><tr>
+<th>Package</th>
+<th>Used for</th>
+</tr></thead>
+<tbody>
+<tr>
+<td><code>lpSolve</code></td>
+<td>The exact feasibility check (<code>check_feasibility(method = "lp")</code>, <code>deconflate(feasibility = "lp")</code>). Without it, the triple screen is used.</td>
+</tr>
+<tr>
+<td>
+<code>knitr</code>, <code>rmarkdown</code>
+</td>
+<td>Building the vignettes.</td>
+</tr>
+<tr>
+<td>
+<code>testthat</code> (&gt;= 3.0.0)</td>
+<td>Running the tests.</td>
+</tr>
+<tr>
+<td><code>remotes</code></td>
+<td>Installing from GitHub (see above).</td>
+</tr>
+</tbody>
+</table>
+<p>For development: <code>devtools</code>, <code>roxygen2</code> (documentation), <code>usethis</code> (versions and releases) and <code>pkgdown</code> (the website). The reference values in <code>inst/validation/</code> were computed independently in Python 3 with <code>numpy</code> and <code>scipy</code>; they are not needed to use or test the package.</p>
 </div>
 <div class="section level2">
 <h2 id="how-it-works">How it works<a class="anchor" aria-label="anchor" href="#how-it-works"></a>

@@ -76,7 +76,7 @@ Run `devtools::document()`, `test()` and `check()`, and fix any issues.
 
 Tag v0.2.0.
 
-## v0.3 (in progress)
+## v0.3 (released as 0.3.0)
 
 Second external review: importance-sampling support as intervals, one
 finiteness check everywhere, `insufficient_info` precision status,
@@ -92,18 +92,75 @@ time.
 Sampled backend for the joint distribution (Monte Carlo moment matching,
 sampling, raking) beyond about 20 diseases.
 
-Run `devtools::document()`, `test()` and `check()`, and fix any issues.
+Uncertainty given in the input tables (`dist`, `p1`-`p4`), with no
+separate uncertainty files; three-way ratios can be uncertain.
+
+Five-disease example that uses every feature
+(`inst/extdata/five_diseases`, with `run_all_features.R`).
+
+Run `devtools::document()`, `test()` and `check()` (0 errors, 0
+warnings, 0 notes).
 
 Tag v0.3.0.
 
+## v0.4 (planned)
+
+In this order:
+
+**Test 0.3.0 in use.**
+
+Run `run_all_features.R` end to end and review every printed result as a
+new user would.
+
+Have someone else work through the CSV workflow with their own data,
+without help.
+
+Optional: a short third review of the 0.3 additions (in-table
+uncertainty,
+[`cm_threshold()`](https://rasmussenphilip.github.io/deconflate/reference/cm_threshold.md),
+the sampled backend).
+
+**Probabilistic thresholds** (the one new feature): combine
+[`cm_threshold()`](https://rasmussenphilip.github.io/deconflate/reference/cm_threshold.md)
+with Monte Carlo runs, e.g. the input value at which a disease ranks
+first (or the aggregate exceeds a target) in a given share of draws,
+with Monte Carlo error.
+
+**Simpler, more intuitive input tables.**
+
+Accept missing optional columns everywhere with sensible defaults, and
+fewer required columns.
+
+Disease labels (full names) next to the short ids, used in printed
+tables and plots.
+
+Clearer column names and messages; review the template and the example
+folders accordingly.
+
+**Clearer output and summary tables.** Consistent column names and order
+across
+[`deconflate()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate.md),
+[`compare_methods()`](https://rasmussenphilip.github.io/deconflate/reference/compare_methods.md),
+[`summary()`](https://rdrr.io/r/base/summary.html),
+[`contribution_table()`](https://rasmussenphilip.github.io/deconflate/reference/contribution_table.md)
+and the Monte Carlo summaries; readable rounding and units; labels.
+
+**Better plots.** A consistent look across plot methods, labels and
+units on axes, and plots for uncertainty and thresholds.
+
+**Dependencies.** Keep the package on base R (see the Dependencies
+section of the README); list any new dependency there with its reason.
+
+Afterwards: a Zenodo DOI for each release, and possibly a CRAN
+submission and a short software paper.
+
 ## To discuss
 
-- Probabilistic thresholds (e.g. the input value at which a disease
-  ranks first with 95% probability).
-- Advanced component accounting.
-- Lost productive life as a culling outcome.
 - Pairwise-only bounds as a complementary sensitivity output for large
   systems; pseudo-likelihood fitting when individual-level disease
   records are available.
 - Higher-order and non-linear interaction models in the adjustment
   itself.
+
+Dropped (October 2026): advanced component accounting, and lost
+productive life as a culling outcome.

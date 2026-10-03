@@ -61,7 +61,7 @@ analysis, the standard workflow:
 
 dir <- file.path(tempdir(), "my-inputs")
 cm_template(dir, overwrite = TRUE)
-#> Wrote 5 files to /tmp/RtmpT04WMR/my-inputs
+#> Wrote 5 files to /tmp/RtmpnQpSbV/my-inputs
 list.files(dir)
 #> [1] "associations.csv" "diseases.csv"     "impacts.csv"      "interactions.csv"
 #> [5] "three_way.csv"
@@ -213,7 +213,7 @@ milk yield (in percent) and calving interval (in days):
 
 dir2 <- file.path(tempdir(), "my-analyses")
 cm_template(dir2, type = "analyses", overwrite = TRUE)
-#> Wrote 6 files to /tmp/RtmpT04WMR/my-analyses
+#> Wrote 6 files to /tmp/RtmpnQpSbV/my-analyses
 list.files(dir2)
 #> [1] "associations.csv"             "diseases.csv"                
 #> [3] "impacts_calving_interval.csv" "impacts_yield.csv"           

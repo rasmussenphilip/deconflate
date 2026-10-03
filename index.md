@@ -6,9 +6,11 @@ without double counting. Based on Rasmussen et al. (2022, *Prev. Vet.
 Med.* 203:105617) and Rasmussen et al. (2024, *J. Dairy Sci.*
 107:6945–6970).
 
-> **Status:** development version, working towards v0.3.0 (see
-> `NEWS.md`). The test reference values were computed independently in
-> Python (`inst/validation/`).
+> **Status:** latest release
+> [v0.3.0](https://github.com/rasmussenphilip/deconflate/releases);
+> changes are listed in `NEWS.md` and plans in `ROADMAP.md`. The test
+> reference values were computed independently in Python
+> (`inst/validation/`).
 
 ## Installation
 
@@ -17,6 +19,27 @@ Med.* 203:105617) and Rasmussen et al. (2024, *J. Dairy Sci.*
 # install.packages("remotes")
 remotes::install_github("rasmussenphilip/deconflate", build_vignettes = TRUE)
 ```
+
+## Dependencies
+
+The package itself needs only R (\>= 4.1.0) and the base packages that
+come with it: `graphics`, `grDevices`, `stats` and `utils`. Nothing else
+is installed with it.
+
+Optional packages (`Suggests`):
+
+| Package | Used for |
+|----|----|
+| `lpSolve` | The exact feasibility check (`check_feasibility(method = "lp")`, `deconflate(feasibility = "lp")`). Without it, the triple screen is used. |
+| `knitr`, `rmarkdown` | Building the vignettes. |
+| `testthat` (\>= 3.0.0) | Running the tests. |
+| `remotes` | Installing from GitHub (see above). |
+
+For development: `devtools`, `roxygen2` (documentation), `usethis`
+(versions and releases) and `pkgdown` (the website). The reference
+values in `inst/validation/` were computed independently in Python 3
+with `numpy` and `scipy`; they are not needed to use or test the
+package.
 
 ## How it works
 

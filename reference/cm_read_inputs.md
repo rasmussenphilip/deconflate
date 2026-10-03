@@ -171,7 +171,7 @@ Distributions and their parameters:
 ``` r
 dir <- file.path(tempdir(), "deconflate-inputs")
 cm_template(dir, overwrite = TRUE)
-#> Wrote 5 files to /tmp/RtmpdhD8VS/deconflate-inputs
+#> Wrote 5 files to /tmp/RtmpnfmZA6/deconflate-inputs
 inp <- cm_read_inputs(dir = dir)
 inp
 #> <cm_inputs>
