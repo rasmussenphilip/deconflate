@@ -115,7 +115,8 @@
 <span><span class="co"># Exact solution, with diagnostics for inconsistent inputs</span></span>
 <span><span class="fu"><a href="reference/compare_methods.html">compare_methods</a></span><span class="op">(</span><span class="va">m</span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Uncertainty: Monte Carlo of the global inputs, Rasmussen et al. (2024)</span></span>
+<span><span class="co"># Uncertainty: Monte Carlo of the global inputs, Rasmussen et al. (2024).</span></span>
+<span><span class="co"># Means of the adjusted impacts reproduce Table 5 (culling: add 1 to get HRs).</span></span>
 <span><span class="va">mc</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/cm_monte_carlo.html">cm_monte_carlo</a></span><span class="op">(</span><span class="fu"><a href="reference/sampler_global_dairy.html">sampler_global_dairy</a></span><span class="op">(</span><span class="op">)</span>, <span class="fl">1000</span>, method <span class="op">=</span> <span class="st">"published"</span>, seed <span class="op">=</span> <span class="fl">1</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">mc</span><span class="op">)</span></span></code></pre></div>
 </div>
@@ -132,7 +133,7 @@
 <li>
 <strong>Gaps, losses and attribution:</strong> <code><a href="reference/productivity_gap.html">productivity_gap()</a></code>, <code><a href="reference/value_losses.html">value_losses()</a></code>, <code><a href="reference/attribute_burden.html">attribute_burden()</a></code>, <code><a href="reference/shapley_by_cell.html">shapley_by_cell()</a></code> and <code><a href="reference/contribution_table.html">contribution_table()</a></code>.</li>
 <li>
-<strong>Culling:</strong> <code><a href="reference/hr_conversion.html">hr_conversion()</a></code>, <code><a href="reference/as_impacts.html">as_impacts()</a></code> and <code><a href="reference/adjusted_hr.html">adjusted_hr()</a></code> (proportional hazards or the published approach).</li>
+<strong>Culling:</strong> <code><a href="reference/hr_conversion.html">hr_conversion()</a></code>, <code><a href="reference/as_impacts.html">as_impacts()</a></code> and <code><a href="reference/adjusted_hr.html">adjusted_hr()</a></code> (proportional hazards, or the published approaches of 2022 and 2024).</li>
 <li>
 <strong>Uncertainty:</strong> <code>dist_*()</code> distributions, <code><a href="reference/cm_sampler.html">cm_sampler()</a></code> (with optional correlation across outcomes), <code><a href="reference/cm_monte_carlo.html">cm_monte_carlo()</a></code> (with rejection reporting) and <code><a href="reference/cm_scenario.html">cm_scenario()</a></code> (importance reweighting).</li>
 <li>

@@ -56,7 +56,7 @@ given the disease's prevalence and the overall period risk.</p>
 <span>  <span class="va">hr</span>,</span>
 <span>  <span class="va">prevalence</span>,</span>
 <span>  <span class="va">overall_risk</span>,</span>
-<span>  method <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"proportional_hazards"</span>, <span class="st">"or_approx"</span><span class="op">)</span></span>
+<span>  method <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"proportional_hazards"</span>, <span class="st">"or_approx"</span>, <span class="st">"overall_odds"</span><span class="op">)</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -84,13 +84,17 @@ the period, so <code>risk_exposed = 1 - (1 - risk_unexposed)^hr</code>, with
 <li><p><code>"or_approx"</code>: treats the hazard ratio as an odds ratio in the 2x2
 table of disease by event (as in Rasmussen et al. 2022, section
 2.4.4 and Table 6). Provided to reproduce the published values.</p></li>
+<li><p><code>"overall_odds"</code>: treats the hazard ratio as an odds ratio relative to
+the overall risk, <code>risk_exposed = hr * r / (hr * r + 1 - r)</code>, with the
+overall risk <code>r</code> as the reference (<code>risk_unexposed = r</code>), as in the
+loss calculations of Rasmussen et al. (2024). <code>prevalence</code> is not used.</p></li>
 </ul></dd>
 
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>A data frame with <code>risk_exposed</code>, <code>risk_unexposed</code> and <code>excess</code>
-(their difference).</p>
+    <p>A data frame with <code>risk_exposed</code>, <code>risk_unexposed</code> (the reference
+risk) and <code>excess</code> (their difference).</p>
     </div>
 
     <div class="section level2">
@@ -103,6 +107,10 @@ table of disease by event (as in Rasmussen et al. 2022, section
 <span class="r-in"><span><span class="fu">hr_to_risk</span><span class="op">(</span><span class="fl">3.83</span>, <span class="fl">0.03</span>, <span class="fl">0.27</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>     hr prevalence overall_risk risk_exposed risk_unexposed    excess</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> 1 3.83       0.03         0.27    0.6799849      0.2573201 0.4226648</span>
+<span class="r-in"><span><span class="co"># Rasmussen et al. (2024): adjusted HR relative to the overall culling risk</span></span></span>
+<span class="r-in"><span><span class="fu">hr_to_risk</span><span class="op">(</span><span class="fl">2.75</span>, <span class="cn">NA</span>, <span class="fl">0.27</span>, method <span class="op">=</span> <span class="st">"overall_odds"</span><span class="op">)</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>     hr prevalence overall_risk risk_exposed risk_unexposed    excess</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 1 2.75         NA         0.27    0.5042445           0.27 0.2342445</span>
 </code></pre></div>
     </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

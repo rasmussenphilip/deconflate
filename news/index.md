@@ -2,6 +2,42 @@
 
 ## deconflate (development version)
 
+### Reproduction review
+
+Checked against the published 2024 analysis code (1st revision) and the
+2022 corrigendum.
+
+- **Breaking:**
+  [`example_global_dairy()`](https://rasmussenphilip.github.io/deconflate/reference/example_global_dairy.md)
+  and
+  [`sampler_global_dairy()`](https://rasmussenphilip.github.io/deconflate/reference/sampler_global_dairy.md)
+  gain `inputs = c("analysis", "tables")` and `culling = TRUE`. The
+  default, `"analysis"`, uses the inputs of the published analysis code,
+  which reproduce Table 5 of Rasmussen et al. (2024):
+  - fixed disease probabilities (`1 - exp(-incidence)` at the unrounded
+    global means; subclinical mastitis entered unconverted, as in the
+    analysis);
+  - unrounded impact parameters;
+  - a culling outcome entered as hazard ratio minus 1 (with the
+    analysis’s rescaled standard deviations in the sampler).
+
+  `inputs = "tables", culling = FALSE` gives the previous behaviour
+  (Tables 2-4 as printed).
+- [`adjusted_hr()`](https://rasmussenphilip.github.io/deconflate/reference/adjusted_hr.md)
+  gains `method = "excess_hr"` (adjusted HR - 1, plus 1), for which
+  `conversion` is not needed.
+- [`hr_to_risk()`](https://rasmussenphilip.github.io/deconflate/reference/hr_to_risk.md)
+  and
+  [`hr_conversion()`](https://rasmussenphilip.github.io/deconflate/reference/hr_conversion.md)
+  gain `method = "overall_odds"`, the excess culling risk used for the
+  2024 losses: `HR * r / (HR * r + 1 - r) - r`.
+- The reproduction vignette now has a comparison with Table 9 of
+  Rasmussen et al. (2022), notes on the yield and fertility-allocation
+  differences and on the corrigendum (which changes Table 7 only), and
+  an updated 2024 section with long-run Monte Carlo means for yield and
+  culling.
+- Added `inst/validation/reference_2024_analysis.py`.
+
 ### 0.0.0.9001
 
 Builds the remaining v0.1 features.

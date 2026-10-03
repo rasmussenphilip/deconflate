@@ -75,7 +75,7 @@
 - [`as_impacts()`](https://rasmussenphilip.github.io/deconflate/reference/as_impacts.md)
   : Turn a hazard-ratio conversion into impacts
 - [`adjusted_hr()`](https://rasmussenphilip.github.io/deconflate/reference/adjusted_hr.md)
-  : Convert adjusted excess risks back to hazard ratios
+  : Convert adjusted culling impacts back to hazard ratios
 
 ## Uncertainty and scenarios
 
@@ -131,7 +131,8 @@
   : Economic inputs for the UK dairy example (Rasmussen et al. 2022,
   Table 1)
 - [`example_global_dairy()`](https://rasmussenphilip.github.io/deconflate/reference/example_global_dairy.md)
-  : Global dairy inputs from Rasmussen et al. (2024), at their means
+  : Global dairy inputs from Rasmussen et al. (2024), at their central
+  values
 - [`sampler_global_dairy()`](https://rasmussenphilip.github.io/deconflate/reference/sampler_global_dairy.md)
   : Monte Carlo sampler for the global dairy inputs (Rasmussen et al.
   2024)

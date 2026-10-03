@@ -19,7 +19,7 @@ hr_conversion(
   diseases,
   hr,
   overall_risk,
-  method = c("proportional_hazards", "or_approx")
+  method = c("proportional_hazards", "or_approx", "overall_odds")
 )
 ```
 
@@ -44,8 +44,8 @@ hr_conversion(
 
 - method:
 
-  `"proportional_hazards"` (default) or `"or_approx"` (the published
-  approach of Rasmussen et al. 2022); see
+  `"proportional_hazards"` (default), `"or_approx"` (the published
+  approach of Rasmussen et al. 2022) or `"overall_odds"`; see
   [`hr_to_risk()`](https://rasmussenphilip.github.io/deconflate/reference/hr_to_risk.md).
 
 ## Value

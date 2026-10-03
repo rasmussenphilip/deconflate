@@ -45,7 +45,8 @@ plot_burden(res, eco)
 # Exact solution, with diagnostics for inconsistent inputs
 compare_methods(m)
 
-# Uncertainty: Monte Carlo of the global inputs, Rasmussen et al. (2024)
+# Uncertainty: Monte Carlo of the global inputs, Rasmussen et al. (2024).
+# Means of the adjusted impacts reproduce Table 5 (culling: add 1 to get HRs).
 mc <- cm_monte_carlo(sampler_global_dairy(), 1000, method = "published", seed = 1)
 summary(mc)
 ```
@@ -78,7 +79,7 @@ summary(mc)
   [`as_impacts()`](https://rasmussenphilip.github.io/deconflate/reference/as_impacts.md)
   and
   [`adjusted_hr()`](https://rasmussenphilip.github.io/deconflate/reference/adjusted_hr.md)
-  (proportional hazards or the published approach).
+  (proportional hazards, or the published approaches of 2022 and 2024).
 - **Uncertainty:** `dist_*()` distributions,
   [`cm_sampler()`](https://rasmussenphilip.github.io/deconflate/reference/cm_sampler.md)
   (with optional correlation across outcomes),

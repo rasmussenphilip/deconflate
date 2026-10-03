@@ -41,8 +41,9 @@ any issues.
 GitHub Actions: `usethis::use_github_action("check-standard")` and
 `usethis::use_pkgdown_github_pages()`.
 
-Review the reproduction vignette against the original spreadsheets (2022
-yield inputs; 2024 handling of negative draws).
+Review the reproduction vignette against the original analysis files
+(2024: 1st-revision code and inputs; 2022: original files unavailable,
+corrigendum checked).
 
 Tag v0.1.0.
 

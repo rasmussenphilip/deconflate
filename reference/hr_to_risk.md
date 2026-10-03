@@ -11,7 +11,7 @@ hr_to_risk(
   hr,
   prevalence,
   overall_risk,
-  method = c("proportional_hazards", "or_approx")
+  method = c("proportional_hazards", "or_approx", "overall_odds")
 )
 ```
 
@@ -40,10 +40,16 @@ hr_to_risk(
     table of disease by event (as in Rasmussen et al. 2022, section
     2.4.4 and Table 6). Provided to reproduce the published values.
 
+  - `"overall_odds"`: treats the hazard ratio as an odds ratio relative
+    to the overall risk, `risk_exposed = hr * r / (hr * r + 1 - r)`,
+    with the overall risk `r` as the reference (`risk_unexposed = r`),
+    as in the loss calculations of Rasmussen et al. (2024). `prevalence`
+    is not used.
+
 ## Value
 
-A data frame with `risk_exposed`, `risk_unexposed` and `excess` (their
-difference).
+A data frame with `risk_exposed`, `risk_unexposed` (the reference risk)
+and `excess` (their difference).
 
 ## Examples
 
@@ -56,4 +62,8 @@ hr_to_risk(3.83, 0.03, 0.27, method = "or_approx")
 hr_to_risk(3.83, 0.03, 0.27)
 #>     hr prevalence overall_risk risk_exposed risk_unexposed    excess
 #> 1 3.83       0.03         0.27    0.6799849      0.2573201 0.4226648
+# Rasmussen et al. (2024): adjusted HR relative to the overall culling risk
+hr_to_risk(2.75, NA, 0.27, method = "overall_odds")
+#>     hr prevalence overall_risk risk_exposed risk_unexposed    excess
+#> 1 2.75         NA         0.27    0.5042445           0.27 0.2342445
 ```

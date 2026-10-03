@@ -42,6 +42,22 @@
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="development version" id="deconflate-development-version">deconflate (development version)<a class="anchor" aria-label="anchor" href="#deconflate-development-version"></a></h2>
 <div class="section level3">
+<h3 id="reproduction-review-development-version">Reproduction review<a class="anchor" aria-label="anchor" href="#reproduction-review-development-version"></a></h3>
+<p>Checked against the published 2024 analysis code (1st revision) and the 2022 corrigendum.</p>
+<ul><li>
+<strong>Breaking:</strong> <code><a href="../reference/example_global_dairy.html">example_global_dairy()</a></code> and <code><a href="../reference/sampler_global_dairy.html">sampler_global_dairy()</a></code> gain <code>inputs = c("analysis", "tables")</code> and <code>culling = TRUE</code>. The default, <code>"analysis"</code>, uses the inputs of the published analysis code, which reproduce Table 5 of Rasmussen et al. (2024):
+<ul><li>fixed disease probabilities (<code>1 - exp(-incidence)</code> at the unrounded global means; subclinical mastitis entered unconverted, as in the analysis);</li>
+<li>unrounded impact parameters;</li>
+<li>a culling outcome entered as hazard ratio minus 1 (with the analysis’s rescaled standard deviations in the sampler).</li>
+</ul><code>inputs = "tables", culling = FALSE</code> gives the previous behaviour (Tables 2-4 as printed).</li>
+<li>
+<code><a href="../reference/adjusted_hr.html">adjusted_hr()</a></code> gains <code>method = "excess_hr"</code> (adjusted HR - 1, plus 1), for which <code>conversion</code> is not needed.</li>
+<li>
+<code><a href="../reference/hr_to_risk.html">hr_to_risk()</a></code> and <code><a href="../reference/hr_conversion.html">hr_conversion()</a></code> gain <code>method = "overall_odds"</code>, the excess culling risk used for the 2024 losses: <code>HR * r / (HR * r + 1 - r) - r</code>.</li>
+<li>The reproduction vignette now has a comparison with Table 9 of Rasmussen et al. (2022), notes on the yield and fertility-allocation differences and on the corrigendum (which changes Table 7 only), and an updated 2024 section with long-run Monte Carlo means for yield and culling.</li>
+<li>Added <code>inst/validation/reference_2024_analysis.py</code>.</li>
+</ul></div>
+<div class="section level3">
 <h3 id="id_0009001-development-version">0.0.0.9001<a class="anchor" aria-label="anchor" href="#id_0009001-development-version"></a></h3>
 <p>Builds the remaining v0.1 features.</p>
 <div class="section level4">

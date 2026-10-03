@@ -136,24 +136,84 @@ treating them as odds ratios, as in the paper
 <span><span class="co">#&gt; 11     PTB 2.40 0.19637306      0.13437261    1.642253</span></span>
 <span><span class="co">#&gt; 12      RP 1.00 0.00000000      0.00000000    1.000000</span></span>
 <span><span class="co">#&gt; 13     SCK 2.10 0.15726427      0.09665490    1.290664</span></span></code></pre></div>
+<div class="section level3">
+<h3 id="comparison-with-table-9">Comparison with Table 9<a class="anchor" aria-label="anchor" href="#comparison-with-table-9"></a>
+</h3>
+<p>Using the inputs as printed in Tables 2-6:</p>
+<table class="table">
+<thead><tr class="header">
+<th></th>
+<th>Published (Table 9)</th>
+<th>Package</th>
+</tr></thead>
+<tbody>
+<tr class="odd">
+<td>Yield potential (kg/cow/year)</td>
+<td>9306.32</td>
+<td>9299.21</td>
+</tr>
+<tr class="even">
+<td>Yield gap value (GBP/cow/year)</td>
+<td>172.05</td>
+<td>169.90</td>
+</tr>
+<tr class="odd">
+<td>Calving interval potential (days)</td>
+<td>375.09</td>
+<td>375.09</td>
+</tr>
+<tr class="even">
+<td>Fertility gap value (GBP/cow/year)</td>
+<td>101.79</td>
+<td>101.78</td>
+</tr>
+<tr class="odd">
+<td>Culling rate potential (%)</td>
+<td>22.56</td>
+<td>22.55</td>
+</tr>
+<tr class="even">
+<td>Culling gap value (GBP/cow/year)</td>
+<td>59.27</td>
+<td>59.48</td>
+</tr>
+<tr class="odd">
+<td>Total including veterinary costs (GBP/cow/year)</td>
+<td>404.21</td>
+<td>402.25</td>
+</tr>
+</tbody>
+</table>
 <p><strong>What reproduces.</strong></p>
 <ul>
-<li>Fertility matches Tables 9-10: a disease-free calving interval of
-375.09 days, valued at GBP 101.79 per cow per year.</li>
-<li>The adjusted culling hazard ratios match Table 8 to within
-0.01.</li>
-<li>The culling gap is within 0.5% of the published value.</li>
+<li>Fertility matches Table 9 (375.09 days, GBP 101.79 vs 101.78 after
+rounding).</li>
+<li>The adjusted culling hazard ratios match Table 8 to within 0.01, and
+the culling gap is within 0.5% of the published value.</li>
 </ul>
-<p><strong>What does not.</strong> Yield cannot be reproduced exactly
-from the printed Table 4.</p>
+<p><strong>What does not.</strong></p>
 <ul>
-<li>The tables imply different inputs. For subclinical ketosis, note i
-of Table 4 (340 kg per lactation) gives 340 / 8737 = 3.89%, not the
-printed 3.05%. With 3.89% the adjusted values match Table 8 (SCK 2.66 vs
-2.65, lameness 4.75 vs 4.76).</li>
-<li>Table 10’s yield column implies further small differences in the
-inputs, for example for fasciolosis.</li>
+<li>
+<strong>Yield.</strong> The adjusted yield impacts cannot be
+reproduced exactly from the printed Table 4. For subclinical ketosis,
+note i of Table 4 (340 kg per lactation) gives 340 / 8737 = 3.89%, not
+the printed 3.05%. With 3.89%, most adjusted values match Table 8 (SCK
+2.66 vs 2.65, lameness 4.75 vs 4.76), but displaced abomasum does not
+(2.28 vs 2.49). Table 10’s yield column implies further small input
+differences, for example for fasciolosis (7.04 vs 7.33).</li>
+<li>
+<strong>Allocation of the fertility gap.</strong> Table 10 allocates
+GBP 15.09 to cystic ovary and GBP 5.80 to metritis. Allocating the gap
+in proportion to each disease’s adjusted impact times its prevalence, as
+described in the paper (eq. 22), gives GBP 14.76 and GBP 6.04. The total
+is the same.</li>
 </ul>
+<p>The original spreadsheets for the 2022 analysis are no longer
+available, so the source of these differences cannot be checked. The
+published corrigendum does not explain them: it corrects Table 7 only
+(the dystocia loss taken from the literature, GBP 20.97 to GBP 31.92,
+and the directly aggregated total, now GBP 660.26), which is not an
+input to the comorbidity adjustment.</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">m389</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/example_uk_dairy_2022.html">example_uk_dairy_2022</a></span><span class="op">(</span>yield_sck <span class="op">=</span> <span class="fl">100</span> <span class="op">*</span> <span class="fl">340</span> <span class="op">/</span> <span class="fl">8737</span><span class="op">)</span></span>
 <span><span class="va">y</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/deconflate.html">deconflate</a></span><span class="op">(</span><span class="va">m389</span>, method <span class="op">=</span> <span class="st">"published"</span><span class="op">)</span><span class="op">$</span><span class="va">adjusted</span></span>
@@ -172,6 +232,7 @@ inputs, for example for fasciolosis.</li>
 <span><span class="co">#&gt; 11     PTB 0.05900000 0.0443065737</span></span>
 <span><span class="co">#&gt; 12      RP 0.07380000 0.0608140196</span></span>
 <span><span class="co">#&gt; 13     SCK 0.03891496 0.0266151273</span></span></code></pre></div>
+</div>
 <div class="section level3">
 <h3 id="corrections-the-package-makes-available">Corrections the package makes available<a class="anchor" aria-label="anchor" href="#corrections-the-package-makes-available"></a>
 </h3>
@@ -218,46 +279,221 @@ risk as a proportional increase in the rate.</li>
 <div class="section level2">
 <h2 id="global-dairy-analysis-2024-table-5">Global dairy analysis (2024, Table 5)<a class="anchor" aria-label="anchor" href="#global-dairy-analysis-2024-table-5"></a>
 </h2>
-<p>Table 5 reports the means of comorbidity-adjusted impacts over Monte
-Carlo draws of the inputs in Tables 2-4.
-<code><a href="../reference/sampler_global_dairy.html">sampler_global_dairy()</a></code> encodes those distributions. In
-Tables 2-4, the central value of a PERT distribution is its mode. Run
-with many more draws for stable estimates; 200 are used here to keep the
-vignette fast.</p>
+<p>Table 5 reports the means of comorbidity-adjusted impacts over 50,000
+Monte Carlo draws per outcome. <code><a href="../reference/sampler_global_dairy.html">sampler_global_dairy()</a></code>
+encodes the input distributions. By default
+(<code>inputs = "analysis"</code>) it follows the published analysis
+code rather than the printed tables:</p>
+<ul>
+<li>
+<strong>Fixed disease probabilities.</strong> Prevalence and
+incidence were not drawn in the adjustment. Each probability is
+<code>1 - exp(-incidence)</code> at the unrounded global mean, except
+paratuberculosis (a prevalence) and subclinical mastitis, which was
+entered without conversion (0.409 rather than 0.336).</li>
+<li>
+<strong>PERT distributions</strong> use the central value in Tables
+2-4 as the mode.</li>
+<li>
+<strong>Unrounded impact parameters</strong>, e.g. a clinical
+ketosis yield impact of 0.4322% rather than 0.43%.</li>
+<li>
+<strong>Culling</strong> was adjusted on the hazard ratio scale: HR
+- 1 was adjusted, and 1 was added back. Normal standard deviations were
+scaled by (HR - 1) / HR, and metritis used a PERT distribution (mode
+1.12) rather than the normal distribution in Table 4 (mean 1.05).</li>
+</ul>
+<p><code>sampler_global_dairy(inputs = "tables")</code> uses Tables 2-4
+as printed instead. Run with many more draws for stable estimates; 200
+are used here to keep the vignette fast.</p>
 <div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">mc</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cm_monte_carlo.html">cm_monte_carlo</a></span><span class="op">(</span><span class="fu"><a href="../reference/sampler_global_dairy.html">sampler_global_dairy</a></span><span class="op">(</span><span class="op">)</span>, <span class="fl">200</span>, method <span class="op">=</span> <span class="st">"published"</span>, seed <span class="op">=</span> <span class="fl">2024</span><span class="op">)</span></span>
 <span><span class="va">s</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">mc</span><span class="op">)</span></span>
-<span><span class="va">y</span> <span class="op">&lt;-</span> <span class="va">s</span><span class="op">[</span><span class="va">s</span><span class="op">$</span><span class="va">outcome</span> <span class="op">==</span> <span class="st">"yield"</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"disease"</span>, <span class="st">"mean"</span>, <span class="st">"q0.025"</span>, <span class="st">"q0.975"</span><span class="op">)</span><span class="op">]</span></span>
-<span><span class="va">y</span><span class="op">$</span><span class="va">mean_pct</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fl">100</span> <span class="op">*</span> <span class="va">y</span><span class="op">$</span><span class="va">mean</span>, <span class="fl">2</span><span class="op">)</span></span>
-<span><span class="va">y</span><span class="op">$</span><span class="va">table5</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>CK <span class="op">=</span> <span class="fl">0.03</span>, CM <span class="op">=</span> <span class="fl">1.36</span>, DA <span class="op">=</span> <span class="fl">1.18</span>, DYS <span class="op">=</span> <span class="fl">3.48</span>, LAM <span class="op">=</span> <span class="fl">2.62</span>, MET <span class="op">=</span> <span class="fl">2.87</span>,</span>
-<span>              MF <span class="op">=</span> <span class="fl">0.07</span>, OC <span class="op">=</span> <span class="fl">2.59</span>, PTB <span class="op">=</span> <span class="fl">3.37</span>, RP <span class="op">=</span> <span class="fl">2.30</span>, SCK <span class="op">=</span> <span class="fl">7.11</span>, SCM <span class="op">=</span> <span class="fl">5.58</span><span class="op">)</span><span class="op">[</span><span class="va">y</span><span class="op">$</span><span class="va">disease</span><span class="op">]</span></span>
-<span><span class="va">y</span><span class="op">[</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"disease"</span>, <span class="st">"mean_pct"</span>, <span class="st">"table5"</span><span class="op">)</span><span class="op">]</span></span>
-<span><span class="co">#&gt;    disease mean_pct table5</span></span>
-<span><span class="co">#&gt; 2       CK     0.03   0.03</span></span>
-<span><span class="co">#&gt; 4       CM     1.40   1.36</span></span>
-<span><span class="co">#&gt; 6       DA     1.12   1.18</span></span>
-<span><span class="co">#&gt; 8      DYS     3.63   3.48</span></span>
-<span><span class="co">#&gt; 10     LAM     2.61   2.62</span></span>
-<span><span class="co">#&gt; 12     MET     2.82   2.87</span></span>
-<span><span class="co">#&gt; 14      MF     0.07   0.07</span></span>
-<span><span class="co">#&gt; 16      OC     2.53   2.59</span></span>
-<span><span class="co">#&gt; 18     PTB     3.25   3.37</span></span>
-<span><span class="co">#&gt; 20      RP     2.25   2.30</span></span>
-<span><span class="co">#&gt; 22     SCK     7.10   7.11</span></span>
-<span><span class="co">#&gt; 24     SCM     5.49   5.58</span></span></code></pre></div>
-<p>The yield means agree closely with Table 5. For fertility impacts
-whose raw distributions extend below zero (e.g. metritis, subclinical
-ketosis and subclinical mastitis), the published approximation is
-unstable, so their means depend on how such draws are handled.</p>
-<p>The simultaneous solution at the input means shows the inconsistency
-directly. Several adjusted impacts change sign, while the total burden
-stays similar:</p>
+<span><span class="va">s</span><span class="op">$</span><span class="va">package</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/ifelse.html" class="external-link">ifelse</a></span><span class="op">(</span><span class="va">s</span><span class="op">$</span><span class="va">outcome</span> <span class="op">==</span> <span class="st">"culling"</span>, <span class="fl">1</span> <span class="op">+</span> <span class="va">s</span><span class="op">$</span><span class="va">mean</span>, <span class="fl">100</span> <span class="op">*</span> <span class="va">s</span><span class="op">$</span><span class="va">mean</span><span class="op">)</span>, <span class="fl">2</span><span class="op">)</span></span>
+<span><span class="va">table5</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
+<span>  yield <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0.03</span>, <span class="fl">1.36</span>, <span class="fl">1.18</span>, <span class="fl">3.48</span>, <span class="fl">2.62</span>, <span class="fl">2.87</span>, <span class="fl">0.07</span>, <span class="fl">2.59</span>, <span class="fl">3.37</span>, <span class="fl">2.30</span>, <span class="fl">7.11</span>, <span class="fl">5.58</span><span class="op">)</span>,</span>
+<span>  culling <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1.18</span>, <span class="fl">1.90</span>, <span class="fl">2.75</span>, <span class="fl">1.18</span>, <span class="fl">1.40</span>, <span class="fl">1.03</span>, <span class="fl">2.64</span>, <span class="fl">1.51</span>, <span class="fl">2.07</span>, <span class="fl">1.29</span>, <span class="fl">1.67</span>, <span class="fl">1.25</span><span class="op">)</span></span>
+<span><span class="op">)</span></span>
+<span><span class="va">ids</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"CK"</span>, <span class="st">"CM"</span>, <span class="st">"DA"</span>, <span class="st">"DYS"</span>, <span class="st">"LAM"</span>, <span class="st">"MET"</span>, <span class="st">"MF"</span>, <span class="st">"OC"</span>, <span class="st">"PTB"</span>, <span class="st">"RP"</span>, <span class="st">"SCK"</span>, <span class="st">"SCM"</span><span class="op">)</span></span>
+<span><span class="va">pkg</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">o</span><span class="op">)</span> <span class="va">s</span><span class="op">$</span><span class="va">package</span><span class="op">[</span><span class="va">s</span><span class="op">$</span><span class="va">outcome</span> <span class="op">==</span> <span class="va">o</span><span class="op">]</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/match.html" class="external-link">match</a></span><span class="op">(</span><span class="va">ids</span>, <span class="va">s</span><span class="op">$</span><span class="va">disease</span><span class="op">[</span><span class="va">s</span><span class="op">$</span><span class="va">outcome</span> <span class="op">==</span> <span class="va">o</span><span class="op">]</span><span class="op">)</span><span class="op">]</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
+<span>  disease <span class="op">=</span> <span class="va">ids</span>,</span>
+<span>  yield_package <span class="op">=</span> <span class="fu">pkg</span><span class="op">(</span><span class="st">"yield"</span><span class="op">)</span>, yield_table5 <span class="op">=</span> <span class="va">table5</span><span class="op">$</span><span class="va">yield</span>,</span>
+<span>  culling_package <span class="op">=</span> <span class="fu">pkg</span><span class="op">(</span><span class="st">"culling"</span><span class="op">)</span>, culling_table5 <span class="op">=</span> <span class="va">table5</span><span class="op">$</span><span class="va">culling</span></span>
+<span><span class="op">)</span></span>
+<span><span class="co">#&gt;    disease yield_package yield_table5 culling_package culling_table5</span></span>
+<span><span class="co">#&gt; 1       CK          0.03         0.03            1.18           1.18</span></span>
+<span><span class="co">#&gt; 2       CM          1.33         1.36            1.89           1.90</span></span>
+<span><span class="co">#&gt; 3       DA          1.17         1.18            2.77           2.75</span></span>
+<span><span class="co">#&gt; 4      DYS          3.46         3.48            1.19           1.18</span></span>
+<span><span class="co">#&gt; 5      LAM          2.56         2.62            1.39           1.40</span></span>
+<span><span class="co">#&gt; 6      MET          2.91         2.87            1.03           1.03</span></span>
+<span><span class="co">#&gt; 7       MF          0.07         0.07            2.67           2.64</span></span>
+<span><span class="co">#&gt; 8       OC          2.52         2.59            1.48           1.51</span></span>
+<span><span class="co">#&gt; 9      PTB          3.32         3.37            2.06           2.07</span></span>
+<span><span class="co">#&gt; 10      RP          2.24         2.30            1.29           1.29</span></span>
+<span><span class="co">#&gt; 11     SCK          7.14         7.11            1.67           1.67</span></span>
+<span><span class="co">#&gt; 12     SCM          5.70         5.58            1.25           1.25</span></span></code></pre></div>
+<p>With 200,000 draws
+(<code>inst/validation/reference_2024_analysis.py</code>), the means
+are:</p>
+<table class="table">
+<colgroup>
+<col width="20%">
+<col width="20%">
+<col width="20%">
+<col width="20%">
+<col width="20%">
+</colgroup>
+<thead><tr class="header">
+<th>Disease</th>
+<th>Yield, Table 5</th>
+<th>Yield, package</th>
+<th>Culling HR, Table 5</th>
+<th>Culling HR, package</th>
+</tr></thead>
+<tbody>
+<tr class="odd">
+<td>CK</td>
+<td>0.03</td>
+<td>0.04</td>
+<td>1.18</td>
+<td>1.18</td>
+</tr>
+<tr class="even">
+<td>CM</td>
+<td>1.36</td>
+<td>1.36</td>
+<td>1.90</td>
+<td>1.90</td>
+</tr>
+<tr class="odd">
+<td>DA</td>
+<td>1.18</td>
+<td>1.18</td>
+<td>2.75</td>
+<td>2.74</td>
+</tr>
+<tr class="even">
+<td>DYS</td>
+<td>3.48</td>
+<td>3.49</td>
+<td>1.18</td>
+<td>1.20</td>
+</tr>
+<tr class="odd">
+<td>LAM</td>
+<td>2.62</td>
+<td>2.60</td>
+<td>1.40</td>
+<td>1.39</td>
+</tr>
+<tr class="even">
+<td>MET</td>
+<td>2.87</td>
+<td>2.86</td>
+<td>1.03</td>
+<td>1.03</td>
+</tr>
+<tr class="odd">
+<td>MF</td>
+<td>0.07</td>
+<td>0.07</td>
+<td>2.64</td>
+<td>2.64</td>
+</tr>
+<tr class="even">
+<td>OC</td>
+<td>2.59</td>
+<td>2.51</td>
+<td>1.51</td>
+<td>1.48</td>
+</tr>
+<tr class="odd">
+<td>PTB</td>
+<td>3.37</td>
+<td>3.32</td>
+<td>2.07</td>
+<td>2.06</td>
+</tr>
+<tr class="even">
+<td>RP</td>
+<td>2.30</td>
+<td>2.30</td>
+<td>1.29</td>
+<td>1.29</td>
+</tr>
+<tr class="odd">
+<td>SCK</td>
+<td>7.11</td>
+<td>7.11</td>
+<td>1.67</td>
+<td>1.67</td>
+</tr>
+<tr class="even">
+<td>SCM</td>
+<td>5.58</td>
+<td>5.58</td>
+<td>1.25</td>
+<td>1.25</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Negative odds-ratio draws.</strong> About 3% of draws of the
+lameness:ovarian cyst odds ratio (normal, mean 2.63, SD 1.44) are
+negative, as are about 1% of lameness:paratuberculosis draws. The
+analysis code used these draws as they were, taking the absolute value
+of a negative discriminant in eq. 11. A negative odds ratio has no valid
+2x2 table, so the package truncates normal odds-ratio distributions at
+zero. This explains the paratuberculosis yield difference (3.38 without
+truncation). It does not explain ovarian cyst (2.51 with or without
+truncation): in the analysis output, the spread of the adjusted ovarian
+cyst yield impact is several times larger than for the other diseases,
+which suggests that a few extreme draws drive its mean.</p>
+<p><strong>Fertility.</strong> Fertility means for clinical mastitis,
+dystocia, lameness, milk fever, ovarian cyst and retained placenta agree
+with Table 5 to within about 0.05 (for example clinical mastitis 6.10 vs
+6.09). Clinical ketosis (0.30 vs 0.34) and paratuberculosis (4.08 vs
+4.23) differ more. Where the raw impact distribution extends below zero
+(displaced abomasum, metritis, subclinical ketosis and subclinical
+mastitis), the published approximation <code>m^2 / (m + c)</code> is
+unstable: draws in which <code>m + c</code> is close to zero produce
+extreme values. For subclinical ketosis the Monte Carlo mean does not
+settle even with 200,000 draws, and for subclinical mastitis the
+archived inputs give 0.52% rather than the 0.04% in Table 5. Medians, or
+the exact (simultaneous) solution, are more robust summaries.</p>
+<p>The simultaneous solution at the central values shows the
+inconsistency directly. Several adjusted impacts change sign, while the
+total burden stays similar:</p>
 <div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">res24</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/warning.html" class="external-link">suppressWarnings</a></span><span class="op">(</span><span class="fu"><a href="../reference/deconflate.html">deconflate</a></span><span class="op">(</span><span class="fu"><a href="../reference/example_global_dairy.html">example_global_dairy</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="va">res24</span><span class="op">$</span><span class="va">diagnostics</span><span class="op">[</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"outcome"</span>, <span class="st">"n_sign_changes"</span>, <span class="st">"sign_changes"</span><span class="op">)</span><span class="op">]</span></span>
 <span><span class="co">#&gt;     outcome n_sign_changes          sign_changes</span></span>
 <span><span class="co">#&gt; 1     yield              4        CK, CM, DA, MF</span></span>
-<span><span class="co">#&gt; 2 fertility              5 CK, DA, LAM, SCK, SCM</span></span></code></pre></div>
+<span><span class="co">#&gt; 2 fertility              5 CK, DA, LAM, SCK, SCM</span></span>
+<span><span class="co">#&gt; 3   culling              2               CK, MET</span></span></code></pre></div>
+<p>Adjusted culling impacts convert back to hazard ratios with
+<code>adjusted_hr(..., method = "excess_hr")</code>. For the losses, the
+paper converted each adjusted hazard ratio to an excess culling risk
+relative to the overall culling rate <code>r</code>,
+<code>HR * r / (HR * r + 1 - r) - r</code>; this is
+<code>hr_to_risk(hr, NA, r, method = "overall_odds")</code>.</p>
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">pub24</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/deconflate.html">deconflate</a></span><span class="op">(</span><span class="fu"><a href="../reference/example_global_dairy.html">example_global_dairy</a></span><span class="op">(</span><span class="op">)</span>, method <span class="op">=</span> <span class="st">"published"</span><span class="op">)</span></span>
+<span><span class="fu"><a href="../reference/adjusted_hr.html">adjusted_hr</a></span><span class="op">(</span><span class="va">pub24</span>, method <span class="op">=</span> <span class="st">"excess_hr"</span><span class="op">)</span></span>
+<span><span class="co">#&gt;    disease       hr   excess excess_adjusted hr_adjusted</span></span>
+<span><span class="co">#&gt; 1       CK 1.500100 0.500100      0.17758038    1.177580</span></span>
+<span><span class="co">#&gt; 2       CM 2.300000 1.300000      0.90394063    1.903941</span></span>
+<span><span class="co">#&gt; 3       DA 2.851179 1.851179      1.19792993    2.197930</span></span>
+<span><span class="co">#&gt; 4      DYS 1.258143 0.258143      0.09837667    1.098377</span></span>
+<span><span class="co">#&gt; 5      LAM 1.744976 0.744976      0.38068270    1.380683</span></span>
+<span><span class="co">#&gt; 6      MET 1.116444 0.116444      0.01241058    1.012411</span></span>
+<span><span class="co">#&gt; 7       MF 2.999886 1.999886      1.64763745    2.647637</span></span>
+<span><span class="co">#&gt; 8       OC 1.620000 0.620000      0.45864412    1.458644</span></span>
+<span><span class="co">#&gt; 9      PTB 2.310508 1.310508      1.04723492    2.047235</span></span>
+<span><span class="co">#&gt; 10      RP 1.599928 0.599928      0.28449635    1.284496</span></span>
+<span><span class="co">#&gt; 11     SCK 1.920000 0.920000      0.67525327    1.675253</span></span>
+<span><span class="co">#&gt; 12     SCM 1.449996 0.449996      0.25492756    1.254928</span></span></code></pre></div>
 </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside>
