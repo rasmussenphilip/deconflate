@@ -1,4 +1,4 @@
-# deconflate (development version)
+# deconflate 0.1.0
 
 ## Reproduction review
 
