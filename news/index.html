@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">deconflate</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0.9000</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.2.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -38,14 +38,14 @@
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Changelog</h1>
-      <small>Source: <a href="https://github.com/rasmussenphilip/deconflate/blob/master/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
+      <small>Source: <a href="https://github.com/rasmussenphilip/deconflate/blob/v0.2.0/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
     <div class="section level2">
-<h2 class="pkg-version" data-toc-text="development version" id="deconflate-development-version">deconflate (development version)<a class="anchor" aria-label="anchor" href="#deconflate-development-version"></a></h2>
+<h2 class="pkg-version" data-toc-text="0.2.0" id="deconflate-020">deconflate 0.2.0<a class="anchor" aria-label="anchor" href="#deconflate-020"></a></h2>
 <p>Work towards 0.2.0. This version implements an external review of 0.1.0 and the planned hazard-ratio, import and Monte Carlo work. It changes the interface: models written for 0.1.0 need updating (see “Breaking changes”).</p>
 <div class="section level3">
-<h3 id="breaking-changes-development-version">Breaking changes<a class="anchor" aria-label="anchor" href="#breaking-changes-development-version"></a></h3>
+<h3 id="breaking-changes-0-2-0">Breaking changes<a class="anchor" aria-label="anchor" href="#breaking-changes-0-2-0"></a></h3>
 <ul><li>
 <strong>One impact vector per analysis, in any units.</strong> <code><a href="../reference/cm_impacts.html">cm_impacts()</a></code> no longer has <code>outcome</code>, <code>scale</code> or <code>direction</code>. Each analysis adjusts one set of additive impacts in the units supplied (kg, percent, days, euros, welfare scores); results come back in the same units, with optional <code>label</code> and <code>units</code> metadata. The engine does no unit conversion.</li>
 <li>
@@ -72,7 +72,7 @@
 <code><a href="../reference/cm_read_inputs.html">cm_read_inputs()</a></code> reads one impact table per analysis (see below).</li>
 </ul></div>
 <div class="section level3">
-<h3 id="new-features-development-version">New features<a class="anchor" aria-label="anchor" href="#new-features-development-version"></a></h3>
+<h3 id="new-features-0-2-0">New features<a class="anchor" aria-label="anchor" href="#new-features-0-2-0"></a></h3>
 <ul><li>
 <strong>Reading your own data:</strong> <code>impacts_&lt;analysis&gt;.csv</code> files (or a named list of data frames), <code>interactions_&lt;analysis&gt;.csv</code>, <code>three_way.csv</code>, <code>hazard_ratios.csv</code>, and <code>uncertainty.csv</code> / <code>uncertainty_&lt;analysis&gt;.csv</code>. The result has <code>population</code>, <code>analyses</code>, <code>model</code> (one analysis), <code>hr_model</code> and a sampler (a batch sampler for several analyses). Every problem is reported with its table, row and column; <code><a href="../reference/cm_read_inputs.html">cm_read_inputs()</a></code> stops with class <code>deconflate_input_problems</code> when there are errors. The example folders in <code>inst/extdata</code> (<code>global_dairy_2024</code>, <code>example_with_errors</code>) use the new layout.</li>
 <li>
@@ -89,7 +89,7 @@
 <code><a href="../reference/example_global_dairy_hr.html">example_global_dairy_hr()</a></code>: the 2024 culling hazard ratios as a hazard-ratio model.</li>
 </ul></div>
 <div class="section level3">
-<h3 id="corrections-and-checks-development-version">Corrections and checks<a class="anchor" aria-label="anchor" href="#corrections-and-checks-development-version"></a></h3>
+<h3 id="corrections-and-checks-0-2-0">Corrections and checks<a class="anchor" aria-label="anchor" href="#corrections-and-checks-0-2-0"></a></h3>
 <ul><li>
 <strong>Feasibility:</strong> the pairwise methods screen every triple of diseases by default (<code>feasibility = c("screen", "lp", "none")</code>); an invertible conflation matrix does not mean the pairs are jointly feasible.</li>
 <li>
@@ -108,12 +108,12 @@
 <li>Sensitivity screens report failed scenarios in a <code>failed</code> column instead of dropping them, and reject unknown pairs or triples.</li>
 </ul></div>
 <div class="section level3">
-<h3 id="validation-development-version">Validation<a class="anchor" aria-label="anchor" href="#validation-development-version"></a></h3>
+<h3 id="validation-0-2-0">Validation<a class="anchor" aria-label="anchor" href="#validation-0-2-0"></a></h3>
 <ul><li>New Python references: <code>inst/validation/reference_v020.py</code> (estimands, interactions, feasibility, three-way terms) and <code>reference_v020_tests.py</code>.</li>
 <li>Tests cover the reviewer’s list: known-truth recovery for crude, adjusted and fully adjusted estimands, with interactions, in arbitrary units and after rescaling; the projection counterexample; zero, cancelling, singular and non-finite cases; infeasible pairs with a well-conditioned matrix; a stale joint; removable poles; importance-sampling support and standard errors; repeated-run calibration of the standard errors; separate impact files on one population; allocation completeness; and the three-way term of the fitted joint.</li>
 </ul></div>
 <div class="section level3">
-<h3 id="known-limitations-development-version">Known limitations<a class="anchor" aria-label="anchor" href="#known-limitations-development-version"></a></h3>
+<h3 id="known-limitations-0-2-0">Known limitations<a class="anchor" aria-label="anchor" href="#known-limitations-0-2-0"></a></h3>
 <ul><li>The adjustment is exact for additive impacts. Adjusted estimands other than coefficients of additive regressions (e.g. matched or propensity-score estimates, or coefficients of non-linear models) are not supported.</li>
 <li>The probabilities and associations must describe the population the impact estimates come from.</li>
 <li>Pairwise associations do not identify three-way structure; the global method assumes maximum entropy unless three-way scenarios are given.</li>

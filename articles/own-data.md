@@ -56,7 +56,7 @@ writes an example set of files to a folder:
 
 dir <- file.path(tempdir(), "my-inputs")
 cm_template(dir, overwrite = TRUE)
-#> Wrote 8 files to /tmp/Rtmp6sYf0q/my-inputs
+#> Wrote 8 files to /tmp/RtmpVbH1ae/my-inputs
 list.files(dir)
 #> [1] "associations.csv"             "diseases.csv"                
 #> [3] "hazard_ratios.csv"            "impacts_calving_interval.csv"

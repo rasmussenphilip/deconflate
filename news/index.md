@@ -1,6 +1,6 @@
 # Changelog
 
-## deconflate (development version)
+## deconflate 0.2.0
 
 Work towards 0.2.0. This version implements an external review of 0.1.0
 and the planned hazard-ratio, import and Monte Carlo work. It changes
