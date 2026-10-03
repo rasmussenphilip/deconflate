@@ -24,16 +24,22 @@ cm_impacts(
 Each disease needs exactly one impact per outcome (use \code{0} for no
 impact).}
 
-\item{scale}{\code{"proportion"} (proportional change relative to the
-disease-free value, e.g. \code{0.025}), \code{"percent"} (converted to proportion)
-or \code{"absolute"} (in \code{units}). The scale must be constant within an
-outcome. Productivity gaps require proportion or percent.}
+\item{scale}{The scale of \code{value}, constant within an outcome:
+\itemize{
+\item \code{"proportion"}: proportional change relative to the disease-free value
+(e.g. \code{0.025});
+\item \code{"percent"}: converted to a proportion;
+\item \code{"absolute"}: in \code{units} (e.g. excess culling risk);
+\item \code{"hazard_ratio"}: a hazard ratio (e.g. for culling or mortality),
+adjusted on the log scale; see \code{\link[=deconflate]{deconflate()}} and
+\code{\link[=attributable_risk]{attributable_risk()}}.
+}}
 
 \item{units}{Optional units label (required for \code{"absolute"}).}
 
 \item{direction}{\code{"decrease"} if disease lowers the outcome (e.g. yield) or
 \code{"increase"} if it raises it (e.g. calving interval). Used by
-\code{\link[=productivity_gap]{productivity_gap()}}.}
+\code{\link[=productivity_gap]{productivity_gap()}}. Set to \code{"increase"} for hazard ratios.}
 
 \item{adjusted_for}{Diseases the raw estimate was already adjusted for,
 separated by \code{";"} (e.g. \code{"LAM; CM"}). Their conflation terms are
@@ -50,4 +56,6 @@ Describe raw (unadjusted) disease impact estimates
 \examples{
 cm_impacts(c("d1", "d2", "d3"), c(2.5, 5, 7.5), outcome = "yield",
            scale = "percent")
+cm_impacts(c("d1", "d2", "d3"), c(1.5, 2.3, 1.1), outcome = "culling",
+           scale = "hazard_ratio")
 }

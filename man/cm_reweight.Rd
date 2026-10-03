@@ -14,7 +14,8 @@ and returning \verb{log(target density / proposal density)} for each row.}
 }
 \value{
 \code{mc} with updated \code{weights} and \code{ess} (effective sample size,
-\code{1 / sum(w^2)}).
+\code{1 / sum(w^2)}). Importance weights from the original run (see the
+\code{proposal} argument of \code{\link[=cm_monte_carlo]{cm_monte_carlo()}}) are kept.
 }
 \description{
 Reweights accepted draws from \code{\link[=cm_monte_carlo]{cm_monte_carlo()}} so that summaries reflect

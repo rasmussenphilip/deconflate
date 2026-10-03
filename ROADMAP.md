@@ -1,6 +1,6 @@
 # Roadmap
 
-## v0.1 (in progress: version 0.0.0.9001)
+## v0.1 (released as 0.1.0)
 
 - [x] Input constructors with metadata.
 - [x] Association measures: OR, RR, RD, conditional probability, phi, contingency table, independent and unknown.
@@ -17,11 +17,21 @@
 - [x] Run `devtools::document()`, `test()` and `check()` on 0.0.0.9001 and fix any issues.
 - [x] GitHub Actions: `usethis::use_github_action("check-standard")` and `usethis::use_pkgdown_github_pages()`.
 - [x] Review the reproduction vignette against the original analysis files (2024: 1st-revision code and inputs; 2022: original files unavailable, corrigendum checked).
-- [ ] Tag v0.1.0.
+- [x] Tag v0.1.0.
 
-## After v0.1
+## v0.2 (in progress)
 
-- Advanced component accounting.
+- [x] Culling hazard ratios: exact multiplicative model (global), first-order log-linear (simultaneous) and the 2024 approach (published).
+- [x] `attributable_risk()`: culling attributable to disease without double counting, with Shapley allocation.
+- [x] Reading inputs from CSV files or data frames, with all problems reported at once; template files.
+- [x] Method comparison tables for models and for Monte Carlo runs (several methods on the same draws).
+- [x] Monte Carlo stability diagnostics with suggestions; Latin hypercube and importance sampling.
+- [ ] Run `devtools::document()`, `test()` and `check()`, and fix any issues.
+
+## To discuss
+
 - Threshold searches: input values at which conclusions or rankings change.
-- Higher-order and non-linear interaction models in the adjustment itself (a per-cell loss function and a non-linear solve).
-- Scaling beyond about 20 diseases, e.g. a pseudo-likelihood Ising fit or sampling instead of the full 2^n table.
+- Advanced component accounting.
+- Lost productive life as a culling outcome.
+- Scaling beyond about 20 diseases (the global method and the exact culling model enumerate all 2^n combinations), e.g. a pseudo-likelihood Ising fit or sampling.
+- Higher-order and non-linear interaction models in the adjustment itself.

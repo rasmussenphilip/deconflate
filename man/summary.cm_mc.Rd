@@ -8,6 +8,8 @@
   object,
   what = c("adjusted", "loss", "total", "rejections"),
   probs = c(0.025, 0.5, 0.975),
+  trim = 0.05,
+  diagnose = TRUE,
   ...
 )
 }
@@ -20,12 +22,28 @@ losses per outcome and overall) or \code{"rejections"}.}
 
 \item{probs}{Quantiles to report.}
 
+\item{trim}{Fraction trimmed from each tail for \code{trimmed_mean}.}
+
+\item{diagnose}{Logical: print suggestions when estimates look unstable?}
+
 \item{...}{Unused.}
 }
 \value{
-A data frame of (weighted) means, SDs, quantiles and the Monte
-Carlo standard error of the mean (based on the effective sample size).
+A data frame of (weighted) means, SDs, the Monte Carlo standard
+error of the mean (\code{mcse}, based on the effective sample size),
+quantiles, a trimmed mean and stability diagnostics:
+\itemize{
+\item \code{rel_mcse}: \code{mcse} relative to the absolute mean;
+\item \code{tail_share}: the share of the variance contributed by the most
+extreme 1\% of draws;
+\item \code{stability}: \code{"ok"}, \code{"imprecise"} (\code{rel_mcse} above 5\%),
+\code{"heavy_tail"} (\code{tail_share} above 60\%) or \code{"no_mean"} (the published
+approximation divides by a quantity that changes sign across draws,
+so the mean does not exist).
+}
 }
 \description{
-Summarise Monte Carlo results
+Summarises adjusted impacts (or losses) over the accepted draws, and checks
+each estimate's stability. When some estimates look unstable, a message
+explains why and suggests a remedy (see \code{\link[=cm_diagnose]{cm_diagnose()}}).
 }

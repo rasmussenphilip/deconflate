@@ -16,7 +16,8 @@ estimates so that they can be aggregated.
 \enumerate{
 \item Describe the system with \code{\link[=cm_diseases]{cm_diseases()}}, \code{\link[=cm_associations]{cm_associations()}},
 \code{\link[=cm_impacts]{cm_impacts()}} and, optionally, \code{\link[=cm_interactions]{cm_interactions()}}, then combine them
-with \code{\link[=cm_model]{cm_model()}}.
+with \code{\link[=cm_model]{cm_model()}}. Or read the same tables from CSV files or data
+frames with \code{\link[=cm_read_inputs]{cm_read_inputs()}} (see \code{\link[=cm_template]{cm_template()}}).
 \item Adjust impacts with \code{\link[=deconflate]{deconflate()}}, using one of three methods:
 \itemize{
 \item \code{"simultaneous"} (default): the exact solution of the additive impact
@@ -29,10 +30,13 @@ interactions.
 }
 \item Estimate, value and attribute productivity gaps with
 \code{\link[=productivity_gap]{productivity_gap()}}, \code{\link[=value_losses]{value_losses()}}, \code{\link[=attribute_burden]{attribute_burden()}} and
-\code{\link[=contribution_table]{contribution_table()}}. Culling hazard ratios go through
-\code{\link[=hr_conversion]{hr_conversion()}}, \code{\link[=as_impacts]{as_impacts()}} and \code{\link[=adjusted_hr]{adjusted_hr()}}.
+\code{\link[=contribution_table]{contribution_table()}}. Culling hazard ratios can be adjusted directly
+(\code{scale = "hazard_ratio"}) and turned into culling attributable to
+disease with \code{\link[=attributable_risk]{attributable_risk()}}; \code{\link[=compare_methods]{compare_methods()}} tabulates the
+methods side by side.
 \item Check joint feasibility with \code{\link[=check_feasibility]{check_feasibility()}}.
-\item Propagate uncertainty with \code{\link[=cm_sampler]{cm_sampler()}} and \code{\link[=cm_monte_carlo]{cm_monte_carlo()}}, and
+\item Propagate uncertainty with \code{\link[=cm_sampler]{cm_sampler()}} and \code{\link[=cm_monte_carlo]{cm_monte_carlo()}} (check
+stability with \code{\link[=cm_diagnose]{cm_diagnose()}}), and
 explore scenarios with \code{\link[=cm_scenario]{cm_scenario()}}, \code{\link[=sensitivity_oat]{sensitivity_oat()}},
 \code{\link[=screen_associations]{screen_associations()}}, \code{\link[=screen_interactions]{screen_interactions()}} and
 \code{\link[=compare_scenarios]{compare_scenarios()}}.

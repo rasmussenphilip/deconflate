@@ -22,11 +22,16 @@ needed for \code{method = "excess_hr"}.}
 \item{method}{\itemize{
 \item \code{"proportional_hazards"} (default): inverts the proportional-hazards
 conversion with each disease's unexposed risk (\code{\link[=excess_to_hr]{excess_to_hr()}}).
+\itemize{
 \item \code{"published"}: rescales the raw hazard ratio by the ratio of adjusted
 to raw excess risk (Rasmussen et al. 2022, eq. 23).
 \item \code{"excess_hr"}: the impacts are hazard ratios minus 1, adjusted
 directly (Rasmussen et al. 2024; see \code{\link[=example_global_dairy]{example_global_dairy()}}), so the
 adjusted hazard ratio is the adjusted impact plus 1.
+}
+
+Outcomes on the \code{"hazard_ratio"} scale are already hazard ratios; they
+are returned as they are, whatever the method.
 }}
 }
 \value{

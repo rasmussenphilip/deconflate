@@ -9,6 +9,9 @@
 #' plus an equal share of every interaction term it is involved in:
 #' `s[i] = m[i] P(i) + 1/2 sum_k delta[i, k] P(i and k)`. The shares sum to `L`.
 #'
+#' Outcomes on the hazard-ratio scale are not additive burdens and are
+#' skipped; use [attributable_risk()] for them.
+#'
 #' @param result A [deconflate()] result.
 #' @return A data frame with, per outcome and disease, the main-effect
 #'   burden, the disease's share of interaction burden, the total and the
@@ -19,7 +22,13 @@ attribute_burden <- function(result) {
   ids <- result$model$diseases$id
   P <- stats::setNames(result$model$diseases$prob, ids)
   J <- result$joint_pairs
-  out <- lapply(split(result$adjusted, result$adjusted$outcome), function(a) {
+  adj <- result$adjusted[result$adjusted$scale != "hazard_ratio", , drop = FALSE]
+  if (!nrow(adj)) {
+    return(data.frame(outcome = character(0), disease = character(0), main = numeric(0),
+                      interaction = numeric(0), total = numeric(0), share = numeric(0),
+                      stringsAsFactors = FALSE))
+  }
+  out <- lapply(split(adj, adj$outcome), function(a) {
     o <- a$outcome[1]
     m <- stats::setNames(a$adjusted, a$disease)[ids]
     D <- result$interactions[[o]][ids, ids]
@@ -71,6 +80,9 @@ productivity_gap <- function(result, observed) {
   for (o in names(observed)) {
     a <- result$adjusted[result$adjusted$outcome == o, , drop = FALSE]
     if (!nrow(a)) cm_abort(sprintf("Outcome '%s' is not in the result.", o))
+    if (a$scale[1] == "hazard_ratio") {
+      cm_abort(sprintf("Outcome '%s' is on the hazard-ratio scale; use attributable_risk() instead of productivity_gap().", o))
+    }
     b <- burden[burden$outcome == o, , drop = FALSE]
     L <- sum(b$total)
     x <- observed[[o]]

@@ -4,12 +4,20 @@
 \alias{sampler_global_dairy}
 \title{Monte Carlo sampler for the global dairy inputs (Rasmussen et al. 2024)}
 \usage{
-sampler_global_dairy(inputs = c("analysis", "tables"), culling = TRUE)
+sampler_global_dairy(
+  inputs = c("analysis", "tables"),
+  culling = TRUE,
+  culling_scale = c("excess_hr", "hazard_ratio")
+)
 }
 \arguments{
 \item{inputs}{\code{"analysis"} or \code{"tables"}; see the section above.}
 
 \item{culling}{Include the culling outcome?}
+
+\item{culling_scale}{\code{"excess_hr"} (HR - 1) or \code{"hazard_ratio"}, as in
+\code{\link[=example_global_dairy]{example_global_dairy()}}. Hazard-ratio distributions are the HR - 1
+distributions shifted by 1.}
 }
 \value{
 A \code{\link[=cm_sampler]{cm_sampler()}}.

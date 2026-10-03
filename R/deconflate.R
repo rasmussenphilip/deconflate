@@ -11,6 +11,25 @@
 #'
 #' `+ sum_k delta[i, k] * P(k | i) + sum_{j < k; j, k != i} delta[j, k] * (P(j, k | i) - P(j, k | not i))`.
 #'
+#' @section Hazard ratios:
+#' Impacts on the `"hazard_ratio"` scale (see [cm_impacts()]) are adjusted
+#' under a multiplicative (Cox-type) model, in which an animal's hazard is
+#' `h0 * exp(sum_i beta[i] * D[i])` and the adjusted hazard ratio of disease
+#' `i` is `exp(beta[i])`:
+#' * `"global"` solves the model exactly: the raw hazard ratio of disease `i`
+#'   is the ratio of the average hazard among animals with and without `i`,
+#'   `E[exp(beta . D) | i] / E[exp(beta . D) | not i]`, over the fitted
+#'   distribution of disease combinations. The equations are solved by
+#'   Newton's method.
+#' * `"simultaneous"` uses the first-order (log-linear) version,
+#'   `log HR_raw = (I + t(E)) beta`, which needs no joint distribution.
+#' * `"published"` reproduces Rasmussen et al. (2024): `HR - 1` is adjusted
+#'   with eq. 16 and 1 is added back.
+#'
+#' The adjusted values in the result are hazard ratios for all three
+#' methods. Use [attributable_risk()] to turn them into culling (or
+#' mortality) attributable to disease.
+#'
 #' @param model A [cm_model()] with impacts.
 #' @param method
 #'   * `"simultaneous"` (default): solves the additive equations exactly
@@ -21,9 +40,10 @@
 #'     Provided for reproduction and comparison; it can mask incompatible
 #'     inputs because it cannot return negative impacts.
 #'   * `"global"`: fits the maximum-entropy joint distribution
-#'     ([fit_joint()]) and solves the full equations, including any
-#'     interactions in the model. Unknown pairs are left unconstrained.
-#'     Without interactions and unknown pairs, it equals `"simultaneous"`.
+#'     ([fit_joint()]; the "iterative" model) and solves the full equations,
+#'     including any interactions in the model. Unknown pairs are left
+#'     unconstrained. Without interactions and unknown pairs, it equals
+#'     `"simultaneous"` for additive outcomes.
 #' @param joint Optional pre-computed [fit_joint()] result for
 #'   `method = "global"`.
 #' @param warn Logical: warn when adjusted impacts change sign or the method
@@ -31,15 +51,18 @@
 #' @param ... Passed to [fit_joint()].
 #'
 #' @details Impacts flagged with `adjusted_for` in [cm_impacts()] have the
-#'   corresponding conflation terms set to zero.
+#'   corresponding conflation terms set to zero. This is not yet supported
+#'   for hazard-ratio outcomes with `method = "global"`.
 #'
 #'   The diagnostics report, per outcome: the maximum absolute difference
 #'   between the supplied raw impacts and those reconstructed from the
-#'   adjusted impacts under the additive (or interaction) model; the
-#'   number of adjusted impacts whose sign differs from the raw impact; and
-#'   the condition number of the conflation matrix. For the published method
-#'   a non-zero reconstruction residual is expected: it measures the
-#'   approximation error.
+#'   adjusted impacts under the model (on the log scale for hazard ratios,
+#'   and on the `HR - 1` scale for the published method); the number of
+#'   adjusted impacts whose sign differs from the raw impact (for hazard
+#'   ratios: on which side of 1 they lie); and the condition number of the
+#'   conflation matrix (or of the Jacobian, for the exact hazard model). For
+#'   the published method a non-zero reconstruction residual is expected: it
+#'   measures the approximation error.
 #'
 #' @return A `cm_result` with elements `adjusted` (long data frame of raw and
 #'   adjusted impacts), `diagnostics`, `conflation` (the matrix `A` per
@@ -49,6 +72,13 @@
 #' @examples
 #' res <- deconflate(example_supplement())
 #' res$adjusted
+#'
+#' # Culling hazard ratios: exact multiplicative model
+#' m <- example_supplement()
+#' m$impacts <- combine_impacts(m$impacts,
+#'   cm_impacts(c("d1", "d2", "d3"), c(1.5, 2.0, 1.3), outcome = "culling",
+#'              scale = "hazard_ratio"))
+#' deconflate(m, method = "global")$adjusted
 deconflate <- function(model, method = c("simultaneous", "published", "global"),
                        joint = NULL, warn = TRUE, ...) {
   check_model(model)
@@ -57,6 +87,7 @@ deconflate <- function(model, method = c("simultaneous", "published", "global"),
   ids <- model$diseases$id
   n <- length(ids)
   has_int <- !is.null(model$interactions) && nrow(model$interactions) > 0L
+  cells <- NULL
 
   if (method == "global") {
     joint <- joint %||% fit_joint(model, ...)
@@ -90,41 +121,63 @@ deconflate <- function(model, method = c("simultaneous", "published", "global"),
     imp <- model$impacts[model$impacts$outcome == o, , drop = FALSE]
     imp <- imp[match(ids, imp$disease), , drop = FALSE]
     m_raw <- imp$value
+    is_hr <- identical(imp$scale[1], "hazard_ratio")
     A <- base_A
+    has_adj <- logical(n)
     for (i in seq_len(n)) {
       adj <- setdiff(split_ids(imp$adjusted_for[i]), ids[i])
-      if (length(adj)) A[i, adj] <- 0
+      if (length(adj)) {
+        A[i, adj] <- 0
+        has_adj[i] <- TRUE
+      }
     }
 
     D <- matrix(0, n, n, dimnames = list(ids, ids))
     offset <- rep(0, n)
-    if (method == "global" && has_int) {
-      int <- model$interactions[model$interactions$outcome == o, , drop = FALSE]
-      for (r in seq_len(nrow(int))) {
-        D[int$disease1[r], int$disease2[r]] <- int$value[r]
-        D[int$disease2[r], int$disease1[r]] <- int$value[r]
+    if (is_hr) {
+      fit <- adjust_hazard_ratios(m_raw, A, method, cells, joint$prob, has_adj)
+      m_adj <- fit$adjusted
+      resid <- fit$residual
+      cond <- fit$condition
+      excess_raw <- m_raw - 1
+      excess_adj <- m_adj - 1
+    } else {
+      if (method == "global" && has_int) {
+        int <- model$interactions[model$interactions$outcome == o, , drop = FALSE]
+        for (r in seq_len(nrow(int))) {
+          D[int$disease1[r], int$disease2[r]] <- int$value[r]
+          D[int$disease2[r], int$disease1[r]] <- int$value[r]
+        }
+        # Interaction burden of each combination: sum_{j<k} delta_jk D_j D_k.
+        burden <- rowSums((cells %*% D) * cells) / 2
+        offset <- crude_difference(cells, joint$prob, burden)
       }
-      # Interaction burden of each combination: sum_{j<k} delta_jk D_j D_k.
-      burden <- rowSums((cells %*% D) * cells) / 2
-      offset <- crude_difference(cells, joint$prob, burden)
+      m_adj <- switch(method,
+        published = {
+          conf <- as.vector((A - diag(diag(A))) %*% m_raw)
+          ifelse(m_raw == 0, 0, m_raw^2 / (m_raw + conf))
+        },
+        solve(A, m_raw - offset)
+      )
+      m_adj <- as.vector(m_adj)
+      recon <- as.vector(A %*% m_adj) + offset
+      resid <- max(abs(recon - m_raw))
+      cond <- kappa(A, exact = TRUE)
+      excess_raw <- m_raw
+      excess_adj <- m_adj
     }
-
-    m_adj <- switch(method,
-      published = {
-        conf <- as.vector((A - diag(diag(A))) %*% m_raw)
-        ifelse(m_raw == 0, 0, m_raw^2 / (m_raw + conf))
-      },
-      solve(A, m_raw - offset)
-    )
-    m_adj <- as.vector(m_adj)
-    recon <- as.vector(A %*% m_adj) + offset
-    sign_change <- is.finite(m_adj) & abs(m_raw) > 1e-12 & abs(m_adj) > 1e-12 &
-      sign(m_adj) != sign(m_raw)
+    sign_change <- is.finite(excess_adj) & abs(excess_raw) > 1e-12 & abs(excess_adj) > 1e-12 &
+      sign(excess_adj) != sign(excess_raw)
 
     if (warn && any(sign_change)) {
-      cm_warn(sprintf(
-        "Outcome '%s': adjusted impacts change sign for %s. The raw impacts are smaller than the associated diseases alone would produce under the additive model; check whether these estimates were already adjusted for co-diseases or come from populations with different comorbidity patterns.",
-        o, paste(ids[sign_change], collapse = ", ")), class = "deconflate_sign_change")
+      msg <- if (is_hr) {
+        sprintf("Outcome '%s': adjusted hazard ratios cross 1 for %s. The raw hazard ratios are smaller than the associated diseases alone would produce; check whether these estimates were already adjusted for co-diseases or come from populations with different comorbidity patterns.",
+                o, paste(ids[sign_change], collapse = ", "))
+      } else {
+        sprintf("Outcome '%s': adjusted impacts change sign for %s. The raw impacts are smaller than the associated diseases alone would produce under the additive model; check whether these estimates were already adjusted for co-diseases or come from populations with different comorbidity patterns.",
+                o, paste(ids[sign_change], collapse = ", "))
+      }
+      cm_warn(msg, class = "deconflate_sign_change")
     }
     if (warn && any(!is.finite(m_adj))) {
       cm_warn(sprintf("Outcome '%s': non-finite adjusted impacts for %s.", o,
@@ -139,10 +192,10 @@ deconflate <- function(model, method = c("simultaneous", "published", "global"),
     )
     diagnostics[[o]] <- data.frame(
       outcome = o, method = method,
-      max_reconstruction_residual = max(abs(recon - m_raw)),
+      max_reconstruction_residual = resid,
       n_sign_changes = sum(sign_change),
       sign_changes = paste(ids[sign_change], collapse = ", "),
-      condition_number = kappa(A, exact = TRUE),
+      condition_number = cond,
       stringsAsFactors = FALSE
     )
     conflation[[o]] <- list(A = A, offset = stats::setNames(offset, ids))
@@ -157,19 +210,74 @@ deconflate <- function(model, method = c("simultaneous", "published", "global"),
   ), class = "cm_result")
 }
 
-#' Compare adjustment methods
-#'
-#' Runs [deconflate()] with several methods and returns adjusted impacts side
-#' by side.
-#'
-#' @param model A [cm_model()].
-#' @param methods Methods to compare.
-#' @param ... Passed to [deconflate()].
-#' @return A data frame with one column of adjusted impacts per method.
-#' @export
-compare_methods <- function(model, methods = c("published", "simultaneous", "global"), ...) {
-  res <- lapply(methods, function(m) deconflate(model, method = m, warn = FALSE, ...)$adjusted)
-  out <- res[[1]][, c("outcome", "disease", "raw")]
-  for (k in seq_along(methods)) out[[methods[k]]] <- res[[k]]$adjusted
-  out
+# Adjust raw hazard ratios (one outcome). `A` is the conflation matrix
+# (pairwise or from the joint), `cells`/`prob` the joint distribution (global
+# only) and `has_adj` flags impacts with an `adjusted_for` set.
+adjust_hazard_ratios <- function(hr_raw, A, method, cells = NULL, prob = NULL,
+                                 has_adj = logical(length(hr_raw))) {
+  if (method == "published") {
+    m <- hr_raw - 1
+    conf <- as.vector((A - diag(diag(A))) %*% m)
+    adj <- ifelse(m == 0, 0, m^2 / (m + conf))
+    recon <- as.vector(A %*% adj)
+    return(list(adjusted = 1 + adj, residual = max(abs(recon - m)),
+                condition = kappa(A, exact = TRUE)))
+  }
+  b_raw <- log(hr_raw)
+  beta <- as.vector(solve(A, b_raw))
+  if (method == "simultaneous") {
+    return(list(adjusted = exp(unname(beta)),
+                residual = max(abs(as.vector(A %*% beta) - b_raw)),
+                condition = kappa(A, exact = TRUE)))
+  }
+  if (any(has_adj)) {
+    cm_abort("`adjusted_for` is not yet supported for hazard-ratio outcomes with method = 'global'; use method = 'simultaneous'.")
+  }
+  sol <- solve_multiplicative(b_raw, cells, prob, start = beta)
+  list(adjusted = exp(unname(sol$beta)), residual = sol$residual,
+       condition = kappa(sol$jacobian, exact = TRUE))
+}
+
+# Solve log E[exp(beta . D) | i] - log E[exp(beta . D) | not i] = b_raw[i]
+# for beta by damped Newton iterations over the joint distribution.
+solve_multiplicative <- function(b_raw, cells, prob, start, tol = 1e-12, max_iter = 200L) {
+  n <- length(b_raw)
+  P1 <- colSums(cells * prob)
+  P0 <- 1 - P1
+  eval_at <- function(beta) {
+    W <- prob * exp(as.vector(cells %*% beta))
+    N1 <- colSums(cells * W)
+    N0 <- sum(W) - N1
+    list(beta = beta, F = log(N1 / P1) - log(N0 / P0) - b_raw, W = W, N1 = N1, N0 = N0)
+  }
+  jacobian <- function(cur) {
+    M1 <- crossprod(cells, cells * cur$W)
+    M1 / cur$N1 - (matrix(cur$N1, n, n, byrow = TRUE) - M1) / cur$N0
+  }
+  size <- function(cur) if (all(is.finite(cur$F))) sum(cur$F^2) else Inf
+  cur <- eval_at(start)
+  for (it in seq_len(max_iter)) {
+    if (max(abs(cur$F)) < tol) break
+    Jm <- jacobian(cur)
+    step <- tryCatch(solve(Jm, cur$F), error = function(e) NULL)
+    if (is.null(step)) break
+    lambda <- 1
+    improved <- FALSE
+    while (lambda >= 1e-8) {
+      cand <- eval_at(cur$beta - lambda * step)
+      if (size(cand) < size(cur)) {
+        improved <- TRUE
+        break
+      }
+      lambda <- lambda / 2
+    }
+    if (!improved) break
+    cur <- cand
+  }
+  resid <- max(abs(cur$F))
+  if (!is.finite(resid) || resid > 1e-8) {
+    cm_abort(sprintf("Could not solve the multiplicative hazard model (max residual %.2e).", resid),
+             class = "deconflate_infeasible")
+  }
+  list(beta = cur$beta, residual = resid, jacobian = jacobian(cur))
 }

@@ -46,9 +46,13 @@ print.cm_joint <- function(x, ...) {
 
 #' @export
 print.cm_mc <- function(x, ...) {
-  cat(sprintf("<cm_mc> method: %s\n", x$method))
+  cat(sprintf("<cm_mc> method: %s\n", paste(x$method, collapse = ", ")))
   cat(sprintf("  Draws: %d, rejected as infeasible: %d (%.1f%%)\n", x$n_draws,
               x$n_rejected, 100 * x$n_rejected / x$n_draws))
+  smp <- x$sampling %||% "random"
+  if (!is.null(x$proposal)) smp <- paste0(smp, ", importance sampling of ",
+                                         paste(names(x$proposal), collapse = ", "))
+  cat(sprintf("  Sampling: %s\n", smp))
   if (!is.null(x$ess)) cat(sprintf("  Effective sample size: %.1f\n", x$ess))
   invisible(x)
 }

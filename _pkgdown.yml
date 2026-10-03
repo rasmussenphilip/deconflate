@@ -6,6 +6,8 @@ articles:
   navbar: ~
   contents:
   - deconflate
+  - own-data
+  - culling-hazard-ratios
   - reproducing-published
   - interactions
   - uncertainty
@@ -20,6 +22,12 @@ reference:
   - combine_impacts
   - set_association
   - set_interaction
+- title: Reading inputs
+  contents:
+  - cm_read_inputs
+  - cm_check_inputs
+  - cm_dist_table
+  - cm_template
 - title: Adjustment
   contents:
   - deconflate
@@ -50,6 +58,7 @@ reference:
   - hr_conversion
   - as_impacts
   - adjusted_hr
+  - attributable_risk
 - title: Uncertainty and scenarios
   contents:
   - distributions
@@ -58,6 +67,8 @@ reference:
   - summary.cm_mc
   - cm_reweight
   - cm_scenario
+  - cm_diagnose
+  - cm_suggest_proposal
 - title: Sensitivity
   contents:
   - sensitivity_oat

@@ -11,40 +11,53 @@ cm_monte_carlo(
   economics = NULL,
   seed = NULL,
   progress = FALSE,
+  sampling = c("random", "lhs"),
+  proposal = NULL,
   ...
 )
 }
 \arguments{
-\item{sampler}{A function of one argument (the draw index) returning a
-\code{\link[=cm_model]{cm_model()}}, typically from \code{\link[=cm_sampler]{cm_sampler()}}.}
+\item{sampler}{A function of the draw index returning a \code{\link[=cm_model]{cm_model()}},
+typically from \code{\link[=cm_sampler]{cm_sampler()}}.}
 
 \item{n_draws}{Number of draws.}
 
-\item{method}{Adjustment method passed to \code{\link[=deconflate]{deconflate()}}.}
+\item{method}{Adjustment method(s) passed to \code{\link[=deconflate]{deconflate()}}: one or more
+of \code{"simultaneous"}, \code{"published"} and \code{"global"}.}
 
 \item{economics}{Optional list with named elements \code{observed} and
 \code{unit_value} (and optionally \code{additional}), as in \code{\link[=value_losses]{value_losses()}}.
 Elements may be numbers or \code{cm_dist} objects (drawn per draw). When
 given, productivity gaps and monetary losses are computed for every
-draw.}
+draw. Hazard-ratio outcomes cannot be valued here; use
+\code{\link[=attributable_risk]{attributable_risk()}} on individual results.}
 
 \item{seed}{Optional random seed, for reproducibility.}
 
 \item{progress}{Logical: print progress every 10\% of draws?}
+
+\item{sampling}{\code{"random"} (default) or \code{"lhs"} (Latin hypercube; needs a
+\code{\link[=cm_sampler]{cm_sampler()}}).}
+
+\item{proposal}{Optional named list of \code{cm_dist} objects (importance
+sampling proposals), keyed as in \code{params} (e.g.
+\code{"impact:fertility:SCK"}). Needs a \code{\link[=cm_sampler]{cm_sampler()}}.}
 
 \item{...}{Passed to \code{\link[=deconflate]{deconflate()}}.}
 }
 \value{
 A \code{cm_mc} object with elements:
 \itemize{
-\item \code{draws}: long data frame of raw and adjusted impacts by draw;
-\item \code{losses}: long data frame of gaps and values by draw, outcome and
-disease (if \code{economics} was given);
+\item \code{draws}: long data frame of raw and adjusted impacts by draw and
+method;
+\item \code{losses}: long data frame of gaps and values by draw, method, outcome
+and disease (if \code{economics} was given);
 \item \code{params}: one row per accepted draw with the sampled inputs, keyed
 \verb{prob:<id>}, \verb{assoc:<d1>:<d2>}, \verb{impact:<outcome>:<disease>},
 \verb{inter:<outcome>:<d1>:<d2>}, \verb{observed:<outcome>}, \verb{unit_value:<outcome>};
-\item \code{weights} (initially equal), \code{n_draws}, \code{n_rejected}, \code{rejections}
-(draw and reason), \code{sign_changes} and \code{method}.
+\item \code{weights} (equal, or importance weights), \code{log_weights}, \code{ess},
+\code{n_draws}, \code{n_rejected}, \code{rejections} (draw and reason),
+\code{sign_changes}, \code{method}, \code{sampling} and \code{proposal}.
 }
 }
 \description{
@@ -59,4 +72,36 @@ an association incompatible with the sampled marginals, or a jointly
 infeasible set for the global method) are rejected and counted.
 Conditioning on feasibility changes the effective input distribution, so
 the rejection rate is part of the result and should be reported.
+}
+\section{Several methods}{
+
+With more than one \code{method}, every accepted draw is adjusted with each
+method, so the methods are compared on identical inputs. A draw is
+rejected if any method fails on it. Use \code{\link[=compare_methods]{compare_methods()}} on the result
+for a side-by-side table.
+}
+
+\section{Stabilising the estimates}{
+
+\code{\link[=summary.cm_mc]{summary.cm_mc()}} flags unstable estimates and suggests remedies (see
+\code{\link[=cm_diagnose]{cm_diagnose()}}). Two variance-reduction options are available here:
+\itemize{
+\item \code{sampling = "lhs"}: Latin hypercube sampling of the inputs that are not
+drawn with an outcome correlation. It stratifies each input's
+distribution and usually reduces the Monte Carlo error of means.
+\item \code{proposal}: importance sampling. Named inputs are drawn from the given
+proposal distributions instead of their own, and each draw is weighted
+by the ratio of the input densities. A proposal must cover the whole
+range of the input's own distribution; a defensive mixture such as the
+one built by \code{\link[=cm_suggest_proposal]{cm_suggest_proposal()}} does. Importance sampling reduces
+the error of means that exist; it cannot fix a mean that does not exist
+(see \code{\link[=cm_diagnose]{cm_diagnose()}}).
+}
+}
+
+\examples{
+s <- cm_sampler(example_supplement(),
+                impacts = list("yield:d1" = dist_normal(2.5, 0.5)))
+mc <- cm_monte_carlo(s, 100, method = c("published", "simultaneous"), seed = 1)
+compare_methods(mc)
 }

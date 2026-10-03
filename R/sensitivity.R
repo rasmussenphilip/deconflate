@@ -5,11 +5,11 @@
 # economics$observed. Without: the expected loss L of one outcome.
 burden_metric <- function(result, outcome = NULL, economics = NULL) {
   if (!is.null(economics)) {
-    pg <- productivity_gap(result, economics$observed)
-    vl <- value_losses(pg, economics$unit_value, economics$additional %||% 0)
-    by <- stats::setNames(vl$by_disease_total$value, vl$by_disease_total$disease)
-    by <- by[result$model$diseases$id]
-    return(list(total = sum(vl$by_outcome$value), by_disease = by))
+    ev <- evaluate_economics(result, economics, allocate = TRUE)
+    ids <- result$model$diseases$id
+    by <- tapply(ev$by_disease$value, factor(ev$by_disease$disease, levels = ids), sum)
+    by[is.na(by)] <- 0
+    return(list(total = sum(ev$by_outcome$value), by_disease = stats::setNames(as.vector(by), ids)))
   }
   b <- attribute_burden(result)
   outcome <- outcome %||% b$outcome[1]

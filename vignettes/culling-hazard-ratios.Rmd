@@ -1,0 +1,122 @@
+---
+title: "Culling and hazard ratios"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Culling and hazard ratios}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+```
+
+```{r setup}
+library(deconflate)
+```
+
+Culling (and mortality) impacts are usually reported as hazard ratios (HRs)
+from survival models. A raw HR for one disease is conflated with the HRs of
+associated diseases, just like a yield impact, but HRs combine
+multiplicatively, and the culling they cause has to be counted without
+counting a cow twice. This vignette compares the ways the package can handle
+them.
+
+## Options
+
+| Approach | What is adjusted | How diseases combine | How to use it |
+|---|---|---|---|
+| Multiplicative, exact | log HR, over the distribution of disease combinations | HRs multiply | `scale = "hazard_ratio"`, `method = "global"` |
+| Multiplicative, first-order | log HR, pairwise | HRs multiply (approximately) | `scale = "hazard_ratio"`, `method = "simultaneous"` |
+| HR - 1 (Rasmussen et al. 2024) | HR - 1, with eq. 16 | excess HRs add | `scale = "hazard_ratio"`, `method = "published"` |
+| Excess risk (Rasmussen et al. 2022) | excess culling risk | excess risks add | `hr_conversion()`, `as_impacts()` |
+
+Under the multiplicative model, a cow's hazard is
+`h0 * exp(sum_i beta_i * D_i)`. The raw HR of disease `i` is the ratio of
+the average hazard among cows with and without `i`. The global method
+solves for the `beta`s exactly, so that the adjusted HRs reproduce the raw
+HRs over the fitted distribution of disease combinations. The simultaneous
+method uses the first-order version, which needs only the pairwise tables.
+
+If a source HR comes from a model that already included the associated
+diseases, set `adjusted_for` in `cm_impacts()` so that it is not adjusted
+again (with the simultaneous method).
+
+## The global dairy example
+
+`example_global_dairy(culling_scale = "hazard_ratio")` enters the culling HRs
+of Rasmussen et al. (2024) as hazard ratios:
+
+```{r}
+m <- example_global_dairy(culling_scale = "hazard_ratio")
+cmp <- compare_methods(m)
+cu <- cmp$impacts[cmp$impacts$outcome == "culling", ]
+cu[, c("disease", "raw", "published", "simultaneous", "global")]
+```
+
+The published column reproduces the paper's adjustment at the central values
+(Table 5 reports Monte Carlo means). The methods agree within about 0.1 for
+most diseases, and differ most where comorbidity is heaviest (clinical
+ketosis, lameness, displaced abomasum, metritis).
+
+## Culling attributable to disease
+
+`attributable_risk()` turns adjusted HRs into the part of the overall
+culling risk that disease causes. It finds the baseline hazard for which the
+population culling risk equals the observed rate, and compares it with the
+risk of a disease-free cow. A cow's risk cannot exceed 1, so a cow with
+several diseases is counted once. The attributable risk is then allocated to
+diseases with Shapley values.
+
+With the global average replacement rate of 23.66% (Rasmussen et al. 2024,
+Table 1):
+
+```{r}
+glob <- cmp$results$global
+ar <- attributable_risk(glob, overall_risk = 0.2366)
+ar
+```
+
+The 2024 paper instead converted each adjusted HR to an excess risk relative
+to the overall rate, `HR * r / (HR * r + 1 - r) - r`, and summed the excess
+risks weighted by prevalence. That sum counts cows with several diseases
+more than once:
+
+```{r}
+r <- 0.2366
+P <- m$diseases$prob
+hr_2024 <- cmp$impacts$published[cmp$impacts$outcome == "culling"]
+sum(P * (hr_2024 * r / (hr_2024 * r + 1 - r) - r))   # paper's approach
+ar$summary$attributable                               # model-based
+```
+
+The paper's approach attributes about 14.8 percentage points of the 23.7%
+culling rate to disease; the multiplicative model attributes about 11.7.
+
+## Valuing culling with the other outcomes
+
+In `summary()`, `contribution_table()` and `compare_methods()`, a
+hazard-ratio outcome is valued with `attributable_risk()`: its `observed`
+value is the overall risk (a proportion) and its `unit_value` the value of a
+cow removed.
+
+```{r}
+eco <- list(observed = c(yield = 5013, culling = 0.2366),
+            unit_value = c(yield = 0.5981, culling = 1299.33 - 785.86))
+summary(glob, economics = eco)$totals
+```
+
+(Global averages from Rasmussen et al. 2024, Table 1: milk yield, milk price
+per kg, and replacement price less culled-cow price.)
+
+## Caveats
+
+* The models assume a constant hazard within the period and that the HRs
+  apply for the whole period. Most source HRs come from models in which
+  disease status changes during the lactation.
+* Hazard ratios are not collapsible: even without confounding, an average
+  HR differs from the HR within subgroups. The exact multiplicative model
+  accounts for this given the joint distribution; the first-order method
+  and the HR - 1 approach do not.
+* Culling and death compete. Make sure the source HRs are of the same kind
+  (cause-specific or subdistribution).

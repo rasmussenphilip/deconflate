@@ -9,7 +9,8 @@
 #' @section Workflow:
 #' 1. Describe the system with [cm_diseases()], [cm_associations()],
 #'    [cm_impacts()] and, optionally, [cm_interactions()], then combine them
-#'    with [cm_model()].
+#'    with [cm_model()]. Or read the same tables from CSV files or data
+#'    frames with [cm_read_inputs()] (see [cm_template()]).
 #' 2. Adjust impacts with [deconflate()], using one of three methods:
 #'    * `"simultaneous"` (default): the exact solution of the additive impact
 #'      equations, built from pairwise 2x2 tables.
@@ -20,10 +21,13 @@
 #'      interactions.
 #' 3. Estimate, value and attribute productivity gaps with
 #'    [productivity_gap()], [value_losses()], [attribute_burden()] and
-#'    [contribution_table()]. Culling hazard ratios go through
-#'    [hr_conversion()], [as_impacts()] and [adjusted_hr()].
+#'    [contribution_table()]. Culling hazard ratios can be adjusted directly
+#'    (`scale = "hazard_ratio"`) and turned into culling attributable to
+#'    disease with [attributable_risk()]; [compare_methods()] tabulates the
+#'    methods side by side.
 #' 4. Check joint feasibility with [check_feasibility()].
-#' 5. Propagate uncertainty with [cm_sampler()] and [cm_monte_carlo()], and
+#' 5. Propagate uncertainty with [cm_sampler()] and [cm_monte_carlo()] (check
+#'    stability with [cm_diagnose()]), and
 #'    explore scenarios with [cm_scenario()], [sensitivity_oat()],
 #'    [screen_associations()], [screen_interactions()] and
 #'    [compare_scenarios()].

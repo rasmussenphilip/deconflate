@@ -24,9 +24,10 @@ distribution is needed.
 Provided for reproduction and comparison; it can mask incompatible
 inputs because it cannot return negative impacts.
 \item \code{"global"}: fits the maximum-entropy joint distribution
-(\code{\link[=fit_joint]{fit_joint()}}) and solves the full equations, including any
-interactions in the model. Unknown pairs are left unconstrained.
-Without interactions and unknown pairs, it equals \code{"simultaneous"}.
+(\code{\link[=fit_joint]{fit_joint()}}; the "iterative" model) and solves the full equations,
+including any interactions in the model. Unknown pairs are left
+unconstrained. Without interactions and unknown pairs, it equals
+\code{"simultaneous"} for additive outcomes.
 }}
 
 \item{joint}{Optional pre-computed \code{\link[=fit_joint]{fit_joint()}} result for
@@ -57,17 +58,50 @@ and, with pairwise interactions \code{delta}, additionally
 \verb{+ sum_k delta[i, k] * P(k | i) + sum_\{j < k; j, k != i\} delta[j, k] * (P(j, k | i) - P(j, k | not i))}.
 
 Impacts flagged with \code{adjusted_for} in \code{\link[=cm_impacts]{cm_impacts()}} have the
-corresponding conflation terms set to zero.
+corresponding conflation terms set to zero. This is not yet supported
+for hazard-ratio outcomes with \code{method = "global"}.
 
 The diagnostics report, per outcome: the maximum absolute difference
 between the supplied raw impacts and those reconstructed from the
-adjusted impacts under the additive (or interaction) model; the
-number of adjusted impacts whose sign differs from the raw impact; and
-the condition number of the conflation matrix. For the published method
-a non-zero reconstruction residual is expected: it measures the
-approximation error.
+adjusted impacts under the model (on the log scale for hazard ratios,
+and on the \code{HR - 1} scale for the published method); the number of
+adjusted impacts whose sign differs from the raw impact (for hazard
+ratios: on which side of 1 they lie); and the condition number of the
+conflation matrix (or of the Jacobian, for the exact hazard model). For
+the published method a non-zero reconstruction residual is expected: it
+measures the approximation error.
 }
+\section{Hazard ratios}{
+
+Impacts on the \code{"hazard_ratio"} scale (see \code{\link[=cm_impacts]{cm_impacts()}}) are adjusted
+under a multiplicative (Cox-type) model, in which an animal's hazard is
+\verb{h0 * exp(sum_i beta[i] * D[i])} and the adjusted hazard ratio of disease
+\code{i} is \code{exp(beta[i])}:
+\itemize{
+\item \code{"global"} solves the model exactly: the raw hazard ratio of disease \code{i}
+is the ratio of the average hazard among animals with and without \code{i},
+\verb{E[exp(beta . D) | i] / E[exp(beta . D) | not i]}, over the fitted
+distribution of disease combinations. The equations are solved by
+Newton's method.
+\item \code{"simultaneous"} uses the first-order (log-linear) version,
+\verb{log HR_raw = (I + t(E)) beta}, which needs no joint distribution.
+\item \code{"published"} reproduces Rasmussen et al. (2024): \code{HR - 1} is adjusted
+with eq. 16 and 1 is added back.
+}
+
+The adjusted values in the result are hazard ratios for all three
+methods. Use \code{\link[=attributable_risk]{attributable_risk()}} to turn them into culling (or
+mortality) attributable to disease.
+}
+
 \examples{
 res <- deconflate(example_supplement())
 res$adjusted
+
+# Culling hazard ratios: exact multiplicative model
+m <- example_supplement()
+m$impacts <- combine_impacts(m$impacts,
+  cm_impacts(c("d1", "d2", "d3"), c(1.5, 2.0, 1.3), outcome = "culling",
+             scale = "hazard_ratio"))
+deconflate(m, method = "global")$adjusted
 }

@@ -60,6 +60,74 @@ association incompatible with the sampled probabilities) are rejected and
 counted. Report the rejection rate: conditioning on feasibility changes the
 effective input distribution.
 
+## Comparing methods on the same draws
+
+Give several methods to `cm_monte_carlo()` and every accepted draw is
+adjusted with each of them. `compare_methods()` then tabulates the results:
+
+```{r}
+mc2 <- cm_monte_carlo(s, 200, method = c("published", "simultaneous"), seed = 1)
+compare_methods(mc2)
+```
+
+## Unstable estimates
+
+Monte Carlo means can be unstable. `summary()` checks every estimate and,
+when one looks unstable, prints why and what to do. Here the raw yield
+impact of `d2` is uncertain enough to be near zero or negative:
+
+```{r}
+s_d2 <- cm_sampler(example_supplement(),
+                   impacts = list("yield:d2" = dist_normal(0.5, 1.5)))
+mc_d2 <- cm_monte_carlo(s_d2, 400, method = c("published", "simultaneous"), seed = 2)
+sm <- summary(mc_d2)
+sm[, c("disease", "method", "mean", "q0.5", "trimmed_mean", "stability")]
+```
+
+There are three kinds of instability (see `?cm_diagnose`):
+
+* **`no_mean`**: the published approximation, `m^2 / (m + c)`, divides by
+  a quantity that changes sign across draws. Its distribution then has no
+  mean, so no number of draws, and no sampling scheme, makes the mean
+  converge. Report the median or trimmed mean, or use the exact method.
+* **`heavy_tail`**: a few draws dominate the variance. Importance sampling
+  can help (below).
+* **`imprecise`**: the Monte Carlo error is large relative to the mean. Use
+  more draws, or Latin hypercube sampling.
+
+`cm_diagnose()` lists the flagged estimates with the suggestions:
+
+```{r}
+cm_diagnose(mc_d2)
+```
+
+### Latin hypercube sampling
+
+`sampling = "lhs"` stratifies each input's distribution, which usually
+reduces the Monte Carlo error of means:
+
+```{r}
+mc_lhs <- cm_monte_carlo(s_d2, 400, method = "simultaneous", sampling = "lhs", seed = 2)
+summary(mc_lhs, diagnose = FALSE)[, c("disease", "mean", "mcse")]
+```
+
+### Importance sampling
+
+When extreme values come from one region of one input,
+`cm_suggest_proposal()` builds a defensive mixture that samples that region
+more often. The draws are then weighted by the ratio of the densities, so
+the estimates still refer to the original input distributions:
+
+```{r}
+prop <- cm_suggest_proposal(mc_d2, "yield", "d2", method = "simultaneous")
+mc_is <- cm_monte_carlo(s_d2, 400, method = "simultaneous", proposal = prop, seed = 3)
+mc_is
+summary(mc_is, diagnose = FALSE)[, c("disease", "mean", "mcse")]
+```
+
+Importance sampling reduces the error of a mean that exists. It cannot fix
+a `no_mean` estimate.
+
 ## Scenarios by reweighting
 
 `cm_scenario()` replaces input distributions and reweights the existing

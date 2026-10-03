@@ -2,7 +2,7 @@
 
 Comorbidity adjustment ("de-conflation") of disease impact estimates, so that the impacts of multiple associated diseases can be aggregated without double counting. Based on Rasmussen et al. (2022, *Prev. Vet. Med.* 203:105617) and Rasmussen et al. (2024, *J. Dairy Sci.* 107:6945–6970).
 
-> **Status:** development version (0.0.0.9001), working towards v0.1.0. The test reference values were computed independently in Python (`inst/validation/python_reference.py`).
+> **Status:** development version (0.1.0.9000), working towards v0.2.0. The test reference values were computed independently in Python (`inst/validation/python_reference.py`).
 
 ## Installation
 
@@ -45,13 +45,14 @@ summary(mc)
 ## Features
 
 - **Inputs** with metadata (probability type and time horizon, effect scale, reference population, prior adjustment). Association measures: OR, RR, RD, conditional probability, phi, contingency tables, independent and unknown.
-- **Adjustment:** `deconflate()` and `compare_methods()`. Interactions between diseases are supported with the global method.
+- **Your own data:** `cm_read_inputs()` reads CSV files or data frames and reports every problem at once; `cm_template()` writes example files.
+- **Adjustment:** `deconflate()`, and `compare_methods()` for side-by-side tables of the methods (also for Monte Carlo runs). Interactions between diseases are supported with the global method.
 - **Joint distribution and feasibility:** `fit_joint()`, `combination_probs()` and `check_feasibility()`.
 - **Gaps, losses and attribution:** `productivity_gap()`, `value_losses()`, `attribute_burden()`, `shapley_by_cell()` and `contribution_table()`.
-- **Culling:** `hr_conversion()`, `as_impacts()` and `adjusted_hr()` (proportional hazards, or the published approaches of 2022 and 2024).
-- **Uncertainty:** `dist_*()` distributions, `cm_sampler()` (with optional correlation across outcomes), `cm_monte_carlo()` (with rejection reporting) and `cm_scenario()` (importance reweighting).
+- **Culling:** hazard ratios adjusted under a multiplicative model (exact or first-order), `attributable_risk()` for the culling attributable to disease, and the published approaches of 2022 and 2024 (`hr_conversion()`, `as_impacts()`, `adjusted_hr()`).
+- **Uncertainty:** `dist_*()` distributions, `cm_sampler()` (with optional correlation across outcomes), `cm_monte_carlo()` (several methods on the same draws, rejection reporting, Latin hypercube and importance sampling), stability checks with suggestions (`cm_diagnose()`) and `cm_scenario()` (importance reweighting).
 - **Sensitivity:** `sensitivity_oat()`, `screen_associations()`, `screen_interactions()` and `compare_scenarios()`.
-- **Plots** (base graphics) and four vignettes. Start with `vignette("deconflate")`.
+- **Plots** (base graphics) and six vignettes. Start with `vignette("deconflate")`.
 
 ## Development
 

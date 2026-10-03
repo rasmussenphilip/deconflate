@@ -49,12 +49,19 @@ example_supplement <- function() {
 #'   for every disease except PTB.
 #'
 #' @section Culling:
-#' Culling impacts are hazard ratios minus 1 on the `"absolute"` scale, so
-#' that [deconflate()] adjusts the excess hazard ratio. Convert results back
-#' with `adjusted_hr(res, method = "excess_hr")`. These impacts are not
-#' excess risks, so do not pass them to [productivity_gap()]; the paper
-#' converts adjusted hazard ratios to excess culling risk with
+#' With `culling_scale = "excess_hr"` (default, as in the analysis), culling
+#' impacts are hazard ratios minus 1 on the `"absolute"` scale, so that
+#' [deconflate()] adjusts the excess hazard ratio. Convert results back with
+#' `adjusted_hr(res, method = "excess_hr")`. These impacts are not excess
+#' risks, so do not pass them to [productivity_gap()]; the paper converts
+#' adjusted hazard ratios to excess culling risk with
 #' `hr_to_risk(..., method = "overall_odds")`.
+#'
+#' With `culling_scale = "hazard_ratio"`, culling impacts are hazard ratios
+#' (see [cm_impacts()]). `method = "published"` then gives the same adjusted
+#' hazard ratios as the paper, while `"simultaneous"` and `"global"` use the
+#' multiplicative model; [attributable_risk()] gives the culling attributable
+#' to disease.
 #'
 #' The paper's Table 5 reports means of adjusted impacts over Monte Carlo
 #' draws ([sampler_global_dairy()]), which differ from adjusting the central
@@ -62,14 +69,22 @@ example_supplement <- function() {
 #'
 #' @param inputs `"analysis"` or `"tables"`; see the section above.
 #' @param culling Include the culling outcome?
+#' @param culling_scale `"excess_hr"` (HR - 1, as in the paper) or
+#'   `"hazard_ratio"`; see the section on culling.
 #' @return A [cm_model()] with outcomes `"yield"`, `"fertility"` and, if
 #'   `culling = TRUE`, `"culling"`.
 #' @export
 #' @examples
 #' res <- deconflate(example_global_dairy(), method = "published")
 #' adjusted_hr(res, method = "excess_hr")
-example_global_dairy <- function(inputs = c("analysis", "tables"), culling = TRUE) {
+#'
+#' # Culling hazard ratios under the multiplicative model
+#' m <- example_global_dairy(culling_scale = "hazard_ratio")
+#' compare_methods(m, methods = c("published", "simultaneous"))
+example_global_dairy <- function(inputs = c("analysis", "tables"), culling = TRUE,
+                                 culling_scale = c("excess_hr", "hazard_ratio")) {
   inputs <- match.arg(inputs)
+  culling_scale <- match.arg(culling_scale)
   ids <- c("CK", "CM", "DA", "DYS", "LAM", "MET", "MF", "OC", "PTB", "RP", "SCK", "SCM")
   if (inputs == "analysis") {
     inc <- c(CK = 3.06287320599544, CM = 30.5081708702075, DA = 2.16266798689032,
@@ -122,11 +137,14 @@ example_global_dairy <- function(inputs = c("analysis", "tables"), culling = TRU
                direction = "increase", source = src)
   )
   if (culling) {
-    impacts <- combine_impacts(
-      impacts,
+    cull <- if (culling_scale == "excess_hr") {
       cm_impacts(ids, unname(hr[ids]) - 1, outcome = "culling", scale = "absolute",
                  units = "hazard ratio - 1", direction = "increase", source = src)
-    )
+    } else {
+      cm_impacts(ids, unname(hr[ids]), outcome = "culling", scale = "hazard_ratio",
+                 source = src)
+    }
+    impacts <- combine_impacts(impacts, cull)
   }
   cm_model(diseases, associations, impacts, missing_associations = "independent")
 }
@@ -276,6 +294,9 @@ uk_dairy_2022_economics <- function(culling_scale = c("proportion", "absolute"))
 #'
 #' @param inputs `"analysis"` or `"tables"`; see the section above.
 #' @param culling Include the culling outcome?
+#' @param culling_scale `"excess_hr"` (HR - 1) or `"hazard_ratio"`, as in
+#'   [example_global_dairy()]. Hazard-ratio distributions are the HR - 1
+#'   distributions shifted by 1.
 #' @return A [cm_sampler()].
 #' @export
 #' @examples
@@ -287,11 +308,18 @@ uk_dairy_2022_economics <- function(culling_scale = c("proportion", "absolute"))
 #' cull <- s[s$outcome == "culling", ]
 #' data.frame(disease = cull$disease, hr_adjusted = 1 + cull$mean)
 #' }
-sampler_global_dairy <- function(inputs = c("analysis", "tables"), culling = TRUE) {
+sampler_global_dairy <- function(inputs = c("analysis", "tables"), culling = TRUE,
+                                 culling_scale = c("excess_hr", "hazard_ratio")) {
   inputs <- match.arg(inputs)
+  culling_scale <- match.arg(culling_scale)
   n0 <- function(m, s) dist_normal(m, s, lower = 0)
   pe <- function(mode, mn, mx) dist_pert(mn, mode, mx)
   nn <- function(m, s) dist_normal(m, s)
+  # Culling distributions are written on the HR - 1 scale; `sh` shifts them
+  # to hazard ratios when requested.
+  sh <- if (culling_scale == "hazard_ratio") 1 else 0
+  cn <- function(m, s) dist_normal(m + sh, s)
+  cp <- function(mode, mn, mx) dist_pert(mn + sh, mode + sh, mx + sh)
   associations <- list(
     "CK:CM" = pe(2.13, 1.20, 3.40), "CK:LAM" = pe(1.65, 1.20, 2.40), "CK:MF" = n0(1.60, 0.13),
     "CK:OC" = pe(1.97, 1.30, 4.10), "CK:RP" = pe(1.55, 1.00, 1.90), "CK:SCK" = n0(6.95, 1.28),
@@ -326,18 +354,18 @@ sampler_global_dairy <- function(inputs = c("analysis", "tables"), culling = TRU
       "fertility:SCM" = pe(0.2636645, -0.1242236, 5.681529)
     )
     cull <- list(
-      "culling:CK" = nn(0.5001, 0.10000976530231317),
-      "culling:CM" = nn(1.3, 0.17342740434782608),
-      "culling:DA" = pe(1.851179, 0, 6.9),
-      "culling:DYS" = pe(0.258143, -0.4, 1.1),
-      "culling:LAM" = nn(0.744976, 0.07449644729921788),
-      "culling:MET" = pe(0.116444, -0.4, 0.5),
-      "culling:MF" = nn(1.999886, 0.6012380424926813),
-      "culling:OC" = nn(0.62, 0.1591395716049383),
-      "culling:PTB" = nn(1.310508, 0.2011405862857865),
-      "culling:RP" = nn(0.599928, 0.11954628295273287),
-      "culling:SCK" = nn(0.92, 0.0855654625),
-      "culling:SCM" = nn(0.449996, 0.07758647609400302)
+      "culling:CK" = cn(0.5001, 0.10000976530231317),
+      "culling:CM" = cn(1.3, 0.17342740434782608),
+      "culling:DA" = cp(1.851179, 0, 6.9),
+      "culling:DYS" = cp(0.258143, -0.4, 1.1),
+      "culling:LAM" = cn(0.744976, 0.07449644729921788),
+      "culling:MET" = cp(0.116444, -0.4, 0.5),
+      "culling:MF" = cn(1.999886, 0.6012380424926813),
+      "culling:OC" = cn(0.62, 0.1591395716049383),
+      "culling:PTB" = cn(1.310508, 0.2011405862857865),
+      "culling:RP" = cn(0.599928, 0.11954628295273287),
+      "culling:SCK" = cn(0.92, 0.0855654625),
+      "culling:SCM" = cn(0.449996, 0.07758647609400302)
     )
   } else {
     b <- function(a, bb) dist_beta(a, bb)
@@ -361,15 +389,16 @@ sampler_global_dairy <- function(inputs = c("analysis", "tables"), culling = TRU
       "fertility:SCM" = pe(0.26, -0.12, 5.68)
     )
     cull <- list(
-      "culling:CK" = nn(0.50, 0.30), "culling:CM" = nn(1.30, 0.31),
-      "culling:DA" = pe(1.85, 0, 6.90), "culling:DYS" = pe(0.26, -0.40, 1.10),
-      "culling:LAM" = nn(0.74, 0.17), "culling:MET" = nn(0.05, 0.15),
-      "culling:MF" = nn(2.00, 0.90), "culling:OC" = nn(0.62, 0.42),
-      "culling:PTB" = nn(1.31, 0.35), "culling:RP" = nn(0.60, 0.32),
-      "culling:SCK" = nn(0.92, 0.18), "culling:SCM" = nn(0.45, 0.25)
+      "culling:CK" = cn(0.50, 0.30), "culling:CM" = cn(1.30, 0.31),
+      "culling:DA" = cp(1.85, 0, 6.90), "culling:DYS" = cp(0.26, -0.40, 1.10),
+      "culling:LAM" = cn(0.74, 0.17), "culling:MET" = cn(0.05, 0.15),
+      "culling:MF" = cn(2.00, 0.90), "culling:OC" = cn(0.62, 0.42),
+      "culling:PTB" = cn(1.31, 0.35), "culling:RP" = cn(0.60, 0.32),
+      "culling:SCK" = cn(0.92, 0.18), "culling:SCM" = cn(0.45, 0.25)
     )
   }
   if (culling) impacts <- c(impacts, cull)
-  cm_sampler(example_global_dairy(inputs = inputs, culling = culling),
+  cm_sampler(example_global_dairy(inputs = inputs, culling = culling,
+                                  culling_scale = culling_scale),
              diseases = diseases, associations = associations, impacts = impacts)
 }

@@ -10,10 +10,12 @@ contribution_table(result, economics = NULL)
 \item{result}{A \code{\link[=deconflate]{deconflate()}} result.}
 
 \item{economics}{Optional list with \code{observed} and \code{unit_value} (see
-\code{\link[=value_losses]{value_losses()}}).}
+\code{\link[=value_losses]{value_losses()}}). Hazard-ratio outcomes are valued with
+\code{\link[=attributable_risk]{attributable_risk()}} (\code{observed} = overall risk, \code{unit_value} = value
+per animal removed).}
 }
 \value{
-A data frame.
+A data frame. Burden columns are \code{NA} for hazard-ratio outcomes.
 }
 \description{
 One row per outcome and disease with raw and adjusted impacts, the

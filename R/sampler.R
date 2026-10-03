@@ -30,6 +30,9 @@
 #' @return A function of the draw index returning a [cm_model()], with
 #'   attributes `specs` (the distributions, keyed as in `params` of
 #'   [cm_monte_carlo()]) and `correlated` (keys drawn through the copula).
+#'   The function also accepts `u` (named uniforms, for stratified sampling)
+#'   and `values` (named input values that replace draws, for importance
+#'   sampling); [cm_monte_carlo()] uses these.
 #' @export
 #' @examples
 #' m <- example_supplement()
@@ -127,7 +130,7 @@ cm_sampler <- function(model, diseases = list(), associations = list(),
   correlated <- unlist(groups, use.names = FALSE)
   correlated <- correlated[correlated %in% names(specs)]
 
-  draw_values <- function() {
+  draw_values <- function(u_in = NULL, fixed = NULL) {
     u <- list()
     for (g in groups) {
       z <- as.vector(stats::rnorm(length(g)) %*% chol_R)
@@ -135,13 +138,23 @@ cm_sampler <- function(model, diseases = list(), associations = list(),
       for (j in seq_along(g)) if (g[j] %in% names(specs)) u[[g[j]]] <- uu[j]
     }
     vapply(names(specs), function(k) {
-      uk <- if (!is.null(u[[k]])) u[[k]] else stats::runif(1)
+      if (!is.null(fixed) && k %in% names(fixed)) return(as.numeric(fixed[[k]]))
+      uk <- if (!is.null(u[[k]])) {
+        u[[k]]
+      } else if (!is.null(u_in) && k %in% names(u_in)) {
+        u_in[[k]]
+      } else {
+        stats::runif(1)
+      }
       specs[[k]]$q(uk)
     }, numeric(1))
   }
 
-  fn <- function(i) {
-    v <- draw_values()
+  # `u`: optional named uniforms (e.g. Latin hypercube) for uncorrelated
+  # inputs; `values`: optional named input values that replace draws (used
+  # for importance sampling by cm_monte_carlo()).
+  fn <- function(i, u = NULL, values = NULL) {
+    v <- draw_values(u, values)
     m <- model
     for (k in names(v)) {
       info <- rows[[k]]
@@ -166,6 +179,10 @@ cm_sampler <- function(model, diseases = list(), associations = list(),
           m$associations$value[info$row] <- x
         },
         impacts = {
+          if (identical(m$impacts$scale[info$row], "hazard_ratio") && !(x > 0)) {
+            cm_abort(sprintf("Draw %s = %g is not a valid hazard ratio.", k, x),
+                     class = "deconflate_infeasible")
+          }
           m$impacts$value[info$row] <- x / info$divisor
         },
         interactions = {

@@ -149,6 +149,9 @@ as_impacts <- function(x, outcome = "culling", scale = c("absolute", "proportion
 #'   * `"excess_hr"`: the impacts are hazard ratios minus 1, adjusted
 #'     directly (Rasmussen et al. 2024; see [example_global_dairy()]), so the
 #'     adjusted hazard ratio is the adjusted impact plus 1.
+#'
+#'   Outcomes on the `"hazard_ratio"` scale are already hazard ratios; they
+#'   are returned as they are, whatever the method.
 #' @return A data frame with raw and adjusted impacts (`excess`,
 #'   `excess_adjusted`: excess risks, or HR - 1 for `"excess_hr"`) and hazard
 #'   ratios (`hr`, `hr_adjusted`).
@@ -159,7 +162,12 @@ adjusted_hr <- function(result, conversion = NULL, outcome = "culling",
   if (!inherits(result, "cm_result")) cm_abort("`result` must come from deconflate().")
   a <- result$adjusted[result$adjusted$outcome == outcome, , drop = FALSE]
   if (!nrow(a)) cm_abort(sprintf("Outcome '%s' is not in the result.", outcome))
-  if (method == "excess_hr") {
+  if (a$scale[1] == "hazard_ratio" || method == "excess_hr") {
+    if (a$scale[1] == "hazard_ratio") {
+      return(data.frame(disease = a$disease, hr = a$raw, excess = a$raw - 1,
+                        excess_adjusted = a$adjusted - 1, hr_adjusted = a$adjusted,
+                        stringsAsFactors = FALSE))
+    }
     return(data.frame(disease = a$disease, hr = a$raw + 1, excess = a$raw,
                       excess_adjusted = a$adjusted, hr_adjusted = a$adjusted + 1,
                       stringsAsFactors = FALSE))
@@ -177,4 +185,120 @@ adjusted_hr <- function(result, conversion = NULL, outcome = "culling",
   data.frame(disease = a$disease, hr = cv$hr, excess = cv$excess,
              excess_adjusted = a$adjusted, hr_adjusted = hr_adj,
              stringsAsFactors = FALSE)
+}
+
+#' Culling (or mortality) attributable to disease
+#'
+#' Converts adjusted hazard ratios into the part of an event's overall risk
+#' (e.g. annual culling) that is attributable to disease, without counting
+#' an animal with several diseases more than once, and allocates it to
+#' diseases.
+#'
+#' Within the period, an animal with disease combination `x` has a constant
+#' hazard `h0 * exp(sum_i beta[i] * x[i])`, with `beta = log(adjusted HR)`.
+#' The baseline hazard `h0` is chosen so that the population risk, averaged
+#' over the distribution of disease combinations ([fit_joint()]), equals
+#' `overall_risk`:
+#'
+#' `sum_x P(x) * (1 - exp(-h0 * exp(beta . x))) = overall_risk`.
+#'
+#' The disease-free risk is `1 - exp(-h0)`, and the attributable risk is
+#' `overall_risk - (1 - exp(-h0))`. An animal's risk cannot exceed 1, so the
+#' attributable risk is smaller than the sum of per-disease excess risks
+#' when diseases co-occur.
+#'
+#' The attributable risk is allocated to diseases by Shapley values over
+#' disease combinations ([shapley_by_cell()]), with the loss
+#' `1 - exp(-h0 * exp(beta . x)) - (1 - exp(-h0))`.
+#'
+#' The model is consistent with `method = "global"` in [deconflate()]: there,
+#' the adjusted hazard ratios reproduce the raw ones exactly over the same
+#' joint distribution. Hazard ratios from the other methods are used as they
+#' are.
+#'
+#' @param result A [deconflate()] result with a hazard-ratio outcome (see
+#'   [cm_impacts()]).
+#' @param overall_risk Overall period risk of the event, as a proportion
+#'   (e.g. `0.25` for an annual culling rate of 25%).
+#' @param outcome Outcome label.
+#' @param unit_value Optional value per animal removed (e.g. replacement
+#'   cost less salvage value); adds `value` columns.
+#' @param joint Optional [fit_joint()] result; by default the result's own
+#'   joint distribution (global method) or a new fit.
+#' @param allocate Logical: allocate the attributable risk to diseases?
+#'   This is the slow step for many co-occurring diseases.
+#' @param max_present Passed to [shapley_by_cell()].
+#' @return A `cm_attributable` list with `summary` (overall, disease-free and
+#'   attributable risk, attributable fraction and value), `by_disease`
+#'   (adjusted hazard ratio, attributable risk, share and value),
+#'   `skipped_mass` and `baseline_hazard`.
+#' @export
+#' @examples
+#' m <- example_supplement()
+#' m$impacts <- combine_impacts(m$impacts,
+#'   cm_impacts(c("d1", "d2", "d3"), c(1.5, 2.0, 1.3), outcome = "culling",
+#'              scale = "hazard_ratio"))
+#' res <- deconflate(m, method = "global")
+#' attributable_risk(res, overall_risk = 0.25, unit_value = 1300)
+attributable_risk <- function(result, overall_risk, outcome = "culling", unit_value = NULL,
+                              joint = NULL, allocate = TRUE, max_present = 10L) {
+  if (!inherits(result, "cm_result")) cm_abort("`result` must come from deconflate().")
+  a <- result$adjusted[result$adjusted$outcome == outcome, , drop = FALSE]
+  if (!nrow(a)) cm_abort(sprintf("Outcome '%s' is not in the result.", outcome))
+  if (a$scale[1] != "hazard_ratio") {
+    cm_abort(sprintf("Outcome '%s' is not on the hazard-ratio scale.", outcome))
+  }
+  check_numeric(overall_risk, "overall_risk")
+  if (length(overall_risk) != 1L || overall_risk <= 0 || overall_risk >= 1) {
+    cm_abort("`overall_risk` must be a single proportion between 0 and 1.")
+  }
+  bad <- !is.finite(a$adjusted) | a$adjusted <= 0
+  if (any(bad)) {
+    cm_abort(sprintf("Adjusted hazard ratios must be positive and finite (check: %s).",
+                     paste(a$disease[bad], collapse = ", ")))
+  }
+  joint <- joint %||% result$joint %||% fit_joint(result$model)
+  if (!inherits(joint, "cm_joint")) cm_abort("`joint` must come from fit_joint().")
+  ids <- joint$diseases
+  beta <- stats::setNames(log(a$adjusted), a$disease)[ids]
+  rel <- exp(as.vector(joint$cells %*% beta))
+  risk_at <- function(h) sum(joint$prob * (1 - exp(-h * rel)))
+  h0 <- stats::uniroot(function(h) risk_at(h) - overall_risk,
+                       c(0, -log(1 - overall_risk)), extendInt = "upX", tol = 1e-14)$root
+  r0 <- 1 - exp(-h0)
+  summ <- data.frame(outcome = outcome, overall_risk = overall_risk, disease_free_risk = r0,
+                     attributable = overall_risk - r0,
+                     attributable_fraction = (overall_risk - r0) / overall_risk,
+                     stringsAsFactors = FALSE)
+  if (!is.null(unit_value)) summ$value <- summ$attributable * unit_value
+  by <- NULL
+  skipped <- 0
+  if (allocate) {
+    loss <- function(x) 1 - exp(-h0 * exp(sum(beta * x[ids]))) - r0
+    sh <- shapley_by_cell(joint, loss, max_present = max_present)
+    by <- data.frame(disease = ids, hr_adjusted = unname(exp(beta)),
+                     attributable = sh$shapley, share = sh$share, stringsAsFactors = FALSE)
+    if (!is.null(unit_value)) by$value <- by$attributable * unit_value
+    skipped <- attr(sh, "skipped_mass")
+  }
+  structure(list(summary = summ, by_disease = by, skipped_mass = skipped,
+                 baseline_hazard = h0),
+            class = "cm_attributable")
+}
+
+#' @export
+print.cm_attributable <- function(x, ...) {
+  s <- x$summary
+  cat(sprintf("<cm_attributable> outcome: %s\n", s$outcome))
+  cat(sprintf("  Overall risk %.4g; disease-free risk %.4g; attributable %.4g (%.1f%% of the overall risk)\n",
+              s$overall_risk, s$disease_free_risk, s$attributable, 100 * s$attributable_fraction))
+  if (!is.null(s$value)) cat(sprintf("  Value: %.4g\n", s$value))
+  if (!is.null(x$by_disease)) {
+    cat("\n")
+    print(x$by_disease, row.names = FALSE, digits = 4)
+    if (x$skipped_mass > 0) {
+      cat(sprintf("\nCombinations skipped by `max_present`: probability %.2e\n", x$skipped_mass))
+    }
+  }
+  invisible(x)
 }

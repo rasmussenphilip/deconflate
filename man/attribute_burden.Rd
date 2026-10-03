@@ -24,4 +24,7 @@ Removing any disease involved in a term removes that term. Under this
 accounting convention, the Shapley value of each disease is its own term
 plus an equal share of every interaction term it is involved in:
 \verb{s[i] = m[i] P(i) + 1/2 sum_k delta[i, k] P(i and k)}. The shares sum to \code{L}.
+
+Outcomes on the hazard-ratio scale are not additive burdens and are
+skipped; use \code{\link[=attributable_risk]{attributable_risk()}} for them.
 }

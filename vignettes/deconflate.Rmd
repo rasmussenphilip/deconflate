@@ -50,12 +50,15 @@ unconstrained instead; this is a different assumption (see
 compare_methods(m)
 ```
 
-* `"simultaneous"` (the default) solves the additive impact equations
+* `"simultaneous"` (the default) solves the system of impact equations
   exactly.
-* `"published"` is the proportional approximation of Rasmussen et al.
-  (2022), kept for reproduction and comparison.
-* `"global"` fits the distribution of disease combinations and can include
-  impact interactions.
+* `"published"` is the simple proportional approximation used in Rasmussen
+  et al. (2022, 2024), kept for reproduction and comparison.
+* `"global"` is the iterative model: it fits the distribution of disease
+  combinations and can include impact interactions.
+
+`compare_methods()` runs all three and tabulates them side by side; with
+`economics` it also compares the gaps and their values.
 
 ```{r}
 res <- deconflate(m)
@@ -91,8 +94,12 @@ compare_methods(m_sim, methods = c("published", "simultaneous"))
 
 ## Where next
 
+* `vignette("own-data")`: reading your own inputs from CSV files.
+* `vignette("culling-hazard-ratios")`: culling hazard ratios and the culling
+  attributable to disease.
 * `vignette("reproducing-published")`: the 2022 and 2024 analyses.
 * `vignette("interactions")`: the joint distribution, unknown associations,
   impact interactions and attribution.
-* `vignette("uncertainty")`: Monte Carlo analysis, correlated outcomes,
-  scenarios and sensitivity screening.
+* `vignette("uncertainty")`: Monte Carlo analysis, method comparison,
+  stability checks, correlated outcomes, scenarios and sensitivity
+  screening.

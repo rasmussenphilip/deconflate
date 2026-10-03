@@ -4,12 +4,19 @@
 \alias{example_global_dairy}
 \title{Global dairy inputs from Rasmussen et al. (2024), at their central values}
 \usage{
-example_global_dairy(inputs = c("analysis", "tables"), culling = TRUE)
+example_global_dairy(
+  inputs = c("analysis", "tables"),
+  culling = TRUE,
+  culling_scale = c("excess_hr", "hazard_ratio")
+)
 }
 \arguments{
 \item{inputs}{\code{"analysis"} or \code{"tables"}; see the section above.}
 
 \item{culling}{Include the culling outcome?}
+
+\item{culling_scale}{\code{"excess_hr"} (HR - 1, as in the paper) or
+\code{"hazard_ratio"}; see the section on culling.}
 }
 \value{
 A \code{\link[=cm_model]{cm_model()}} with outcomes \code{"yield"}, \code{"fertility"} and, if
@@ -45,12 +52,19 @@ for every disease except PTB.
 
 \section{Culling}{
 
-Culling impacts are hazard ratios minus 1 on the \code{"absolute"} scale, so
-that \code{\link[=deconflate]{deconflate()}} adjusts the excess hazard ratio. Convert results back
-with \code{adjusted_hr(res, method = "excess_hr")}. These impacts are not
-excess risks, so do not pass them to \code{\link[=productivity_gap]{productivity_gap()}}; the paper
-converts adjusted hazard ratios to excess culling risk with
+With \code{culling_scale = "excess_hr"} (default, as in the analysis), culling
+impacts are hazard ratios minus 1 on the \code{"absolute"} scale, so that
+\code{\link[=deconflate]{deconflate()}} adjusts the excess hazard ratio. Convert results back with
+\code{adjusted_hr(res, method = "excess_hr")}. These impacts are not excess
+risks, so do not pass them to \code{\link[=productivity_gap]{productivity_gap()}}; the paper converts
+adjusted hazard ratios to excess culling risk with
 \code{hr_to_risk(..., method = "overall_odds")}.
+
+With \code{culling_scale = "hazard_ratio"}, culling impacts are hazard ratios
+(see \code{\link[=cm_impacts]{cm_impacts()}}). \code{method = "published"} then gives the same adjusted
+hazard ratios as the paper, while \code{"simultaneous"} and \code{"global"} use the
+multiplicative model; \code{\link[=attributable_risk]{attributable_risk()}} gives the culling attributable
+to disease.
 
 The paper's Table 5 reports means of adjusted impacts over Monte Carlo
 draws (\code{\link[=sampler_global_dairy]{sampler_global_dairy()}}), which differ from adjusting the central
@@ -60,4 +74,8 @@ values (e.g. displaced abomasum yield: 1.18 vs 0.79).
 \examples{
 res <- deconflate(example_global_dairy(), method = "published")
 adjusted_hr(res, method = "excess_hr")
+
+# Culling hazard ratios under the multiplicative model
+m <- example_global_dairy(culling_scale = "hazard_ratio")
+compare_methods(m, methods = c("published", "simultaneous"))
 }

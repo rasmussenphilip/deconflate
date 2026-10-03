@@ -1,3 +1,35 @@
+# deconflate (development version)
+
+Work towards 0.2.0.
+
+## Culling hazard ratios
+* `cm_impacts()` accepts `scale = "hazard_ratio"`. Hazard ratios are adjusted under a multiplicative (Cox-type) model:
+  * `method = "global"` solves the model exactly over the distribution of disease combinations, so that the adjusted hazard ratios reproduce the raw ones;
+  * `method = "simultaneous"` uses the first-order (log-linear) version;
+  * `method = "published"` reproduces Rasmussen et al. (2024) (`HR - 1` with eq. 16).
+* New `attributable_risk()`: the culling (or mortality) attributable to disease, without counting an animal with several diseases more than once, allocated to diseases by Shapley values. `summary()`, `contribution_table()` and `compare_methods()` use it to value hazard-ratio outcomes.
+* `example_global_dairy()` and `sampler_global_dairy()` gain `culling_scale = c("excess_hr", "hazard_ratio")`.
+* New vignette: "Culling and hazard ratios".
+
+## Reading your own data
+* New `cm_read_inputs()`: builds a model (and a Monte Carlo sampler) from CSV files or data frames, after checking every table and reporting all problems at once. `cm_check_inputs()` returns the problems without stopping.
+* New `cm_template()` (example CSV files) and `cm_dist_table()` (distributions from an uncertainty table).
+* New vignette: "Using your own data".
+
+## Comparing methods
+* **Breaking:** `compare_methods()` now returns a `cm_comparison` object with side-by-side tables of adjusted impacts, relative changes, sign changes, totals and (with `economics`) gaps and values per method, and records methods that fail. The adjusted impacts are in `$impacts`.
+* `cm_monte_carlo()` accepts several methods (`method = c("published", "simultaneous")`) and applies them to the same draws; `compare_methods()` compares their summaries.
+
+## Monte Carlo stability
+* `summary.cm_mc()` gains a `method` column, a trimmed mean and stability diagnostics (`rel_mcse`, `tail_share`, `stability`), and prints suggestions when estimates look unstable. It distinguishes means that do not exist (the published approximation dividing by a quantity that changes sign) from heavy tails and imprecision.
+* New `cm_diagnose()` (flagged estimates with suggestions) and `cm_suggest_proposal()` (a defensive-mixture importance-sampling proposal).
+* `cm_monte_carlo()` gains `sampling = "lhs"` (Latin hypercube sampling) and `proposal` (importance sampling). Importance weights carry through `cm_scenario()` and `cm_reweight()`.
+
+## Other changes
+* `attribute_burden()` and `productivity_gap()` skip hazard-ratio outcomes (use `attributable_risk()`).
+* `plot.cm_mc()` gains a `method` argument and plots hazard ratios on their own scale.
+* Added `inst/validation/reference_v02.py`.
+
 # deconflate 0.1.0
 
 ## Reproduction review

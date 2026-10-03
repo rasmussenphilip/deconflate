@@ -156,14 +156,18 @@ cm_associations <- function(disease1, disease2, value = NA_real_,
 #' @param outcome Character outcome label(s), e.g. `"yield"`, `"fertility"`.
 #'   Each disease needs exactly one impact per outcome (use `0` for no
 #'   impact).
-#' @param scale `"proportion"` (proportional change relative to the
-#'   disease-free value, e.g. `0.025`), `"percent"` (converted to proportion)
-#'   or `"absolute"` (in `units`). The scale must be constant within an
-#'   outcome. Productivity gaps require proportion or percent.
+#' @param scale The scale of `value`, constant within an outcome:
+#'   * `"proportion"`: proportional change relative to the disease-free value
+#'     (e.g. `0.025`);
+#'   * `"percent"`: converted to a proportion;
+#'   * `"absolute"`: in `units` (e.g. excess culling risk);
+#'   * `"hazard_ratio"`: a hazard ratio (e.g. for culling or mortality),
+#'     adjusted on the log scale; see [deconflate()] and
+#'     [attributable_risk()].
 #' @param units Optional units label (required for `"absolute"`).
 #' @param direction `"decrease"` if disease lowers the outcome (e.g. yield) or
 #'   `"increase"` if it raises it (e.g. calving interval). Used by
-#'   [productivity_gap()].
+#'   [productivity_gap()]. Set to `"increase"` for hazard ratios.
 #' @param adjusted_for Diseases the raw estimate was already adjusted for,
 #'   separated by `";"` (e.g. `"LAM; CM"`). Their conflation terms are
 #'   removed from the adjustment for this impact.
@@ -174,6 +178,8 @@ cm_associations <- function(disease1, disease2, value = NA_real_,
 #' @examples
 #' cm_impacts(c("d1", "d2", "d3"), c(2.5, 5, 7.5), outcome = "yield",
 #'            scale = "percent")
+#' cm_impacts(c("d1", "d2", "d3"), c(1.5, 2.3, 1.1), outcome = "culling",
+#'            scale = "hazard_ratio")
 cm_impacts <- function(disease, value, outcome = "impact",
                        scale = "proportion", units = NA_character_,
                        direction = "decrease", adjusted_for = NA_character_,
@@ -184,13 +190,17 @@ cm_impacts <- function(disease, value, outcome = "impact",
   check_numeric(value, "value")
   outcome <- as.character(recycle_arg(outcome, n, "outcome"))
   scale <- as.character(recycle_arg(scale, n, "scale"))
-  check_choices(scale, c("proportion", "percent", "absolute"), "scale")
+  check_choices(scale, c("proportion", "percent", "absolute", "hazard_ratio"), "scale")
   direction <- as.character(recycle_arg(direction, n, "direction"))
   check_choices(direction, c("decrease", "increase"), "direction")
   units <- as.character(recycle_arg(units, n, "units"))
   if (any(scale == "absolute" & is.na(units))) {
     cm_abort("`units` is required for impacts on the absolute scale.")
   }
+  is_hr <- scale == "hazard_ratio"
+  if (any(is_hr & !(value > 0))) cm_abort("Hazard ratios must be positive.")
+  direction[is_hr] <- "increase"
+  units[is_hr & is.na(units)] <- "hazard ratio"
   input_scale <- scale
   value <- ifelse(scale == "percent", value / 100, value)
   scale[scale == "percent"] <- "proportion"

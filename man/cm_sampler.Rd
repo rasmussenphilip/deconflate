@@ -35,6 +35,9 @@ independent.}
 A function of the draw index returning a \code{\link[=cm_model]{cm_model()}}, with
 attributes \code{specs} (the distributions, keyed as in \code{params} of
 \code{\link[=cm_monte_carlo]{cm_monte_carlo()}}) and \code{correlated} (keys drawn through the copula).
+The function also accepts \code{u} (named uniforms, for stratified sampling)
+and \code{values} (named input values that replace draws, for importance
+sampling); \code{\link[=cm_monte_carlo]{cm_monte_carlo()}} uses these.
 }
 \description{
 Creates a function that, for each draw, copies \code{model} and replaces

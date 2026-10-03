@@ -13,7 +13,7 @@
 
 plot_burden(result, economics = NULL, ...)
 
-\method{plot}{cm_mc}(x, outcome = NULL, probs = c(0.025, 0.975), ...)
+\method{plot}{cm_mc}(x, outcome = NULL, probs = c(0.025, 0.975), method = NULL, ...)
 
 \method{plot}{cm_screen}(x, top = 15, ...)
 
@@ -30,6 +30,9 @@ Monte Carlo results).}
 \item{economics}{Optional economics list (see \code{\link[=value_losses]{value_losses()}}).}
 
 \item{probs}{Interval bounds for Monte Carlo plots.}
+
+\item{method}{For Monte Carlo runs with several methods: the method to
+show (default the first).}
 
 \item{top}{Number of rows to show.}
 }
