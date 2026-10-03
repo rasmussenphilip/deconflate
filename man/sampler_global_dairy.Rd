@@ -4,29 +4,56 @@
 \alias{sampler_global_dairy}
 \title{Monte Carlo sampler for the global dairy inputs (Rasmussen et al. 2024)}
 \usage{
-sampler_global_dairy()
+sampler_global_dairy(inputs = c("analysis", "tables"), culling = TRUE)
+}
+\arguments{
+\item{inputs}{\code{"analysis"} or \code{"tables"}; see the section above.}
+
+\item{culling}{Include the culling outcome?}
 }
 \value{
 A \code{\link[=cm_sampler]{cm_sampler()}}.
 }
 \description{
-Input distributions from Tables 2-4 of Rasmussen et al. (2024) for
-\code{\link[=example_global_dairy]{example_global_dairy()}}: global beta distributions for incidence, PERT
-distributions (the reported central value is used as the mode), normal
-distributions for odds ratios (truncated at zero) and impacts.
+Input distributions for \code{\link[=example_global_dairy]{example_global_dairy()}}. PERT distributions use
+the reported central value as the mode (shape 4), and normal distributions
+of odds ratios are truncated at zero.
 }
-\details{
-Running \code{\link[=cm_monte_carlo]{cm_monte_carlo()}} with \code{method = "published"} and averaging the
-adjusted yield impacts over draws reproduces Table 5 closely. Fertility
-impacts whose raw distributions extend below zero (e.g. metritis,
-subclinical ketosis, subclinical mastitis) are unstable under the
-published approximation, and their means are sensitive to how such draws
-are handled.
+\section{Two versions of the inputs}{
+
+\itemize{
+\item \code{inputs = "analysis"} (default) follows the published analysis code
+(1st revision): disease probabilities are fixed (not drawn), and the
+impact distributions use the unrounded parameters. For culling, the
+analysis entered HR - 1 and scaled the standard deviations of normal
+distributions by (HR - 1) / HR, which narrows them (e.g. clinical
+ketosis: SD 0.10 instead of 0.30). This is kept for reproduction.
+\item \code{inputs = "tables"} draws incidence from the global distributions of
+Table 2 and uses Tables 3-4 as printed. Culling hazard ratios are shifted
+by 1 with their standard deviations unchanged.
 }
+}
+
+\section{Reproducing Table 5}{
+
+With \code{inputs = "analysis"} and \code{method = "published"}, Monte Carlo means of
+the adjusted impacts reproduce Table 5 for yield (within about 0.02 points,
+except ovarian cyst 2.51 vs 2.59 and paratuberculosis 3.32 vs 3.37) and
+culling (within about 0.04, after adding 1). The analysis code used
+negative odds-ratio draws as they were; the package truncates them at
+zero, which accounts for the paratuberculosis difference. Fertility means
+for impacts whose raw distributions extend below zero (displaced abomasum,
+metritis, subclinical ketosis, subclinical mastitis) are unstable under the
+published approximation. See \code{vignette("reproducing-published")}.
+}
+
 \examples{
 \donttest{
 mc <- cm_monte_carlo(sampler_global_dairy(), 200, method = "published", seed = 1)
 s <- summary(mc)
 s[s$outcome == "yield", c("disease", "mean")]
+# Culling: adjusted hazard ratio = adjusted (HR - 1) + 1
+cull <- s[s$outcome == "culling", ]
+data.frame(disease = cull$disease, hr_adjusted = 1 + cull$mean)
 }
 }

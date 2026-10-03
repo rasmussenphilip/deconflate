@@ -14,9 +14,9 @@
 - [x] Sensitivity: one-at-a-time, association screening, interaction screening and scenario comparison.
 - [x] Reporting and base-graphics plots.
 - [x] Vignettes and pkgdown configuration.
-- [ ] Run `devtools::document()`, `test()` and `check()` on 0.0.0.9001 and fix any issues.
-- [ ] GitHub Actions: `usethis::use_github_action("check-standard")` and `usethis::use_pkgdown_github_pages()`.
-- [ ] Review the reproduction vignette against the original spreadsheets (2022 yield inputs; 2024 handling of negative draws).
+- [x] Run `devtools::document()`, `test()` and `check()` on 0.0.0.9001 and fix any issues.
+- [x] GitHub Actions: `usethis::use_github_action("check-standard")` and `usethis::use_pkgdown_github_pages()`.
+- [x] Review the reproduction vignette against the original analysis files (2024: 1st-revision code and inputs; 2022: original files unavailable, corrigendum checked).
 - [ ] Tag v0.1.0.
 
 ## After v0.1

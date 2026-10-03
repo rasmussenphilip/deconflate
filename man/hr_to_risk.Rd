@@ -8,7 +8,7 @@ hr_to_risk(
   hr,
   prevalence,
   overall_risk,
-  method = c("proportional_hazards", "or_approx")
+  method = c("proportional_hazards", "or_approx", "overall_odds")
 )
 }
 \arguments{
@@ -26,11 +26,15 @@ the period, so \code{risk_exposed = 1 - (1 - risk_unexposed)^hr}, with
 \item \code{"or_approx"}: treats the hazard ratio as an odds ratio in the 2x2
 table of disease by event (as in Rasmussen et al. 2022, section
 2.4.4 and Table 6). Provided to reproduce the published values.
+\item \code{"overall_odds"}: treats the hazard ratio as an odds ratio relative to
+the overall risk, \code{risk_exposed = hr * r / (hr * r + 1 - r)}, with the
+overall risk \code{r} as the reference (\code{risk_unexposed = r}), as in the
+loss calculations of Rasmussen et al. (2024). \code{prevalence} is not used.
 }}
 }
 \value{
-A data frame with \code{risk_exposed}, \code{risk_unexposed} and \code{excess}
-(their difference).
+A data frame with \code{risk_exposed}, \code{risk_unexposed} (the reference
+risk) and \code{excess} (their difference).
 }
 \description{
 Converts a hazard ratio for disease \code{i} into the period risk of the event
@@ -42,4 +46,6 @@ given the disease's prevalence and the overall period risk.
 # culling rate 0.27; published excess probability 0.31.
 hr_to_risk(3.83, 0.03, 0.27, method = "or_approx")
 hr_to_risk(3.83, 0.03, 0.27)
+# Rasmussen et al. (2024): adjusted HR relative to the overall culling risk
+hr_to_risk(2.75, NA, 0.27, method = "overall_odds")
 }

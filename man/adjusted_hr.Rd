@@ -2,30 +2,38 @@
 % Please edit documentation in R/hazard.R
 \name{adjusted_hr}
 \alias{adjusted_hr}
-\title{Convert adjusted excess risks back to hazard ratios}
+\title{Convert adjusted culling impacts back to hazard ratios}
 \usage{
 adjusted_hr(
   result,
-  conversion,
+  conversion = NULL,
   outcome = "culling",
-  method = c("proportional_hazards", "published")
+  method = c("proportional_hazards", "published", "excess_hr")
 )
 }
 \arguments{
 \item{result}{A \code{\link[=deconflate]{deconflate()}} result.}
 
-\item{conversion}{The \code{\link[=hr_conversion]{hr_conversion()}} used to build the impacts.}
+\item{conversion}{The \code{\link[=hr_conversion]{hr_conversion()}} used to build the impacts. Not
+needed for \code{method = "excess_hr"}.}
 
 \item{outcome}{Outcome label of the culling impacts.}
 
-\item{method}{\code{"proportional_hazards"} (default): inverts the
-proportional-hazards conversion with each disease's unexposed risk
-(\code{\link[=excess_to_hr]{excess_to_hr()}}). \code{"published"}: rescales the raw hazard ratio by the
-ratio of adjusted to raw excess risk (Rasmussen et al. 2022, eq. 23).}
+\item{method}{\itemize{
+\item \code{"proportional_hazards"} (default): inverts the proportional-hazards
+conversion with each disease's unexposed risk (\code{\link[=excess_to_hr]{excess_to_hr()}}).
+\item \code{"published"}: rescales the raw hazard ratio by the ratio of adjusted
+to raw excess risk (Rasmussen et al. 2022, eq. 23).
+\item \code{"excess_hr"}: the impacts are hazard ratios minus 1, adjusted
+directly (Rasmussen et al. 2024; see \code{\link[=example_global_dairy]{example_global_dairy()}}), so the
+adjusted hazard ratio is the adjusted impact plus 1.
+}}
 }
 \value{
-A data frame with raw and adjusted excess risks and hazard ratios.
+A data frame with raw and adjusted impacts (\code{excess},
+\code{excess_adjusted}: excess risks, or HR - 1 for \code{"excess_hr"}) and hazard
+ratios (\code{hr}, \code{hr_adjusted}).
 }
 \description{
-Convert adjusted excess risks back to hazard ratios
+Convert adjusted culling impacts back to hazard ratios
 }

@@ -36,7 +36,8 @@ plot_burden(res, eco)
 # Exact solution, with diagnostics for inconsistent inputs
 compare_methods(m)
 
-# Uncertainty: Monte Carlo of the global inputs, Rasmussen et al. (2024)
+# Uncertainty: Monte Carlo of the global inputs, Rasmussen et al. (2024).
+# Means of the adjusted impacts reproduce Table 5 (culling: add 1 to get HRs).
 mc <- cm_monte_carlo(sampler_global_dairy(), 1000, method = "published", seed = 1)
 summary(mc)
 ```
@@ -47,7 +48,7 @@ summary(mc)
 - **Adjustment:** `deconflate()` and `compare_methods()`. Interactions between diseases are supported with the global method.
 - **Joint distribution and feasibility:** `fit_joint()`, `combination_probs()` and `check_feasibility()`.
 - **Gaps, losses and attribution:** `productivity_gap()`, `value_losses()`, `attribute_burden()`, `shapley_by_cell()` and `contribution_table()`.
-- **Culling:** `hr_conversion()`, `as_impacts()` and `adjusted_hr()` (proportional hazards or the published approach).
+- **Culling:** `hr_conversion()`, `as_impacts()` and `adjusted_hr()` (proportional hazards, or the published approaches of 2022 and 2024).
 - **Uncertainty:** `dist_*()` distributions, `cm_sampler()` (with optional correlation across outcomes), `cm_monte_carlo()` (with rejection reporting) and `cm_scenario()` (importance reweighting).
 - **Sensitivity:** `sensitivity_oat()`, `screen_associations()`, `screen_interactions()` and `compare_scenarios()`.
 - **Plots** (base graphics) and four vignettes. Start with `vignette("deconflate")`.

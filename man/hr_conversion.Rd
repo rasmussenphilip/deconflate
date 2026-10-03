@@ -8,7 +8,7 @@ hr_conversion(
   diseases,
   hr,
   overall_risk,
-  method = c("proportional_hazards", "or_approx")
+  method = c("proportional_hazards", "or_approx", "overall_odds")
 )
 }
 \arguments{
@@ -19,8 +19,9 @@ hr_conversion(
 \item{overall_risk}{Overall period risk of the event in the population
 (e.g. the annual culling rate as a proportion).}
 
-\item{method}{\code{"proportional_hazards"} (default) or \code{"or_approx"} (the
-published approach of Rasmussen et al. 2022); see \code{\link[=hr_to_risk]{hr_to_risk()}}.}
+\item{method}{\code{"proportional_hazards"} (default), \code{"or_approx"} (the
+published approach of Rasmussen et al. 2022) or \code{"overall_odds"}; see
+\code{\link[=hr_to_risk]{hr_to_risk()}}.}
 }
 \value{
 A \code{cm_hr} data frame with one row per disease.

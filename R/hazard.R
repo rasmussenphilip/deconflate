@@ -15,17 +15,23 @@
 #'   * `"or_approx"`: treats the hazard ratio as an odds ratio in the 2x2
 #'     table of disease by event (as in Rasmussen et al. 2022, section
 #'     2.4.4 and Table 6). Provided to reproduce the published values.
+#'   * `"overall_odds"`: treats the hazard ratio as an odds ratio relative to
+#'     the overall risk, `risk_exposed = hr * r / (hr * r + 1 - r)`, with the
+#'     overall risk `r` as the reference (`risk_unexposed = r`), as in the
+#'     loss calculations of Rasmussen et al. (2024). `prevalence` is not used.
 #'
-#' @return A data frame with `risk_exposed`, `risk_unexposed` and `excess`
-#'   (their difference).
+#' @return A data frame with `risk_exposed`, `risk_unexposed` (the reference
+#'   risk) and `excess` (their difference).
 #' @export
 #' @examples
 #' # Displaced abomasum, Rasmussen et al. (2022) Table 6: HR 3.83, prevalence 0.03,
 #' # culling rate 0.27; published excess probability 0.31.
 #' hr_to_risk(3.83, 0.03, 0.27, method = "or_approx")
 #' hr_to_risk(3.83, 0.03, 0.27)
+#' # Rasmussen et al. (2024): adjusted HR relative to the overall culling risk
+#' hr_to_risk(2.75, NA, 0.27, method = "overall_odds")
 hr_to_risk <- function(hr, prevalence, overall_risk,
-                       method = c("proportional_hazards", "or_approx")) {
+                       method = c("proportional_hazards", "or_approx", "overall_odds")) {
   method <- match.arg(method)
   n <- max(length(hr), length(prevalence), length(overall_risk))
   hr <- recycle_arg(hr, n, "hr")
@@ -37,7 +43,9 @@ hr_to_risk <- function(hr, prevalence, overall_risk,
     h <- hr[j]
     P <- prevalence[j]
     r <- overall_risk[j]
-    if (method == "or_approx") {
+    if (method == "overall_odds") {
+      c(h * r / (h * r + 1 - r), r)
+    } else if (method == "or_approx") {
       p11 <- or_to_joint(h, r, P)
       c(p11 / P, (r - p11) / (1 - P))
     } else {
@@ -80,8 +88,9 @@ excess_to_hr <- function(excess, risk_unexposed) {
 #' @param hr Named numeric vector of hazard ratios (names = disease ids).
 #' @param overall_risk Overall period risk of the event in the population
 #'   (e.g. the annual culling rate as a proportion).
-#' @param method `"proportional_hazards"` (default) or `"or_approx"` (the
-#'   published approach of Rasmussen et al. 2022); see [hr_to_risk()].
+#' @param method `"proportional_hazards"` (default), `"or_approx"` (the
+#'   published approach of Rasmussen et al. 2022) or `"overall_odds"`; see
+#'   [hr_to_risk()].
 #' @return A `cm_hr` data frame with one row per disease.
 #' @export
 #' @examples
@@ -89,7 +98,7 @@ excess_to_hr <- function(excess, risk_unexposed) {
 #' conv
 #' as_impacts(conv)
 hr_conversion <- function(diseases, hr, overall_risk,
-                          method = c("proportional_hazards", "or_approx")) {
+                          method = c("proportional_hazards", "or_approx", "overall_odds")) {
   method <- match.arg(method)
   if (inherits(diseases, "cm_model")) diseases <- diseases$diseases
   if (!inherits(diseases, "cm_diseases")) cm_abort("`diseases` must be a cm_diseases or cm_model object.")
@@ -126,24 +135,39 @@ as_impacts <- function(x, outcome = "culling", scale = c("absolute", "proportion
              direction = "increase", ...)
 }
 
-#' Convert adjusted excess risks back to hazard ratios
+#' Convert adjusted culling impacts back to hazard ratios
 #'
 #' @param result A [deconflate()] result.
-#' @param conversion The [hr_conversion()] used to build the impacts.
+#' @param conversion The [hr_conversion()] used to build the impacts. Not
+#'   needed for `method = "excess_hr"`.
 #' @param outcome Outcome label of the culling impacts.
-#' @param method `"proportional_hazards"` (default): inverts the
-#'   proportional-hazards conversion with each disease's unexposed risk
-#'   ([excess_to_hr()]). `"published"`: rescales the raw hazard ratio by the
-#'   ratio of adjusted to raw excess risk (Rasmussen et al. 2022, eq. 23).
-#' @return A data frame with raw and adjusted excess risks and hazard ratios.
+#' @param method
+#'   * `"proportional_hazards"` (default): inverts the proportional-hazards
+#'     conversion with each disease's unexposed risk ([excess_to_hr()]).
+#'   * `"published"`: rescales the raw hazard ratio by the ratio of adjusted
+#'     to raw excess risk (Rasmussen et al. 2022, eq. 23).
+#'   * `"excess_hr"`: the impacts are hazard ratios minus 1, adjusted
+#'     directly (Rasmussen et al. 2024; see [example_global_dairy()]), so the
+#'     adjusted hazard ratio is the adjusted impact plus 1.
+#' @return A data frame with raw and adjusted impacts (`excess`,
+#'   `excess_adjusted`: excess risks, or HR - 1 for `"excess_hr"`) and hazard
+#'   ratios (`hr`, `hr_adjusted`).
 #' @export
-adjusted_hr <- function(result, conversion, outcome = "culling",
-                        method = c("proportional_hazards", "published")) {
+adjusted_hr <- function(result, conversion = NULL, outcome = "culling",
+                        method = c("proportional_hazards", "published", "excess_hr")) {
   method <- match.arg(method)
   if (!inherits(result, "cm_result")) cm_abort("`result` must come from deconflate().")
-  if (!inherits(conversion, "cm_hr")) cm_abort("`conversion` must come from hr_conversion().")
   a <- result$adjusted[result$adjusted$outcome == outcome, , drop = FALSE]
   if (!nrow(a)) cm_abort(sprintf("Outcome '%s' is not in the result.", outcome))
+  if (method == "excess_hr") {
+    return(data.frame(disease = a$disease, hr = a$raw + 1, excess = a$raw,
+                      excess_adjusted = a$adjusted, hr_adjusted = a$adjusted + 1,
+                      stringsAsFactors = FALSE))
+  }
+  if (!inherits(conversion, "cm_hr")) cm_abort("`conversion` must come from hr_conversion().")
+  if (identical(conversion$method[1], "overall_odds")) {
+    cm_abort("Conversions with method 'overall_odds' cannot be inverted; use them for losses only.")
+  }
   cv <- conversion[match(a$disease, conversion$disease), , drop = FALSE]
   hr_adj <- if (method == "published") {
     ifelse(cv$excess != 0, a$adjusted * cv$hr / cv$excess, cv$hr)

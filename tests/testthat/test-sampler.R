@@ -1,5 +1,5 @@
 test_that("samplers draw on the input scale and convert", {
-  m <- example_global_dairy()
+  m <- example_global_dairy(inputs = "tables")
   s <- cm_sampler(m, diseases = list(SCK = dist_fixed(0.5)),
                   impacts = list("yield:SCK" = dist_fixed(10)),
                   associations = list("SCK:CK" = dist_fixed(5)))
@@ -58,18 +58,36 @@ test_that("Monte Carlo with economics, rejections and scenarios", {
   expect_error(cm_scenario(mc, list("assoc:d1:zz" = dist_fixed(1))), "No sampled input")
 })
 
-test_that("Monte Carlo of the 2024 inputs reproduces Table 5 yield means", {
+test_that("Monte Carlo of the 2024 analysis inputs reproduces Table 5", {
   skip_on_cran()
   mc <- cm_monte_carlo(sampler_global_dairy(), 300, method = "published", seed = 2024)
   s <- summary(mc)
-  y <- s[s$outcome == "yield", ]
-  # DA is excluded: its raw yield impact can be near zero or negative, which
-  # makes the published approximation heavy-tailed and its mean unstable in
-  # small runs.
-  table5 <- c(CK = 0.03, CM = 1.36, DYS = 3.48, LAM = 2.62, MET = 2.87, MF = 0.07,
-              OC = 2.59, PTB = 3.37, RP = 2.30, SCK = 7.11, SCM = 5.58)
-  y <- y[y$disease != "DA", ]
-  expect_lt(max(abs(100 * y$mean - table5[y$disease])), 0.35)
+  # Disease probabilities are fixed in the analysis inputs.
+  expect_length(unique(mc$params[["prob:SCK"]]), 1)
+  expect_false(any(startsWith(names(attr(sampler_global_dairy(), "specs")), "prob:")))
   # Negative normal draws of odds ratios are truncated, not rejected.
   expect_equal(mc$n_rejected, 0)
+  # DA (and DYS for culling) are excluded: their raw impacts can be near zero
+  # or negative, which makes the published approximation heavy-tailed and its
+  # mean unstable in small runs. Long-run means (200,000 draws,
+  # inst/validation/reference_2024_analysis.py): yield OC 2.51, PTB 3.32;
+  # culling OC 1.48; all others within 0.02 of Table 5.
+  y <- s[s$outcome == "yield" & s$disease != "DA", ]
+  table5_yield <- c(CK = 0.03, CM = 1.36, DYS = 3.48, LAM = 2.62, MET = 2.87, MF = 0.07,
+                    OC = 2.59, PTB = 3.37, RP = 2.30, SCK = 7.11, SCM = 5.58)
+  expect_lt(max(abs(100 * y$mean - table5_yield[y$disease])), 0.35)
+  cu <- s[s$outcome == "culling" & !s$disease %in% c("DA", "DYS"), ]
+  table5_cull <- c(CK = 1.18, CM = 1.90, LAM = 1.40, MET = 1.03, MF = 2.64, OC = 1.51,
+                   PTB = 2.07, RP = 1.29, SCK = 1.67, SCM = 1.25)
+  expect_lt(max(abs(1 + cu$mean - table5_cull[cu$disease])), 0.12)
+})
+
+test_that("the Table 2-4 sampler draws incidence and shifts hazard ratios", {
+  s <- sampler_global_dairy(inputs = "tables")
+  specs <- attr(s, "specs")
+  expect_true("prob:SCK" %in% names(specs))
+  expect_equal(specs[["impact:culling:CK"]]$params$sd, 0.30)
+  expect_equal(specs[["impact:culling:MET"]]$params$mean, 0.05)
+  s2 <- sampler_global_dairy(culling = FALSE)
+  expect_false(any(startsWith(names(attr(s2, "specs")), "impact:culling")))
 })

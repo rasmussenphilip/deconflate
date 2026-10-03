@@ -25,27 +25,83 @@ example_supplement <- function() {
   )
 }
 
-#' Global dairy inputs from Rasmussen et al. (2024), at their means
+#' Global dairy inputs from Rasmussen et al. (2024), at their central values
 #'
-#' Global (herd-size weighted) lactational incidence (prevalence for PTB) from
-#' Table 2, pooled inter-disease odds ratios from Table 3, and raw yield
-#' (% decrease) and fertility (% increase in calving interval) impacts from
-#' Table 4. Pairs absent from Table 3 are treated as independent, as in the
-#' paper. Culling impacts (hazard ratios) are omitted; see [hr_to_risk()].
+#' The 12 diseases of Rasmussen et al. (2024): global (herd-size weighted)
+#' lactational incidence (prevalence for PTB), pooled inter-disease odds
+#' ratios (Table 3, pairs not listed are independent), and raw impacts on
+#' yield (% decrease), fertility (% increase in calving interval) and,
+#' optionally, culling (hazard ratio minus 1). Central values are means of
+#' normal distributions and modes of PERT distributions.
+#'
+#' @section Two versions of the inputs:
+#' * `inputs = "analysis"` (default) uses the inputs of the published
+#'   analysis code (1st revision), which reproduce Table 5:
+#'   - disease probabilities are fixed at `1 - exp(-incidence)`, using the
+#'     unrounded global mean incidence. Subclinical mastitis (SCM) was entered
+#'     without conversion (0.4094 rather than 0.3360); this is kept here
+#'     (`type = "probability"`);
+#'   - impacts are the unrounded central values (e.g. clinical ketosis yield
+#'     0.4322% rather than 0.43%);
+#'   - culling is entered as HR - 1, as in the analysis. Metritis uses the
+#'     analysis value (PERT mode 1.116) rather than Table 4 (normal, mean 1.05).
+#' * `inputs = "tables"` uses Tables 2-4 as printed, with incidence converted
+#'   for every disease except PTB.
+#'
+#' @section Culling:
+#' Culling impacts are hazard ratios minus 1 on the `"absolute"` scale, so
+#' that [deconflate()] adjusts the excess hazard ratio. Convert results back
+#' with `adjusted_hr(res, method = "excess_hr")`. These impacts are not
+#' excess risks, so do not pass them to [productivity_gap()]; the paper
+#' converts adjusted hazard ratios to excess culling risk with
+#' `hr_to_risk(..., method = "overall_odds")`.
 #'
 #' The paper's Table 5 reports means of adjusted impacts over Monte Carlo
-#' draws, which differ from adjusting the input means (e.g. displaced
-#' abomasum yield: 1.18 vs 0.79).
+#' draws ([sampler_global_dairy()]), which differ from adjusting the central
+#' values (e.g. displaced abomasum yield: 1.18 vs 0.79).
 #'
-#' @return A [cm_model()] with outcomes `"yield"` and `"fertility"`.
+#' @param inputs `"analysis"` or `"tables"`; see the section above.
+#' @param culling Include the culling outcome?
+#' @return A [cm_model()] with outcomes `"yield"`, `"fertility"` and, if
+#'   `culling = TRUE`, `"culling"`.
 #' @export
-example_global_dairy <- function() {
+#' @examples
+#' res <- deconflate(example_global_dairy(), method = "published")
+#' adjusted_hr(res, method = "excess_hr")
+example_global_dairy <- function(inputs = c("analysis", "tables"), culling = TRUE) {
+  inputs <- match.arg(inputs)
   ids <- c("CK", "CM", "DA", "DYS", "LAM", "MET", "MF", "OC", "PTB", "RP", "SCK", "SCM")
-  inc <- c(CK = 3.06, CM = 30.49, DA = 2.16, DYS = 5.99, LAM = 25.45, MET = 9.57,
-           MF = 2.41, OC = 11.46, PTB = 10.01, RP = 12.35, SCK = 47.89, SCM = 40.97)
-  type <- ifelse(ids == "PTB", "prevalence", "incidence_rate")
-  diseases <- cm_diseases(ids, inc[ids] / 100, type = type, time_horizon = "lactation",
-                          source = "Rasmussen et al. 2024, Table 2")
+  if (inputs == "analysis") {
+    inc <- c(CK = 3.06287320599544, CM = 30.5081708702075, DA = 2.16266798689032,
+             DYS = 6.11107185570655, LAM = 25.4288506511192, MET = 9.58013664473386,
+             MF = 2.41829408262443, OC = 11.2683551256031, PTB = 10.3964073833149,
+             RP = 12.346845541711, SCK = 47.9052187708235, SCM = 40.9414831921559)
+    type <- ifelse(ids == "PTB", "prevalence",
+                   ifelse(ids == "SCM", "probability", "incidence_rate"))
+    src <- "Rasmussen et al. 2024, analysis code (1st revision)"
+    yield <- c(CK = 0.4321944, CM = 3.2499, DA = 2.83693, DYS = 4.919088, LAM = 4.8061,
+               MET = 5.613085, MF = 0.5365130859025376, OC = 3.747839, PTB = 4.3,
+               RP = 4.198664, SCK = 8.396472, SCM = 6.293184)
+    fert <- c(CK = 1.445122, CM = 8.42, DA = 1.082641, DYS = 2.399177, LAM = 3.304898,
+              MET = 14.67308, MF = 2.414949, OC = 9.685465, PTB = 5.349124,
+              RP = 6.760971, SCK = 1.122037, SCM = 0.2636645)
+    hr <- c(CK = 1.5001, CM = 2.3, DA = 2.851179, DYS = 1.258143, LAM = 1.744976,
+            MET = 1.116444, MF = 2.999886, OC = 1.62, PTB = 2.310508, RP = 1.599928,
+            SCK = 1.92, SCM = 1.449996)
+  } else {
+    inc <- c(CK = 3.06, CM = 30.49, DA = 2.16, DYS = 5.99, LAM = 25.45, MET = 9.57,
+             MF = 2.41, OC = 11.46, PTB = 10.01, RP = 12.35, SCK = 47.89, SCM = 40.97)
+    type <- ifelse(ids == "PTB", "prevalence", "incidence_rate")
+    src <- "Rasmussen et al. 2024, Tables 2-4"
+    yield <- c(CK = 0.43, CM = 3.25, DA = 2.84, DYS = 4.92, LAM = 4.81, MET = 5.61,
+               MF = 0.54, OC = 3.75, PTB = 4.30, RP = 4.20, SCK = 8.40, SCM = 6.29)
+    fert <- c(CK = 1.45, CM = 8.42, DA = 1.08, DYS = 2.40, LAM = 3.30, MET = 14.67,
+              MF = 2.41, OC = 9.69, PTB = 5.35, RP = 6.76, SCK = 1.12, SCM = 0.26)
+    hr <- c(CK = 1.50, CM = 2.30, DA = 2.85, DYS = 1.26, LAM = 1.74, MET = 1.05,
+            MF = 3.00, OC = 1.62, PTB = 2.31, RP = 1.60, SCK = 1.92, SCM = 1.45)
+  }
+  diseases <- cm_diseases(ids, unname(inc[ids]) / 100, type = type,
+                          time_horizon = "lactation", source = src)
   or <- c("CK:CM" = 2.13, "CK:LAM" = 1.65, "CK:MF" = 1.60, "CK:OC" = 1.97,
           "CK:RP" = 1.55, "CK:SCK" = 6.95, "CK:SCM" = 2.40, "CM:LAM" = 2.10,
           "CM:PTB" = 1.89, "CM:RP" = 2.70, "CM:SCK" = 1.64, "CM:SCM" = 3.05,
@@ -58,18 +114,20 @@ example_global_dairy <- function() {
           "RP:OC" = 2.18, "SCK:RP" = 1.52)
   pr <- do.call(rbind, strsplit(names(or), ":", fixed = TRUE))
   associations <- cm_associations(pr[, 1], pr[, 2], unname(or), measure = "OR",
-                                   source = "Rasmussen et al. 2024, Table 3")
-  yield <- c(CK = 0.43, CM = 3.25, DA = 2.84, DYS = 4.92, LAM = 4.81, MET = 5.61,
-             MF = 0.54, OC = 3.75, PTB = 4.30, RP = 4.20, SCK = 8.40, SCM = 6.29)
-  fert <- c(CK = 1.45, CM = 8.42, DA = 1.08, DYS = 2.40, LAM = 3.30, MET = 14.67,
-            MF = 2.41, OC = 9.69, PTB = 5.35, RP = 6.76, SCK = 1.12, SCM = 0.26)
-  impacts <- cm_impacts(
-    disease = c(ids, ids), value = unname(c(yield[ids], fert[ids])),
-    outcome = rep(c("yield", "fertility"), each = length(ids)),
-    scale = "percent",
-    direction = rep(c("decrease", "increase"), each = length(ids)),
-    source = "Rasmussen et al. 2024, Table 4"
+                                  source = "Rasmussen et al. 2024, Table 3")
+  impacts <- combine_impacts(
+    cm_impacts(ids, unname(yield[ids]), outcome = "yield", scale = "percent",
+               direction = "decrease", source = src),
+    cm_impacts(ids, unname(fert[ids]), outcome = "fertility", scale = "percent",
+               direction = "increase", source = src)
   )
+  if (culling) {
+    impacts <- combine_impacts(
+      impacts,
+      cm_impacts(ids, unname(hr[ids]) - 1, outcome = "culling", scale = "absolute",
+                 units = "hazard ratio - 1", direction = "increase", source = src)
+    )
+  }
   cm_model(diseases, associations, impacts, missing_associations = "independent")
 }
 
@@ -190,18 +248,34 @@ uk_dairy_2022_economics <- function(culling_scale = c("proportion", "absolute"))
 
 #' Monte Carlo sampler for the global dairy inputs (Rasmussen et al. 2024)
 #'
-#' Input distributions from Tables 2-4 of Rasmussen et al. (2024) for
-#' [example_global_dairy()]: global beta distributions for incidence, PERT
-#' distributions (the reported central value is used as the mode), normal
-#' distributions for odds ratios (truncated at zero) and impacts.
+#' Input distributions for [example_global_dairy()]. PERT distributions use
+#' the reported central value as the mode (shape 4), and normal distributions
+#' of odds ratios are truncated at zero.
 #'
-#' Running [cm_monte_carlo()] with `method = "published"` and averaging the
-#' adjusted yield impacts over draws reproduces Table 5 closely. Fertility
-#' impacts whose raw distributions extend below zero (e.g. metritis,
-#' subclinical ketosis, subclinical mastitis) are unstable under the
-#' published approximation, and their means are sensitive to how such draws
-#' are handled.
+#' @section Two versions of the inputs:
+#' * `inputs = "analysis"` (default) follows the published analysis code
+#'   (1st revision): disease probabilities are fixed (not drawn), and the
+#'   impact distributions use the unrounded parameters. For culling, the
+#'   analysis entered HR - 1 and scaled the standard deviations of normal
+#'   distributions by (HR - 1) / HR, which narrows them (e.g. clinical
+#'   ketosis: SD 0.10 instead of 0.30). This is kept for reproduction.
+#' * `inputs = "tables"` draws incidence from the global distributions of
+#'   Table 2 and uses Tables 3-4 as printed. Culling hazard ratios are shifted
+#'   by 1 with their standard deviations unchanged.
 #'
+#' @section Reproducing Table 5:
+#' With `inputs = "analysis"` and `method = "published"`, Monte Carlo means of
+#' the adjusted impacts reproduce Table 5 for yield (within about 0.02 points,
+#' except ovarian cyst 2.51 vs 2.59 and paratuberculosis 3.32 vs 3.37) and
+#' culling (within about 0.04, after adding 1). The analysis code used
+#' negative odds-ratio draws as they were; the package truncates them at
+#' zero, which accounts for the paratuberculosis difference. Fertility means
+#' for impacts whose raw distributions extend below zero (displaced abomasum,
+#' metritis, subclinical ketosis, subclinical mastitis) are unstable under the
+#' published approximation. See `vignette("reproducing-published")`.
+#'
+#' @param inputs `"analysis"` or `"tables"`; see the section above.
+#' @param culling Include the culling outcome?
 #' @return A [cm_sampler()].
 #' @export
 #' @examples
@@ -209,18 +283,15 @@ uk_dairy_2022_economics <- function(culling_scale = c("proportion", "absolute"))
 #' mc <- cm_monte_carlo(sampler_global_dairy(), 200, method = "published", seed = 1)
 #' s <- summary(mc)
 #' s[s$outcome == "yield", c("disease", "mean")]
+#' # Culling: adjusted hazard ratio = adjusted (HR - 1) + 1
+#' cull <- s[s$outcome == "culling", ]
+#' data.frame(disease = cull$disease, hr_adjusted = 1 + cull$mean)
 #' }
-sampler_global_dairy <- function() {
-  b <- function(a, bb) dist_beta(a, bb)
-  diseases <- list(
-    CK = b(13.95, 441.59), CM = b(8.55, 18.20), DA = b(27.50, 1245.11),
-    DYS = dist_pert(0.0190, 0.0599, 0.1080), LAM = b(78.29, 227.42),
-    MET = b(17.73, 167.35), MF = b(7.76, 313.41), OC = dist_pert(0.0270, 0.1146, 0.1907),
-    PTB = dist_pert(0.0119, 0.1001, 0.2108), RP = b(33.75, 239.46),
-    SCK = b(178.14, 193.73), SCM = b(116.23, 167.02)
-  )
+sampler_global_dairy <- function(inputs = c("analysis", "tables"), culling = TRUE) {
+  inputs <- match.arg(inputs)
   n0 <- function(m, s) dist_normal(m, s, lower = 0)
   pe <- function(mode, mn, mx) dist_pert(mn, mode, mx)
+  nn <- function(m, s) dist_normal(m, s)
   associations <- list(
     "CK:CM" = pe(2.13, 1.20, 3.40), "CK:LAM" = pe(1.65, 1.20, 2.40), "CK:MF" = n0(1.60, 0.13),
     "CK:OC" = pe(1.97, 1.30, 4.10), "CK:RP" = pe(1.55, 1.00, 1.90), "CK:SCK" = n0(6.95, 1.28),
@@ -235,19 +306,70 @@ sampler_global_dairy <- function() {
     "MET:SCK" = n0(1.94, 0.09), "MF:DYS" = n0(9.70, 1.30), "MF:RP" = n0(2.40, 0.20),
     "RP:OC" = pe(2.18, 1.78, 2.57), "SCK:RP" = n0(1.52, 0.19)
   )
-  nn <- function(m, s) dist_normal(m, s)
-  impacts <- list(
-    "yield:CK" = pe(0.43, 0.24, 1.04), "yield:CM" = nn(3.25, 0.76), "yield:DA" = pe(2.84, -1.45, 9.19),
-    "yield:DYS" = nn(4.92, 0.97), "yield:LAM" = nn(4.81, 0.87), "yield:MET" = nn(5.61, 1.35),
-    "yield:OC" = pe(3.75, 1.71, 4.33), "yield:PTB" = nn(4.30, 0.67), "yield:RP" = nn(4.20, 1.15),
-    "yield:SCK" = nn(8.40, 1.19), "yield:SCM" = nn(6.29, 1.20),
-    "fertility:CK" = nn(1.45, 0.36), "fertility:CM" = nn(8.42, 2.42), "fertility:DA" = nn(1.08, 2.04),
-    "fertility:DYS" = nn(2.40, 0.93), "fertility:LAM" = pe(3.30, 1.19, 10.71),
-    "fertility:MET" = nn(14.67, 8.54), "fertility:MF" = pe(2.41, 2.03, 3.10),
-    "fertility:OC" = pe(9.69, 5.04, 21.43), "fertility:PTB" = nn(5.35, 2.53),
-    "fertility:RP" = nn(6.76, 1.56), "fertility:SCK" = nn(1.12, 1.82),
-    "fertility:SCM" = pe(0.26, -0.12, 5.68)
-  )
-  cm_sampler(example_global_dairy(), diseases = diseases, associations = associations,
-             impacts = impacts)
+  if (inputs == "analysis") {
+    diseases <- list()
+    impacts <- list(
+      "yield:CK" = pe(0.4321944, 0.2351676, 1.043482), "yield:CM" = nn(3.2499, 0.7584468),
+      "yield:DA" = pe(2.83693, -1.451884, 9.190728), "yield:DYS" = nn(4.919088, 0.9688162),
+      "yield:LAM" = nn(4.8061, 0.8651519), "yield:MET" = nn(5.613085, 1.350757),
+      "yield:OC" = pe(3.747839, 1.711971, 4.326951), "yield:PTB" = nn(4.3, 0.6683673),
+      "yield:RP" = nn(4.198664, 1.154555), "yield:SCK" = nn(8.396472, 1.185384),
+      "yield:SCM" = nn(6.293184, 1.200231),
+      "fertility:CK" = nn(1.445122, 0.3624052), "fertility:CM" = nn(8.42, 2.424912),
+      "fertility:DA" = nn(1.082641, 2.036204), "fertility:DYS" = nn(2.399177, 0.9317402),
+      "fertility:LAM" = pe(3.304898, 1.190476, 10.71429),
+      "fertility:MET" = nn(14.67308, 8.535001),
+      "fertility:MF" = pe(2.414949, 2.032968, 3.095238),
+      "fertility:OC" = pe(9.685465, 5.043478, 21.42857),
+      "fertility:PTB" = nn(5.349124, 2.527459), "fertility:RP" = nn(6.760971, 1.558483),
+      "fertility:SCK" = nn(1.122037, 1.822338),
+      "fertility:SCM" = pe(0.2636645, -0.1242236, 5.681529)
+    )
+    cull <- list(
+      "culling:CK" = nn(0.5001, 0.10000976530231317),
+      "culling:CM" = nn(1.3, 0.17342740434782608),
+      "culling:DA" = pe(1.851179, 0, 6.9),
+      "culling:DYS" = pe(0.258143, -0.4, 1.1),
+      "culling:LAM" = nn(0.744976, 0.07449644729921788),
+      "culling:MET" = pe(0.116444, -0.4, 0.5),
+      "culling:MF" = nn(1.999886, 0.6012380424926813),
+      "culling:OC" = nn(0.62, 0.1591395716049383),
+      "culling:PTB" = nn(1.310508, 0.2011405862857865),
+      "culling:RP" = nn(0.599928, 0.11954628295273287),
+      "culling:SCK" = nn(0.92, 0.0855654625),
+      "culling:SCM" = nn(0.449996, 0.07758647609400302)
+    )
+  } else {
+    b <- function(a, bb) dist_beta(a, bb)
+    diseases <- list(
+      CK = b(13.95, 441.59), CM = b(8.55, 18.20), DA = b(27.50, 1245.11),
+      DYS = dist_pert(0.0190, 0.0599, 0.1080), LAM = b(78.29, 227.42),
+      MET = b(17.73, 167.35), MF = b(7.76, 313.41), OC = dist_pert(0.0270, 0.1146, 0.1907),
+      PTB = dist_pert(0.0119, 0.1001, 0.2108), RP = b(33.75, 239.46),
+      SCK = b(178.14, 193.73), SCM = b(116.23, 167.02)
+    )
+    impacts <- list(
+      "yield:CK" = pe(0.43, 0.24, 1.04), "yield:CM" = nn(3.25, 0.76), "yield:DA" = pe(2.84, -1.45, 9.19),
+      "yield:DYS" = nn(4.92, 0.97), "yield:LAM" = nn(4.81, 0.87), "yield:MET" = nn(5.61, 1.35),
+      "yield:OC" = pe(3.75, 1.71, 4.33), "yield:PTB" = nn(4.30, 0.67), "yield:RP" = nn(4.20, 1.15),
+      "yield:SCK" = nn(8.40, 1.19), "yield:SCM" = nn(6.29, 1.20),
+      "fertility:CK" = nn(1.45, 0.36), "fertility:CM" = nn(8.42, 2.42), "fertility:DA" = nn(1.08, 2.04),
+      "fertility:DYS" = nn(2.40, 0.93), "fertility:LAM" = pe(3.30, 1.19, 10.71),
+      "fertility:MET" = nn(14.67, 8.54), "fertility:MF" = pe(2.41, 2.03, 3.10),
+      "fertility:OC" = pe(9.69, 5.04, 21.43), "fertility:PTB" = nn(5.35, 2.53),
+      "fertility:RP" = nn(6.76, 1.56), "fertility:SCK" = nn(1.12, 1.82),
+      "fertility:SCM" = pe(0.26, -0.12, 5.68)
+    )
+    cull <- list(
+      "culling:CK" = nn(0.50, 0.30), "culling:CM" = nn(1.30, 0.31),
+      "culling:DA" = pe(1.85, 0, 6.90), "culling:DYS" = pe(0.26, -0.40, 1.10),
+      "culling:LAM" = nn(0.74, 0.17), "culling:MET" = nn(0.05, 0.15),
+      "culling:MF" = nn(2.00, 0.90), "culling:OC" = nn(0.62, 0.42),
+      "culling:PTB" = nn(1.31, 0.35), "culling:RP" = nn(0.60, 0.32),
+      "culling:SCK" = nn(0.92, 0.18), "culling:SCM" = nn(0.45, 0.25)
+    )
+  }
+  if (culling) impacts <- c(impacts, cull)
+  cm_sampler(example_global_dairy(inputs = inputs, culling = culling),
+             diseases = diseases, associations = associations, impacts = impacts)
 }

@@ -54,22 +54,46 @@ Adjusted culling hazard ratios (Table 8, eq. 23):
 adjusted_hr(res, attr(m, "culling_conversion"), method = "published")
 ```
 
+### Comparison with Table 9
+
+Using the inputs as printed in Tables 2-6:
+
+| | Published (Table 9) | Package |
+|---|---|---|
+| Yield potential (kg/cow/year) | 9306.32 | 9299.21 |
+| Yield gap value (GBP/cow/year) | 172.05 | 169.90 |
+| Calving interval potential (days) | 375.09 | 375.09 |
+| Fertility gap value (GBP/cow/year) | 101.79 | 101.78 |
+| Culling rate potential (%) | 22.56 | 22.55 |
+| Culling gap value (GBP/cow/year) | 59.27 | 59.48 |
+| Total including veterinary costs (GBP/cow/year) | 404.21 | 402.25 |
+
 **What reproduces.**
 
-* Fertility matches Tables 9-10: a disease-free calving interval of 375.09
-  days, valued at GBP 101.79 per cow per year.
-* The adjusted culling hazard ratios match Table 8 to within 0.01.
-* The culling gap is within 0.5% of the published value.
+* Fertility matches Table 9 (375.09 days, GBP 101.79 vs 101.78 after
+  rounding).
+* The adjusted culling hazard ratios match Table 8 to within 0.01, and the
+  culling gap is within 0.5% of the published value.
 
-**What does not.** Yield cannot be reproduced exactly from the printed
-Table 4.
+**What does not.**
 
-* The tables imply different inputs. For subclinical ketosis, note i of
-  Table 4 (340 kg per lactation) gives 340 / 8737 = 3.89%, not the printed
-  3.05%. With 3.89% the adjusted values match Table 8 (SCK 2.66 vs 2.65,
-  lameness 4.75 vs 4.76).
-* Table 10's yield column implies further small differences in the inputs,
-  for example for fasciolosis.
+* **Yield.** The adjusted yield impacts cannot be reproduced exactly from
+  the printed Table 4. For subclinical ketosis, note i of Table 4 (340 kg per
+  lactation) gives 340 / 8737 = 3.89%, not the printed 3.05%. With 3.89%,
+  most adjusted values match Table 8 (SCK 2.66 vs 2.65, lameness 4.75 vs
+  4.76), but displaced abomasum does not (2.28 vs 2.49). Table 10's yield
+  column implies further small input differences, for example for
+  fasciolosis (7.04 vs 7.33).
+* **Allocation of the fertility gap.** Table 10 allocates GBP 15.09 to cystic
+  ovary and GBP 5.80 to metritis. Allocating the gap in proportion to each
+  disease's adjusted impact times its prevalence, as described in the paper
+  (eq. 22), gives GBP 14.76 and GBP 6.04. The total is the same.
+
+The original spreadsheets for the 2022 analysis are no longer available, so
+the source of these differences cannot be checked. The published corrigendum
+does not explain them: it corrects Table 7 only (the dystocia loss taken from
+the literature, GBP 20.97 to GBP 31.92, and the directly aggregated total, now
+GBP 660.26), which is not an input to the comorbidity adjustment.
 
 ```{r}
 m389 <- example_uk_dairy_2022(yield_sck = 100 * 340 / 8737)
@@ -98,32 +122,102 @@ summary(res2, economics = eco2)
 
 ## Global dairy analysis (2024, Table 5)
 
-Table 5 reports the means of comorbidity-adjusted impacts over Monte Carlo
-draws of the inputs in Tables 2-4. `sampler_global_dairy()` encodes those
-distributions. In Tables 2-4, the central value of a PERT distribution is
-its mode. Run with many more draws for stable estimates; 200 are used here
-to keep the vignette fast.
+Table 5 reports the means of comorbidity-adjusted impacts over 50,000 Monte
+Carlo draws per outcome. `sampler_global_dairy()` encodes the input
+distributions. By default (`inputs = "analysis"`) it follows the published
+analysis code rather than the printed tables:
+
+* **Fixed disease probabilities.** Prevalence and incidence were not drawn
+  in the adjustment. Each probability is `1 - exp(-incidence)` at the
+  unrounded global mean, except paratuberculosis (a prevalence) and
+  subclinical mastitis, which was entered without conversion (0.409 rather
+  than 0.336).
+* **PERT distributions** use the central value in Tables 2-4 as the mode.
+* **Unrounded impact parameters**, e.g. a clinical ketosis yield impact of
+  0.4322% rather than 0.43%.
+* **Culling** was adjusted on the hazard ratio scale: HR - 1 was adjusted,
+  and 1 was added back. Normal standard deviations were scaled by
+  (HR - 1) / HR, and metritis used a PERT distribution (mode 1.12) rather
+  than the normal distribution in Table 4 (mean 1.05).
+
+`sampler_global_dairy(inputs = "tables")` uses Tables 2-4 as printed
+instead. Run with many more draws for stable estimates; 200 are used here to
+keep the vignette fast.
 
 ```{r}
 mc <- cm_monte_carlo(sampler_global_dairy(), 200, method = "published", seed = 2024)
 s <- summary(mc)
-y <- s[s$outcome == "yield", c("disease", "mean", "q0.025", "q0.975")]
-y$mean_pct <- round(100 * y$mean, 2)
-y$table5 <- c(CK = 0.03, CM = 1.36, DA = 1.18, DYS = 3.48, LAM = 2.62, MET = 2.87,
-              MF = 0.07, OC = 2.59, PTB = 3.37, RP = 2.30, SCK = 7.11, SCM = 5.58)[y$disease]
-y[, c("disease", "mean_pct", "table5")]
+s$package <- round(ifelse(s$outcome == "culling", 1 + s$mean, 100 * s$mean), 2)
+table5 <- list(
+  yield = c(0.03, 1.36, 1.18, 3.48, 2.62, 2.87, 0.07, 2.59, 3.37, 2.30, 7.11, 5.58),
+  culling = c(1.18, 1.90, 2.75, 1.18, 1.40, 1.03, 2.64, 1.51, 2.07, 1.29, 1.67, 1.25)
+)
+ids <- c("CK", "CM", "DA", "DYS", "LAM", "MET", "MF", "OC", "PTB", "RP", "SCK", "SCM")
+pkg <- function(o) s$package[s$outcome == o][match(ids, s$disease[s$outcome == o])]
+data.frame(
+  disease = ids,
+  yield_package = pkg("yield"), yield_table5 = table5$yield,
+  culling_package = pkg("culling"), culling_table5 = table5$culling
+)
 ```
 
-The yield means agree closely with Table 5. For fertility impacts whose
-raw distributions extend below zero (e.g. metritis, subclinical ketosis and
-subclinical mastitis), the published approximation is unstable, so their
-means depend on how such draws are handled.
+With 200,000 draws (`inst/validation/reference_2024_analysis.py`), the means
+are:
 
-The simultaneous solution at the input means shows the inconsistency
-directly. Several adjusted impacts change sign, while the total burden
-stays similar:
+| Disease | Yield, Table 5 | Yield, package | Culling HR, Table 5 | Culling HR, package |
+|---|---|---|---|---|
+| CK | 0.03 | 0.04 | 1.18 | 1.18 |
+| CM | 1.36 | 1.36 | 1.90 | 1.90 |
+| DA | 1.18 | 1.18 | 2.75 | 2.74 |
+| DYS | 3.48 | 3.49 | 1.18 | 1.20 |
+| LAM | 2.62 | 2.60 | 1.40 | 1.39 |
+| MET | 2.87 | 2.86 | 1.03 | 1.03 |
+| MF | 0.07 | 0.07 | 2.64 | 2.64 |
+| OC | 2.59 | 2.51 | 1.51 | 1.48 |
+| PTB | 3.37 | 3.32 | 2.07 | 2.06 |
+| RP | 2.30 | 2.30 | 1.29 | 1.29 |
+| SCK | 7.11 | 7.11 | 1.67 | 1.67 |
+| SCM | 5.58 | 5.58 | 1.25 | 1.25 |
+
+**Negative odds-ratio draws.** About 3% of draws of the lameness:ovarian
+cyst odds ratio (normal, mean 2.63, SD 1.44) are negative, as are about 1% of
+lameness:paratuberculosis draws. The analysis code used these draws as they
+were, taking the absolute value of a negative discriminant in eq. 11. A
+negative odds ratio has no valid 2x2 table, so the package truncates normal
+odds-ratio distributions at zero. This explains the paratuberculosis yield
+difference (3.38 without truncation). It does not explain ovarian cyst
+(2.51 with or without truncation): in the analysis output, the spread of
+the adjusted ovarian cyst yield impact is several times larger than for the
+other diseases, which suggests that a few extreme draws drive its mean.
+
+**Fertility.** Fertility means for clinical mastitis, dystocia, lameness,
+milk fever, ovarian cyst and retained placenta agree with Table 5 to within
+about 0.05 (for example clinical mastitis 6.10 vs 6.09). Clinical ketosis
+(0.30 vs 0.34) and paratuberculosis (4.08 vs 4.23) differ more. Where the raw
+impact distribution extends below zero (displaced abomasum, metritis,
+subclinical ketosis and subclinical mastitis), the published approximation
+`m^2 / (m + c)` is unstable: draws in which `m + c` is close to zero produce
+extreme values. For subclinical ketosis the Monte Carlo mean does not settle
+even with 200,000 draws, and for subclinical mastitis the archived inputs
+give 0.52% rather than the 0.04% in Table 5. Medians, or the exact
+(simultaneous) solution, are more robust summaries.
+
+The simultaneous solution at the central values shows the inconsistency
+directly. Several adjusted impacts change sign, while the total burden stays
+similar:
 
 ```{r}
 res24 <- suppressWarnings(deconflate(example_global_dairy()))
 res24$diagnostics[, c("outcome", "n_sign_changes", "sign_changes")]
+```
+
+Adjusted culling impacts convert back to hazard ratios with
+`adjusted_hr(..., method = "excess_hr")`. For the losses, the paper converted
+each adjusted hazard ratio to an excess culling risk relative to the overall
+culling rate `r`, `HR * r / (HR * r + 1 - r) - r`; this is
+`hr_to_risk(hr, NA, r, method = "overall_odds")`.
+
+```{r}
+pub24 <- deconflate(example_global_dairy(), method = "published")
+adjusted_hr(pub24, method = "excess_hr")
 ```
