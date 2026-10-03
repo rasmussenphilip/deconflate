@@ -18,7 +18,8 @@ cm_batch_sampler(
   diseases = list(),
   associations = list(),
   impacts = list(),
-  interactions = list()
+  interactions = list(),
+  three_way = list()
 )
 ```
 
@@ -30,7 +31,7 @@ cm_batch_sampler(
   [`cm_analyses()`](https://rasmussenphilip.github.io/deconflate/reference/cm_analyses.md)
   object.
 
-- diseases, associations:
+- diseases, associations, three_way:
 
   Named lists of `cm_dist` for the shared population inputs (as in
   [`cm_sampler()`](https://rasmussenphilip.github.io/deconflate/reference/cm_sampler.md)).

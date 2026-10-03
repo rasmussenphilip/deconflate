@@ -13,7 +13,7 @@ estimates look unstable, a message explains why and suggests what to do
 
     <a class="navbar-brand me-2" href="../index.html">deconflate</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.2.0.9000</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -26,6 +26,7 @@ estimates look unstable, a message explains why and suggests what to do
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/own-data.html">Using your own data</a></li>
+    <li><a class="dropdown-item" href="../articles/thresholds-and-scaling.html">Threshold searches and many diseases</a></li>
     <li><a class="dropdown-item" href="../articles/culling-hazard-ratios.html">Culling and hazard ratios</a></li>
     <li><a class="dropdown-item" href="../articles/reproducing-published.html">Reproducing the published analyses</a></li>
     <li><a class="dropdown-item" href="../articles/interactions.html">Disease combinations, interactions and attribution</a></li>
@@ -105,20 +106,26 @@ different estimand from the mean).</p></dd>
 error of the mean (<code>mcse</code>), quantiles, a trimmed mean and stability
 diagnostics:</p><ul><li><p><code>mcse</code>: for independent draws, the self-normalised importance-sampling
 estimate <code>sqrt(sum(w^2 (x - mean)^2))</code> (with equal weights,
-<code>sd / sqrt(n)</code>); for Latin hypercube runs, estimated from the spread
-of the R block means <code>m_b</code> around the pooled mean, weighted by each
-block's share of the weight <code>W_b</code>:
-<code>sqrt(R / (R - 1) * sum(W_b^2 (m_b - mean)^2))</code> (with equal block
-weights, the standard deviation of the block means over <code>sqrt(R)</code>);</p></li>
+<code>sd / sqrt(n)</code>); for Latin hypercube runs, the standard error of the
+pooled mean as a ratio estimator over the R replicate blocks, with
+<code>S_b</code> the weighted sum and <code>W_b</code> the weight of block b:
+<code>sqrt(sum((S_b - mean * W_b)^2) / (R (R - 1))) / mean(W_b)</code>. Blocks whose
+draws were all rejected, or have zero weight, count in R with
+<code>S_b = W_b = 0</code>. With equal weights and every block present, this is
+the standard deviation of the block means over <code>sqrt(R)</code>;</p></li>
 <li><p><code>rel_mcse</code>: <code>mcse</code> relative to the absolute mean;</p></li>
 <li><p><code>tail_share</code>: the share of the variance contributed by the most
 extreme 1% of draws;</p></li>
 <li><p><code>stability</code>: <code>"ok"</code>, <code>"imprecise"</code> (<code>rel_mcse</code> above 5%),
-<code>"heavy_tail"</code> (<code>tail_share</code> above 60%) or <code>"possible_pole"</code> (the
-published approximation's denominator changes sign within the
-sampled inputs in a way the raw impact does not explain, so the
-estimate has a pole inside the input distribution and its mean may not
-exist).</p></li>
+<code>"insufficient_info"</code> (precision cannot be assessed: fewer than two
+Latin hypercube blocks with positive weight, or a mean of zero with a
+positive standard error; <code>mcse</code> gives the absolute precision where
+available), <code>"heavy_tail"</code> (<code>tail_share</code> above 60%) or
+<code>"possible_pole"</code> (the published approximation's denominator changes
+sign within the sampled inputs in a way the raw impact does not
+explain, so the estimate has a pole inside the input distribution and
+its mean may not exist). A missing precision is never reported as
+<code>"ok"</code>.</p></li>
 </ul></div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

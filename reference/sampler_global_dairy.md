@@ -12,7 +12,7 @@ normal distributions of odds ratios are truncated at zero.
 ## Usage
 
 ``` r
-sampler_global_dairy(inputs = c("analysis", "tables"), culling = FALSE)
+sampler_global_dairy(inputs = c("analysis", "tables"))
 ```
 
 ## Arguments
@@ -20,10 +20,6 @@ sampler_global_dairy(inputs = c("analysis", "tables"), culling = FALSE)
 - inputs:
 
   `"analysis"` or `"tables"`.
-
-- culling:
-
-  Include the legacy `culling_hr_minus_1` analysis?
 
 ## Value
 
@@ -34,11 +30,11 @@ A
 
 With `inputs = "analysis"` the disease probabilities are fixed and the
 impact distributions use the unrounded parameters of the analysis code.
-For `culling_hr_minus_1`, the analysis entered HR - 1 and scaled the
-standard deviations of normal distributions by (HR - 1) / HR; this is
-kept for reproduction. With `inputs = "tables"`, incidences are drawn
-from the global distributions of Table 2 and Tables 3-4 are used as
-printed.
+With `inputs = "tables"`, incidences are drawn from the global
+distributions of Table 2 and Tables 3-4 are used as printed. (The 2024
+culling analysis, HR - 1 adjusted as an additive impact, is sampled only
+inside
+[`reproduce_rasmussen_2024()`](https://rasmussenphilip.github.io/deconflate/reference/reproduce.md).)
 
 With `method = "published"`, Monte Carlo means reproduce Table 5 (see
 [`reproduce_rasmussen_2024()`](https://rasmussenphilip.github.io/deconflate/reference/reproduce.md)

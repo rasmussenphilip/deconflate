@@ -20,7 +20,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">deconflate</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.2.0.9000</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -35,6 +35,7 @@
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
 <li><a class="dropdown-item" href="../articles/own-data.html">Using your own data</a></li>
+    <li><a class="dropdown-item" href="../articles/thresholds-and-scaling.html">Threshold searches and many diseases</a></li>
     <li><a class="dropdown-item" href="../articles/culling-hazard-ratios.html">Culling and hazard ratios</a></li>
     <li><a class="dropdown-item" href="../articles/reproducing-published.html">Reproducing the published analyses</a></li>
     <li><a class="dropdown-item" href="../articles/interactions.html">Disease combinations, interactions and attribution</a></li>
@@ -81,7 +82,9 @@ adjusted by a separate adapter, outside the additive engine of
 <ul>
 <li>
 <code><a href="../reference/cm_hazard_ratios.html">cm_hazard_ratios()</a></code> describes the raw HRs (one per
-disease; use 1 for no effect);</li>
+disease; use 1 for no effect) and states their estimand:
+<code>"snapshot_crude"</code> or
+<code>"snapshot_stratified"</code>;</li>
 <li>
 <code><a href="../reference/cm_hr_model.html">cm_hr_model()</a></code> combines them with a population;</li>
 <li>
@@ -91,18 +94,42 @@ disease; use 1 for no effect);</li>
 the overall culling risk that disease causes, and allocates it to
 diseases.</li>
 </ul>
+<p>This is a separate model with its own assumptions (the snapshot
+hazard-multiplier model, below), not a general conversion of published
+hazard ratios. Its estimands are defined by the model:</p>
+<ul>
+<li>
+<code>"snapshot_crude"</code>: the ratio of the average hazard among
+animals with the disease to that among animals without it, at the start
+of follow-up, in the population described by the probabilities and
+associations;</li>
+<li>
+<code>"snapshot_stratified"</code>: the same ratio within strata of
+the diseases in <code>adjusted_for</code>, combined across strata.</li>
+</ul>
+<p>A published Cox HR is neither of these. Entering one as a snapshot
+ratio is an approximation that you state, not a conversion the package
+makes: it is reasonable when follow-up is short relative to the hazards,
+and it should be reported and checked (see “What the snapshot model is
+not” below and in <code><a href="../reference/deconflate_hr.html">?deconflate_hr</a></code>). For this reason the
+estimand has no default. The names <code>"crude"</code> and
+<code>"adjusted"</code> used before version 0.3.0 are not accepted:</p>
+<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/conditions.html" class="external-link">tryCatch</a></span><span class="op">(</span><span class="fu"><a href="../reference/cm_hazard_ratios.html">cm_hazard_ratios</a></span><span class="op">(</span><span class="st">"d1"</span>, <span class="fl">1.5</span>, estimand <span class="op">=</span> <span class="st">"crude"</span><span class="op">)</span>,</span>
+<span>         deconflate_unsupported <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">e</span><span class="op">)</span> <span class="fu"><a href="https://rdrr.io/r/base/conditions.html" class="external-link">conditionMessage</a></span><span class="op">(</span><span class="va">e</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="co">#&gt; [1] "Hazard-ratio estimands are now named \"snapshot_crude\" and \"snapshot_stratified\" (deconflate 0.3.0); see ?cm_hazard_ratios for what they mean."</span></span></code></pre></div>
 <div class="section level2">
 <h2 id="methods">Methods<a class="anchor" aria-label="anchor" href="#methods"></a>
 </h2>
-<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">pop</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/example_supplement.html">example_supplement</a></span><span class="op">(</span><span class="op">)</span>   <span class="co"># its yield impacts are not used here</span></span>
-<span><span class="va">hr</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cm_hr_model.html">cm_hr_model</a></span><span class="op">(</span><span class="va">pop</span>, <span class="fu"><a href="../reference/cm_hazard_ratios.html">cm_hazard_ratios</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"d1"</span>, <span class="st">"d2"</span>, <span class="st">"d3"</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1.5</span>, <span class="fl">2.0</span>, <span class="fl">1.3</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="va">hr</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cm_hr_model.html">cm_hr_model</a></span><span class="op">(</span><span class="va">pop</span>, <span class="fu"><a href="../reference/cm_hazard_ratios.html">cm_hazard_ratios</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"d1"</span>, <span class="st">"d2"</span>, <span class="st">"d3"</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1.5</span>, <span class="fl">2.0</span>, <span class="fl">1.3</span><span class="op">)</span>, estimand <span class="op">=</span> <span class="st">"snapshot_crude"</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="va">hr</span></span>
 <span><span class="co">#&gt; &lt;cm_hr_model&gt;</span></span>
 <span><span class="co">#&gt; &lt;cm_population&gt;</span></span>
 <span><span class="co">#&gt;   Diseases: 3 (d1, d2, d3)</span></span>
 <span><span class="co">#&gt;   Disease pairs: 3 [specified: 3]</span></span>
-<span><span class="co">#&gt;   Hazard ratios: 3 (0 adjusted)</span></span>
+<span><span class="co">#&gt;   Hazard ratios: 3 (0 snapshot_stratified)</span></span>
 <span><span class="fu"><a href="../reference/compare_methods.html">compare_methods</a></span><span class="op">(</span><span class="va">hr</span><span class="op">)</span></span>
 <span><span class="co">#&gt; &lt;cm_comparison&gt; methods: published, first_order, snapshot</span></span>
 <span><span class="co">#&gt; Units: hazard ratio</span></span>
@@ -132,14 +159,14 @@ tables.</li>
 HR - 1 adjusted with eq. 16 and 1 added back. It is kept for
 reproduction and comparison.</li>
 </ul>
-<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/deconflate_hr.html">deconflate_hr</a></span><span class="op">(</span><span class="va">hr</span><span class="op">)</span></span>
 <span><span class="co">#&gt; &lt;cm_hr_result&gt; method: snapshot</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt;  disease raw adjusted   change estimand</span></span>
-<span><span class="co">#&gt;       d1 1.5    1.383 -0.07790    crude</span></span>
-<span><span class="co">#&gt;       d2 2.0    1.891 -0.05453    crude</span></span>
-<span><span class="co">#&gt;       d3 1.3    1.144 -0.12001    crude</span></span>
+<span><span class="co">#&gt;  disease raw adjusted   change       estimand</span></span>
+<span><span class="co">#&gt;       d1 1.5    1.383 -0.07790 snapshot_crude</span></span>
+<span><span class="co">#&gt;       d2 2.0    1.891 -0.05453 snapshot_crude</span></span>
+<span><span class="co">#&gt;       d3 1.3    1.144 -0.12001 snapshot_crude</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Diagnostics:</span></span>
 <span><span class="co">#&gt;  max_reconstruction_residual n_sign_changes condition_number</span></span>
@@ -148,28 +175,32 @@ reproduction and comparison.</li>
 <span><span class="co">#&gt;  joint distribution fitted (max residual 2.5e-11)</span></span></code></pre></div>
 </div>
 <div class="section level2">
-<h2 id="adjusted-hazard-ratios">Adjusted hazard ratios<a class="anchor" aria-label="anchor" href="#adjusted-hazard-ratios"></a>
+<h2 id="source-hazard-ratios-adjusted-for-other-diseases">Source hazard ratios adjusted for other diseases<a class="anchor" aria-label="anchor" href="#source-hazard-ratios-adjusted-for-other-diseases"></a>
 </h2>
 <p>If a source HR comes from a model that already included other
-diseases, set <code>estimand = "adjusted"</code> and list them in
+diseases, the closest snapshot estimand is
+<code>"snapshot_stratified"</code>, with those diseases in
 <code>adjusted_for</code> (ids separated by <code>";"</code>), or
 <code>"all"</code> for every other disease. In the snapshot model, the
 ratio for such an estimate is computed within strata of its adjustment
 set and combined across strata with Mantel-Haenszel-type weights. With
-<code>adjusted_for = "all"</code>, the HR is used as it is:</p>
-<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<code>adjusted_for = "all"</code>, the HR is the disease’s own hazard
+multiplier and is used as it is. A Cox coefficient adjusted for the same
+diseases matches this only under the snapshot model’s assumptions:</p>
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">hr_adj</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cm_hr_model.html">cm_hr_model</a></span><span class="op">(</span><span class="va">pop</span>, <span class="fu"><a href="../reference/cm_hazard_ratios.html">cm_hazard_ratios</a></span><span class="op">(</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"d1"</span>, <span class="st">"d2"</span>, <span class="st">"d3"</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1.5</span>, <span class="fl">2.0</span>, <span class="fl">1.3</span><span class="op">)</span>,</span>
-<span>  estimand <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"adjusted"</span>, <span class="st">"crude"</span>, <span class="st">"adjusted"</span><span class="op">)</span>,</span>
+<span>  estimand <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"snapshot_stratified"</span>, <span class="st">"snapshot_crude"</span>, <span class="st">"snapshot_stratified"</span><span class="op">)</span>,</span>
 <span>  adjusted_for <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"d2"</span>, <span class="cn">NA</span>, <span class="st">"all"</span><span class="op">)</span></span>
 <span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="fu"><a href="../reference/deconflate_hr.html">deconflate_hr</a></span><span class="op">(</span><span class="va">hr_adj</span><span class="op">)</span><span class="op">$</span><span class="va">adjusted</span></span>
-<span><span class="co">#&gt;   disease raw adjusted       change estimand adjusted_for</span></span>
-<span><span class="co">#&gt; 1      d1 1.5 1.509402  0.006268033 adjusted           d2</span></span>
-<span><span class="co">#&gt; 2      d2 2.0 1.821704 -0.089148021    crude         &lt;NA&gt;</span></span>
-<span><span class="co">#&gt; 3      d3 1.3 1.300000  0.000000000 adjusted          all</span></span></code></pre></div>
-<p>The published approach is defined for crude HRs only:</p>
-<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<span><span class="co">#&gt;   disease raw adjusted       change            estimand adjusted_for</span></span>
+<span><span class="co">#&gt; 1      d1 1.5 1.509402  0.006268033 snapshot_stratified           d2</span></span>
+<span><span class="co">#&gt; 2      d2 2.0 1.821704 -0.089148021      snapshot_crude         &lt;NA&gt;</span></span>
+<span><span class="co">#&gt; 3      d3 1.3 1.300000  0.000000000 snapshot_stratified          all</span></span></code></pre></div>
+<p>The published approach is defined for <code>"snapshot_crude"</code>
+HRs only:</p>
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/compare_methods.html">compare_methods</a></span><span class="op">(</span><span class="va">hr_adj</span><span class="op">)</span><span class="op">$</span><span class="va">failed</span></span>
 <span><span class="co">#&gt;                                                                published </span></span>
 <span><span class="co">#&gt; "The published (2024) approach is defined for crude hazard ratios only."</span></span></code></pre></div>
@@ -196,7 +227,7 @@ diseases is counted once. The attributable risk is allocated to diseases
 by Shapley values over all disease combinations
 (<code><a href="../reference/shapley_by_cell.html">shapley_by_cell()</a></code>); the allocation adds up to the
 attributable risk.</p>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/attributable_risk.html">attributable_risk</a></span><span class="op">(</span><span class="fu"><a href="../reference/deconflate_hr.html">deconflate_hr</a></span><span class="op">(</span><span class="va">hr</span><span class="op">)</span>, overall_risk <span class="op">=</span> <span class="fl">0.25</span>, unit_value <span class="op">=</span> <span class="fl">1300</span><span class="op">)</span></span>
 <span><span class="co">#&gt; &lt;cm_attributable&gt; snapshot hazard-multiplier model</span></span>
 <span><span class="co">#&gt;   Overall risk 0.25; disease-free risk 0.2134; attributable 0.03665 (14.7% of the overall risk)</span></span>
@@ -214,13 +245,15 @@ attributable risk.</p>
 </h2>
 <p><code><a href="../reference/example_global_dairy_hr.html">example_global_dairy_hr()</a></code> contains the culling HRs of
 Rasmussen et al. (2024), on the population of
-<code><a href="../reference/example_global_dairy.html">example_global_dairy()</a></code>. <code><a href="../reference/compare_methods.html">compare_methods()</a></code> with
+<code><a href="../reference/example_global_dairy.html">example_global_dairy()</a></code>. They are published Cox HRs, entered
+as <code>"snapshot_crude"</code>; that is an assumption, and the results
+below hold under it. <code><a href="../reference/compare_methods.html">compare_methods()</a></code> with
 <code>overall_risk</code> adds the attributable risk per method (without
 the allocation). The global average replacement rate is 23.66%
 (Rasmussen et al. 2024, Table 1). The joint distribution of the 12
 diseases is fitted once and passed on with <code>joint</code>, so that
 it is not refitted for each method:</p>
-<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">hr_gd</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/example_global_dairy_hr.html">example_global_dairy_hr</a></span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="va">j_gd</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fit_joint.html">fit_joint</a></span><span class="op">(</span><span class="va">hr_gd</span><span class="op">$</span><span class="va">population</span><span class="op">)</span></span>
 <span><span class="fu"><a href="../reference/compare_methods.html">compare_methods</a></span><span class="op">(</span><span class="va">hr_gd</span>, overall_risk <span class="op">=</span> <span class="fl">0.2366</span>, joint <span class="op">=</span> <span class="va">j_gd</span><span class="op">)</span></span>
@@ -255,7 +288,7 @@ clinical ketosis and metritis, the snapshot and first-order models give
 adjusted HRs below 1: under the multiplicative model, the raw HRs are
 smaller than the associated diseases alone would produce.
 <code><a href="../reference/deconflate_hr.html">deconflate_hr()</a></code> warns about this:</p>
-<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">glob</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/deconflate_hr.html">deconflate_hr</a></span><span class="op">(</span><span class="va">hr_gd</span>, joint <span class="op">=</span> <span class="va">j_gd</span><span class="op">)</span></span>
 <span><span class="co">#&gt; Warning: Adjusted hazard ratios cross 1 for CK, MET. The raw hazard ratios are</span></span>
 <span><span class="co">#&gt; smaller than the associated diseases alone would produce; check the estimands</span></span>
@@ -297,7 +330,7 @@ diseases more than once.</p>
 the two routes can be put side by side. Here the yield analysis follows
 the paper (published method; global average yield of 5013 kg and milk
 price of 0.5981 per kg, Rasmussen et al. 2024, Table 1):</p>
-<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">yres</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/deconflate.html">deconflate</a></span><span class="op">(</span><span class="fu"><a href="../reference/example_global_dairy.html">example_global_dairy</a></span><span class="op">(</span><span class="op">)</span><span class="op">$</span><span class="va">models</span><span class="op">$</span><span class="va">yield</span>, method <span class="op">=</span> <span class="st">"published"</span><span class="op">)</span></span>
 <span><span class="va">yv</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/value_losses.html">value_losses</a></span><span class="op">(</span><span class="fu"><a href="../reference/productivity_gap.html">productivity_gap</a></span><span class="op">(</span><span class="va">yres</span>, <span class="fl">5013</span>, <span class="st">"decrease"</span>, <span class="st">"percent"</span><span class="op">)</span>, unit_value <span class="op">=</span> <span class="fl">0.5981</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>yield <span class="op">=</span> <span class="va">yv</span><span class="op">$</span><span class="va">value</span>, culling <span class="op">=</span> <span class="va">ar</span><span class="op">$</span><span class="va">summary</span><span class="op">$</span><span class="va">value</span><span class="op">)</span></span>

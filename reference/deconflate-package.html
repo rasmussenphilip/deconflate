@@ -15,7 +15,7 @@ estimates so that they can be aggregated."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">deconflate</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.2.0.9000</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -28,6 +28,7 @@ estimates so that they can be aggregated."></head><body>
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/own-data.html">Using your own data</a></li>
+    <li><a class="dropdown-item" href="../articles/thresholds-and-scaling.html">Threshold searches and many diseases</a></li>
     <li><a class="dropdown-item" href="../articles/culling-hazard-ratios.html">Culling and hazard ratios</a></li>
     <li><a class="dropdown-item" href="../articles/reproducing-published.html">Reproducing the published analyses</a></li>
     <li><a class="dropdown-item" href="../articles/interactions.html">Disease combinations, interactions and attribution</a></li>
@@ -93,7 +94,8 @@ default).</p></li>
 <code><a href="cm_monte_carlo.html">cm_monte_carlo()</a></code> (check stability with <code><a href="cm_diagnose.html">cm_diagnose()</a></code>), and explore
 scenarios with <code><a href="cm_scenario.html">cm_scenario()</a></code>, <code><a href="sensitivity_oat.html">sensitivity_oat()</a></code>,
 <code><a href="screen_associations.html">screen_associations()</a></code>, <code><a href="screen_interactions.html">screen_interactions()</a></code>, <code><a href="screen_three_way.html">screen_three_way()</a></code>
-and <code><a href="compare_scenarios.html">compare_scenarios()</a></code>.</p></li>
+and <code><a href="compare_scenarios.html">compare_scenarios()</a></code>. Find where a conclusion (a ranking, a sign
+or the aggregate) changes as one input varies with <code><a href="cm_threshold.html">cm_threshold()</a></code>.</p></li>
 </ol><p><code><a href="reproduce.html">reproduce_rasmussen_2022()</a></code> and <code><a href="reproduce.html">reproduce_rasmussen_2024()</a></code> recompute
 the published tables. See <code><a href="../articles/deconflate.html">vignette("deconflate")</a></code> to get started.</p>
     </div>

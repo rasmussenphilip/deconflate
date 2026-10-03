@@ -8,7 +8,7 @@ once and reused.
 ## Usage
 
 ``` r
-screen_interactions(model, values, pairs = NULL, valuation = NULL)
+screen_interactions(model, values, pairs = NULL, valuation = NULL, ...)
 ```
 
 ## Arguments
@@ -31,6 +31,12 @@ screen_interactions(model, values, pairs = NULL, valuation = NULL)
 
   Optional valuation list; otherwise the adjusted aggregate is the
   metric.
+
+- ...:
+
+  Passed to
+  [`fit_joint()`](https://rasmussenphilip.github.io/deconflate/reference/fit_joint.md)
+  (e.g. `backend = "sampled"` for many diseases).
 
 ## Value
 

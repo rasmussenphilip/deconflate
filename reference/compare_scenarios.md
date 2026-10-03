@@ -30,8 +30,9 @@ compare_scenarios(..., method = "simultaneous", valuation = NULL)
 
 ## Value
 
-A list with `totals` (one row per scenario) and `by_disease`
-(contribution and rank per disease and scenario).
+A list with `totals` (one row per scenario, with the reason in `failed`
+when a scenario could not be adjusted or gave an undefined result) and
+`by_disease` (contribution and rank per disease and scenario).
 
 ## Examples
 
@@ -40,9 +41,9 @@ base <- example_supplement()
 strong <- set_association(base, "d1", "d3", 3)
 compare_scenarios(base = base, strong_d1_d3 = strong)
 #> $totals
-#>       scenario    total rel_to_first
-#> 1         base 2.109229   0.00000000
-#> 2 strong_d1_d3 1.959735  -0.07087606
+#>       scenario    total failed rel_to_first
+#> 1         base 2.109229   <NA>   0.00000000
+#> 2 strong_d1_d3 1.959735   <NA>  -0.07087606
 #> 
 #> $by_disease
 #>       scenario disease contribution rank

@@ -2,9 +2,8 @@
 
 Thirteen endemic diseases and conditions of UK dairy cattle, with
 cow-level prevalence (Table 2), inter-disease odds ratios (Table 3, all
-other pairs independent), and three analyses: milk yield (Table 4, %
-decrease), calving interval (Table 5, % increase) and culling (Table 6).
-Use
+other pairs independent), and two analyses: milk yield (Table 4, %
+decrease) and calving interval (Table 5, % increase). Use
 [`uk_dairy_2022_economics()`](https://rasmussenphilip.github.io/deconflate/reference/uk_dairy_2022_economics.md)
 for the observed means and unit values (Table 1), and
 [`reproduce_rasmussen_2022()`](https://rasmussenphilip.github.io/deconflate/reference/reproduce.md)
@@ -27,18 +26,18 @@ example_uk_dairy_2022(yield_sck = 3.05)
 
 A
 [`cm_analyses()`](https://rasmussenphilip.github.io/deconflate/reference/cm_analyses.md)
-object with analyses `yield`, `fertility` and `culling`, and attribute
+object with analyses `yield` and `fertility`, and attribute
 `"hazard_ratios"` (a
 [`cm_hazard_ratios()`](https://rasmussenphilip.github.io/deconflate/reference/cm_hazard_ratios.md)).
 
 ## Details
 
-The culling analysis reproduces the paper's approach, which converted
-hazard ratios to excess annual culling risks by treating them as odds
-ratios. That conversion is not supported for new analyses (use
-[`deconflate_hr()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate_hr.md));
-the hazard ratios are attached as attribute `"hazard_ratios"` for that
-purpose.
+The culling hazard ratios of Table 6 are attached as attribute
+`"hazard_ratios"` (with estimand `"snapshot_crude"`, an assumption) for
+[`deconflate_hr()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate_hr.md).
+The paper converted them to excess annual culling risks by treating them
+as odds ratios; that historical calculation is only available inside
+[`reproduce_rasmussen_2022()`](https://rasmussenphilip.github.io/deconflate/reference/reproduce.md).
 
 Disease ids: CO cystic ovary, DA displaced abomasum, DYS dystocia, FAS
 fasciolosis, GIN gastrointestinal nematodes, LAM lameness, MAS mastitis,
@@ -50,7 +49,7 @@ retained placenta, SCK subclinical ketosis.
 ``` r
 uk <- example_uk_dairy_2022()
 deconflate(uk, method = "published")
-#> <cm_results> 3 analyses: yield, fertility, culling
+#> <cm_results> 2 analyses: yield, fertility
 #> 
 #> == yield ==
 #> <cm_result> method: published; milk yield loss [% decrease]
@@ -93,26 +92,5 @@ deconflate(uk, method = "published")
 #> 
 #> Raw sum: 7.573; adjusted total: 6.907
 #> Diagnostics: residual 1.52e+00, condition number 2.08, sign changes 0
-#> 
-#> == culling ==
-#> <cm_result> method: published; excess annual culling risk (hazard ratio treated as an odds ratio; legacy) [proportional increase in the culling rate]
-#> 
-#>  disease     raw adjusted  change
-#>       CO 0.00000  0.00000      NA
-#>       DA 0.31384  0.21891 -0.3025
-#>      DYS 0.14205  0.11896 -0.1626
-#>      FAS 0.00000  0.00000      NA
-#>      GIN 0.00000  0.00000      NA
-#>      LAM 0.25565  0.22552 -0.1179
-#>      MAS 0.21307  0.16920 -0.2059
-#>      MET 0.17386  0.12261 -0.2948
-#>       MF 0.20567  0.15552 -0.2438
-#>      NEO 0.09889  0.09889  0.0000
-#>      PTB 0.19637  0.13437 -0.3157
-#>       RP 0.00000  0.00000      NA
-#>      SCK 0.15726  0.09665 -0.3854
-#> 
-#> Raw sum: 0.2499; adjusted total: 0.1976
-#> Diagnostics: residual 5.08e-02, condition number 2.08, sign changes 0
 #> 
 ```

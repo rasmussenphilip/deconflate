@@ -85,7 +85,8 @@ A `cm_mc` object (or `cm_mc_batch` for a batch sampler) with:
 - `params`: one row per accepted draw with the sampled inputs;
 
 - `weights` (normalised), `log_weights`, `ess` (Kish effective sample
-  size), `block` (LHS block of each accepted draw);
+  size), `block` (LHS block of each accepted draw) and `n_blocks` (the
+  number of LHS blocks sampled, including blocks with no accepted draw);
 
 - `n_draws`, `n_rejected`, `rejections` (draw, type, reason),
   `sign_changes`, `method`, `sampling`, `proposal`, `specs`, `label` and

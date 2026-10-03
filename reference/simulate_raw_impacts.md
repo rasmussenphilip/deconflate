@@ -62,7 +62,9 @@ simulate_raw_impacts(
 
   Optional pre-computed
   [`fit_joint()`](https://rasmussenphilip.github.io/deconflate/reference/fit_joint.md)
-  result.
+  result. It must match the model and have converged; a joint fitted
+  here that does not converge stops with class
+  `deconflate_nonconvergence`.
 
 - units:
 

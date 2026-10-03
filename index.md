@@ -6,9 +6,9 @@ without double counting. Based on Rasmussen et al. (2022, *Prev. Vet.
 Med.* 203:105617) and Rasmussen et al. (2024, *J. Dairy Sci.*
 107:6945–6970).
 
-> **Status:** development version (0.1.0.9000), working towards v0.2.0,
-> which changes the interface (see `NEWS.md`). The test reference values
-> were computed independently in Python (`inst/validation/`).
+> **Status:** development version, working towards v0.3.0 (see
+> `NEWS.md`). The test reference values were computed independently in
+> Python (`inst/validation/`).
 
 ## Installation
 
@@ -34,10 +34,14 @@ additive regression adjusted for named diseases (`"adjusted_linear"`).
 | `"global"` | Maximum-entropy distribution of disease combinations fitted by iterative proportional fitting, then the full equations including specified pairwise interactions (and optional three-way scenarios). |
 
 Hazard ratios (e.g. of culling) combine multiplicatively and have their
-own adapter,
-[`deconflate_hr()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate_hr.md),
-with
+own model, the snapshot hazard-multiplier model
+([`deconflate_hr()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate_hr.md),
+with explicitly named estimands), with
 [`attributable_risk()`](https://rasmussenphilip.github.io/deconflate/reference/attributable_risk.md).
+
+The pairwise methods work for any number of diseases. The global method
+enumerates disease combinations up to about 20 diseases; beyond that,
+`fit_joint(backend = "sampled")` fits the same model by Monte Carlo.
 
 ## Example
 
@@ -52,15 +56,18 @@ res <- deconflate(gd)
 res$yield$contributions
 compare_methods(gd)
 
-# Culling hazard ratios
+# At what odds ratio between d2 and d3 does the ranking of d1 and d2 change?
+cm_threshold(example_supplement(), "assoc:d2:d3", c(0.1, 100), conclusion = "rank")
+
+# Culling hazard ratios (snapshot model)
 hr <- deconflate_hr(example_global_dairy_hr())
 attributable_risk(hr, overall_risk = 0.2366)
 
-# Your own data: one impact file per analysis
+# Your own data
 dir <- file.path(tempdir(), "my-inputs")
 cm_template(dir)
 inp <- cm_read_inputs(dir = dir)
-deconflate(inp$analyses)
+deconflate(inp$model)
 
 # Uncertainty, with shared population draws across analyses
 mc <- cm_monte_carlo(sampler_global_dairy(), 1000, method = "published", seed = 1)
@@ -87,8 +94,13 @@ reproduce_rasmussen_2022()
 - **Your own data:**
   [`cm_read_inputs()`](https://rasmussenphilip.github.io/deconflate/reference/cm_read_inputs.md)
   reads CSV files or data frames and reports every problem at once;
+  uncertain values carry their distribution in their own row (`dist`,
+  `p1`-`p4`), mixed freely with point values.
   [`cm_template()`](https://rasmussenphilip.github.io/deconflate/reference/cm_template.md)
-  writes example files.
+  writes example files, and
+  `system.file("extdata", "five_diseases", package = "deconflate")`
+  holds a five-disease example that uses every feature, with a script
+  (`run_all_features.R`) that runs them all.
 - **Adjustment:**
   [`deconflate()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate.md)
   and
@@ -98,7 +110,8 @@ reproduce_rasmussen_2022()
   and
   [`contribution_table()`](https://rasmussenphilip.github.io/deconflate/reference/contribution_table.md).
 - **Joint distribution and feasibility:**
-  [`fit_joint()`](https://rasmussenphilip.github.io/deconflate/reference/fit_joint.md),
+  [`fit_joint()`](https://rasmussenphilip.github.io/deconflate/reference/fit_joint.md)
+  (exact, or sampled for many diseases),
   [`combination_probs()`](https://rasmussenphilip.github.io/deconflate/reference/combination_probs.md)
   and
   [`check_feasibility()`](https://rasmussenphilip.github.io/deconflate/reference/check_feasibility.md).
@@ -129,7 +142,10 @@ reproduce_rasmussen_2022()
   [`cm_reweight()`](https://rasmussenphilip.github.io/deconflate/reference/cm_reweight.md))
   and
   [`cm_mc_gap()`](https://rasmussenphilip.github.io/deconflate/reference/cm_mc_gap.md).
-- **Sensitivity:**
+- **Sensitivity and thresholds:**
+  [`cm_threshold()`](https://rasmussenphilip.github.io/deconflate/reference/cm_threshold.md)
+  (where a ranking, a sign or the aggregate changes as one input
+  varies),
   [`sensitivity_oat()`](https://rasmussenphilip.github.io/deconflate/reference/sensitivity_oat.md),
   [`screen_associations()`](https://rasmussenphilip.github.io/deconflate/reference/screen_associations.md),
   [`screen_interactions()`](https://rasmussenphilip.github.io/deconflate/reference/screen_interactions.md),

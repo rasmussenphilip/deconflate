@@ -40,8 +40,11 @@ attributable_risk(
 
   Optional
   [`fit_joint()`](https://rasmussenphilip.github.io/deconflate/reference/fit_joint.md)
-  result; by default the result's own joint distribution or a new fit.
-  It is checked against the population.
+  result; by default the result's own joint distribution or a new
+  (exact) fit. It is checked against the population. For more than about
+  20 diseases, fit it with `fit_joint(..., backend = "sampled")` and
+  pass it here or to
+  [`deconflate_hr()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate_hr.md).
 
 - allocate:
 
@@ -84,7 +87,9 @@ change in the mixture of diseases over the period).
 ## Examples
 
 ``` r
-hr <- cm_hr_model(example_supplement(), cm_hazard_ratios(c("d1", "d2", "d3"), c(1.5, 2.0, 1.3)))
+hr <- cm_hr_model(example_supplement(),
+                  cm_hazard_ratios(c("d1", "d2", "d3"), c(1.5, 2.0, 1.3),
+                                   estimand = "snapshot_crude"))
 attributable_risk(deconflate_hr(hr), overall_risk = 0.25, unit_value = 1300)
 #> <cm_attributable> snapshot hazard-multiplier model
 #>   Overall risk 0.25; disease-free risk 0.2134; attributable 0.03665 (14.7% of the overall risk)

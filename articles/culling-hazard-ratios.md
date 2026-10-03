@@ -13,7 +13,8 @@ adjusted by a separate adapter, outside the additive engine of
 [`deconflate()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate.md):
 
 - [`cm_hazard_ratios()`](https://rasmussenphilip.github.io/deconflate/reference/cm_hazard_ratios.md)
-  describes the raw HRs (one per disease; use 1 for no effect);
+  describes the raw HRs (one per disease; use 1 for no effect) and
+  states their estimand: `"snapshot_crude"` or `"snapshot_stratified"`;
 - [`cm_hr_model()`](https://rasmussenphilip.github.io/deconflate/reference/cm_hr_model.md)
   combines them with a population;
 - [`deconflate_hr()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate_hr.md)
@@ -22,18 +23,45 @@ adjusted by a separate adapter, outside the additive engine of
   turns adjusted HRs into the part of the overall culling risk that
   disease causes, and allocates it to diseases.
 
+This is a separate model with its own assumptions (the snapshot
+hazard-multiplier model, below), not a general conversion of published
+hazard ratios. Its estimands are defined by the model:
+
+- `"snapshot_crude"`: the ratio of the average hazard among animals with
+  the disease to that among animals without it, at the start of
+  follow-up, in the population described by the probabilities and
+  associations;
+- `"snapshot_stratified"`: the same ratio within strata of the diseases
+  in `adjusted_for`, combined across strata.
+
+A published Cox HR is neither of these. Entering one as a snapshot ratio
+is an approximation that you state, not a conversion the package makes:
+it is reasonable when follow-up is short relative to the hazards, and it
+should be reported and checked (see “What the snapshot model is not”
+below and in
+[`?deconflate_hr`](https://rasmussenphilip.github.io/deconflate/reference/deconflate_hr.md)).
+For this reason the estimand has no default. The names `"crude"` and
+`"adjusted"` used before version 0.3.0 are not accepted:
+
+``` r
+
+tryCatch(cm_hazard_ratios("d1", 1.5, estimand = "crude"),
+         deconflate_unsupported = function(e) conditionMessage(e))
+#> [1] "Hazard-ratio estimands are now named \"snapshot_crude\" and \"snapshot_stratified\" (deconflate 0.3.0); see ?cm_hazard_ratios for what they mean."
+```
+
 ## Methods
 
 ``` r
 
 pop <- example_supplement()   # its yield impacts are not used here
-hr <- cm_hr_model(pop, cm_hazard_ratios(c("d1", "d2", "d3"), c(1.5, 2.0, 1.3)))
+hr <- cm_hr_model(pop, cm_hazard_ratios(c("d1", "d2", "d3"), c(1.5, 2.0, 1.3), estimand = "snapshot_crude"))
 hr
 #> <cm_hr_model>
 #> <cm_population>
 #>   Diseases: 3 (d1, d2, d3)
 #>   Disease pairs: 3 [specified: 3]
-#>   Hazard ratios: 3 (0 adjusted)
+#>   Hazard ratios: 3 (0 snapshot_stratified)
 compare_methods(hr)
 #> <cm_comparison> methods: published, first_order, snapshot
 #> Units: hazard ratio
@@ -66,10 +94,10 @@ compare_methods(hr)
 deconflate_hr(hr)
 #> <cm_hr_result> method: snapshot
 #> 
-#>  disease raw adjusted   change estimand
-#>       d1 1.5    1.383 -0.07790    crude
-#>       d2 2.0    1.891 -0.05453    crude
-#>       d3 1.3    1.144 -0.12001    crude
+#>  disease raw adjusted   change       estimand
+#>       d1 1.5    1.383 -0.07790 snapshot_crude
+#>       d2 2.0    1.891 -0.05453 snapshot_crude
+#>       d3 1.3    1.144 -0.12001 snapshot_crude
 #> 
 #> Diagnostics:
 #>  max_reconstruction_residual n_sign_changes condition_number
@@ -78,30 +106,33 @@ deconflate_hr(hr)
 #>  joint distribution fitted (max residual 2.5e-11)
 ```
 
-## Adjusted hazard ratios
+## Source hazard ratios adjusted for other diseases
 
 If a source HR comes from a model that already included other diseases,
-set `estimand = "adjusted"` and list them in `adjusted_for` (ids
-separated by `";"`), or `"all"` for every other disease. In the snapshot
-model, the ratio for such an estimate is computed within strata of its
-adjustment set and combined across strata with Mantel-Haenszel-type
-weights. With `adjusted_for = "all"`, the HR is used as it is:
+the closest snapshot estimand is `"snapshot_stratified"`, with those
+diseases in `adjusted_for` (ids separated by `";"`), or `"all"` for
+every other disease. In the snapshot model, the ratio for such an
+estimate is computed within strata of its adjustment set and combined
+across strata with Mantel-Haenszel-type weights. With
+`adjusted_for = "all"`, the HR is the disease’s own hazard multiplier
+and is used as it is. A Cox coefficient adjusted for the same diseases
+matches this only under the snapshot model’s assumptions:
 
 ``` r
 
 hr_adj <- cm_hr_model(pop, cm_hazard_ratios(
   c("d1", "d2", "d3"), c(1.5, 2.0, 1.3),
-  estimand = c("adjusted", "crude", "adjusted"),
+  estimand = c("snapshot_stratified", "snapshot_crude", "snapshot_stratified"),
   adjusted_for = c("d2", NA, "all")
 ))
 deconflate_hr(hr_adj)$adjusted
-#>   disease raw adjusted       change estimand adjusted_for
-#> 1      d1 1.5 1.509402  0.006268033 adjusted           d2
-#> 2      d2 2.0 1.821704 -0.089148021    crude         <NA>
-#> 3      d3 1.3 1.300000  0.000000000 adjusted          all
+#>   disease raw adjusted       change            estimand adjusted_for
+#> 1      d1 1.5 1.509402  0.006268033 snapshot_stratified           d2
+#> 2      d2 2.0 1.821704 -0.089148021      snapshot_crude         <NA>
+#> 3      d3 1.3 1.300000  0.000000000 snapshot_stratified          all
 ```
 
-The published approach is defined for crude HRs only:
+The published approach is defined for `"snapshot_crude"` HRs only:
 
 ``` r
 
@@ -154,6 +185,8 @@ salvage value).
 contains the culling HRs of Rasmussen et al. (2024), on the population
 of
 [`example_global_dairy()`](https://rasmussenphilip.github.io/deconflate/reference/example_global_dairy.md).
+They are published Cox HRs, entered as `"snapshot_crude"`; that is an
+assumption, and the results below hold under it.
 [`compare_methods()`](https://rasmussenphilip.github.io/deconflate/reference/compare_methods.md)
 with `overall_risk` adds the attributable risk per method (without the
 allocation). The global average replacement rate is 23.66% (Rasmussen et

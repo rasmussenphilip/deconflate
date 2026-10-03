@@ -9,7 +9,7 @@ without stopping."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">deconflate</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.2.0.9000</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -22,6 +22,7 @@ without stopping."></head><body>
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/own-data.html">Using your own data</a></li>
+    <li><a class="dropdown-item" href="../articles/thresholds-and-scaling.html">Threshold searches and many diseases</a></li>
     <li><a class="dropdown-item" href="../articles/culling-hazard-ratios.html">Culling and hazard ratios</a></li>
     <li><a class="dropdown-item" href="../articles/reproducing-published.html">Reproducing the published analyses</a></li>
     <li><a class="dropdown-item" href="../articles/interactions.html">Disease combinations, interactions and attribution</a></li>
@@ -57,7 +58,6 @@ without stopping.</p>
 <span>  three_way <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  impacts <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  interactions <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  uncertainty <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  hazard_ratios <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  dir <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  missing_associations <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"independent"</span>, <span class="st">"unknown"</span><span class="op">)</span>,</span>
@@ -74,9 +74,9 @@ without stopping.</p>
 data frames.</p></dd>
 
 
-<dt id="arg-impacts-interactions-uncertainty">impacts, interactions, uncertainty<a class="anchor" aria-label="anchor" href="#arg-impacts-interactions-uncertainty"></a></dt>
-<dd><p>A path or data frame, or a named
-list of them (one per analysis; see Files).</p></dd>
+<dt id="arg-impacts-interactions">impacts, interactions<a class="anchor" aria-label="anchor" href="#arg-impacts-interactions"></a></dt>
+<dd><p>A path or data frame, or a named list of them
+(one per analysis; see Files).</p></dd>
 
 
 <dt id="arg-dir">dir<a class="anchor" aria-label="anchor" href="#arg-dir"></a></dt>

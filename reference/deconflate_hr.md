@@ -72,7 +72,8 @@ A `cm_hr_result` with `adjusted` (raw and adjusted hazard ratios),
   (pairwise tables only).
 
 - `"published"`: Rasmussen et al. (2024): `HR - 1` adjusted with eq. 16
-  (crude estimates only). For reproduction and comparison.
+  (`"snapshot_crude"` hazard ratios only). For reproduction and
+  comparison.
 
 ## What the snapshot model is not
 
@@ -90,15 +91,17 @@ culling attributable to disease with
 ## Examples
 
 ``` r
-hr <- cm_hr_model(example_supplement(), cm_hazard_ratios(c("d1", "d2", "d3"), c(1.5, 2.0, 1.3)))
+hr <- cm_hr_model(example_supplement(),
+                  cm_hazard_ratios(c("d1", "d2", "d3"), c(1.5, 2.0, 1.3),
+                                   estimand = "snapshot_crude"))
 deconflate_hr(hr)$adjusted
-#>   disease raw adjusted      change estimand adjusted_for
-#> 1      d1 1.5 1.383153 -0.07789802    crude         <NA>
-#> 2      d2 2.0 1.890932 -0.05453423    crude         <NA>
-#> 3      d3 1.3 1.143987 -0.12000996    crude         <NA>
+#>   disease raw adjusted      change       estimand adjusted_for
+#> 1      d1 1.5 1.383153 -0.07789802 snapshot_crude         <NA>
+#> 2      d2 2.0 1.890932 -0.05453423 snapshot_crude         <NA>
+#> 3      d3 1.3 1.143987 -0.12000996 snapshot_crude         <NA>
 deconflate_hr(hr, method = "first_order")$adjusted
-#>   disease raw adjusted      change estimand adjusted_for
-#> 1      d1 1.5 1.402925 -0.06471659    crude         <NA>
-#> 2      d2 2.0 1.887440 -0.05628013    crude         <NA>
-#> 3      d3 1.3 1.169124 -0.10067407    crude         <NA>
+#>   disease raw adjusted      change       estimand adjusted_for
+#> 1      d1 1.5 1.402925 -0.06471659 snapshot_crude         <NA>
+#> 2      d2 2.0 1.887440 -0.05628013 snapshot_crude         <NA>
+#> 3      d3 1.3 1.169124 -0.10067407 snapshot_crude         <NA>
 ```

@@ -17,7 +17,7 @@ pairwise associations are still matched."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">deconflate</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.2.0.9000</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -30,6 +30,7 @@ pairwise associations are still matched."></head><body>
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/own-data.html">Using your own data</a></li>
+    <li><a class="dropdown-item" href="../articles/thresholds-and-scaling.html">Threshold searches and many diseases</a></li>
     <li><a class="dropdown-item" href="../articles/culling-hazard-ratios.html">Culling and hazard ratios</a></li>
     <li><a class="dropdown-item" href="../articles/reproducing-published.html">Reproducing the published analyses</a></li>
     <li><a class="dropdown-item" href="../articles/interactions.html">Disease combinations, interactions and attribution</a></li>
@@ -93,10 +94,13 @@ pairwise associations are still matched.</p>
 diseases), which is symmetric in the three diseases. <code>ratio = 1</code> is the
 maximum-entropy assumption. Pairwise evidence cannot identify <code>ratio</code>, so
 three-way terms are sensitivity scenarios unless there is direct evidence.</p>
-<p>Three-way terms affect only results that depend on the joint
-distribution: the global method with interactions, the hazard-ratio
-snapshot model and <code><a href="attributable_risk.html">attributable_risk()</a></code>. Additive results without
-interactions depend on the pairs alone.</p>
+<p>When every pair in the triple is constrained (an association is given, or
+the pair is independent by default), a three-way term leaves the pairwise
+tables unchanged, so additive results without interactions do not change;
+it affects only results that depend on the joint distribution: the global
+method with interactions, the hazard-ratio snapshot model and
+<code><a href="attributable_risk.html">attributable_risk()</a></code>. When a pair is unknown (<code>missing_associations = "unknown"</code>), the global fit determines its table, and a three-way term can
+change it, and with it the additive results.</p>
     </div>
 
     <div class="section level2">

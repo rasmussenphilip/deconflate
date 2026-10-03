@@ -20,6 +20,10 @@ flags, with the reason and a suggested remedy:
 - `"imprecise"`: the Monte Carlo standard error is large relative to the
   mean. Use more draws, or Latin hypercube sampling.
 
+- `"insufficient_info"`: precision cannot be assessed (too few usable
+  Latin hypercube blocks, or a mean of zero); judge the absolute
+  standard error instead.
+
 - `"non_finite"`: draws gave non-finite results and were rejected.
 
 ## Usage

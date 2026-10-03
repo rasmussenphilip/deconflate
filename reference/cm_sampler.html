@@ -13,7 +13,7 @@ cm_monte_carlo()."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">deconflate</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.2.0.9000</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -26,6 +26,7 @@ cm_monte_carlo()."></head><body>
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/own-data.html">Using your own data</a></li>
+    <li><a class="dropdown-item" href="../articles/thresholds-and-scaling.html">Threshold searches and many diseases</a></li>
     <li><a class="dropdown-item" href="../articles/culling-hazard-ratios.html">Culling and hazard ratios</a></li>
     <li><a class="dropdown-item" href="../articles/reproducing-published.html">Reproducing the published analyses</a></li>
     <li><a class="dropdown-item" href="../articles/interactions.html">Disease combinations, interactions and attribution</a></li>
@@ -62,7 +63,8 @@ distribution keep their values. The result is passed to
 <span>  diseases <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>  associations <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>  impacts <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
-<span>  interactions <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span></span>
+<span>  interactions <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
+<span>  three_way <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -91,6 +93,12 @@ order) matching rows of the model's associations.</p></dd>
 <dd><p>Named list of <code>cm_dist</code>, names <code>"d1:d2"</code> (either order)
 matching rows of the model's interactions.</p></dd>
 
+
+<dt id="arg-three-way">three_way<a class="anchor" aria-label="anchor" href="#arg-three-way"></a></dt>
+<dd><p>Named list of <code>cm_dist</code>, names <code>"d1:d2:d3"</code> (any order)
+matching rows of the model's three-way terms. Three-way terms affect the
+global method only.</p></dd>
+
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
@@ -105,12 +113,15 @@ runs); <code><a href="cm_monte_carlo.html">cm_monte_carlo()</a></code> uses thes
     <p>Draws are on the scale the inputs were entered on:</p><ul><li><p>diseases: the <code>value</code> given to <code><a href="cm_diseases.html">cm_diseases()</a></code> (e.g. an incidence rate,
 converted to a probability as specified by its <code>type</code>);</p></li>
 <li><p>associations: the association measure (e.g. odds ratio);</p></li>
+<li><p>three-way terms: the ratio of conditional odds ratios (see
+<code><a href="cm_three_way.html">cm_three_way()</a></code>);</p></li>
 <li><p>impacts and interactions: their own units.</p></li>
 </ul><p>A draw that produces an impossible input (a probability outside (0, 1), a
 non-positive odds ratio, a conditional probability below 0 or above 1) is
 rejected by <code><a href="cm_monte_carlo.html">cm_monte_carlo()</a></code> and counted.</p>
 <p>Keys (as in <code>params</code> of <code><a href="cm_monte_carlo.html">cm_monte_carlo()</a></code>): <code>prob:&lt;disease&gt;</code>,
-<code>assoc:&lt;d1&gt;:&lt;d2&gt;</code>, <code>impact:&lt;disease&gt;</code> and <code>inter:&lt;d1&gt;:&lt;d2&gt;</code>.</p>
+<code>assoc:&lt;d1&gt;:&lt;d2&gt;</code>, <code>three:&lt;d1&gt;:&lt;d2&gt;:&lt;d3&gt;</code>, <code>impact:&lt;disease&gt;</code> and
+<code>inter:&lt;d1&gt;:&lt;d2&gt;</code>.</p>
     </div>
 
     <div class="section level2">

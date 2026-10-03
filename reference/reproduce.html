@@ -11,7 +11,7 @@ papers, and set them beside the printed values."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">deconflate</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.2.0.9000</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -24,6 +24,7 @@ papers, and set them beside the printed values."></head><body>
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/own-data.html">Using your own data</a></li>
+    <li><a class="dropdown-item" href="../articles/thresholds-and-scaling.html">Threshold searches and many diseases</a></li>
     <li><a class="dropdown-item" href="../articles/culling-hazard-ratios.html">Culling and hazard ratios</a></li>
     <li><a class="dropdown-item" href="../articles/reproducing-published.html">Reproducing the published analyses</a></li>
     <li><a class="dropdown-item" href="../articles/interactions.html">Disease combinations, interactions and attribution</a></li>
@@ -105,10 +106,12 @@ recovered by rescaling (eq. 23);</p></li>
     <h2 id="-tables-">2022 (Tables 8-10)<a class="anchor" aria-label="anchor" href="#-tables-"></a></h2>
 
 
-<p><code>reproduce_rasmussen_2022()</code> adjusts yield, calving interval and culling
-for the UK example (<code><a href="example_uk_dairy_2022.html">example_uk_dairy_2022()</a></code>), computes the productivity
-gaps and their values with <code><a href="uk_dairy_2022_economics.html">uk_dairy_2022_economics()</a></code>, adds veterinary
-expenditure, and back-converts the culling impacts to hazard ratios.
+<p><code>reproduce_rasmussen_2022()</code> adjusts yield and calving interval for the UK
+example (<code><a href="example_uk_dairy_2022.html">example_uk_dairy_2022()</a></code>) and the historical culling analysis,
+computes the productivity gaps and their values with
+<code><a href="uk_dairy_2022_economics.html">uk_dairy_2022_economics()</a></code> (and the paper's culling valuation), adds
+veterinary expenditure, and back-converts the culling impacts to hazard
+ratios.
 Fertility and the culling hazard ratios reproduce the paper; yield does not
 reproduce exactly from the printed Table 4 (see
 <code><a href="../articles/reproducing-published.html">vignette("reproducing-published")</a></code>).</p>
@@ -117,8 +120,9 @@ reproduce exactly from the printed Table 4 (see
     <h2 id="-table-">2024 (Table 5)<a class="anchor" aria-label="anchor" href="#-table-"></a></h2>
 
 
-<p><code>reproduce_rasmussen_2024()</code> runs <code><a href="cm_monte_carlo.html">cm_monte_carlo()</a></code> with
-<code><a href="sampler_global_dairy.html">sampler_global_dairy()</a></code> (<code>culling = TRUE</code>) and the published method, and
+<p><code>reproduce_rasmussen_2024()</code> runs <code><a href="cm_monte_carlo.html">cm_monte_carlo()</a></code> with the samplers of
+<code><a href="sampler_global_dairy.html">sampler_global_dairy()</a></code> plus the historical culling analysis (HR - 1,
+named <code>culling_hr_minus_1</code>) and the published method, and
 reports the means beside Table 5. Culling is reported on the hazard-ratio
 scale (1 + adjusted HR - 1). Table 5 used 50,000 draws; use at least
 several thousand for stable means. Some fertility means are unstable for

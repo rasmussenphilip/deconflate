@@ -6,6 +6,8 @@
   deconflate](https://rasmussenphilip.github.io/deconflate/articles/deconflate.md):
 - [Using your own
   data](https://rasmussenphilip.github.io/deconflate/articles/own-data.md):
+- [Threshold searches and many
+  diseases](https://rasmussenphilip.github.io/deconflate/articles/thresholds-and-scaling.md):
 - [Culling and hazard
   ratios](https://rasmussenphilip.github.io/deconflate/articles/culling-hazard-ratios.md):
 - [Reproducing the published

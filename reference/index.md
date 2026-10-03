@@ -32,7 +32,7 @@
 - [`cm_check_inputs()`](https://rasmussenphilip.github.io/deconflate/reference/cm_check_inputs.md)
   : Check model input tables
 - [`cm_dist_table()`](https://rasmussenphilip.github.io/deconflate/reference/cm_dist_table.md)
-  : Build distributions from an uncertainty table
+  : Build distributions from a table
 - [`cm_template()`](https://rasmussenphilip.github.io/deconflate/reference/cm_template.md)
   : Write a template set of input files
 
@@ -123,8 +123,10 @@
 - [`cm_suggest_proposal()`](https://rasmussenphilip.github.io/deconflate/reference/cm_suggest_proposal.md)
   : Suggest an importance-sampling proposal for an unstable estimate
 
-## Sensitivity
+## Sensitivity and thresholds
 
+- [`cm_threshold()`](https://rasmussenphilip.github.io/deconflate/reference/cm_threshold.md)
+  : Threshold search: where does a conclusion change?
 - [`sensitivity_oat()`](https://rasmussenphilip.github.io/deconflate/reference/sensitivity_oat.md)
   : One-at-a-time sensitivity analysis
 - [`screen_associations()`](https://rasmussenphilip.github.io/deconflate/reference/screen_associations.md)
@@ -144,6 +146,7 @@
   [`plot(`*`<cm_mc>`*`)`](https://rasmussenphilip.github.io/deconflate/reference/plots.md)
   [`plot(`*`<cm_screen>`*`)`](https://rasmussenphilip.github.io/deconflate/reference/plots.md)
   [`plot(`*`<cm_oat>`*`)`](https://rasmussenphilip.github.io/deconflate/reference/plots.md)
+  [`plot(`*`<cm_threshold>`*`)`](https://rasmussenphilip.github.io/deconflate/reference/plots.md)
   : Plots
 
 ## Examples, reproduction and validation

@@ -116,6 +116,11 @@ compare_methods(m)
   combinations and can include impact interactions
   ([`vignette("interactions")`](https://rasmussenphilip.github.io/deconflate/articles/interactions.md)).
   Without interactions and unknown pairs, it equals `"simultaneous"`.
+  The pairwise methods work for any number of diseases; the global
+  method enumerates combinations up to about 20 diseases, and beyond
+  that uses the sampled backend of
+  [`fit_joint()`](https://rasmussenphilip.github.io/deconflate/reference/fit_joint.md)
+  ([`vignette("thresholds-and-scaling")`](https://rasmussenphilip.github.io/deconflate/articles/thresholds-and-scaling.md)).
 
 ``` r
 
@@ -171,6 +176,22 @@ defined.
 [`contribution_table()`](https://rasmussenphilip.github.io/deconflate/reference/contribution_table.md)
 and [`summary()`](https://rdrr.io/r/base/summary.html) combine the
 impacts and contributions in one table.
+
+How robust is a ranking or a sign to one uncertain input?
+[`cm_threshold()`](https://rasmussenphilip.github.io/deconflate/reference/cm_threshold.md)
+finds the input values at which the conclusion changes, for example the
+odds ratio of d2 and d3 at which d1 would contribute more than d2:
+
+``` r
+
+cm_threshold(m, "assoc:d2:d3", c(0.1, 100), conclusion = "rank")$thresholds[
+  , c("item", "status", "threshold", "description")]
+#>       item    status threshold                         description
+#> 1 d1 vs d2 threshold  10.20365 d1 moves above d2 (by contribution)
+```
+
+See
+[`vignette("thresholds-and-scaling")`](https://rasmussenphilip.github.io/deconflate/articles/thresholds-and-scaling.md).
 
 ## Estimands
 
@@ -413,3 +434,10 @@ compare_methods(m_sim, methods = c("published", "simultaneous"))
 - [`vignette("uncertainty")`](https://rasmussenphilip.github.io/deconflate/articles/uncertainty.md):
   Monte Carlo analysis, stability checks, scenarios and sensitivity
   screening.
+- [`vignette("thresholds-and-scaling")`](https://rasmussenphilip.github.io/deconflate/articles/thresholds-and-scaling.md):
+  threshold searches with
+  [`cm_threshold()`](https://rasmussenphilip.github.io/deconflate/reference/cm_threshold.md)
+  (at what input value does a ranking, a sign or the aggregate change?),
+  and the sampled backend of
+  [`fit_joint()`](https://rasmussenphilip.github.io/deconflate/reference/fit_joint.md)
+  for the global method with more than about 20 diseases.

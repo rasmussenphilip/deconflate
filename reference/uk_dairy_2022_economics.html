@@ -3,17 +3,13 @@
 productivity_gap() and value_losses() (or the valuation argument of
 summary.cm_result() and compare_methods()): milk yield 8737 kg/cow/year
 valued at GBP 0.3022/kg; calving interval 401 days, each day valued at
-lifetime daily yield (13 kg) times the milk price; culling rate 27% per
-year (impacts as proportional increases, as in the paper) valued at the
-replacement price per percentage point (GBP 13.3536). Veterinary
-expenditure of GBP 71.09 per cow per year is a separate lump sum."><meta property="og:description" content="Valuation inputs for each analysis of example_uk_dairy_2022(), for
+lifetime daily yield (13 kg) times the milk price. Veterinary expenditure
+of GBP 71.09 per cow per year is a separate lump sum."><meta property="og:description" content="Valuation inputs for each analysis of example_uk_dairy_2022(), for
 productivity_gap() and value_losses() (or the valuation argument of
 summary.cm_result() and compare_methods()): milk yield 8737 kg/cow/year
 valued at GBP 0.3022/kg; calving interval 401 days, each day valued at
-lifetime daily yield (13 kg) times the milk price; culling rate 27% per
-year (impacts as proportional increases, as in the paper) valued at the
-replacement price per percentage point (GBP 13.3536). Veterinary
-expenditure of GBP 71.09 per cow per year is a separate lump sum."></head><body>
+lifetime daily yield (13 kg) times the milk price. Veterinary expenditure
+of GBP 71.09 per cow per year is a separate lump sum."></head><body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
 
 
@@ -21,7 +17,7 @@ expenditure of GBP 71.09 per cow per year is a separate lump sum."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">deconflate</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.2.0.9000</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -34,6 +30,7 @@ expenditure of GBP 71.09 per cow per year is a separate lump sum."></head><body>
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/own-data.html">Using your own data</a></li>
+    <li><a class="dropdown-item" href="../articles/thresholds-and-scaling.html">Threshold searches and many diseases</a></li>
     <li><a class="dropdown-item" href="../articles/culling-hazard-ratios.html">Culling and hazard ratios</a></li>
     <li><a class="dropdown-item" href="../articles/reproducing-published.html">Reproducing the published analyses</a></li>
     <li><a class="dropdown-item" href="../articles/interactions.html">Disease combinations, interactions and attribution</a></li>
@@ -61,10 +58,8 @@ expenditure of GBP 71.09 per cow per year is a separate lump sum."></head><body>
 <code><a href="productivity_gap.html">productivity_gap()</a></code> and <code><a href="value_losses.html">value_losses()</a></code> (or the <code>valuation</code> argument of
 <code><a href="summary.cm_result.html">summary.cm_result()</a></code> and <code><a href="compare_methods.html">compare_methods()</a></code>): milk yield 8737 kg/cow/year
 valued at GBP 0.3022/kg; calving interval 401 days, each day valued at
-lifetime daily yield (13 kg) times the milk price; culling rate 27% per
-year (impacts as proportional increases, as in the paper) valued at the
-replacement price per percentage point (GBP 13.3536). Veterinary
-expenditure of GBP 71.09 per cow per year is a separate lump sum.</p>
+lifetime daily yield (13 kg) times the milk price. Veterinary expenditure
+of GBP 71.09 per cow per year is a separate lump sum.</p>
     </div>
 
     <div class="section level2">
@@ -74,8 +69,15 @@ expenditure of GBP 71.09 per cow per year is a separate lump sum.</p>
 
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>A list with <code>valuation</code> (one valuation list per analysis) and
-<code>additional</code> (lump-sum costs).</p>
+    <p>A list with <code>valuation</code> (one valuation list per analysis of
+<code><a href="example_uk_dairy_2022.html">example_uk_dairy_2022()</a></code>) and <code>additional</code> (lump-sum costs).</p>
+    </div>
+    <div class="section level2">
+    <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
+    <p>Culling (an annual rate of 27%, and a replacement price of GBP 1335.36)
+is not an additive analysis: use the attached hazard ratios with
+<code><a href="attributable_risk.html">attributable_risk()</a></code>. The paper's culling valuation belongs to its
+historical conversion and is used only inside <code><a href="reproduce.html">reproduce_rasmussen_2022()</a></code>.</p>
     </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

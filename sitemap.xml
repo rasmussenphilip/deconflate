@@ -9,6 +9,7 @@
 <url><loc>https://rasmussenphilip.github.io/deconflate/articles/interactions.html</loc></url>
 <url><loc>https://rasmussenphilip.github.io/deconflate/articles/own-data.html</loc></url>
 <url><loc>https://rasmussenphilip.github.io/deconflate/articles/reproducing-published.html</loc></url>
+<url><loc>https://rasmussenphilip.github.io/deconflate/articles/thresholds-and-scaling.html</loc></url>
 <url><loc>https://rasmussenphilip.github.io/deconflate/articles/uncertainty.html</loc></url>
 <url><loc>https://rasmussenphilip.github.io/deconflate/authors.html</loc></url>
 <url><loc>https://rasmussenphilip.github.io/deconflate/index.html</loc></url>
@@ -39,6 +40,7 @@
 <url><loc>https://rasmussenphilip.github.io/deconflate/reference/cm_suggest_proposal.html</loc></url>
 <url><loc>https://rasmussenphilip.github.io/deconflate/reference/cm_template.html</loc></url>
 <url><loc>https://rasmussenphilip.github.io/deconflate/reference/cm_three_way.html</loc></url>
+<url><loc>https://rasmussenphilip.github.io/deconflate/reference/cm_threshold.html</loc></url>
 <url><loc>https://rasmussenphilip.github.io/deconflate/reference/combination_probs.html</loc></url>
 <url><loc>https://rasmussenphilip.github.io/deconflate/reference/compare_methods.html</loc></url>
 <url><loc>https://rasmussenphilip.github.io/deconflate/reference/compare_scenarios.html</loc></url>

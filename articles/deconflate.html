@@ -20,7 +20,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">deconflate</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.2.0.9000</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -35,6 +35,7 @@
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
 <li><a class="dropdown-item" href="../articles/own-data.html">Using your own data</a></li>
+    <li><a class="dropdown-item" href="../articles/thresholds-and-scaling.html">Threshold searches and many diseases</a></li>
     <li><a class="dropdown-item" href="../articles/culling-hazard-ratios.html">Culling and hazard ratios</a></li>
     <li><a class="dropdown-item" href="../articles/reproducing-published.html">Reproducing the published analyses</a></li>
     <li><a class="dropdown-item" href="../articles/interactions.html">Disease combinations, interactions and attribution</a></li>
@@ -170,7 +171,11 @@ comparison. It is defined for crude estimates only.</li>
 <code>"global"</code> fits the maximum-entropy distribution of
 disease combinations and can include impact interactions
 (<code><a href="../articles/interactions.html">vignette("interactions")</a></code>). Without interactions and
-unknown pairs, it equals <code>"simultaneous"</code>.</li>
+unknown pairs, it equals <code>"simultaneous"</code>. The pairwise
+methods work for any number of diseases; the global method enumerates
+combinations up to about 20 diseases, and beyond that uses the sampled
+backend of <code><a href="../reference/fit_joint.html">fit_joint()</a></code>
+(<code><a href="../articles/thresholds-and-scaling.html">vignette("thresholds-and-scaling")</a></code>).</li>
 </ul>
 <div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">res</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/deconflate.html">deconflate</a></span><span class="op">(</span><span class="va">m</span><span class="op">)</span></span>
@@ -217,6 +222,16 @@ impacts. The shares are <code>NA</code> when the aggregate is zero,
 since a share of zero is not defined. <code><a href="../reference/contribution_table.html">contribution_table()</a></code>
 and <code><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary()</a></code> combine the impacts and contributions in one
 table.</p>
+<p>How robust is a ranking or a sign to one uncertain input?
+<code><a href="../reference/cm_threshold.html">cm_threshold()</a></code> finds the input values at which the
+conclusion changes, for example the odds ratio of d2 and d3 at which d1
+would contribute more than d2:</p>
+<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="../reference/cm_threshold.html">cm_threshold</a></span><span class="op">(</span><span class="va">m</span>, <span class="st">"assoc:d2:d3"</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0.1</span>, <span class="fl">100</span><span class="op">)</span>, conclusion <span class="op">=</span> <span class="st">"rank"</span><span class="op">)</span><span class="op">$</span><span class="va">thresholds</span><span class="op">[</span></span>
+<span>  , <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"item"</span>, <span class="st">"status"</span>, <span class="st">"threshold"</span>, <span class="st">"description"</span><span class="op">)</span><span class="op">]</span></span>
+<span><span class="co">#&gt;       item    status threshold                         description</span></span>
+<span><span class="co">#&gt; 1 d1 vs d2 threshold  10.20365 d1 moves above d2 (by contribution)</span></span></code></pre></div>
+<p>See <code><a href="../articles/thresholds-and-scaling.html">vignette("thresholds-and-scaling")</a></code>.</p>
 </div>
 <div class="section level2">
 <h2 id="estimands">Estimands<a class="anchor" aria-label="anchor" href="#estimands"></a>
@@ -236,7 +251,7 @@ diseases listed in <code>adjusted_for</code> (ids separated by
 </ul>
 <p><code>adjusted_for</code> is never used to infer the estimand. Giving
 it for a crude estimate is an error:</p>
-<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/conditions.html" class="external-link">tryCatch</a></span><span class="op">(</span><span class="fu"><a href="../reference/cm_impacts.html">cm_impacts</a></span><span class="op">(</span><span class="st">"d1"</span>, <span class="fl">2</span>, adjusted_for <span class="op">=</span> <span class="st">"d2"</span><span class="op">)</span>,</span>
 <span>         deconflate_unsupported <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">e</span><span class="op">)</span> <span class="fu"><a href="https://rdrr.io/r/base/conditions.html" class="external-link">conditionMessage</a></span><span class="op">(</span><span class="va">e</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [1] "`adjusted_for` is given for crude estimates (d1). Set estimand = 'adjusted_linear' if these are coefficients from an additive regression adjusted for those diseases; other adjusted estimands are not supported."</span></span></code></pre></div>
@@ -248,7 +263,7 @@ associations describe the source population of the estimates.</p>
 <p>A worked example: in the population above, the true additive impacts
 are 0.02, 0.04 and 0.06. A study of d1 that adjusted for d2, and crude
 studies of d2 and d3, would report:</p>
-<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">truth</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>d1 <span class="op">=</span> <span class="fl">0.02</span>, d2 <span class="op">=</span> <span class="fl">0.04</span>, d3 <span class="op">=</span> <span class="fl">0.06</span><span class="op">)</span></span>
 <span><span class="va">raw</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/simulate_raw_impacts.html">simulate_raw_impacts</a></span><span class="op">(</span><span class="va">pop</span>, <span class="va">truth</span>,</span>
 <span>                            estimand <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"adjusted_linear"</span>, <span class="st">"crude"</span>, <span class="st">"crude"</span><span class="op">)</span>,</span>
@@ -257,7 +272,7 @@ studies of d2 and d3, would report:</p>
 <span><span class="co">#&gt; [1] 0.01866481 0.05406438 0.06668175</span></span></code></pre></div>
 <p>that is, 0.018664808346, 0.054064376914 and 0.066681750858. With the
 estimands recorded, the simultaneous method recovers the truth:</p>
-<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">imp_adj</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cm_impacts.html">cm_impacts</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"d1"</span>, <span class="st">"d2"</span>, <span class="st">"d3"</span><span class="op">)</span>,</span>
 <span>                      <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0.018664808346</span>, <span class="fl">0.054064376914</span>, <span class="fl">0.066681750858</span><span class="op">)</span>,</span>
 <span>                      estimand <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"adjusted_linear"</span>, <span class="st">"crude"</span>, <span class="st">"crude"</span><span class="op">)</span>,</span>
@@ -270,13 +285,13 @@ estimands recorded, the simultaneous method recovers the truth:</p>
 <span><span class="co">#&gt; 3      d3 0.06668175     0.06 -0.10020359           crude         &lt;NA&gt;</span></span></code></pre></div>
 <p>Treating the d1 estimate as crude adjusts it a second time for d2 and
 gives the wrong answer:</p>
-<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">m_wrong</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cm_model.html">cm_model</a></span><span class="op">(</span><span class="va">pop</span>, <span class="fu"><a href="../reference/cm_impacts.html">cm_impacts</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"d1"</span>, <span class="st">"d2"</span>, <span class="st">"d3"</span><span class="op">)</span>, <span class="va">imp_adj</span><span class="op">$</span><span class="va">value</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="fu"><a href="../reference/deconflate.html">deconflate</a></span><span class="op">(</span><span class="va">m_wrong</span><span class="op">)</span><span class="op">$</span><span class="va">adjusted</span><span class="op">$</span><span class="va">adjusted</span></span>
 <span><span class="co">#&gt; [1] 0.01440635 0.04043097 0.05992801</span></span></code></pre></div>
 <p>The published approximation is not defined for adjusted estimands;
 <code><a href="../reference/compare_methods.html">compare_methods()</a></code> records the reason:</p>
-<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/compare_methods.html">compare_methods</a></span><span class="op">(</span><span class="va">m_adj</span><span class="op">)</span><span class="op">$</span><span class="va">failed</span></span>
 <span><span class="co">#&gt;                                                                                                                          published </span></span>
 <span><span class="co">#&gt; "The published approximation is defined for crude estimates only; use method = 'simultaneous' or 'global' for adjusted estimands."</span></span></code></pre></div>
@@ -288,7 +303,7 @@ gives the wrong answer:</p>
 productivity gap needs to know what the impacts mean, so it is a
 separate, optional step. Here the impacts are percent decreases in a
 yield of 10,000 units:</p>
-<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">gaps</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/productivity_gap.html">productivity_gap</a></span><span class="op">(</span><span class="va">res</span>, observed <span class="op">=</span> <span class="fl">10000</span>, direction <span class="op">=</span> <span class="st">"decrease"</span>,</span>
 <span>                         effect <span class="op">=</span> <span class="st">"percent"</span><span class="op">)</span></span>
 <span><span class="va">gaps</span><span class="op">$</span><span class="va">summary</span></span>
@@ -303,7 +318,7 @@ yield of 10,000 units:</p>
 not part of any adjustment (e.g. veterinary expenditure) can be added
 with <code>additional</code>; they are reported separately and included
 in the total:</p>
-<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">v</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/value_losses.html">value_losses</a></span><span class="op">(</span><span class="va">gaps</span>, unit_value <span class="op">=</span> <span class="fl">0.30</span>, additional <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>veterinary <span class="op">=</span> <span class="fl">25</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="va">v</span><span class="op">$</span><span class="va">by_disease</span></span>
 <span><span class="co">#&gt;   disease       gap     value</span></span>
@@ -315,7 +330,7 @@ in the total:</p>
 <p>The same valuation can be passed to
 <code><a href="../reference/contribution_table.html">contribution_table()</a></code>, <code><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary()</a></code> and
 <code><a href="../reference/compare_methods.html">compare_methods()</a></code>:</p>
-<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">val</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>observed <span class="op">=</span> <span class="fl">10000</span>, direction <span class="op">=</span> <span class="st">"decrease"</span>, effect <span class="op">=</span> <span class="st">"percent"</span>,</span>
 <span>            unit_value <span class="op">=</span> <span class="fl">0.30</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">res</span>, valuation <span class="op">=</span> <span class="va">val</span><span class="op">)</span></span>
@@ -343,12 +358,12 @@ in the total:</p>
 all of them. By default the pairwise methods screen every triple of
 diseases (a necessary condition), and <code>feasibility = "lp"</code>
 runs an exact check (it needs the <code>lpSolve</code> package):</p>
-<div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">res</span><span class="op">$</span><span class="va">diagnostics</span><span class="op">$</span><span class="va">feasibility</span></span>
 <span><span class="co">#&gt; [1] "triple screen passed (necessary condition only)"</span></span></code></pre></div>
 <p>Three diseases with probability 0.5, two strong positive associations
 and one strong negative one cannot coexist:</p>
-<div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb20"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">bad</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cm_model.html">cm_model</a></span><span class="op">(</span></span>
 <span>  <span class="fu"><a href="../reference/cm_diseases.html">cm_diseases</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"a"</span>, <span class="st">"b"</span>, <span class="st">"c"</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0.5</span>, <span class="fl">0.5</span>, <span class="fl">0.5</span><span class="op">)</span><span class="op">)</span>,</span>
 <span>  <span class="fu"><a href="../reference/cm_impacts.html">cm_impacts</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"a"</span>, <span class="st">"b"</span>, <span class="st">"c"</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">2</span>, <span class="fl">3</span><span class="op">)</span><span class="op">)</span>,</span>
@@ -407,7 +422,7 @@ above)</td>
 <p>All errors also have class <code>deconflate_error</code>, and
 warnings <code>deconflate_warning</code>
 (e.g. <code>deconflate_sign_change</code>).</p>
-<div class="sourceCode" id="cb20"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb21"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">e</span> <span class="op">&lt;-</span> <span class="kw"><a href="https://rdrr.io/r/base/conditions.html" class="external-link">tryCatch</a></span><span class="op">(</span><span class="fu"><a href="../reference/deconflate.html">deconflate</a></span><span class="op">(</span><span class="va">bad</span><span class="op">)</span>, deconflate_error <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">e</span><span class="op">)</span> <span class="va">e</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/class.html" class="external-link">class</a></span><span class="op">(</span><span class="va">e</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [1] "deconflate_infeasible" "deconflate_error"      "error"                </span></span>
@@ -420,7 +435,7 @@ warnings <code>deconflate_warning</code>
 single-disease studies would report in a herd with known true impacts.
 Adjusting them should recover the truth; the published approximation
 does so only approximately:</p>
-<div class="sourceCode" id="cb21"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb22"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">m_sim</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cm_model.html">cm_model</a></span><span class="op">(</span><span class="va">pop</span>, <span class="fu"><a href="../reference/simulate_raw_impacts.html">simulate_raw_impacts</a></span><span class="op">(</span><span class="va">pop</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>d1 <span class="op">=</span> <span class="fl">2</span>, d2 <span class="op">=</span> <span class="fl">4</span>, d3 <span class="op">=</span> <span class="fl">6</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="fu"><a href="../reference/compare_methods.html">compare_methods</a></span><span class="op">(</span><span class="va">m_sim</span>, methods <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"published"</span>, <span class="st">"simultaneous"</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt; &lt;cm_comparison&gt; methods: published, simultaneous</span></span>
@@ -456,6 +471,12 @@ attribution.</li>
 <li>
 <code><a href="../articles/uncertainty.html">vignette("uncertainty")</a></code>: Monte Carlo analysis,
 stability checks, scenarios and sensitivity screening.</li>
+<li>
+<code><a href="../articles/thresholds-and-scaling.html">vignette("thresholds-and-scaling")</a></code>: threshold searches
+with <code><a href="../reference/cm_threshold.html">cm_threshold()</a></code> (at what input value does a ranking, a
+sign or the aggregate change?), and the sampled backend of
+<code><a href="../reference/fit_joint.html">fit_joint()</a></code> for the global method with more than about 20
+diseases.</li>
 </ul>
 </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

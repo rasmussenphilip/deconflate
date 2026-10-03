@@ -15,7 +15,7 @@ metritis uses the analysis value (PERT mode 1.116) rather than Table 4
 
     <a class="navbar-brand me-2" href="../index.html">deconflate</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.2.0.9000</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -28,6 +28,7 @@ metritis uses the analysis value (PERT mode 1.116) rather than Table 4
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/own-data.html">Using your own data</a></li>
+    <li><a class="dropdown-item" href="../articles/thresholds-and-scaling.html">Threshold searches and many diseases</a></li>
     <li><a class="dropdown-item" href="../articles/culling-hazard-ratios.html">Culling and hazard ratios</a></li>
     <li><a class="dropdown-item" href="../articles/reproducing-published.html">Reproducing the published analyses</a></li>
     <li><a class="dropdown-item" href="../articles/interactions.html">Disease combinations, interactions and attribution</a></li>
@@ -80,19 +81,19 @@ metritis uses the analysis value (PERT mode 1.116) rather than Table 4
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="va">hr</span> <span class="op">&lt;-</span> <span class="fu">example_global_dairy_hr</span><span class="op">(</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="deconflate_hr.html">deconflate_hr</a></span><span class="op">(</span><span class="va">hr</span>, method <span class="op">=</span> <span class="st">"published"</span><span class="op">)</span><span class="op">$</span><span class="va">adjusted</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>    disease      raw adjusted      change estimand adjusted_for</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 1       CK 1.500100 1.177580 -0.21499875    crude         &lt;NA&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 2       CM 2.300000 1.903941 -0.17219973    crude         &lt;NA&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 3       DA 2.851179 2.197930 -0.22911542    crude         &lt;NA&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 4      DYS 1.258143 1.098377 -0.12698583    crude         &lt;NA&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 5      LAM 1.744976 1.380683 -0.20876694    crude         &lt;NA&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 6      MET 1.116444 1.012411 -0.09318284    crude         &lt;NA&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 7       MF 2.999886 2.647637 -0.11742065    crude         &lt;NA&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 8       OC 1.620000 1.458644 -0.09960240    crude         &lt;NA&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 9      PTB 2.310508 2.047235 -0.11394597    crude         &lt;NA&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 10      RP 1.599928 1.284496 -0.19715366    crude         &lt;NA&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 11     SCK 1.920000 1.675253 -0.12747225    crude         &lt;NA&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 12     SCM 1.449996 1.254928 -0.13453033    crude         &lt;NA&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>    disease      raw adjusted      change       estimand adjusted_for</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 1       CK 1.500100 1.177580 -0.21499875 snapshot_crude         &lt;NA&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 2       CM 2.300000 1.903941 -0.17219973 snapshot_crude         &lt;NA&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 3       DA 2.851179 2.197930 -0.22911542 snapshot_crude         &lt;NA&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 4      DYS 1.258143 1.098377 -0.12698583 snapshot_crude         &lt;NA&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 5      LAM 1.744976 1.380683 -0.20876694 snapshot_crude         &lt;NA&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 6      MET 1.116444 1.012411 -0.09318284 snapshot_crude         &lt;NA&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 7       MF 2.999886 2.647637 -0.11742065 snapshot_crude         &lt;NA&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 8       OC 1.620000 1.458644 -0.09960240 snapshot_crude         &lt;NA&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 9      PTB 2.310508 2.047235 -0.11394597 snapshot_crude         &lt;NA&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 10      RP 1.599928 1.284496 -0.19715366 snapshot_crude         &lt;NA&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 11     SCK 1.920000 1.675253 -0.12747225 snapshot_crude         &lt;NA&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 12     SCM 1.449996 1.254928 -0.13453033 snapshot_crude         &lt;NA&gt;</span>
 </code></pre></div>
     </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

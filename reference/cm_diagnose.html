@@ -14,6 +14,9 @@ method can also be heavy-tailed when sampled inputs make the conflation
 matrix nearly singular.
 &quot;imprecise&quot;: the Monte Carlo standard error is large relative to the
 mean. Use more draws, or Latin hypercube sampling.
+&quot;insufficient_info&quot;: precision cannot be assessed (too few usable
+Latin hypercube blocks, or a mean of zero); judge the absolute standard
+error instead.
 &quot;non_finite&quot;: draws gave non-finite results and were rejected.
 
 "><meta property="og:description" content="Lists the estimates that summary.cm_mc() flags, with the reason and a
@@ -31,6 +34,9 @@ method can also be heavy-tailed when sampled inputs make the conflation
 matrix nearly singular.
 &quot;imprecise&quot;: the Monte Carlo standard error is large relative to the
 mean. Use more draws, or Latin hypercube sampling.
+&quot;insufficient_info&quot;: precision cannot be assessed (too few usable
+Latin hypercube blocks, or a mean of zero); judge the absolute standard
+error instead.
 &quot;non_finite&quot;: draws gave non-finite results and were rejected.
 
 "></head><body>
@@ -41,7 +47,7 @@ mean. Use more draws, or Latin hypercube sampling.
 
     <a class="navbar-brand me-2" href="../index.html">deconflate</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.2.0.9000</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -54,6 +60,7 @@ mean. Use more draws, or Latin hypercube sampling.
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/own-data.html">Using your own data</a></li>
+    <li><a class="dropdown-item" href="../articles/thresholds-and-scaling.html">Threshold searches and many diseases</a></li>
     <li><a class="dropdown-item" href="../articles/culling-hazard-ratios.html">Culling and hazard ratios</a></li>
     <li><a class="dropdown-item" href="../articles/reproducing-published.html">Reproducing the published analyses</a></li>
     <li><a class="dropdown-item" href="../articles/interactions.html">Disease combinations, interactions and attribution</a></li>
@@ -91,6 +98,9 @@ method can also be heavy-tailed when sampled inputs make the conflation
 matrix nearly singular.</p></li>
 <li><p><code>"imprecise"</code>: the Monte Carlo standard error is large relative to the
 mean. Use more draws, or Latin hypercube sampling.</p></li>
+<li><p><code>"insufficient_info"</code>: precision cannot be assessed (too few usable
+Latin hypercube blocks, or a mean of zero); judge the absolute standard
+error instead.</p></li>
 <li><p><code>"non_finite"</code>: draws gave non-finite results and were rejected.</p></li>
 </ul></div>
 

@@ -14,7 +14,8 @@ cm_sampler(
   diseases = list(),
   associations = list(),
   impacts = list(),
-  interactions = list()
+  interactions = list(),
+  three_way = list()
 )
 ```
 
@@ -43,6 +44,12 @@ cm_sampler(
   Named list of `cm_dist`, names `"d1:d2"` (either order) matching rows
   of the model's interactions.
 
+- three_way:
+
+  Named list of `cm_dist`, names `"d1:d2:d3"` (any order) matching rows
+  of the model's three-way terms. Three-way terms affect the global
+  method only.
+
 ## Value
 
 A function of the draw index returning a
@@ -65,6 +72,9 @@ Draws are on the scale the inputs were entered on:
 
 - associations: the association measure (e.g. odds ratio);
 
+- three-way terms: the ratio of conditional odds ratios (see
+  [`cm_three_way()`](https://rasmussenphilip.github.io/deconflate/reference/cm_three_way.md));
+
 - impacts and interactions: their own units.
 
 A draw that produces an impossible input (a probability outside (0, 1),
@@ -75,8 +85,8 @@ and counted.
 
 Keys (as in `params` of
 [`cm_monte_carlo()`](https://rasmussenphilip.github.io/deconflate/reference/cm_monte_carlo.md)):
-`prob:<disease>`, `assoc:<d1>:<d2>`, `impact:<disease>` and
-`inter:<d1>:<d2>`.
+`prob:<disease>`, `assoc:<d1>:<d2>`, `three:<d1>:<d2>:<d3>`,
+`impact:<disease>` and `inter:<d1>:<d2>`.
 
 ## Examples
 

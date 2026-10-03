@@ -31,7 +31,7 @@ plot(&amp;lt;cm_oat&amp;gt;): tornado plot from sensitivity_oat().
 
     <a class="navbar-brand me-2" href="../index.html">deconflate</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.2.0.9000</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -44,6 +44,7 @@ plot(&amp;lt;cm_oat&amp;gt;): tornado plot from sensitivity_oat().
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/own-data.html">Using your own data</a></li>
+    <li><a class="dropdown-item" href="../articles/thresholds-and-scaling.html">Threshold searches and many diseases</a></li>
     <li><a class="dropdown-item" href="../articles/culling-hazard-ratios.html">Culling and hazard ratios</a></li>
     <li><a class="dropdown-item" href="../articles/reproducing-published.html">Reproducing the published analyses</a></li>
     <li><a class="dropdown-item" href="../articles/interactions.html">Disease combinations, interactions and attribution</a></li>
@@ -62,7 +63,7 @@ plot(&amp;lt;cm_oat&amp;gt;): tornado plot from sensitivity_oat().
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Plots</h1>
-      <small class="dont-index">Source: <a href="https://github.com/rasmussenphilip/deconflate/blob/master/R/plot.R" class="external-link"><code>R/plot.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/rasmussenphilip/deconflate/blob/master/R/plot.R" class="external-link"><code>R/plot.R</code></a>, <a href="https://github.com/rasmussenphilip/deconflate/blob/master/R/threshold.R" class="external-link"><code>R/threshold.R</code></a></small>
       <div class="d-none name"><code>plots.Rd</code></div>
     </div>
 
@@ -96,7 +97,10 @@ effect and interaction share), or its share of the value with
 <span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">x</span>, top <span class="op">=</span> <span class="fl">15</span>, <span class="va">...</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># S3 method for class 'cm_oat'</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">x</span>, top <span class="op">=</span> <span class="fl">15</span>, <span class="va">...</span><span class="op">)</span></span></code></pre></div>
+<span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">x</span>, top <span class="op">=</span> <span class="fl">15</span>, <span class="va">...</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># S3 method for class 'cm_threshold'</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">x</span>, items <span class="op">=</span> <span class="cn">NULL</span>, <span class="va">...</span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -127,6 +131,10 @@ show (default the first).</p></dd>
 
 <dt id="arg-top">top<a class="anchor" aria-label="anchor" href="#arg-top"></a></dt>
 <dd><p>Number of rows to show.</p></dd>
+
+
+<dt id="arg-items">items<a class="anchor" aria-label="anchor" href="#arg-items"></a></dt>
+<dd><p>For <code>cm_threshold</code> plots: the items to show (default all).</p></dd>
 
 </dl></div>
     <div class="section level2">

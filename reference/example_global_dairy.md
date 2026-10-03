@@ -10,7 +10,7 @@ distributions). Each impact type is one analysis.
 ## Usage
 
 ``` r
-example_global_dairy(inputs = c("analysis", "tables"), culling = FALSE)
+example_global_dairy(inputs = c("analysis", "tables"))
 ```
 
 ## Arguments
@@ -18,10 +18,6 @@ example_global_dairy(inputs = c("analysis", "tables"), culling = FALSE)
 - inputs:
 
   `"analysis"` or `"tables"`.
-
-- culling:
-
-  Include the legacy `culling_hr_minus_1` analysis?
 
 ## Value
 
@@ -46,10 +42,9 @@ The culling hazard ratios are available as a hazard-ratio model from
 [`example_global_dairy_hr()`](https://rasmussenphilip.github.io/deconflate/reference/example_global_dairy_hr.md)
 (see
 [`deconflate_hr()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate_hr.md)).
-With `culling = TRUE` the analyses also include `culling_hr_minus_1`:
-hazard ratios minus 1 treated as additive impacts, which is how the 2024
-analysis adjusted them (with the published method). It is included only
-to reproduce Table 5.
+The 2024 analysis adjusted hazard ratios minus 1 as if they were
+additive impacts; that historical calculation is only available inside
+[`reproduce_rasmussen_2024()`](https://rasmussenphilip.github.io/deconflate/reference/reproduce.md).
 
 ## Examples
 

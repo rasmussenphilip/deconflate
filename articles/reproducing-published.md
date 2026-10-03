@@ -49,14 +49,19 @@ units (21.1, 56.7 and 137.9 units per disease).
 ## UK dairy example (2022, Tables 8-10)
 
 [`example_uk_dairy_2022()`](https://rasmussenphilip.github.io/deconflate/reference/example_uk_dairy_2022.md)
-contains the 13 diseases, the 19 odds ratios and the yield, fertility
-and culling inputs of Tables 2-6, as three analyses. Following the
-paper, the culling hazard ratios are converted to excess annual culling
-risks by treating them as odds ratios, and adjusted hazard ratios are
-recovered by rescaling (eq. 23).
+contains the 13 diseases and the 19 odds ratios of Tables 2-3, and the
+yield and fertility inputs of Tables 4-5 as two analyses. The culling
+hazard ratios of Table 6 are attached as the attribute
+`"hazard_ratios"`, for the hazard-ratio adapter. The paper’s culling
+analysis, which converted the hazard ratios to excess annual culling
+risks by treating them as odds ratios and recovered adjusted hazard
+ratios by rescaling (eq. 23), exists only inside
+[`reproduce_rasmussen_2022()`](https://rasmussenphilip.github.io/deconflate/reference/reproduce.md).
 [`uk_dairy_2022_economics()`](https://rasmussenphilip.github.io/deconflate/reference/uk_dairy_2022_economics.md)
-holds the observed means and unit values of Table 1 and the veterinary
-expenditure.
+holds the observed means and unit values of Table 1 for yield and
+fertility, and the veterinary expenditure (the paper’s culling valuation
+belongs to its historical conversion and is used only inside the
+reproduction).
 [`reproduce_rasmussen_2022()`](https://rasmussenphilip.github.io/deconflate/reference/reproduce.md)
 runs the whole calculation:
 
@@ -99,6 +104,8 @@ r22
 #>      PTB 2.40   1.64   1.642
 #>       RP 1.00   1.00   1.000
 #>      SCK 2.10   1.29   1.291
+r22$total
+#> [1] 402.2476
 ```
 
 ### Comparison with Table 9
@@ -172,29 +179,40 @@ data.frame(disease = r22$adjusted$disease,
 ### What the package offers instead
 
 **Exact solution.** `method = "simultaneous"` solves the additive
-equations instead of approximating them. With the same inputs and
-valuation (the culling analysis keeps the paper’s conversion), the total
-including veterinary costs falls from GBP 402.25 to 393.13 per cow per
-year:
+equations instead of approximating them. The example has the yield and
+fertility analyses, valued with
+[`uk_dairy_2022_economics()`](https://rasmussenphilip.github.io/deconflate/reference/uk_dairy_2022_economics.md):
 
 ``` r
 
 uk <- example_uk_dairy_2022()
+uk
+#> <cm_analyses> 2 analyses on one population
+#>   Diseases: 13 (CO, DA, DYS, FAS, GIN, LAM, MAS, MET, MF, NEO, PTB, RP, SCK)
+#>   Disease pairs: 78 [independent (default): 59; specified: 19]
+#>   - yield [% decrease]
+#>   - fertility [% increase]
 eco <- uk_dairy_2022_economics()
 cmp <- compare_methods(uk, methods = c("published", "simultaneous"),
                        valuation = eco$valuation)
 cmp$totals
-#>    analysis       method   raw_sum adjusted_total        gap     value
-#> 1     yield    published 7.1678000      6.0457545 562.207239 169.89903
-#> 2     yield simultaneous 7.1678000      5.9821423 555.915420 167.99764
-#> 3 fertility    published 7.5734000      6.9067560  25.906774 101.77735
-#> 4 fertility simultaneous 7.5734000      6.4484568  24.291862  95.43301
-#> 5   culling    published 0.2498891      0.1975685   4.454317  59.48117
-#> 6   culling simultaneous 0.2498891      0.1941178   4.389166  58.61117
-tapply(cmp$totals$value, cmp$totals$method, sum) + sum(eco$additional)
+#>    analysis       method raw_sum adjusted_total       gap     value
+#> 1     yield    published  7.1678       6.045754 562.20724 169.89903
+#> 2     yield simultaneous  7.1678       5.982142 555.91542 167.99764
+#> 3 fertility    published  7.5734       6.906756  25.90677 101.77735
+#> 4 fertility simultaneous  7.5734       6.448457  24.29186  95.43301
+tapply(cmp$totals$value, cmp$totals$method, sum)
 #>    published simultaneous 
-#>     402.2476     393.1318
+#>     271.6764     263.4306
 ```
+
+The published rows reproduce the yield and fertility values of the
+reproduction above (GBP 169.90 and 101.78 per cow per year). The
+simultaneous method gives GBP 168.00 for yield and 95.43 for fertility.
+The published total from `reproduce_rasmussen_2022()$total` (GBP 402.25)
+also includes culling, valued with the paper’s conversion, and
+veterinary costs. That culling conversion is not available for new
+analyses, so no simultaneous total including culling is given here.
 
 **Hazard ratios.** For new analyses, the culling hazard ratios are
 adjusted with the hazard-ratio adapter, and the culling attributable to
@@ -256,17 +274,22 @@ follows the published analysis code rather than the printed tables:
 - **Culling** was adjusted on the hazard ratio scale: HR - 1 was
   adjusted, and 1 was added back. Normal standard deviations were scaled
   by (HR - 1) / HR, and metritis used a PERT distribution (mode 1.12)
-  rather than the normal distribution in Table 4 (mean 1.05). This is
-  the analysis `culling_hr_minus_1` of
-  `example_global_dairy(culling = TRUE)`, kept for reproduction only.
+  rather than the normal distribution in Table 4 (mean 1.05). This
+  analysis (`culling_hr_minus_1`) exists only inside
+  [`reproduce_rasmussen_2024()`](https://rasmussenphilip.github.io/deconflate/reference/reproduce.md),
+  for reproduction;
+  [`example_global_dairy()`](https://rasmussenphilip.github.io/deconflate/reference/example_global_dairy.md)
+  and
+  [`sampler_global_dairy()`](https://rasmussenphilip.github.io/deconflate/reference/sampler_global_dairy.md)
+  have the yield and fertility analyses only.
 
 `sampler_global_dairy(inputs = "tables")` uses Tables 2-4 as printed
 instead.
 [`reproduce_rasmussen_2024()`](https://rasmussenphilip.github.io/deconflate/reference/reproduce.md)
-runs the published method on the sampler and sets the means beside Table
-5 (yield and fertility in percent, culling as hazard ratios). Run it
-with many more draws for stable estimates; 200 are used here to keep the
-vignette fast.
+runs the published method on the sampler, with the historical culling
+analysis added, and sets the means beside Table 5 (yield and fertility
+in percent, culling as hazard ratios). Run it with many more draws for
+stable estimates; 200 are used here to keep the vignette fast.
 
 ``` r
 
@@ -384,10 +407,10 @@ rbind(published = vapply(pub24, function(r) r$totals$adjusted_total, numeric(1))
 ```
 
 **Culling losses.** The adjusted culling impacts of the 2024 analysis
-are adjusted HR - 1; adding 1 gives the adjusted hazard ratios. They
-equal the `"published"` method of
-[`deconflate_hr()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate_hr.md)
-at the central values:
+are adjusted HR - 1; adding 1 gives the adjusted hazard ratios. The
+central values are in `r24$central$culling_hr_minus_1`, and they equal
+the `"published"` method of
+[`deconflate_hr()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate_hr.md):
 
 ``` r
 

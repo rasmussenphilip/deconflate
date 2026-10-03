@@ -18,7 +18,7 @@ and the pairwise associations.
 m <- example_supplement()
 j <- fit_joint(m)
 j
-#> <cm_joint> 3 diseases, 8 combinations
+#> <cm_joint> 3 diseases, 8 combinations (exact backend)
 #>   Converged: TRUE after 8 sweeps (max residual 2.48e-11)
 #>   Constrained pairs: 3
 head(combination_probs(j))
@@ -30,6 +30,14 @@ head(combination_probs(j))
 #> 5  0  1  1          2 0.04814317
 #> 6  1  1  0          2 0.01589556
 ```
+
+Enumerating 2^n combinations limits this exact fit to about 20 diseases.
+For more, `fit_joint(backend = "sampled")` fits the same model by Monte
+Carlo (Gibbs sampling with calibrated parameters, followed by raking to
+the pairwise tables); the functions below that use the joint
+distribution accept a fit from either backend. See
+[`vignette("thresholds-and-scaling")`](https://rasmussenphilip.github.io/deconflate/articles/thresholds-and-scaling.md)
+for how it works, its diagnostics and a 24-disease example.
 
 ## What maximum entropy assumes
 
@@ -238,9 +246,12 @@ c(maximum_entropy = sum(j$prob[rowSums(j$cells) == 3]),
 #>     0.008583836     0.010703834
 ```
 
-Three-way terms are sensitivity scenarios. They change additive results
-only through interactions: without interactions every scenario
+Three-way terms are sensitivity scenarios. When all pairs of a triple
+are constrained, they keep the pairwise tables fixed and change additive
+results only through interactions: without interactions every scenario
 reproduces the baseline, and with an interaction they change the offset.
+When a pair is unknown, its fitted table moves with the three-way term,
+so additive results can change even without interactions.
 [`screen_three_way()`](https://rasmussenphilip.github.io/deconflate/reference/screen_three_way.md)
 sets each triple in turn:
 
@@ -269,7 +280,7 @@ ratios:
 
 ``` r
 
-hr <- cm_hazard_ratios(c("d1", "d2", "d3"), c(1.5, 2.0, 1.3))
+hr <- cm_hazard_ratios(c("d1", "d2", "d3"), c(1.5, 2.0, 1.3), estimand = "snapshot_crude")
 rbind(maximum_entropy = deconflate_hr(cm_hr_model(m, hr))$adjusted$adjusted,
       ratio_2 = deconflate_hr(cm_hr_model(m3, hr))$adjusted$adjusted)
 #>                     [,1]     [,2]     [,3]

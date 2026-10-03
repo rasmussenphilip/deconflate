@@ -13,7 +13,7 @@ units), the raw estimates satisfy"></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">deconflate</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.2.0.9000</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -26,6 +26,7 @@ units), the raw estimates satisfy"></head><body>
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/own-data.html">Using your own data</a></li>
+    <li><a class="dropdown-item" href="../articles/thresholds-and-scaling.html">Threshold searches and many diseases</a></li>
     <li><a class="dropdown-item" href="../articles/culling-hazard-ratios.html">Culling and hazard ratios</a></li>
     <li><a class="dropdown-item" href="../articles/reproducing-published.html">Reproducing the published analyses</a></li>
     <li><a class="dropdown-item" href="../articles/interactions.html">Disease combinations, interactions and attribution</a></li>
@@ -103,7 +104,9 @@ denominator is zero.</p></li>
 <li><p><code>"global"</code>: fits the maximum-entropy joint distribution
 (<code><a href="fit_joint.html">fit_joint()</a></code>; the "iterative" model) and solves the equations
 including any interactions. Unknown pairs are left unconstrained.
-Without interactions and unknown pairs, it equals <code>"simultaneous"</code>.</p></li>
+Without interactions and unknown pairs, it equals <code>"simultaneous"</code>.
+For more than about 20 diseases, pass <code>backend = "sampled"</code> (through
+<code>...</code>, or fit the joint with <code><a href="fit_joint.html">fit_joint()</a></code> and pass it as <code>joint</code>).</p></li>
 </ul></dd>
 
 
@@ -172,6 +175,18 @@ disease combinations.</p>
 contribution is its own term plus half of each interaction term it is
 involved in (the closed-form Shapley value); contributions add up to the
 aggregate. Shares are <code>NA</code> when the aggregate is zero.</p>
+    </div>
+    <div class="section level2">
+    <h2 id="number-of-diseases">Number of diseases<a class="anchor" aria-label="anchor" href="#number-of-diseases"></a></h2>
+
+
+<p>The <code>"simultaneous"</code> and <code>"published"</code> methods use the pairwise tables
+only, so they work for any number of diseases (the triple screen checks
+n(n-1)(n-2)/6 triples). The <code>"global"</code> method needs the joint
+distribution: the exact backend of <code><a href="fit_joint.html">fit_joint()</a></code> enumerates 2^n
+combinations (about 20 diseases at most); the sampled backend fits the
+same model by Monte Carlo for more. The exact LP feasibility check is
+limited to 14 diseases.</p>
     </div>
     <div class="section level2">
     <h2 id="feasibility">Feasibility<a class="anchor" aria-label="anchor" href="#feasibility"></a></h2>

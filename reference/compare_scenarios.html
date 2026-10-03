@@ -11,7 +11,7 @@ disease rankings side by side."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">deconflate</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.2.0.9000</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -24,6 +24,7 @@ disease rankings side by side."></head><body>
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/own-data.html">Using your own data</a></li>
+    <li><a class="dropdown-item" href="../articles/thresholds-and-scaling.html">Threshold searches and many diseases</a></li>
     <li><a class="dropdown-item" href="../articles/culling-hazard-ratios.html">Culling and hazard ratios</a></li>
     <li><a class="dropdown-item" href="../articles/reproducing-published.html">Reproducing the published analyses</a></li>
     <li><a class="dropdown-item" href="../articles/interactions.html">Disease combinations, interactions and attribution</a></li>
@@ -76,8 +77,10 @@ models with interactions or three-way terms).</p></dd>
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>A list with <code>totals</code> (one row per scenario) and <code>by_disease</code>
-(contribution and rank per disease and scenario).</p>
+    <p>A list with <code>totals</code> (one row per scenario, with the reason in
+<code>failed</code> when a scenario could not be adjusted or gave an undefined
+result) and <code>by_disease</code> (contribution and rank per disease and
+scenario).</p>
     </div>
 
     <div class="section level2">
@@ -86,9 +89,9 @@ models with interactions or three-way terms).</p></dd>
 <span class="r-in"><span><span class="va">strong</span> <span class="op">&lt;-</span> <span class="fu"><a href="set_association.html">set_association</a></span><span class="op">(</span><span class="va">base</span>, <span class="st">"d1"</span>, <span class="st">"d3"</span>, <span class="fl">3</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="fu">compare_scenarios</span><span class="op">(</span>base <span class="op">=</span> <span class="va">base</span>, strong_d1_d3 <span class="op">=</span> <span class="va">strong</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> $totals</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>       scenario    total rel_to_first</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 1         base 2.109229   0.00000000</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 2 strong_d1_d3 1.959735  -0.07087606</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>       scenario    total failed rel_to_first</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 1         base 2.109229   &lt;NA&gt;   0.00000000</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 2 strong_d1_d3 1.959735   &lt;NA&gt;  -0.07087606</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> $by_disease</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>       scenario disease contribution rank</span>

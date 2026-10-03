@@ -76,14 +76,34 @@ Run `devtools::document()`, `test()` and `check()`, and fix any issues.
 
 Tag v0.2.0.
 
+## v0.3 (in progress)
+
+Second external review: importance-sampling support as intervals, one
+finiteness check everywhere, `insufficient_info` precision status,
+three-way documentation, converged joints for simulation,
+single-analysis template, explicit snapshot hazard-ratio estimands,
+historical conversions confined to reproduction.
+
+Threshold searches
+([`cm_threshold()`](https://rasmussenphilip.github.io/deconflate/reference/cm_threshold.md)):
+rank, sign, target and relative-change conclusions for one input at a
+time.
+
+Sampled backend for the joint distribution (Monte Carlo moment matching,
+sampling, raking) beyond about 20 diseases.
+
+Run `devtools::document()`, `test()` and `check()`, and fix any issues.
+
+Tag v0.3.0.
+
 ## To discuss
 
-- Threshold searches: input values at which conclusions or rankings
-  change.
+- Probabilistic thresholds (e.g. the input value at which a disease
+  ranks first with 95% probability).
 - Advanced component accounting.
 - Lost productive life as a culling outcome.
-- Scaling beyond about 20 diseases (the global method and the exact
-  culling model enumerate all 2^n combinations), e.g. a
-  pseudo-likelihood Ising fit or sampling.
+- Pairwise-only bounds as a complementary sensitivity output for large
+  systems; pseudo-likelihood fitting when individual-level disease
+  records are available.
 - Higher-order and non-linear interaction models in the adjustment
   itself.

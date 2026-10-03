@@ -78,8 +78,12 @@ dist_mixture(..., weights = NULL)
 ## Value
 
 A `cm_dist` object, with the quantile function `q`, distribution
-function `p`, log-density `logd`, sampler `r`, `mean`, and its support
-(`lower`, `upper`; `discrete = TRUE` for point masses).
+function `p`, log-density `logd`, sampler `r`, `mean`, and its support:
+`support` (a two-column matrix of disjoint intervals on which the
+density is positive), its range `lower` and `upper`, and
+`discrete = TRUE` for point masses. The support of a mixture is the
+union of the supports of its components with positive weight, so it can
+have gaps.
 
 ## Details
 
@@ -113,7 +117,7 @@ d <- dist_pert(1.19, 3.30, 10.71)
 d$mean
 #> [1] 4.183333
 d$r(5)
-#> [1] 2.959934 8.614279 4.627753 2.702472 2.294956
+#> [1] 4.120086 4.907104 3.455479 7.351211 2.236750
 dist_lognormal_ci(2.7, 1.5, 4.9)
 #> <cm_dist> lognormal(meanlog = 0.9933, sdlog = 0.302), mean 2.826
 ```

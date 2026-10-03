@@ -41,10 +41,12 @@ A `cm_screen` data frame as in
 
 ## Details
 
-Three-way terms change additive results only through interactions: for a
-model without interactions the global result depends on the pairs alone,
-and every scenario reproduces the baseline. They matter for
-interactions, and for hazard ratios
+When the pairs of a triple are all constrained, a three-way term keeps
+their tables fixed, so it changes additive results only through
+interactions: without interactions such a scenario reproduces the
+baseline. When a pair is unknown (unconstrained), the fitted pairwise
+table changes with the three-way term, and additive results can change
+even without interactions. Three-way terms also matter for hazard ratios
 ([`deconflate_hr()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate_hr.md))
 and
 [`attributable_risk()`](https://rasmussenphilip.github.io/deconflate/reference/attributable_risk.md).

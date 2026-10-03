@@ -94,9 +94,11 @@ A `cm_comparison` object with `impacts` (raw and adjusted values, one
 column per method), `change` (relative change from raw), `long` (long
 format with sign-change flags, or the Monte Carlo summaries), `totals`
 (aggregate per method, with gap and value if requested), `diagnostics`,
-`failed` (methods that could not be run, or whose valuation or
-attributable risk could not be computed, with reasons; their `totals`
-are `NA`) and `methods`.
+`failed` (methods that could not be run, gave an undefined (non-finite)
+result, or whose valuation or attributable risk could not be computed,
+with reasons; their `totals` are `NA`) and `methods`. For a model,
+`undefined` keeps the results with non-finite values for inspection;
+they are not among the estimates.
 
 ## Details
 

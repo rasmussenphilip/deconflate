@@ -61,7 +61,11 @@ deconflate(
     ([`fit_joint()`](https://rasmussenphilip.github.io/deconflate/reference/fit_joint.md);
     the "iterative" model) and solves the equations including any
     interactions. Unknown pairs are left unconstrained. Without
-    interactions and unknown pairs, it equals `"simultaneous"`.
+    interactions and unknown pairs, it equals `"simultaneous"`. For more
+    than about 20 diseases, pass `backend = "sampled"` (through `...`,
+    or fit the joint with
+    [`fit_joint()`](https://rasmussenphilip.github.io/deconflate/reference/fit_joint.md)
+    and pass it as `joint`).
 
 - joint:
 
@@ -135,6 +139,17 @@ The expected aggregate impact per animal is
 contribution is its own term plus half of each interaction term it is
 involved in (the closed-form Shapley value); contributions add up to the
 aggregate. Shares are `NA` when the aggregate is zero.
+
+## Number of diseases
+
+The `"simultaneous"` and `"published"` methods use the pairwise tables
+only, so they work for any number of diseases (the triple screen checks
+n(n-1)(n-2)/6 triples). The `"global"` method needs the joint
+distribution: the exact backend of
+[`fit_joint()`](https://rasmussenphilip.github.io/deconflate/reference/fit_joint.md)
+enumerates 2^n combinations (about 20 diseases at most); the sampled
+backend fits the same model by Monte Carlo for more. The exact LP
+feasibility check is limited to 14 diseases.
 
 ## Feasibility
 

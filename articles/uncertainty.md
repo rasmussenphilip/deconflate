@@ -25,11 +25,17 @@ dist_normal(2.63, 1.44, lower = 0)  # truncated at zero
 
 [`cm_sampler()`](https://rasmussenphilip.github.io/deconflate/reference/cm_sampler.md)
 attaches distributions to a model. Keys name the inputs:
-`prob:<disease>`, `assoc:<d1>:<d2>`, `impact:<disease>` and
-`inter:<d1>:<d2>`. Each draw is a complete model, so the uncertainty of
-probabilities, associations and impacts is propagated jointly. Here the
-association of d2 and d3 is given a defensive mixture (a wider component
-with weight 0.2), which is used for a scenario below:
+`prob:<disease>`, `assoc:<d1>:<d2>`, `three:<d1>:<d2>:<d3>`,
+`impact:<disease>` and `inter:<d1>:<d2>`. (When inputs are read from
+files with
+[`cm_read_inputs()`](https://rasmussenphilip.github.io/deconflate/reference/cm_read_inputs.md),
+distributions are given in the rows of the tables, in the columns `dist`
+and `p1`-`p4`, and the sampler is built for you; see
+[`vignette("own-data")`](https://rasmussenphilip.github.io/deconflate/articles/own-data.md).)
+Each draw is a complete model, so the uncertainty of probabilities,
+associations and impacts is propagated jointly. Here the association of
+d2 and d3 is given a defensive mixture (a wider component with weight
+0.2), which is used for a scenario below:
 
 ``` r
 
@@ -192,12 +198,18 @@ sm[, c("disease", "method", "mean", "q0.5", "trimmed_mean", "mcse", "stability")
 #> 6            ok
 ```
 
-Each estimate gets one of four statuses (see
+Each estimate gets one of five statuses (see
 [`?cm_diagnose`](https://rasmussenphilip.github.io/deconflate/reference/cm_diagnose.md)):
 
 - **`ok`**: no problem detected.
 - **`imprecise`**: the Monte Carlo standard error is more than 5% of the
   mean. Use more draws, or Latin hypercube sampling.
+- **`insufficient_info`**: the precision cannot be assessed, because
+  fewer than two Latin hypercube blocks have draws with positive weight,
+  or because the mean is (nearly) zero, so that a relative error is
+  undefined. In the second case `mcse` still gives the absolute error,
+  which can be judged against the size of effect that matters. A missing
+  precision is never reported as `ok`.
 - **`heavy_tail`**: the most extreme 1% of draws contribute more than
   60% of the variance. Importance sampling can help if they come from
   one region of one input (below).
@@ -233,7 +245,11 @@ cm_diagnose(mc_d2)
 reduces the Monte Carlo error of means. LHS draws are not independent,
 so the draws are split into `lhs_replicates` independent blocks (10 by
 default), and the standard error is estimated from the spread of the
-block means:
+block means. The pooled mean is a ratio estimator over the blocks (each
+block’s weighted sum over the total weight), and its standard error uses
+all blocks as sampled (`mc$n_blocks`), including any whose draws were
+all rejected; with fewer than two blocks with positive weight the status
+is `insufficient_info`:
 
 ``` r
 
@@ -282,9 +298,10 @@ summary(mc_is, diagnose = FALSE)[, c("disease", "mean", "mcse")]
 #> 3      d3  7.720221 0.01154527
 ```
 
-Each proposal must cover the support of the input’s own distribution,
-and point masses (fixed values) cannot be importance-sampled. Both are
-checked before any draw is made:
+Each proposal must cover the whole support of the input’s own
+distribution, and point masses (fixed values) cannot be
+importance-sampled. Both are checked before any draw is made. A proposal
+that is too narrow is rejected:
 
 ``` r
 
@@ -292,6 +309,24 @@ tryCatch(cm_monte_carlo(s_d2, 10, proposal = list("impact:d2" = dist_uniform(-5,
          deconflate_unsupported = function(e) conditionMessage(e))
 #> [1] "The proposal for 'impact:d2' has support [-5, 5], which does not cover the input's support [-Inf, Inf]; use a defensive mixture that includes the input's own distribution (see cm_suggest_proposal())."
 ```
+
+So is a mixture whose range spans the support but leaves a gap: draws
+would never fall in the gap, and the weighted estimates would converge
+to the mean over the covered part only. Here the raw impact of d3 has a
+PERT distribution on \[5, 9\], and the proposal has no mass between 6.5
+and 7.5:
+
+``` r
+
+gap <- dist_mixture(dist_uniform(4, 6.5), dist_uniform(7.5, 10))
+tryCatch(cm_monte_carlo(s, 10, proposal = list("impact:d3" = gap)),
+         deconflate_unsupported = function(e) conditionMessage(e))
+#> [1] "The proposal for 'impact:d3' has support [4, 6.5] u [7.5, 10], which does not cover the input's support [5, 9]; use a defensive mixture that includes the input's own distribution (see cm_suggest_proposal())."
+```
+
+Including the input’s own distribution as a mixture component, as
+[`cm_suggest_proposal()`](https://rasmussenphilip.github.io/deconflate/reference/cm_suggest_proposal.md)
+does, always covers its support.
 
 A defensive mixture guarantees support, but not a finite variance or
 better precision: compare the standard errors. Importance sampling
@@ -450,7 +485,7 @@ work in the same way. Comparing complete scenarios:
 
 base <- example_supplement()
 compare_scenarios(base = base, d1_d3_linked = set_association(base, "d1", "d3", 2))$totals
-#>       scenario    total rel_to_first
-#> 1         base 2.109229   0.00000000
-#> 2 d1_d3_linked 2.012881  -0.04567916
+#>       scenario    total failed rel_to_first
+#> 1         base 2.109229   <NA>   0.00000000
+#> 2 d1_d3_linked 2.012881   <NA>  -0.04567916
 ```

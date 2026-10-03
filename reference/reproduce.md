@@ -60,23 +60,26 @@ and
 
 ## 2022 (Tables 8-10)
 
-`reproduce_rasmussen_2022()` adjusts yield, calving interval and culling
-for the UK example
-([`example_uk_dairy_2022()`](https://rasmussenphilip.github.io/deconflate/reference/example_uk_dairy_2022.md)),
-computes the productivity gaps and their values with
-[`uk_dairy_2022_economics()`](https://rasmussenphilip.github.io/deconflate/reference/uk_dairy_2022_economics.md),
-adds veterinary expenditure, and back-converts the culling impacts to
-hazard ratios. Fertility and the culling hazard ratios reproduce the
-paper; yield does not reproduce exactly from the printed Table 4 (see
+`reproduce_rasmussen_2022()` adjusts yield and calving interval for the
+UK example
+([`example_uk_dairy_2022()`](https://rasmussenphilip.github.io/deconflate/reference/example_uk_dairy_2022.md))
+and the historical culling analysis, computes the productivity gaps and
+their values with
+[`uk_dairy_2022_economics()`](https://rasmussenphilip.github.io/deconflate/reference/uk_dairy_2022_economics.md)
+(and the paper's culling valuation), adds veterinary expenditure, and
+back-converts the culling impacts to hazard ratios. Fertility and the
+culling hazard ratios reproduce the paper; yield does not reproduce
+exactly from the printed Table 4 (see
 [`vignette("reproducing-published")`](https://rasmussenphilip.github.io/deconflate/articles/reproducing-published.md)).
 
 ## 2024 (Table 5)
 
 `reproduce_rasmussen_2024()` runs
 [`cm_monte_carlo()`](https://rasmussenphilip.github.io/deconflate/reference/cm_monte_carlo.md)
-with
+with the samplers of
 [`sampler_global_dairy()`](https://rasmussenphilip.github.io/deconflate/reference/sampler_global_dairy.md)
-(`culling = TRUE`) and the published method, and reports the means
+plus the historical culling analysis (HR - 1, named
+`culling_hr_minus_1`) and the published method, and reports the means
 beside Table 5. Culling is reported on the hazard-ratio scale (1 +
 adjusted HR - 1). Table 5 used 50,000 draws; use at least several
 thousand for stable means. Some fertility means are unstable for the

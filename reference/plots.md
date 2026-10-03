@@ -39,6 +39,9 @@ plot(x, top = 15, ...)
 
 # S3 method for class 'cm_oat'
 plot(x, top = 15, ...)
+
+# S3 method for class 'cm_threshold'
+plot(x, items = NULL, ...)
 ```
 
 ## Arguments
@@ -69,6 +72,10 @@ plot(x, top = 15, ...)
 - top:
 
   Number of rows to show.
+
+- items:
+
+  For `cm_threshold` plots: the items to show (default all).
 
 ## Value
 

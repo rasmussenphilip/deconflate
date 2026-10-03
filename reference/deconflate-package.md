@@ -84,6 +84,9 @@ estimates so that they can be aggregated.
     [`screen_three_way()`](https://rasmussenphilip.github.io/deconflate/reference/screen_three_way.md)
     and
     [`compare_scenarios()`](https://rasmussenphilip.github.io/deconflate/reference/compare_scenarios.md).
+    Find where a conclusion (a ranking, a sign or the aggregate) changes
+    as one input varies with
+    [`cm_threshold()`](https://rasmussenphilip.github.io/deconflate/reference/cm_threshold.md).
 
 [`reproduce_rasmussen_2022()`](https://rasmussenphilip.github.io/deconflate/reference/reproduce.md)
 and

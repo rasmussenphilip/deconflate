@@ -13,7 +13,6 @@ cm_check_inputs(
   three_way = NULL,
   impacts = NULL,
   interactions = NULL,
-  uncertainty = NULL,
   hazard_ratios = NULL,
   dir = NULL,
   missing_associations = c("independent", "unknown"),
@@ -27,7 +26,7 @@ cm_check_inputs(
 
   Paths to CSV files or data frames.
 
-- impacts, interactions, uncertainty:
+- impacts, interactions:
 
   A path or data frame, or a named list of them (one per analysis; see
   Files).
