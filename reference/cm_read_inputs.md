@@ -162,7 +162,7 @@ their parameters:
 ``` r
 dir <- file.path(tempdir(), "deconflate-inputs")
 cm_template(dir, overwrite = TRUE)
-#> Wrote 8 files to /tmp/RtmpZ17cjz/deconflate-inputs
+#> Wrote 8 files to /tmp/Rtmp9SkTlQ/deconflate-inputs
 inp <- cm_read_inputs(dir = dir)
 inp
 #> <cm_inputs>
