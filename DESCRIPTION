@@ -1,7 +1,7 @@
 Package: deconflate
 Type: Package
 Title: Comorbidity Adjustment of Disease Impact Estimates
-Version: 0.3.0
+Version: 0.3.0.9000
 Authors@R:
     person("Philip", "Rasmussen", email = "phr@sund.ku.dk",
            role = c("aut", "cre"))
