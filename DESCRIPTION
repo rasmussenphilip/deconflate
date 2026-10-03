@@ -1,0 +1,30 @@
+Package: deconflate
+Type: Package
+Title: Comorbidity Adjustment of Disease Impact Estimates
+Version: 0.0.0.9000
+Authors@R:
+    person("Philip", "Rasmussen", email = "phr@sund.ku.dk",
+           role = c("aut", "cre"))
+Description: Adjusts ("de-conflates") single-disease impact estimates for
+    statistical associations between diseases, so that impacts can be
+    aggregated without double counting. Implements the published proportional
+    approximation of Rasmussen et al. (2022) <doi:10.1016/j.prevetmed.2022.105617>,
+    an exact simultaneous solution of the underlying additive impact
+    equations, and a global model that fits a maximum-entropy distribution of
+    disease combinations by iterative proportional fitting and incorporates
+    specified pairwise impact interactions. Includes productivity-gap
+    estimation, Shapley attribution, hazard-ratio conversion, Monte Carlo
+    propagation of input uncertainty with rejection reporting, and
+    importance reweighting of draws for scenario analysis.
+License: MIT + file LICENSE
+Encoding: UTF-8
+Depends:
+    R (>= 4.1.0)
+Imports:
+    stats,
+    utils
+Suggests:
+    testthat (>= 3.0.0)
+Config/testthat/edition: 3
+Roxygen: list(markdown = TRUE)
+Config/roxygen2/version: 8.1.0
