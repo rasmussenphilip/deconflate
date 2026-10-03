@@ -1,3 +1,5 @@
+# deconflate (development version)
+
 # deconflate 0.2.0
 
 Work towards 0.2.0. This version implements an external review of 0.1.0 and
