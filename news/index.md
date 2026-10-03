@@ -1,5 +1,7 @@
 # Changelog
 
+## deconflate (development version)
+
 ## deconflate 0.3.0
 
 Work towards 0.3.0: a second external review of 0.2.0, threshold

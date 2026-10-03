@@ -13,7 +13,7 @@ point values."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">deconflate</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.0.9000</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -45,7 +45,7 @@ point values."></head><body>
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Write a template set of input files</h1>
-      <small class="dont-index">Source: <a href="https://github.com/rasmussenphilip/deconflate/blob/v0.3.0/R/import.R" class="external-link"><code>R/import.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/rasmussenphilip/deconflate/blob/master/R/import.R" class="external-link"><code>R/import.R</code></a></small>
       <div class="d-none name"><code>cm_template.Rd</code></div>
     </div>
 
@@ -105,7 +105,7 @@ columns. The folder <code>system.file("extdata", "five_diseases", package = "dec
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="va">dir</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/file.path.html" class="external-link">file.path</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempdir</a></span><span class="op">(</span><span class="op">)</span>, <span class="st">"my-inputs"</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="fu">cm_template</span><span class="op">(</span><span class="va">dir</span>, overwrite <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></span>
-<span class="r-msg co"><span class="r-pr">#&gt;</span> Wrote 5 files to /tmp/RtmpNGVr3j/my-inputs</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> Wrote 5 files to /tmp/RtmplabtCG/my-inputs</span>
 <span class="r-in"><span><span class="va">inp</span> <span class="op">&lt;-</span> <span class="fu"><a href="cm_read_inputs.html">cm_read_inputs</a></span><span class="op">(</span>dir <span class="op">=</span> <span class="va">dir</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="deconflate.html">deconflate</a></span><span class="op">(</span><span class="va">inp</span><span class="op">$</span><span class="va">model</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> &lt;cm_result&gt; method: simultaneous; milk yield loss [% of yield]</span>
