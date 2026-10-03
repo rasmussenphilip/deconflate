@@ -2,4 +2,5 @@ id,value,type,source
 LAM,0.25,prevalence,Illustrative
 SCK,0.48,incidence_rate,Illustrative
 MET,1.10,prevalence,"Error: a prevalence above 1"
-SCK,0.30,prevalence,"Error: duplicate id"
+RP,0.12,prevalence,Illustrative
+SCK,0.30,prevalence,"Error: duplicate id (SCK is in row 2)"

@@ -4,29 +4,24 @@
 \alias{compare_scenarios}
 \title{Compare scenarios}
 \usage{
-compare_scenarios(
-  ...,
-  method = "simultaneous",
-  outcome = NULL,
-  economics = NULL
-)
+compare_scenarios(..., method = "simultaneous", valuation = NULL)
 }
 \arguments{
 \item{...}{Named \code{\link[=cm_model]{cm_model()}} objects.}
 
 \item{method}{Adjustment method (\code{"global"} is used automatically for
-models with interactions).}
+models with interactions or three-way terms).}
 
-\item{outcome, economics}{Metric, as in \code{\link[=screen_associations]{screen_associations()}}.}
+\item{valuation}{Optional valuation list (see \code{\link[=screen_associations]{screen_associations()}}).}
 }
 \value{
 A list with \code{totals} (one row per scenario) and \code{by_disease}
-(burden and rank per disease and scenario).
+(contribution and rank per disease and scenario).
 }
 \description{
-Adjusts several versions of a model (e.g. with different association or
-interaction assumptions) and tabulates total burden and disease rankings
-side by side.
+Adjusts several versions of a model (e.g. with different association,
+three-way or interaction assumptions) and tabulates the aggregate and
+disease rankings side by side.
 }
 \examples{
 base <- example_supplement()

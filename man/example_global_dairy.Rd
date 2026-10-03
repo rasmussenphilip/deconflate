@@ -2,49 +2,34 @@
 % Please edit documentation in R/examples.R
 \name{example_global_dairy}
 \alias{example_global_dairy}
-\title{Global dairy inputs from Rasmussen et al. (2024), at their central values}
+\title{Global dairy inputs from Rasmussen et al. (2024)}
 \usage{
-example_global_dairy(
-  inputs = c("analysis", "tables"),
-  culling = TRUE,
-  culling_scale = c("excess_hr", "hazard_ratio")
-)
+example_global_dairy(inputs = c("analysis", "tables"), culling = FALSE)
 }
 \arguments{
-\item{inputs}{\code{"analysis"} or \code{"tables"}; see the section above.}
+\item{inputs}{\code{"analysis"} or \code{"tables"}.}
 
-\item{culling}{Include the culling outcome?}
-
-\item{culling_scale}{\code{"excess_hr"} (HR - 1, as in the paper) or
-\code{"hazard_ratio"}; see the section on culling.}
+\item{culling}{Include the legacy \code{culling_hr_minus_1} analysis?}
 }
 \value{
-A \code{\link[=cm_model]{cm_model()}} with outcomes \code{"yield"}, \code{"fertility"} and, if
-\code{culling = TRUE}, \code{"culling"}.
+A \code{\link[=cm_analyses]{cm_analyses()}} object.
 }
 \description{
 The 12 diseases of Rasmussen et al. (2024): global (herd-size weighted)
 lactational incidence (prevalence for PTB), pooled inter-disease odds
-ratios (Table 3, pairs not listed are independent), and raw impacts on
-yield (\% decrease), fertility (\% increase in calving interval) and,
-optionally, culling (hazard ratio minus 1). Central values are means of
-normal distributions and modes of PERT distributions.
+ratios (Table 3; pairs not listed are independent), and raw impacts on
+yield (\% decrease) and fertility (\% increase in calving interval), at
+their central values (means of normal distributions, modes of PERT
+distributions). Each impact type is one analysis.
 }
 \section{Two versions of the inputs}{
 
 \itemize{
 \item \code{inputs = "analysis"} (default) uses the inputs of the published
-analysis code (1st revision), which reproduce Table 5:
-\itemize{
-\item disease probabilities are fixed at \code{1 - exp(-incidence)}, using the
-unrounded global mean incidence. Subclinical mastitis (SCM) was entered
-without conversion (0.4094 rather than 0.3360); this is kept here
-(\code{type = "probability"});
-\item impacts are the unrounded central values (e.g. clinical ketosis yield
-0.4322\% rather than 0.43\%);
-\item culling is entered as HR - 1, as in the analysis. Metritis uses the
-analysis value (PERT mode 1.116) rather than Table 4 (normal, mean 1.05).
-}
+analysis code (1st revision), which reproduce Table 5: disease
+probabilities fixed at \code{1 - exp(-incidence)} at the unrounded global
+means, except subclinical mastitis (entered without conversion, 0.4094
+rather than 0.3360, as in the analysis), and unrounded impacts.
 \item \code{inputs = "tables"} uses Tables 2-4 as printed, with incidence converted
 for every disease except PTB.
 }
@@ -52,30 +37,14 @@ for every disease except PTB.
 
 \section{Culling}{
 
-With \code{culling_scale = "excess_hr"} (default, as in the analysis), culling
-impacts are hazard ratios minus 1 on the \code{"absolute"} scale, so that
-\code{\link[=deconflate]{deconflate()}} adjusts the excess hazard ratio. Convert results back with
-\code{adjusted_hr(res, method = "excess_hr")}. These impacts are not excess
-risks, so do not pass them to \code{\link[=productivity_gap]{productivity_gap()}}; the paper converts
-adjusted hazard ratios to excess culling risk with
-\code{hr_to_risk(..., method = "overall_odds")}.
-
-With \code{culling_scale = "hazard_ratio"}, culling impacts are hazard ratios
-(see \code{\link[=cm_impacts]{cm_impacts()}}). \code{method = "published"} then gives the same adjusted
-hazard ratios as the paper, while \code{"simultaneous"} and \code{"global"} use the
-multiplicative model; \code{\link[=attributable_risk]{attributable_risk()}} gives the culling attributable
-to disease.
-
-The paper's Table 5 reports means of adjusted impacts over Monte Carlo
-draws (\code{\link[=sampler_global_dairy]{sampler_global_dairy()}}), which differ from adjusting the central
-values (e.g. displaced abomasum yield: 1.18 vs 0.79).
+The culling hazard ratios are available as a hazard-ratio model from
+\code{\link[=example_global_dairy_hr]{example_global_dairy_hr()}} (see \code{\link[=deconflate_hr]{deconflate_hr()}}). With \code{culling = TRUE}
+the analyses also include \code{culling_hr_minus_1}: hazard ratios minus 1
+treated as additive impacts, which is how the 2024 analysis adjusted them
+(with the published method). It is included only to reproduce Table 5.
 }
 
 \examples{
-res <- deconflate(example_global_dairy(), method = "published")
-adjusted_hr(res, method = "excess_hr")
-
-# Culling hazard ratios under the multiplicative model
-m <- example_global_dairy(culling_scale = "hazard_ratio")
-compare_methods(m, methods = c("published", "simultaneous"))
+gd <- example_global_dairy()
+deconflate(gd, method = "published")$yield$adjusted
 }

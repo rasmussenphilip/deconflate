@@ -18,10 +18,7 @@ The reweighted \code{mc} (with \code{ess}).
 \description{
 Replaces the distributions of some inputs with scenario distributions and
 reweights the existing draws accordingly (see \code{\link[=cm_reweight]{cm_reweight()}}). Keys are
-those of \code{mc$params}, e.g. \code{"assoc:LAM:SCK"} or \code{"impact:yield:LAM"}.
-}
-\details{
-Inputs drawn with an outcome correlation (copula) cannot be reweighted
-individually, because changing a marginal also changes the copula
-coordinates; re-run \code{\link[=cm_monte_carlo]{cm_monte_carlo()}} for such scenarios.
+those of \code{mc$params}, e.g. \code{"assoc:LAM:SCK"} or \code{"impact:LAM"}. Each
+scenario distribution must lie within the support of the distribution the
+input was sampled from.
 }

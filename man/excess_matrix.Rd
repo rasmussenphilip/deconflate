@@ -7,7 +7,7 @@
 excess_matrix(model)
 }
 \arguments{
-\item{model}{A \code{\link[=cm_model]{cm_model()}}.}
+\item{model}{A \code{\link[=cm_population]{cm_population()}} or \code{\link[=cm_model]{cm_model()}}.}
 }
 \value{
 An n x n matrix \code{E} with \verb{E[k, i] = P(k | i) - P(k | not i)}, the

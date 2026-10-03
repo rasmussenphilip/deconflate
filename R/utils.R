@@ -2,9 +2,14 @@
 
 `%||%` <- function(x, y) if (is.null(x)) y else x
 
-# Raise a classed error. All package errors inherit from "deconflate_error";
-# infeasible inputs additionally carry "deconflate_infeasible" so that
-# cm_monte_carlo() can count them as rejected draws.
+# Raise a classed error. All package errors inherit from "deconflate_error".
+# Classes used for failures that callers (Monte Carlo, comparisons, screens)
+# handle separately:
+#   deconflate_infeasible      inputs that admit no valid probabilities
+#   deconflate_singular        a singular or non-identifiable system
+#   deconflate_nonconvergence  a numerical procedure did not converge
+#   deconflate_unsupported     an estimand/method combination that is not supported
+#   deconflate_nonfinite       non-finite results
 cm_abort <- function(msg, class = NULL) {
   stop(errorCondition(msg, class = c(class, "deconflate_error"), call = NULL))
 }
@@ -12,6 +17,14 @@ cm_abort <- function(msg, class = NULL) {
 cm_warn <- function(msg, class = NULL) {
   warning(warningCondition(msg, class = c(class, "deconflate_warning"),
                            call = NULL))
+}
+
+# Short label for the class of a deconflate condition.
+condition_type <- function(e) {
+  cls <- c("deconflate_infeasible", "deconflate_singular", "deconflate_nonconvergence",
+           "deconflate_unsupported", "deconflate_nonfinite")
+  hit <- cls[cls %in% class(e)]
+  if (length(hit)) sub("deconflate_", "", hit[1]) else "error"
 }
 
 check_numeric <- function(x, name) {
@@ -40,6 +53,19 @@ check_choices <- function(x, choices, name) {
   invisible(x)
 }
 
+# Disease ids are used in keys such as "assoc:d1:d2" and in "a; b" lists.
+check_ids <- function(id) {
+  if (anyNA(id) || any(!nzchar(id))) cm_abort("Disease ids must be non-empty.")
+  if (anyDuplicated(id)) cm_abort("Disease ids must be unique.")
+  bad <- grepl("[|;:]", id) | id != trimws(id)
+  if (any(bad)) {
+    cm_abort(sprintf("Disease ids must not contain '|', ';' or ':' or surrounding spaces (check: %s).",
+                     paste(id[bad], collapse = ", ")))
+  }
+  if (any(tolower(id) == "all")) cm_abort("'all' is reserved and cannot be a disease id.")
+  invisible(id)
+}
+
 # Recycle an optional per-row argument to length n.
 recycle_arg <- function(x, n, name) {
   if (length(x) == 1L) return(rep(x, n))
@@ -56,8 +82,19 @@ pair_key <- function(a, b) {
 
 # Split "a; b; c" into c("a", "b", "c"); NA or "" gives character(0).
 split_ids <- function(x) {
-  if (length(x) == 0L || is.na(x) || !nzchar(trimws(x))) return(character(0))
+  if (length(x) != 1L) {
+    if (length(x) == 0L) return(character(0))
+    cm_abort("split_ids() takes a single string.")
+  }
+  if (is.na(x) || !nzchar(trimws(x))) return(character(0))
   trimws(strsplit(x, ";", fixed = TRUE)[[1]])
+}
+
+# Resolve an adjustment set for disease `i`: "all" means every other disease.
+resolve_adjusted_for <- function(x, i, ids) {
+  s <- split_ids(x)
+  if (length(s) == 1L && tolower(s) == "all") return(setdiff(ids, i))
+  setdiff(s, i)
 }
 
 # All 2^n combinations of n binary disease indicators (rows = combinations).

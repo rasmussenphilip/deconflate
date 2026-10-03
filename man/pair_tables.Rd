@@ -7,7 +7,7 @@
 pair_tables(model)
 }
 \arguments{
-\item{model}{A \code{\link[=cm_model]{cm_model()}}.}
+\item{model}{A \code{\link[=cm_population]{cm_population()}} or \code{\link[=cm_model]{cm_model()}}.}
 }
 \value{
 A data frame with one row per unordered pair: the measure used,

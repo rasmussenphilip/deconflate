@@ -20,25 +20,44 @@ library(deconflate)
 `fit_joint()` fits the distribution of all 2^n combinations of n diseases,
 using iterative proportional fitting from independence. The result is the
 maximum-entropy distribution consistent with the disease probabilities and
-the pairwise associations. That is a log-linear model with all two-way
-terms and no explicit three-way or higher terms. Three-disease co-occurrence
-still differs from independence, through the pairwise terms.
+the pairwise associations.
 
 ```{r}
-j <- fit_joint(example_supplement())
+m <- example_supplement()
+j <- fit_joint(m)
 j
 head(combination_probs(j))
 ```
 
-With three or more diseases the constraints do not determine a unique
-distribution, which is why the maximum-entropy criterion is needed. If the
-pairwise associations cannot hold together, no distribution exists.
+## What maximum entropy assumes
+
+With three or more diseases, the probabilities and pairwise associations do
+not determine a unique distribution: there are 2^n - 1 free probabilities
+and n(n + 1) / 2 constraints. Maximum entropy picks one solution. It is an
+assumption, not something the pairwise evidence identifies:
+
+* the fitted distribution is a log-linear model with all two-way terms and
+  no three-way or higher terms. The odds ratio of a pair is the same whether
+  or not a third disease is present (given the other diseases);
+* three diseases still occur together more (or less) often than under
+  independence, through the pairwise terms;
+* a pair whose association is unknown has no term of its own. Its
+  association is implied by the associations both diseases have with other
+  diseases.
+
+Additive results without interactions do not depend on this assumption:
+they need the pairwise tables only. It matters for interactions, for
+three-way scenarios, and for the results that use the whole distribution
+(the snapshot hazard-ratio model and `attributable_risk()`, see
+`vignette("culling-hazard-ratios")`).
+
+If the pairwise associations cannot hold together, no distribution exists.
 `check_feasibility()` detects this and identifies the conflicting
 associations:
 
 ```{r}
-bad <- cm_model(cm_diseases(c("a", "b", "c"), c(0.5, 0.5, 0.5)),
-                cm_associations(c("a", "a", "b"), c("b", "c", "c"), c(20, 20, 0.05)))
+bad <- cm_population(cm_diseases(c("a", "b", "c"), c(0.5, 0.5, 0.5)),
+                     cm_associations(c("a", "a", "b"), c("b", "c", "c"), c(20, 20, 0.05)))
 check_feasibility(bad, method = "triples")
 ```
 
@@ -46,47 +65,129 @@ check_feasibility(bad, method = "triples")
 
 Setting an association to an odds ratio of 1 imposes independence. Leaving
 it unknown lets the maximum-entropy fit imply an association through the
-other diseases:
+other diseases. Only the global method accepts unknown pairs:
 
 ```{r}
 d <- cm_diseases(c("a", "b", "c"), c(0.2, 0.3, 0.25))
 a <- cm_associations(c("a", "b"), c("b", "c"), c(3, 2))
-imp <- cm_impacts(c("a", "b", "c"), c(0.03, 0.04, 0.05))
-ind <- cm_model(d, a, imp, missing_associations = "independent")
-unk <- cm_model(d, a, imp, missing_associations = "unknown")
+imp <- cm_impacts(c("a", "b", "c"), c(3, 4, 5), units = "%")
+ind <- cm_model(d, imp, associations = a, missing_associations = "independent")
+unk <- cm_model(d, imp, associations = a, missing_associations = "unknown")
 deconflate(ind)$adjusted$adjusted
-deconflate(unk, method = "global")$adjusted$adjusted
+compare_methods(unk)
+```
+
+The odds ratio of `a` and `c` implied by the fitted distribution:
+
+```{r}
+ju <- fit_joint(unk)
+p_ac <- sum(ju$prob[ju$cells[, "a"] == 1 & ju$cells[, "c"] == 1])
+joint_to_or(p_ac, 0.2, 0.25)
 ```
 
 ## Impact interactions
 
-An interaction is the extra impact when two diseases occur together:
-positive values are synergistic and negative values antagonistic.
-Interactions cannot be inferred from associations; they need evidence or
-explicit scenarios. They are adjusted with the global method:
+An interaction is the extra impact when two diseases occur together, in the
+units of the impact vector: positive values are synergistic and negative
+values antagonistic. Interactions cannot be inferred from associations; they
+need evidence or explicit scenarios.
+
+The raw estimate of disease `i` then includes, besides the conflated main
+impacts, the part of the interaction burden that goes with `i`. Its expected
+value depends on how often pairs occur together with each disease, that is,
+on probabilities of disease triples, so interactions need the joint
+distribution and the global method:
 
 ```{r}
-m <- example_supplement()
-mi <- set_interaction(m, "d1", "d2", 0.01, outcome = "yield")
+mi <- set_interaction(m, "d1", "d2", 1)   # 1 percentage point
+tryCatch(deconflate(mi), deconflate_unsupported = function(e) conditionMessage(e))
 res <- deconflate(mi, method = "global")
-res$adjusted[, c("disease", "raw", "adjusted")]
-attribute_burden(res)
+res
 ```
+
+The raw impacts satisfy `raw = A %*% adjusted + offset`, where `offset`
+holds the interaction part:
+
+```{r}
+res$conflation$offset
+as.vector(res$conflation$A %*% res$adjusted$adjusted + res$conflation$offset)
+res$adjusted$raw
+```
+
+A simulated herd with known impacts (2, 4 and 6 percent) and interactions
+(1 point for d1 with d2, 1.5 for d2 with d3) checks the method:
+
+```{r}
+int <- cm_interactions(c("d1", "d2"), c("d2", "d3"), c(1, 1.5))
+raw <- simulate_raw_impacts(m, c(d1 = 2, d2 = 4, d3 = 6), interactions = int)
+raw$value
+deconflate(cm_model(m, raw, int), method = "global")$adjusted
+```
+
+In files, interactions go in `interactions_<analysis>.csv` (see
+`vignette("own-data")`).
 
 ## Attribution
 
-With additive terms, each disease's Shapley value is its own term plus an
-equal share of every interaction term it is involved in, which is what
-`attribute_burden()` reports. For general loss functions,
-`shapley_by_cell()` computes Shapley values cell by cell over the joint
-distribution. For example, with proportional impacts that compound:
+The expected aggregate is `sum_i p_i b_i + sum_{j<k} P(j and k) delta_jk`.
+Removing any disease involved in a term removes that term, so each disease's
+Shapley value is its own term plus an equal share of every interaction term
+it is involved in. This is the `contributions` table:
 
 ```{r}
-shapley_by_cell(fit_joint(m), loss_multiplicative(c(d1 = 0.02, d2 = 0.04, d3 = 0.06)))
+attribute_burden(res)
 ```
+
+For general loss functions, `shapley_by_cell()` computes Shapley values cell
+by cell over the joint distribution. For example, with proportional impacts
+that compound (here as proportions):
+
+```{r}
+shapley_by_cell(j, loss_multiplicative(c(d1 = 0.02, d2 = 0.04, d3 = 0.06)))
+```
+
+## Three-way scenarios
+
+Pairwise evidence cannot identify how often three diseases occur together.
+`cm_three_way()` (or `set_three_way()`) sets a three-way term, the ratio of
+conditional odds ratios `OR(d1, d2 | d3 present) / OR(d1, d2 | d3 absent)`.
+A ratio of 1 is the maximum-entropy assumption. All pairwise associations
+are still matched:
+
+```{r}
+m3 <- set_three_way(m, "d1", "d2", "d3", ratio = 2)
+m3$three_way
+j3 <- fit_joint(m3)
+c(maximum_entropy = sum(j$prob[rowSums(j$cells) == 3]),
+  ratio_2 = sum(j3$prob[rowSums(j3$cells) == 3]))
+```
+
+Three-way terms are sensitivity scenarios. They change additive results
+only through interactions: without interactions every scenario reproduces
+the baseline, and with an interaction they change the offset.
+`screen_three_way()` sets each triple in turn:
+
+```{r}
+screen_three_way(m, ratios = c(0.5, 2))
+screen_three_way(mi, ratios = c(0.5, 2))
+```
+
+They also change the joint-based results, such as snapshot hazard ratios:
+
+```{r}
+hr <- cm_hazard_ratios(c("d1", "d2", "d3"), c(1.5, 2.0, 1.3))
+rbind(maximum_entropy = deconflate_hr(cm_hr_model(m, hr))$adjusted$adjusted,
+      ratio_2 = deconflate_hr(cm_hr_model(m3, hr))$adjusted$adjusted)
+```
+
+In files, three-way terms go in `three_way.csv`.
 
 ## Which interactions would matter?
 
+`screen_interactions()` adds an interaction of each size to each pair in
+turn and reports the change in the aggregate and in the ranking of
+diseases:
+
 ```{r}
-screen_interactions(m, outcome = "yield", values = c(-0.01, 0.01))
+screen_interactions(m, values = c(-1, 1))
 ```

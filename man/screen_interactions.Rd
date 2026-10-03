@@ -4,26 +4,18 @@
 \alias{screen_interactions}
 \title{Screen disease pairs for influential impact interactions}
 \usage{
-screen_interactions(
-  model,
-  outcome,
-  values = c(-0.01, 0.01),
-  pairs = NULL,
-  economics = NULL
-)
+screen_interactions(model, values, pairs = NULL, valuation = NULL)
 }
 \arguments{
 \item{model}{A \code{\link[=cm_model]{cm_model()}}.}
 
-\item{outcome}{Outcome to add interactions to.}
-
-\item{values}{Interaction sizes (proportion scale; positive synergistic,
-negative antagonistic).}
+\item{values}{Interaction sizes (same units as the impacts; positive
+synergistic, negative antagonistic).}
 
 \item{pairs}{Optional character vector of pairs (\code{"d1:d2"}).}
 
-\item{economics}{Optional economics list; otherwise the burden of
-\code{outcome} is the metric.}
+\item{valuation}{Optional valuation list; otherwise the adjusted aggregate
+is the metric.}
 }
 \value{
 A \code{cm_screen} data frame as in \code{\link[=screen_associations]{screen_associations()}}.
@@ -31,7 +23,6 @@ A \code{cm_screen} data frame as in \code{\link[=screen_associations]{screen_ass
 \description{
 Adds a pairwise interaction of each size in \code{values} to each disease pair,
 one at a time, re-runs the global adjustment and reports the change in
-total burden and rankings. The joint distribution is fitted once and
-reused. Use it to see which assumed interactions would matter, before
-looking for evidence on them.
+the aggregate and rankings. The joint distribution is fitted once and
+reused.
 }

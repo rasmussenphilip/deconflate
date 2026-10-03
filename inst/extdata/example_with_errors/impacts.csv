@@ -1,6 +1,0 @@
-disease,outcome,value,scale,direction,source
-LAM,yield,4.81,percent,decrease,Illustrative
-SCK,yield,"8,40",percent,decrease,"Error: decimal comma"
-LAM,culling,1.74,hazard_ratio,,Illustrative
-SCK,culling,1.92,hazard_ratio,,Illustrative
-MET,culling,0,hazard_ratio,,"Error: a hazard ratio must be positive; also MET has no yield row"

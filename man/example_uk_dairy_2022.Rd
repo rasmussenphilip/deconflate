@@ -4,62 +4,37 @@
 \alias{example_uk_dairy_2022}
 \title{UK dairy example from Rasmussen et al. (2022)}
 \usage{
-example_uk_dairy_2022(
-  culling_method = c("or_approx", "proportional_hazards"),
-  culling_scale = c("proportion", "absolute"),
-  yield_sck = 3.05
-)
+example_uk_dairy_2022(yield_sck = 3.05)
 }
 \arguments{
-\item{culling_method}{Hazard-ratio conversion: \code{"or_approx"} (published)
-or \code{"proportional_hazards"}.}
-
-\item{culling_scale}{\code{"proportion"} (published) or \code{"absolute"}; see
-\code{\link[=as_impacts]{as_impacts()}}.}
-
-\item{yield_sck}{Raw yield impact of subclinical ketosis, in percent.}
+\item{yield_sck}{Raw yield impact of subclinical ketosis, in percent (the
+printed 3.05, or 100 * 340 / 8737 = 3.89 from note i of Table 4).}
 }
 \value{
-A \code{\link[=cm_model]{cm_model()}} with outcomes \code{"yield"}, \code{"fertility"} and
-\code{"culling"}. The hazard-ratio conversion is attached as attribute
-\code{"culling_conversion"}, for \code{\link[=adjusted_hr]{adjusted_hr()}}.
+A \code{\link[=cm_analyses]{cm_analyses()}} object with analyses \code{yield}, \code{fertility} and
+\code{culling}, and attribute \code{"hazard_ratios"} (a \code{\link[=cm_hazard_ratios]{cm_hazard_ratios()}}).
 }
 \description{
 Thirteen endemic diseases and conditions of UK dairy cattle, with cow-level
 prevalence (Table 2), inter-disease odds ratios (Table 3, all other pairs
-independent), and impacts on milk yield (Table 4, \% decrease), calving
-interval (Table 5, \% increase) and culling (Table 6, hazard ratios
-converted to excess annual culling risk). Use \code{\link[=uk_dairy_2022_economics]{uk_dairy_2022_economics()}}
-for the observed means and unit values (Table 1).
+independent), and three analyses: milk yield (Table 4, \% decrease),
+calving interval (Table 5, \% increase) and culling (Table 6). Use
+\code{\link[=uk_dairy_2022_economics]{uk_dairy_2022_economics()}} for the observed means and unit values
+(Table 1), and \code{\link[=reproduce_rasmussen_2022]{reproduce_rasmussen_2022()}} for the published tables.
 }
 \details{
+The culling analysis reproduces the paper's approach, which converted
+hazard ratios to excess annual culling risks by treating them as odds
+ratios. That conversion is not supported for new analyses (use
+\code{\link[=deconflate_hr]{deconflate_hr()}}); the hazard ratios are attached as attribute
+\code{"hazard_ratios"} for that purpose.
+
 Disease ids: CO cystic ovary, DA displaced abomasum, DYS dystocia, FAS
 fasciolosis, GIN gastrointestinal nematodes, LAM lameness, MAS mastitis,
 MET metritis, MF milk fever, NEO neosporosis, PTB paratuberculosis, RP
 retained placenta, SCK subclinical ketosis.
 }
-\section{Reproducibility of the published tables}{
-
-With the defaults (\code{culling_method = "or_approx"}, \code{culling_scale = "proportion"}) and \code{method = "published"}:
-\itemize{
-\item fertility (calving interval) reproduces Tables 8-10 (disease-free value
-375.09 days; gap value GBP 101.79 per cow per year);
-\item culling reproduces the adjusted hazard ratios of Table 8 to within 0.01
-and the gap to within 0.5\% (22.55\% vs 22.56\%; GBP 59.48 vs 59.27);
-\item yield does not reproduce Tables 8-10 exactly from the printed Table 4.
-The tables imply different yield inputs, e.g. subclinical ketosis
-340 kg / 8737 kg = 3.89\% (note i of Table 4) rather than the printed
-3.05\%, and Table 10 implies further differences. Use
-\code{yield_sck = 100 * 340 / 8737} to apply the 3.89\% value.
-}
-}
-
 \examples{
-m <- example_uk_dairy_2022()
-eco <- uk_dairy_2022_economics()
-res <- deconflate(m, method = "published")
-gaps <- productivity_gap(res, eco$observed)
-gaps$summary
-value_losses(gaps, eco$unit_value, eco$additional)$total
-adjusted_hr(res, attr(m, "culling_conversion"), method = "published")
+uk <- example_uk_dairy_2022()
+deconflate(uk, method = "published")
 }

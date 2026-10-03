@@ -7,38 +7,32 @@
 attributable_risk(
   result,
   overall_risk,
-  outcome = "culling",
   unit_value = NULL,
   joint = NULL,
   allocate = TRUE,
-  max_present = 10L
+  max_present = Inf
 )
 }
 \arguments{
-\item{result}{A \code{\link[=deconflate]{deconflate()}} result with a hazard-ratio outcome (see
-\code{\link[=cm_impacts]{cm_impacts()}}).}
+\item{result}{A \code{\link[=deconflate_hr]{deconflate_hr()}} result.}
 
 \item{overall_risk}{Overall period risk of the event, as a proportion
 (e.g. \code{0.25} for an annual culling rate of 25\%).}
-
-\item{outcome}{Outcome label.}
 
 \item{unit_value}{Optional value per animal removed (e.g. replacement
 cost less salvage value); adds \code{value} columns.}
 
 \item{joint}{Optional \code{\link[=fit_joint]{fit_joint()}} result; by default the result's own
-joint distribution (global method) or a new fit.}
+joint distribution or a new fit. It is checked against the population.}
 
-\item{allocate}{Logical: allocate the attributable risk to diseases?
-This is the slow step for many co-occurring diseases.}
+\item{allocate}{Logical: allocate the attributable risk to diseases?}
 
-\item{max_present}{Passed to \code{\link[=shapley_by_cell]{shapley_by_cell()}}.}
+\item{max_present}{Passed to \code{\link[=shapley_by_cell]{shapley_by_cell()}} (default: no skipping).}
 }
 \value{
 A \code{cm_attributable} list with \code{summary} (overall, disease-free and
-attributable risk, attributable fraction and value), \code{by_disease}
-(adjusted hazard ratio, attributable risk, share and value),
-\code{skipped_mass} and \code{baseline_hazard}.
+attributable risk, attributable fraction, value, and any unallocated
+part), \code{by_disease} and \code{baseline_hazard}.
 }
 \description{
 Converts adjusted hazard ratios into the part of an event's overall risk
@@ -51,29 +45,20 @@ Within the period, an animal with disease combination \code{x} has a constant
 hazard \verb{h0 * exp(sum_i beta[i] * x[i])}, with \verb{beta = log(adjusted HR)}.
 The baseline hazard \code{h0} is chosen so that the population risk, averaged
 over the distribution of disease combinations (\code{\link[=fit_joint]{fit_joint()}}), equals
-\code{overall_risk}:
+\code{overall_risk}. The disease-free risk is \code{1 - exp(-h0)}, and the
+attributable risk is \code{overall_risk - (1 - exp(-h0))}. An animal's risk
+cannot exceed 1, so the attributable risk is smaller than the sum of
+per-disease excess risks when diseases co-occur.
 
-\verb{sum_x P(x) * (1 - exp(-h0 * exp(beta . x))) = overall_risk}.
+The attributable risk is allocated to diseases by Shapley values over all
+disease combinations (\code{\link[=shapley_by_cell]{shapley_by_cell()}}). Any combinations skipped with
+\code{max_present} are reported as unallocated.
 
-The disease-free risk is \code{1 - exp(-h0)}, and the attributable risk is
-\code{overall_risk - (1 - exp(-h0))}. An animal's risk cannot exceed 1, so the
-attributable risk is smaller than the sum of per-disease excess risks
-when diseases co-occur.
-
-The attributable risk is allocated to diseases by Shapley values over
-disease combinations (\code{\link[=shapley_by_cell]{shapley_by_cell()}}), with the loss
-\verb{1 - exp(-h0 * exp(beta . x)) - (1 - exp(-h0))}.
-
-The model is consistent with \code{method = "global"} in \code{\link[=deconflate]{deconflate()}}: there,
-the adjusted hazard ratios reproduce the raw ones exactly over the same
-joint distribution. Hazard ratios from the other methods are used as they
-are.
+This uses the same snapshot model as \code{\link[=deconflate_hr]{deconflate_hr()}} (constant hazards
+within the period, multiplicative hazard ratios, no change in the mixture
+of diseases over the period).
 }
 \examples{
-m <- example_supplement()
-m$impacts <- combine_impacts(m$impacts,
-  cm_impacts(c("d1", "d2", "d3"), c(1.5, 2.0, 1.3), outcome = "culling",
-             scale = "hazard_ratio"))
-res <- deconflate(m, method = "global")
-attributable_risk(res, overall_risk = 0.25, unit_value = 1300)
+hr <- cm_hr_model(example_supplement(), cm_hazard_ratios(c("d1", "d2", "d3"), c(1.5, 2.0, 1.3)))
+attributable_risk(deconflate_hr(hr), overall_risk = 0.25, unit_value = 1300)
 }

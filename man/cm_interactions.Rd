@@ -4,23 +4,12 @@
 \alias{cm_interactions}
 \title{Describe pairwise impact interactions}
 \usage{
-cm_interactions(
-  disease1,
-  disease2,
-  value,
-  outcome = "impact",
-  scale = "proportion",
-  source = NA_character_
-)
+cm_interactions(disease1, disease2, value, source = NA_character_)
 }
 \arguments{
 \item{disease1, disease2}{Character vectors of disease ids.}
 
-\item{value}{Numeric interaction values.}
-
-\item{outcome}{Outcome label(s) matching \code{\link[=cm_impacts]{cm_impacts()}}.}
-
-\item{scale}{\code{"proportion"} or \code{"percent"}; additive on that scale.}
+\item{value}{Numeric interaction values (same units as the impacts).}
 
 \item{source}{Optional citation or scenario label.}
 }
@@ -29,9 +18,12 @@ A \code{cm_interactions} data frame.
 }
 \description{
 An interaction \code{delta} is the additional impact when both diseases are
-present, on the same scale as the outcome's impacts: positive values are
-synergistic (more loss than the sum), negative values antagonistic.
+present, in the same units as the impact vector: positive values are
+synergistic (more than the sum), negative values antagonistic.
 Interactions cannot be inferred from associations and must come from
 evidence or explicit scenarios. They require \code{method = "global"} in
 \code{\link[=deconflate]{deconflate()}}.
+}
+\examples{
+cm_interactions("d1", "d2", 0.5)
 }

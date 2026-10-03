@@ -57,8 +57,8 @@ test_that("excess matrix matches the Supplementary File", {
 test_that("unknown pairs are rejected by pairwise methods but allowed globally", {
   m <- cm_model(
     cm_diseases(c("a", "b", "c"), c(0.2, 0.3, 0.25)),
-    cm_associations(c("a", "b"), c("b", "c"), c(3, 2)),
-    cm_impacts(c("a", "b", "c"), c(0.03, 0.04, 0.05)),
+    cm_impacts(c("a", "b", "c"), c(3, 4, 5)),
+    associations = cm_associations(c("a", "b"), c("b", "c"), c(3, 2)),
     missing_associations = "unknown"
   )
   expect_error(deconflate(m), class = "deconflate_unknown_pairs")
@@ -66,7 +66,8 @@ test_that("unknown pairs are rejected by pairwise methods but allowed globally",
   expect_s3_class(res, "cm_result")
   # Unconstrained a:c is implied by the maximum-entropy fit, so it differs
   # from imposing independence.
-  ind <- cm_model(m$diseases, m$associations, m$impacts, missing_associations = "independent")
+  ind <- cm_model(m$diseases, m$impacts, associations = m$associations,
+                  missing_associations = "independent")
   expect_false(isTRUE(all.equal(res$adjusted$adjusted,
                                 deconflate(ind)$adjusted$adjusted)))
 })

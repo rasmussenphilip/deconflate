@@ -11,13 +11,16 @@ A \code{\link[=cm_model]{cm_model()}}.
 }
 \description{
 Three hypothetical diseases with prevalences 0.10, 0.15 and 0.20, yield
-impacts of 2.5\%, 5\% and 7.5\%, and odds ratios of 2 (d1:d2), 1 (d1:d3) and
-3 (d2:d3). The observed mean yield in the example is 10,000 units per
-animal per year.
+impacts of 2.5\%, 5\% and 7.5\% (entered in percent, so results are in
+percent), and odds ratios of 2 (d1:d2), 1 (d1:d3) and 3 (d2:d3). The
+observed mean yield in the example is 10,000 units per animal per year.
 }
 \details{
 Note: the published productivity gap (10,225; 20, 61 and 143 units) rounds
-the adjusted impacts to 0.02, 0.04 and 0.07 before computing the gap.
-Without rounding, the published method gives 10,215.7 and 21.1, 56.7 and
-137.9 units.
+the adjusted impacts to 2\%, 4\% and 7\% before computing the gap. Without
+rounding, the published method gives 10,215.7 and 21.1, 56.7 and 137.9
+units.
+}
+\examples{
+deconflate(example_supplement(), method = "published")
 }

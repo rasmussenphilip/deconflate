@@ -1,0 +1,5 @@
+disease,value,estimand,source
+LAM,1.74,crude,Illustrative
+SCK,1.92,crude,Illustrative
+MET,0,crude,"Error: a hazard ratio must be positive (use 1 for no effect)"
+RP,1.60,crude,Illustrative

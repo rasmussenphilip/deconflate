@@ -7,10 +7,10 @@
 fit_joint(model, tol = 1e-10, max_iter = 10000L, max_diseases = 20L)
 }
 \arguments{
-\item{model}{A \code{\link[=cm_model]{cm_model()}}.}
+\item{model}{A \code{\link[=cm_population]{cm_population()}} or \code{\link[=cm_model]{cm_model()}}.}
 
 \item{tol}{Convergence tolerance: maximum absolute deviation of any
-constrained cell probability.}
+constrained cell probability, recomputed on the returned distribution.}
 
 \item{max_iter}{Maximum number of full IPF sweeps.}
 
@@ -19,8 +19,9 @@ constrained cell probability.}
 }
 \value{
 A \code{cm_joint} object: \code{cells} (2^n x n 0/1 matrix), \code{prob}
-(probability of each combination), \code{converged}, \code{iterations} and
-\code{max_residual}.
+(probability of each combination), \code{converged}, \code{iterations},
+\code{max_residual} and the \code{targets} it was fitted to (used by
+\code{\link[=deconflate]{deconflate()}} to check that a supplied joint matches the model).
 }
 \description{
 Starting from independence (the product of marginal probabilities; slide 12
@@ -33,12 +34,19 @@ higher log-linear interaction terms. Three-disease co-occurrence still
 departs from independence through the pairwise terms.
 }
 \details{
+Three-way terms from \code{\link[=cm_three_way]{cm_three_way()}} are put into the starting
+distribution. IPF keeps every log-linear term of its starting distribution
+that the constraints do not fix, so the fitted distribution matches all
+pairwise tables and has the requested three-way terms.
+
 Pairs whose measure is \code{"unknown"} are not constrained. Pairs set to
 \code{"independent"} are constrained to an odds ratio of 1.
 
 The constraint system is underdetermined for three or more diseases
 (2^n - 1 free probabilities, n(n+1)/2 constraints), which is why the
-maximum-entropy criterion is needed to pick one solution. If the pairwise
-tables are jointly infeasible, IPF does not converge and the result is
-flagged.
+maximum-entropy criterion (an assumption, not something the pairwise
+evidence identifies) is needed to pick one solution. If the pairwise
+tables are jointly infeasible, IPF does not converge; non-convergence
+after \code{max_iter} sweeps suggests, but does not prove, infeasibility (see
+\code{\link[=check_feasibility]{check_feasibility()}}).
 }

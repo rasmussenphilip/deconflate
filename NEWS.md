@@ -1,35 +1,146 @@
 # deconflate (development version)
 
-Work towards 0.2.0.
+Work towards 0.2.0. This version implements an external review of 0.1.0 and
+the planned hazard-ratio, import and Monte Carlo work. It changes the
+interface: models written for 0.1.0 need updating (see "Breaking changes").
 
-## Culling hazard ratios
-* `cm_impacts()` accepts `scale = "hazard_ratio"`. Hazard ratios are adjusted under a multiplicative (Cox-type) model:
-  * `method = "global"` solves the model exactly over the distribution of disease combinations, so that the adjusted hazard ratios reproduce the raw ones;
-  * `method = "simultaneous"` uses the first-order (log-linear) version;
-  * `method = "published"` reproduces Rasmussen et al. (2024) (`HR - 1` with eq. 16).
-* New `attributable_risk()`: the culling (or mortality) attributable to disease, without counting an animal with several diseases more than once, allocated to diseases by Shapley values. `summary()`, `contribution_table()` and `compare_methods()` use it to value hazard-ratio outcomes.
-* `example_global_dairy()` and `sampler_global_dairy()` gain `culling_scale = c("excess_hr", "hazard_ratio")`.
-* New vignette: "Culling and hazard ratios".
+## Breaking changes
 
-## Reading your own data
-* New `cm_read_inputs()`: builds a model (and a Monte Carlo sampler) from CSV files or data frames, after checking every table and reporting all problems at once. `cm_check_inputs()` returns the problems without stopping.
-* New `cm_template()` (example CSV files) and `cm_dist_table()` (distributions from an uncertainty table).
-* Example input files installed with the package: `system.file("extdata", "global_dairy_2024", package = "deconflate")` (the 2024 analysis inputs, with distributions) and `"example_with_errors"` (deliberate mistakes).
-* New vignette: "Using your own data".
+* **One impact vector per analysis, in any units.** `cm_impacts()` no longer
+  has `outcome`, `scale` or `direction`. Each analysis adjusts one set of
+  additive impacts in the units supplied (kg, percent, days, euros, welfare
+  scores); results come back in the same units, with optional `label` and
+  `units` metadata. The engine does no unit conversion.
+* **Population and analyses.** New `cm_population()` holds the diseases,
+  associations and three-way terms. `cm_model(population, impacts,
+  interactions)` adds one impact vector; `cm_analyses(population, yield = ...,
+  fertility = ...)` bundles several analyses on one population, and
+  `deconflate()` adjusts each of them (one joint fit is shared by the global
+  method). `cm_model()` still accepts a `cm_diseases` object with
+  `associations =` given by name.
+* **Estimands.** Each impact declares its estimand: `"crude"` (default) or
+  `"adjusted_linear"` (the coefficient of an additive regression adjusted
+  for the diseases in `adjusted_for`, or `"all"`). Adjusted coefficients are
+  mapped exactly by the population projection of the omitted diseases, with
+  an identifiability check. `adjusted_for` without `"adjusted_linear"` is an
+  error: the estimand is never inferred from it. The published method is
+  limited to crude estimates.
+* **Hazard ratios have their own adapter.** `cm_hazard_ratios()`,
+  `cm_hr_model()` and `deconflate_hr()` (methods `"snapshot"`, a snapshot
+  hazard-multiplier model solved exactly over the joint distribution,
+  `"first_order"` and `"published"`), with stratified `adjusted_for` and
+  `"all"`. `attributable_risk()` takes their results.
+* **Removed:** `combine_impacts()`, `hr_to_risk()`, `excess_to_hr()`,
+  `hr_conversion()`, `as_impacts()` and `adjusted_hr()`. The conversions used
+  in the papers are kept only to reproduce them: hazard ratios as odds ratios
+  and eq. 23 (internal, used by `example_uk_dairy_2022()` and
+  `reproduce_rasmussen_2022()`), and HR - 1 adjusted additively (the
+  `culling_hr_minus_1` analysis of `example_global_dairy(culling = TRUE)`,
+  used by `reproduce_rasmussen_2024()`).
+* **Gaps and values are helpers outside the engine.** `productivity_gap(result,
+  observed, direction, effect)` and `value_losses(gap, unit_value,
+  additional)`; the `valuation` argument of `summary()`,
+  `contribution_table()` and `compare_methods()` replaces `economics` and
+  must state `direction` and `effect`. Lump-sum costs (e.g. veterinary
+  expenditure) are added with `additional`, never inside the adjustment.
+* **Contributions.** `deconflate()` returns `contributions`: the closed-form
+  Shapley value of each disease (its own term plus half of each interaction
+  term it is involved in). They add up to the aggregate; shares are `NA` when
+  the aggregate is zero. Gaps are attributed without dividing by the
+  aggregate.
+* **Covariate-adjusted associations** are rejected unless
+  `adjusted_associations = "use_as_marginal"`.
+* **Contingency tables:** empty tables are rejected; the zero-cell correction
+  is explicit (`zero_cell = c("haldane", "error")`) and recorded in
+  `corrected`.
+* **Disease ids** must not contain `|`, `;` or `:`; `"all"` is reserved.
+* **Monte Carlo keys** in `cm_sampler()` are `impact:<disease>` and
+  `inter:<d1>:<d2>` (input files use `impact:<analysis>:<disease>` and
+  `inter:<analysis>:<d1>:<d2>`); the sampler no longer correlates outcomes
+  (`outcome_correlation` removed).
+* `cm_read_inputs()` reads one impact table per analysis (see below).
 
-## Comparing methods
-* **Breaking:** `compare_methods()` now returns a `cm_comparison` object with side-by-side tables of adjusted impacts, relative changes, sign changes, totals and (with `economics`) gaps and values per method, and records methods that fail. The adjusted impacts are in `$impacts`.
-* `cm_monte_carlo()` accepts several methods (`method = c("published", "simultaneous")`) and applies them to the same draws; `compare_methods()` compares their summaries.
+## New features
 
-## Monte Carlo stability
-* `summary.cm_mc()` gains a `method` column, a trimmed mean and stability diagnostics (`rel_mcse`, `tail_share`, `stability`), and prints suggestions when estimates look unstable. It distinguishes means that do not exist (the published approximation dividing by a quantity that changes sign) from heavy tails and imprecision.
-* New `cm_diagnose()` (flagged estimates with suggestions) and `cm_suggest_proposal()` (a defensive-mixture importance-sampling proposal).
-* `cm_monte_carlo()` gains `sampling = "lhs"` (Latin hypercube sampling) and `proposal` (importance sampling). Importance weights carry through `cm_scenario()` and `cm_reweight()`.
+* **Reading your own data:** `impacts_<analysis>.csv` files (or a named list
+  of data frames), `interactions_<analysis>.csv`, `three_way.csv`,
+  `hazard_ratios.csv`, and `uncertainty.csv` / `uncertainty_<analysis>.csv`.
+  The result has `population`, `analyses`, `model` (one analysis),
+  `hr_model` and a sampler (a batch sampler for several analyses). Every
+  problem is reported with its table, row and column; `cm_read_inputs()`
+  stops with class `deconflate_input_problems` when there are errors. The
+  example folders in `inst/extdata` (`global_dairy_2024`,
+  `example_with_errors`) use the new layout.
+* `compare_methods()` works on models, analyses, hazard-ratio models and
+  Monte Carlo runs. Methods that cannot be run, and valuations that cannot
+  be evaluated for a method, are listed in `failed` with the reason.
+* **Three-way scenarios:** `cm_three_way()` sets the ratio of conditional
+  odds ratios for a triple (a log-linear three-way term in the global fit,
+  with all pairwise tables still matched); `set_three_way()` and
+  `screen_three_way()`.
+* **Batch Monte Carlo:** `cm_batch_sampler()` runs several analyses on shared
+  draws of the disease probabilities and associations.
+* **Reproduction:** `reproduce_rasmussen_2022()` (Tables 8-10) and
+  `reproduce_rasmussen_2024()` (Table 5), with the published values beside
+  the package's.
+* `cm_mc_gap()`: productivity gaps and values per Monte Carlo draw.
+* `example_global_dairy_hr()`: the 2024 culling hazard ratios as a
+  hazard-ratio model.
 
-## Other changes
-* `attribute_burden()` and `productivity_gap()` skip hazard-ratio outcomes (use `attributable_risk()`).
-* `plot.cm_mc()` gains a `method` argument and plots hazard ratios on their own scale.
-* Added `inst/validation/reference_v02.py`.
+## Corrections and checks
+
+* **Feasibility:** the pairwise methods screen every triple of diseases by
+  default (`feasibility = c("screen", "lp", "none")`); an invertible
+  conflation matrix does not mean the pairs are jointly feasible.
+* **Joint distribution:** the IPF rescales every marginal in each sweep and
+  recomputes the final residual; a supplied `joint` is validated against the
+  model (diseases, probabilities, pairs and three-way terms).
+* **Importance sampling:** proposals are checked against the support of each
+  input (bounds and point masses), and the Monte Carlo standard error uses
+  the self-normalised estimate `sqrt(sum(w^2 (x - mean)^2))`.
+* **Latin hypercube sampling** runs in independent replicate blocks
+  (`lhs_replicates`), and the standard error comes from the spread of the
+  block means.
+* **Stability statuses:** `no_mean` is replaced by `possible_pole`, flagged
+  only when the published denominator `m + c` changes sign within the
+  sampled inputs and differs in sign from `m`; the removable case (`c = 0`,
+  where the formula reduces to `m`) is not flagged.
+* A draw with a non-finite result is rejected for every method.
+* **Conditions have classes:** `deconflate_infeasible`, `deconflate_singular`,
+  `deconflate_nonconvergence`, `deconflate_unsupported` and
+  `deconflate_nonfinite`.
+* `shapley_by_cell()` reports the probability and loss of any skipped
+  combinations, and `attributable_risk()` the unallocated part; the
+  allocated and unallocated parts add up to the total.
+* Sensitivity screens report failed scenarios in a `failed` column instead
+  of dropping them, and reject unknown pairs or triples.
+
+## Validation
+
+* New Python references: `inst/validation/reference_v020.py` (estimands,
+  interactions, feasibility, three-way terms) and `reference_v020_tests.py`.
+* Tests cover the reviewer's list: known-truth recovery for crude, adjusted
+  and fully adjusted estimands, with interactions, in arbitrary units and
+  after rescaling; the projection counterexample; zero, cancelling, singular
+  and non-finite cases; infeasible pairs with a well-conditioned matrix; a
+  stale joint; removable poles; importance-sampling support and standard
+  errors; repeated-run calibration of the standard errors; separate impact
+  files on one population; allocation completeness; and the three-way term
+  of the fitted joint.
+
+## Known limitations
+
+* The adjustment is exact for additive impacts. Adjusted estimands other than
+  coefficients of additive regressions (e.g. matched or propensity-score
+  estimates, or coefficients of non-linear models) are not supported.
+* The probabilities and associations must describe the population the impact
+  estimates come from.
+* Pairwise associations do not identify three-way structure; the global
+  method assumes maximum entropy unless three-way scenarios are given.
+* The global method, the snapshot hazard model and `attributable_risk()`
+  enumerate all 2^n disease combinations (about 20 diseases at most).
+* The triple screen is a necessary condition for joint feasibility only; the
+  exact check needs `lpSolve`.
 
 # deconflate 0.1.0
 

@@ -12,7 +12,7 @@ check_feasibility(
 )
 }
 \arguments{
-\item{model}{A \code{\link[=cm_model]{cm_model()}}.}
+\item{model}{A \code{\link[=cm_population]{cm_population()}} or \code{\link[=cm_model]{cm_model()}}.}
 
 \item{method}{\code{"auto"} (both checks if \code{lpSolve} is installed and the
 number of diseases is at most \code{max_lp_diseases}, otherwise triples
@@ -54,7 +54,7 @@ exact, and requires the \code{lpSolve} package.
 check_feasibility(example_supplement())
 
 # Three strongly linked diseases that cannot all be associated this way:
-bad <- cm_model(
+bad <- cm_population(
   cm_diseases(c("a", "b", "c"), c(0.5, 0.5, 0.5)),
   cm_associations(c("a", "a", "b"), c("b", "c", "c"), c(20, 20, 0.05))
 )

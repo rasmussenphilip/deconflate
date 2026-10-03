@@ -2,32 +2,28 @@
 % Please edit documentation in R/gap.R
 \name{value_losses}
 \alias{value_losses}
-\title{Value productivity gaps in monetary terms}
+\title{Value a productivity gap in monetary terms (optional helper)}
 \usage{
 value_losses(gap, unit_value, additional = 0)
 }
 \arguments{
 \item{gap}{A \code{\link[=productivity_gap]{productivity_gap()}} result.}
 
-\item{unit_value}{Named numeric vector: value per unit of gap for each
-outcome. For example, with yield in kg the milk price per kg; with
-calving interval in days the value of a day's lost milk; with culling
-in percentage points the replacement cost per percentage point.}
+\item{unit_value}{Value per unit of gap (e.g. milk price per kg).}
 
-\item{additional}{Optional named numeric vector of costs added to the
-total as lump sums (e.g. veterinary expenditure per animal).}
+\item{additional}{Optional named numeric vector of lump-sum costs.}
 }
 \value{
-A list with \code{by_disease} (outcome, disease, gap, value),
-\code{by_outcome} (gap and value per outcome), \code{by_disease_total} (value per
-disease summed over outcomes) and \code{total} (including \code{additional}).
+A list with \code{by_disease} (gap and value), \code{value} (the gap's
+value), \code{additional} and \code{total}.
 }
 \description{
-Multiplies each outcome's gap (from \code{\link[=productivity_gap]{productivity_gap()}}) by a unit value
-and returns disease-specific and total losses, as in Rasmussen et al.
-(2022), Tables 9-10.
+Multiplies a gap (from \code{\link[=productivity_gap]{productivity_gap()}}) by a unit value, as in
+Rasmussen et al. (2022), Tables 9-10. Lump-sum costs that are not part of
+any adjustment (e.g. veterinary expenditure) can be added with
+\code{additional}; they are reported separately and included in \code{total}.
 }
 \examples{
 res <- deconflate(example_supplement(), method = "published")
-value_losses(productivity_gap(res, c(yield = 10000)), c(yield = 0.30))
+value_losses(productivity_gap(res, 10000, "decrease", "percent"), unit_value = 0.30)
 }

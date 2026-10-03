@@ -15,11 +15,12 @@ cm_template(dir, overwrite = FALSE)
 The file paths, invisibly.
 }
 \description{
-Writes example \code{diseases.csv}, \code{associations.csv}, \code{impacts.csv},
-\code{interactions.csv} (header only) and \code{uncertainty.csv} files to a folder,
-to edit and read back with \code{\link[=cm_read_inputs]{cm_read_inputs()}}. The example has three dairy
-diseases, with yield impacts and culling hazard ratios; the values are
-illustrative.
+Writes an example set of input files to a folder, to edit and read back
+with \code{\link[=cm_read_inputs]{cm_read_inputs()}}: three dairy diseases with their associations,
+two analyses (\code{impacts_yield.csv} in percent of yield and
+\code{impacts_calving_interval.csv} in days), culling hazard ratios, an empty
+interactions file for the yield analysis, an empty three-way file and an
+uncertainty file. The values are illustrative.
 }
 \examples{
 cm_template(file.path(tempdir(), "my-inputs"), overwrite = TRUE)

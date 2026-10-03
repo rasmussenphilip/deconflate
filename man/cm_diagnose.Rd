@@ -4,7 +4,7 @@
 \alias{cm_diagnose}
 \title{Diagnose unstable Monte Carlo estimates}
 \usage{
-cm_diagnose(mc, what = c("adjusted", "loss", "total"))
+cm_diagnose(mc, what = c("adjusted", "contribution", "total"))
 }
 \arguments{
 \item{mc}{A \code{cm_mc} object.}
@@ -13,26 +13,25 @@ cm_diagnose(mc, what = c("adjusted", "loss", "total"))
 }
 \value{
 A data frame (class \code{cm_diagnosis}) with one row per flagged
-estimate: outcome, disease, method, stability, detail and suggestion.
+estimate: item, method, stability, detail and suggestion.
 }
 \description{
-Lists the estimates that \code{\link[=summary.cm_mc]{summary.cm_mc()}} flags as unstable, with the
-reason and a suggested remedy:
+Lists the estimates that \code{\link[=summary.cm_mc]{summary.cm_mc()}} flags, with the reason and a
+suggested remedy:
 \itemize{
-\item \code{"no_mean"}: with the published approximation, \code{m^2 / (m + c)} has a
-pole where \code{m + c = 0}. If \code{m + c} takes both signs across draws, the
-adjusted impact's distribution has tails so heavy that its mean does
-not exist, and no sampling scheme makes it converge. Report the median
-or a trimmed mean, or use the exact (\code{"simultaneous"}) method. (Strictly,
-with unbounded input distributions such as the normal, the pole is
-always inside the support; the flag is raised when draws actually reach
-it.)
-\item \code{"heavy_tail"}: a few extreme draws dominate the variance. If they come
-from an identifiable region of one input, importance sampling
-(\code{\link[=cm_suggest_proposal]{cm_suggest_proposal()}} and the \code{proposal} argument of
-\code{\link[=cm_monte_carlo]{cm_monte_carlo()}}) samples that region more often and down-weights it,
-which reduces the Monte Carlo error.
+\item \code{"possible_pole"}: with the published approximation, \code{m^2 / (m + c)}
+has a pole where \code{m + c = 0} and \code{m != 0}. When the sampled inputs reach
+both sides of it, the estimate's distribution can have tails so heavy
+that its mean does not exist; no sampling scheme then makes the mean
+converge. Report quantiles, or use the exact (\code{"simultaneous"}) method.
+(With \code{c = 0}, e.g. independent diseases, the formula reduces to \code{m} and
+is not flagged.)
+\item \code{"heavy_tail"}: a few extreme draws dominate the variance. Importance
+sampling may help if they come from one region of one input. The exact
+method can also be heavy-tailed when sampled inputs make the conflation
+matrix nearly singular.
 \item \code{"imprecise"}: the Monte Carlo standard error is large relative to the
-mean. Use more draws, or Latin hypercube sampling (\code{sampling = "lhs"}).
+mean. Use more draws, or Latin hypercube sampling.
+\item \code{"non_finite"}: draws gave non-finite results and were rejected.
 }
 }

@@ -2,34 +2,41 @@
 % Please edit documentation in R/inputs.R
 \name{cm_model}
 \alias{cm_model}
-\title{Combine inputs into a comorbidity model}
+\title{Combine a population with an impact vector}
 \usage{
 cm_model(
-  diseases,
-  associations = NULL,
+  population,
   impacts = NULL,
   interactions = NULL,
-  missing_associations = c("independent", "unknown")
+  associations = NULL,
+  three_way = NULL,
+  missing_associations = c("independent", "unknown"),
+  adjusted_associations = c("error", "use_as_marginal")
 )
 }
 \arguments{
-\item{diseases}{A \code{\link[=cm_diseases]{cm_diseases()}} object.}
+\item{population}{A \code{\link[=cm_population]{cm_population()}}. For convenience, a \code{\link[=cm_diseases]{cm_diseases()}}
+object can be given instead, together with \code{associations},
+\code{missing_associations} and \code{three_way}.}
 
-\item{associations}{A \code{\link[=cm_associations]{cm_associations()}} object, or \code{NULL}.}
+\item{impacts}{A \code{\link[=cm_impacts]{cm_impacts()}} object with one value per disease.}
 
-\item{impacts}{A \code{\link[=cm_impacts]{cm_impacts()}} object, or \code{NULL} (e.g. when only the
-joint distribution or simulated impacts are needed).}
+\item{interactions}{Optional \code{\link[=cm_interactions]{cm_interactions()}} object.}
 
-\item{interactions}{A \code{\link[=cm_interactions]{cm_interactions()}} object, or \code{NULL}.}
-
-\item{missing_associations}{How to treat disease pairs without a row in
-\code{associations}: \code{"independent"} imposes an odds ratio of 1 (as in
-Rasmussen et al. 2022, 2024); \code{"unknown"} leaves them unconstrained
-(only usable with the global method). These are different assumptions.}
+\item{associations, three_way, missing_associations, adjusted_associations}{Used only when \code{population} is a \code{\link[=cm_diseases]{cm_diseases()}} object; see
+\code{\link[=cm_population]{cm_population()}}.}
 }
 \value{
-A \code{cm_model} object.
+A \code{cm_model} object (which is also a \code{cm_population}).
 }
 \description{
-Combine inputs into a comorbidity model
+Combine a population with an impact vector
+}
+\examples{
+m <- cm_model(
+  cm_diseases(c("d1", "d2", "d3"), c(0.10, 0.15, 0.20)),
+  cm_impacts(c("d1", "d2", "d3"), c(2.5, 5, 7.5), units = "\%"),
+  associations = cm_associations(c("d1", "d2"), c("d2", "d3"), c(2, 3))
+)
+m
 }

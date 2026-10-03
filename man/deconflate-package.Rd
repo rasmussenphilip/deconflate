@@ -14,46 +14,60 @@ estimates so that they can be aggregated.
 \section{Workflow}{
 
 \enumerate{
-\item Describe the system with \code{\link[=cm_diseases]{cm_diseases()}}, \code{\link[=cm_associations]{cm_associations()}},
-\code{\link[=cm_impacts]{cm_impacts()}} and, optionally, \code{\link[=cm_interactions]{cm_interactions()}}, then combine them
-with \code{\link[=cm_model]{cm_model()}}. Or read the same tables from CSV files or data
-frames with \code{\link[=cm_read_inputs]{cm_read_inputs()}} (see \code{\link[=cm_template]{cm_template()}}).
+\item Describe the population with \code{\link[=cm_diseases]{cm_diseases()}}, \code{\link[=cm_associations]{cm_associations()}} and,
+optionally, three-way scenarios (\code{\link[=cm_three_way]{cm_three_way()}}), combined with
+\code{\link[=cm_population]{cm_population()}}. Add one impact vector (\code{\link[=cm_impacts]{cm_impacts()}}) per analysis
+with \code{\link[=cm_model]{cm_model()}}, or several with \code{\link[=cm_analyses]{cm_analyses()}}. Or read the same
+tables from CSV files or data frames with \code{\link[=cm_read_inputs]{cm_read_inputs()}} (see
+\code{\link[=cm_template]{cm_template()}}).
 \item Adjust impacts with \code{\link[=deconflate]{deconflate()}}, using one of three methods:
 \itemize{
 \item \code{"simultaneous"} (default): the exact solution of the additive impact
-equations, built from pairwise 2x2 tables.
+equations, built from pairwise 2x2 tables. Crude estimates and
+coefficients from additive regressions with a recorded adjustment set
+(\code{estimand = "adjusted_linear"}) are supported.
 \item \code{"published"}: the proportional approximation of Rasmussen et al.
-(2022), eqs. 15-16, for reproduction and comparison.
-\item \code{"global"}: fits a maximum-entropy distribution of disease combinations
-with \code{\link[=fit_joint]{fit_joint()}}, then solves the impact equations including pairwise
-interactions.
+(2022), eq. 16, for crude estimates, for reproduction and comparison.
+\item \code{"global"}: fits a maximum-entropy distribution of disease
+combinations with \code{\link[=fit_joint]{fit_joint()}}, then solves the impact equations
+including pairwise interactions (\code{\link[=cm_interactions]{cm_interactions()}}).
 }
-\item Estimate, value and attribute productivity gaps with
-\code{\link[=productivity_gap]{productivity_gap()}}, \code{\link[=value_losses]{value_losses()}}, \code{\link[=attribute_burden]{attribute_burden()}} and
-\code{\link[=contribution_table]{contribution_table()}}. Culling hazard ratios can be adjusted directly
-(\code{scale = "hazard_ratio"}) and turned into culling attributable to
-disease with \code{\link[=attributable_risk]{attributable_risk()}}; \code{\link[=compare_methods]{compare_methods()}} tabulates the
-methods side by side.
-\item Check joint feasibility with \code{\link[=check_feasibility]{check_feasibility()}}.
-\item Propagate uncertainty with \code{\link[=cm_sampler]{cm_sampler()}} and \code{\link[=cm_monte_carlo]{cm_monte_carlo()}} (check
-stability with \code{\link[=cm_diagnose]{cm_diagnose()}}), and
-explore scenarios with \code{\link[=cm_scenario]{cm_scenario()}}, \code{\link[=sensitivity_oat]{sensitivity_oat()}},
-\code{\link[=screen_associations]{screen_associations()}}, \code{\link[=screen_interactions]{screen_interactions()}} and
-\code{\link[=compare_scenarios]{compare_scenarios()}}.
+\item Inspect each disease's contribution to the aggregate
+(\code{\link[=attribute_burden]{attribute_burden()}}, \code{\link[=contribution_table]{contribution_table()}}); optionally turn the
+aggregate into a productivity gap and a value with
+\code{\link[=productivity_gap]{productivity_gap()}} and \code{\link[=value_losses]{value_losses()}}. \code{\link[=compare_methods]{compare_methods()}}
+tabulates the methods side by side.
+\item Hazard ratios (e.g. of culling) combine multiplicatively and have their
+own adapter: \code{\link[=cm_hazard_ratios]{cm_hazard_ratios()}}, \code{\link[=cm_hr_model]{cm_hr_model()}}, \code{\link[=deconflate_hr]{deconflate_hr()}}
+and \code{\link[=attributable_risk]{attributable_risk()}}.
+\item Check joint feasibility with \code{\link[=check_feasibility]{check_feasibility()}} (a screen runs by
+default).
+\item Propagate uncertainty with \code{\link[=cm_sampler]{cm_sampler()}} or \code{\link[=cm_batch_sampler]{cm_batch_sampler()}} and
+\code{\link[=cm_monte_carlo]{cm_monte_carlo()}} (check stability with \code{\link[=cm_diagnose]{cm_diagnose()}}), and explore
+scenarios with \code{\link[=cm_scenario]{cm_scenario()}}, \code{\link[=sensitivity_oat]{sensitivity_oat()}},
+\code{\link[=screen_associations]{screen_associations()}}, \code{\link[=screen_interactions]{screen_interactions()}}, \code{\link[=screen_three_way]{screen_three_way()}}
+and \code{\link[=compare_scenarios]{compare_scenarios()}}.
 }
 
-See \code{vignette("deconflate")} to get started.
+\code{\link[=reproduce_rasmussen_2022]{reproduce_rasmussen_2022()}} and \code{\link[=reproduce_rasmussen_2024]{reproduce_rasmussen_2024()}} recompute
+the published tables. See \code{vignette("deconflate")} to get started.
 }
 
 \section{Conventions}{
 
 \itemize{
-\item Impacts on the \code{"proportion"} scale are proportional changes relative to
-the disease-free value (e.g. \code{0.025} for a 2.5\% yield reduction).
+\item Impacts are additive and in any units, the same within an analysis;
+results come back in those units.
 \item \code{E[k, i]} (see \code{\link[=excess_matrix]{excess_matrix()}}) is the excess probability of disease
 \code{k} among animals with disease \code{i}: \verb{P(k | i) - P(k | not i)}.
-\item Under additive impacts, the raw (crude) impact of disease \code{i} satisfies
+\item Under additive impacts, the crude impact of disease \code{i} satisfies
 \verb{m_raw[i] = m[i] + sum_k E[k, i] * m[k]} exactly.
+\item Errors have classes \code{deconflate_infeasible}, \code{deconflate_singular},
+\code{deconflate_nonconvergence}, \code{deconflate_unsupported} and
+\code{deconflate_nonfinite} (all also \code{deconflate_error}); problems found
+by \code{\link[=cm_read_inputs]{cm_read_inputs()}} have class \code{deconflate_input_problems}. Warning classes
+include \code{deconflate_sign_change}, \code{deconflate_nonconvergence} and
+\code{deconflate_nonfinite_warning} (all also \code{deconflate_warning}).
 }
 }
 

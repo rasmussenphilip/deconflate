@@ -2,51 +2,59 @@
 % Please edit documentation in R/simulate.R
 \name{simulate_raw_impacts}
 \alias{simulate_raw_impacts}
-\title{Simulate the raw impacts a single-disease study would report}
+\title{Simulate the raw impacts that studies would report}
 \usage{
 simulate_raw_impacts(
   model,
   true_impacts,
   interactions = NULL,
-  outcome = "impact",
+  estimand = "crude",
+  adjusted_for = NA_character_,
   n = NULL,
-  joint = NULL
+  joint = NULL,
+  units = NULL
 )
 }
 \arguments{
-\item{model}{A \code{\link[=cm_model]{cm_model()}} (its impacts, if any, are ignored).}
+\item{model}{A \code{\link[=cm_population]{cm_population()}} or \code{\link[=cm_model]{cm_model()}} (its impacts are ignored).}
 
-\item{true_impacts}{Named numeric vector of true proportional impacts, one
-per disease.}
+\item{true_impacts}{Named numeric vector of true impacts, one per disease
+(any units).}
 
 \item{interactions}{Optional \code{\link[=cm_interactions]{cm_interactions()}} with true interaction
-values (only rows for \code{outcome} are used).}
+values (same units).}
 
-\item{outcome}{Outcome label for the returned impacts.}
+\item{estimand}{\code{"crude"} or \code{"adjusted_linear"}, one per disease or
+recycled.}
+
+\item{adjusted_for}{For \code{"adjusted_linear"}: adjustment sets (ids
+separated by \code{";"}, or \code{"all"}), one per disease or recycled.}
 
 \item{n}{Optional number of animals to sample.}
 
 \item{joint}{Optional pre-computed \code{\link[=fit_joint]{fit_joint()}} result.}
+
+\item{units}{Optional units label for the returned impacts.}
 }
 \value{
 A \code{\link[=cm_impacts]{cm_impacts()}} object with the simulated raw impacts.
 }
 \description{
 For validation: given a population whose disease combinations follow the
-maximum-entropy distribution implied by \code{model} (see \code{\link[=fit_joint]{fit_joint()}}), and
-known true additive impacts (and optional interactions), computes the crude
-difference in outcome between animals with and without each disease. With
-\code{n = NULL} the exact expectation is returned. With \code{n} set, \code{n} animals
-are sampled and the empirical crude differences are returned, which adds
-sampling error.
+maximum-entropy distribution of \code{model} (see \code{\link[=fit_joint]{fit_joint()}}), and known true
+additive impacts (and optional interactions), computes what a study would
+estimate for each disease: the crude difference between animals with and
+without the disease, or the coefficient of an additive regression adjusted
+for other diseases. With \code{n = NULL} the exact population values are
+returned; with \code{n} set, \code{n} animals are sampled, which adds sampling error.
 }
 \details{
 Adjusting the returned raw impacts with \code{\link[=deconflate]{deconflate()}} should recover
-\code{true_impacts} (exactly for \code{"simultaneous"}/\code{"global"} without
-interactions, and for \code{"global"} with interactions, when \code{n = NULL}).
+\code{true_impacts} exactly (for \code{n = NULL}): with the simultaneous or global
+method without interactions, and with the global method with them.
 }
 \examples{
-m <- example_supplement()
-raw <- simulate_raw_impacts(m, c(d1 = 0.02, d2 = 0.04, d3 = 0.06))
+raw <- simulate_raw_impacts(example_supplement(), c(d1 = 2, d2 = 4, d3 = 6))
 raw$value
+deconflate(cm_model(example_supplement(), raw))$adjusted$adjusted
 }

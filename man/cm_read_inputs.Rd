@@ -7,36 +7,45 @@
 cm_read_inputs(
   diseases = NULL,
   associations = NULL,
+  three_way = NULL,
   impacts = NULL,
   interactions = NULL,
   uncertainty = NULL,
+  hazard_ratios = NULL,
   dir = NULL,
   missing_associations = c("independent", "unknown"),
-  outcome_correlation = NULL
+  adjusted_associations = c("error", "use_as_marginal")
 )
 }
 \arguments{
-\item{diseases, associations, impacts, interactions, uncertainty}{Paths to CSV
-files or data frames. \code{NULL} tables are taken from \code{dir} (if given) or
-left out.}
+\item{diseases, associations, three_way, hazard_ratios}{Paths to CSV files or
+data frames.}
 
-\item{dir}{Optional folder with the CSV files named as above.}
+\item{impacts, interactions, uncertainty}{A path or data frame, or a named
+list of them (one per analysis; see Files).}
 
-\item{missing_associations}{Passed to \code{\link[=cm_model]{cm_model()}}.}
+\item{dir}{Optional folder with CSV files named as in Files. Arguments
+given explicitly take precedence over files.}
 
-\item{outcome_correlation}{Passed to \code{\link[=cm_sampler]{cm_sampler()}}.}
+\item{missing_associations, adjusted_associations}{Passed to
+\code{\link[=cm_population]{cm_population()}}.}
 }
 \value{
-A \code{cm_inputs} list with \code{model}, \code{sampler} (or \code{NULL}), \code{tables}
-(the tables as read) and \code{problems} (notes only, since errors stop).
+A \code{cm_inputs} list with \code{population}, \code{analyses} (a
+\code{\link[=cm_analyses]{cm_analyses()}} object, or \code{NULL} without impact tables), \code{model} (the
+\code{\link[=cm_model]{cm_model()}} when there is exactly one analysis), \code{hr_model} (or
+\code{NULL}), \code{sampler} (a \code{\link[=cm_sampler]{cm_sampler()}} for one analysis, a
+\code{\link[=cm_batch_sampler]{cm_batch_sampler()}} for several, or \code{NULL}), \code{tables} (as read; columns
+of CSV files are read as text and converted by the checks) and
+\code{problems} (notes only, since errors stop).
 }
 \description{
-Builds a \code{\link[=cm_model]{cm_model()}} (and, if an uncertainty table is given, a
-\code{\link[=cm_sampler]{cm_sampler()}}) from up to five tables. Each table can be a path to a CSV
-file or a data frame typed in R; alternatively, \code{dir} names a folder
-containing \code{diseases.csv}, \code{associations.csv}, \code{impacts.csv},
-\code{interactions.csv} and \code{uncertainty.csv} (only \code{diseases.csv} is
-required). \code{\link[=cm_template]{cm_template()}} writes an example set to start from.
+Builds a population (\code{\link[=cm_population]{cm_population()}}), one analysis per impact table
+(\code{\link[=cm_analyses]{cm_analyses()}}), optionally a hazard-ratio model (\code{\link[=cm_hr_model]{cm_hr_model()}}) and,
+if uncertainty tables are given, a Monte Carlo sampler. Each table can be
+a path to a CSV file or a data frame typed in R; alternatively, \code{dir}
+names a folder of CSV files (see Files). \code{\link[=cm_template]{cm_template()}} writes an example
+set to start from.
 }
 \details{
 All tables are checked before anything is built, and every problem is
@@ -44,6 +53,29 @@ reported at once, with its table, row and column (row 1 is the first row
 below the header). \code{\link[=cm_check_inputs]{cm_check_inputs()}} runs the same checks without
 stopping.
 }
+\section{Files}{
+
+In a folder (\code{dir}), files are found by name:
+\itemize{
+\item \code{diseases.csv} (required), \code{associations.csv}, \code{three_way.csv};
+\item one impact table per analysis: \verb{impacts_<analysis>.csv}, e.g.
+\code{impacts_yield.csv} and \code{impacts_fertility.csv}. A single \code{impacts.csv}
+is an analysis named \code{impacts}. All analyses share the diseases and
+associations;
+\item optional interactions per analysis: \verb{interactions_<analysis>.csv} (or
+\code{interactions.csv} when there is one analysis);
+\item optional uncertainty: \code{uncertainty.csv} (shared: disease probabilities,
+associations, and impacts keyed by analysis) and/or
+\verb{uncertainty_<analysis>.csv} (that analysis's impacts and interactions);
+\item optional \code{hazard_ratios.csv} (culling or mortality hazard ratios, for
+\code{\link[=deconflate_hr]{deconflate_hr()}}).
+}
+
+In R, \code{impacts}, \code{interactions} and \code{uncertainty} can be one table or a
+named list of tables, named after the analyses (\code{uncertainty} may also
+have an element named \code{shared}).
+}
+
 \section{Columns}{
 
 Column names are not case-sensitive. Optional columns can be left out or
@@ -51,30 +83,42 @@ left empty; unrecognised columns are ignored (with a note).
 
 \strong{diseases}: \code{id}, \code{value} (required); \code{type} (\code{prevalence} (default),
 \code{probability} or \code{incidence_rate}, converted with \code{1 - exp(-value)}),
-\code{time_horizon}, \code{reference_population}, \code{source}.
+\code{time_horizon}, \code{reference_population}, \code{source}. Ids must not contain
+\code{|}, \verb{;} or \code{:}, and \code{all} is reserved.
 
 \strong{associations}: \code{disease1}, \code{disease2} (required); \code{value}, \code{measure}
 (\code{OR} (default), \code{RR}, \code{RD}, \code{cond_prob} (P(disease1 | disease2)), \code{phi},
 \code{table}, \code{independent} or \code{unknown}), \code{n11}, \code{n10}, \code{n01}, \code{n00} (counts,
-for \code{measure = table}), \code{adjusted} (TRUE/FALSE), \code{adjusted_for}, \code{source}.
-Pairs that are not listed are independent (or unknown, see
-\code{missing_associations}).
+for \code{measure = table}; a zero cell gets 0.5 added to every cell, which is
+reported), \code{adjusted} (TRUE/FALSE: covariate-adjusted measures are
+rejected unless \code{adjusted_associations = "use_as_marginal"}),
+\code{adjusted_for}, \code{source}. Pairs that are not listed are independent (or
+unknown, see \code{missing_associations}).
 
-\strong{impacts}: \code{disease}, \code{outcome}, \code{value} (required); \code{scale}
-(\code{proportion} (default), \code{percent}, \code{absolute} or \code{hazard_ratio}),
-\code{units} (required for \code{absolute}), \code{direction} (\code{decrease} (default) or
-\code{increase}; ignored for hazard ratios), \code{adjusted_for} (ids separated by
-\verb{;}), \code{source}. Every disease needs one row per outcome (use 0 for no
-impact).
+\strong{three_way}: \code{disease1}, \code{disease2}, \code{disease3}, \code{ratio} (required);
+\code{source}. See \code{\link[=cm_three_way]{cm_three_way()}}.
 
-\strong{interactions}: \code{disease1}, \code{disease2}, \code{value}, \code{outcome} (required);
-\code{scale} (\code{proportion} (default) or \code{percent}), \code{source}.
+\strong{impacts} (one table per analysis): \code{disease}, \code{value} (required);
+\code{estimand} (\code{crude} (default) or \code{adjusted_linear}), \code{adjusted_for} (ids
+separated by \verb{;}, or \code{all}; only with \code{adjusted_linear}), \code{source},
+\code{label}, \code{units} (one label and one unit per table). Every disease needs a
+row (use 0 for no impact). Values are in any units, the same for every
+row; results come back in those units.
+
+\strong{interactions}: \code{disease1}, \code{disease2}, \code{value} (required); \code{source}.
+
+\strong{hazard_ratios}: \code{disease}, \code{value} (required); \code{estimand} (\code{crude}
+(default) or \code{adjusted}), \code{adjusted_for}, \code{source}. Every disease needs a
+row (use 1 for no effect).
 
 \strong{uncertainty}: \code{key}, \code{dist} (required); \code{p1}-\code{p4} (parameters),
 \code{note}. Keys name the input: \verb{prob:<disease>}, \verb{assoc:<d1>:<d2>},
-\verb{impact:<outcome>:<disease>} or \verb{inter:<outcome>:<d1>:<d2>}. Values are
-drawn on the scale the input was entered on (e.g. an incidence rate, or a
-percent impact). Distributions and their parameters:\tabular{lllll}{
+\verb{impact:<analysis>:<disease>} and \verb{inter:<analysis>:<d1>:<d2>}. In an
+analysis's own file (\verb{uncertainty_<analysis>.csv}), or when there is only
+one analysis, the analysis can be left out: \verb{impact:<disease>},
+\verb{inter:<d1>:<d2>}. Values are drawn on the scale the input was entered on
+(e.g. an incidence rate, or a percent impact). Distributions and their
+parameters:\tabular{lllll}{
    \code{dist} \tab \code{p1} \tab \code{p2} \tab \code{p3} \tab \code{p4} \cr
    \code{fixed} \tab value \tab  \tab  \tab  \cr
    \code{normal} \tab mean \tab sd \tab lower bound (optional) \tab upper bound (optional) \cr
@@ -92,20 +136,20 @@ dir <- file.path(tempdir(), "deconflate-inputs")
 cm_template(dir, overwrite = TRUE)
 inp <- cm_read_inputs(dir = dir)
 inp
-deconflate(inp$model, method = "global")
+deconflate(inp$analyses)
 
 # Example files shipped with the package: the 2024 global dairy inputs,
 # and a set with deliberate errors
 gd <- cm_read_inputs(dir = system.file("extdata", "global_dairy_2024", package = "deconflate"))
-gd$model
+gd$analyses
 cm_check_inputs(dir = system.file("extdata", "example_with_errors", package = "deconflate"))
 
-# The same tables typed in R
+# The same kind of tables typed in R
 inp2 <- cm_read_inputs(
   diseases = data.frame(id = c("d1", "d2"), value = c(0.10, 0.15)),
   associations = data.frame(disease1 = "d1", disease2 = "d2", value = 2),
-  impacts = data.frame(disease = c("d1", "d2"), outcome = "yield",
-                       value = c(2.5, 5), scale = "percent")
+  impacts = list(yield = data.frame(disease = c("d1", "d2"), value = c(2.5, 5),
+                                    units = "\% of yield"))
 )
 deconflate(inp2$model)
 }

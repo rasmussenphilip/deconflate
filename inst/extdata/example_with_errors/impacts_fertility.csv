@@ -1,0 +1,5 @@
+disease,value,estimand,label,units,source
+LAM,3.30,crude,calving interval increase,% increase,Illustrative
+SCK,1.12,crude,calving interval increase,% increase,Illustrative
+MET,14.67,crude,calving interval increase,% increase,Illustrative
+RP,6.76,crude,calving interval increase,days,"Error: a second unit in one table (one unit per analysis; put impacts in days in their own impacts_<analysis>.csv)"

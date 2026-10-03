@@ -2,60 +2,65 @@
 % Please edit documentation in R/inputs.R
 \name{cm_impacts}
 \alias{cm_impacts}
-\title{Describe raw (unadjusted) disease impact estimates}
+\title{Describe raw impact estimates (one impact vector)}
 \usage{
 cm_impacts(
   disease,
   value,
-  outcome = "impact",
-  scale = "proportion",
-  units = NA_character_,
-  direction = "decrease",
+  estimand = "crude",
   adjusted_for = NA_character_,
-  source = NA_character_
+  source = NA_character_,
+  label = NULL,
+  units = NULL
 )
 }
 \arguments{
-\item{disease}{Character vector of disease ids.}
+\item{disease}{Character vector of disease ids (one row per disease).}
 
-\item{value}{Numeric raw impact estimates.}
+\item{value}{Numeric raw impacts. Every disease in the model needs a value
+(use 0 for no impact).}
 
-\item{outcome}{Character outcome label(s), e.g. \code{"yield"}, \code{"fertility"}.
-Each disease needs exactly one impact per outcome (use \code{0} for no
-impact).}
+\item{estimand}{\code{"crude"} (default) or \code{"adjusted_linear"}, one per row or
+recycled.}
 
-\item{scale}{The scale of \code{value}, constant within an outcome:
-\itemize{
-\item \code{"proportion"}: proportional change relative to the disease-free value
-(e.g. \code{0.025});
-\item \code{"percent"}: converted to a proportion;
-\item \code{"absolute"}: in \code{units} (e.g. excess culling risk);
-\item \code{"hazard_ratio"}: a hazard ratio (e.g. for culling or mortality),
-adjusted on the log scale; see \code{\link[=deconflate]{deconflate()}} and
-\code{\link[=attributable_risk]{attributable_risk()}}.
-}}
-
-\item{units}{Optional units label (required for \code{"absolute"}).}
-
-\item{direction}{\code{"decrease"} if disease lowers the outcome (e.g. yield) or
-\code{"increase"} if it raises it (e.g. calving interval). Used by
-\code{\link[=productivity_gap]{productivity_gap()}}. Set to \code{"increase"} for hazard ratios.}
-
-\item{adjusted_for}{Diseases the raw estimate was already adjusted for,
-separated by \code{";"} (e.g. \code{"LAM; CM"}). Their conflation terms are
-removed from the adjustment for this impact.}
+\item{adjusted_for}{For \code{"adjusted_linear"}: the diseases the estimate was
+adjusted for, separated by \code{";"} (e.g. \code{"LAM; CM"}), or \code{"all"}.}
 
 \item{source}{Optional citation.}
+
+\item{label, units}{Optional analysis-level metadata (e.g.
+\code{label = "milk yield loss"}, \code{units = "\% of yield"}), carried into the
+results.}
 }
 \value{
-A \code{cm_impacts} data frame.
+A \code{cm_impacts} data frame (attributes \code{label} and \code{units}).
 }
 \description{
-Describe raw (unadjusted) disease impact estimates
+One analysis adjusts one set of compatible, additive impact estimates:
+one value per disease, all in the same units (e.g. kg of milk per cow,
+percent of yield, days, euros, welfare scores). The engine does not
+convert units; results come back in the units supplied. For several
+types of impact, use one impact vector each (\code{\link[=cm_analyses]{cm_analyses()}}).
 }
+\section{Estimands}{
+
+Each value must be one of the supported estimands:
+\itemize{
+\item \code{"crude"}: the difference in the outcome between animals with and
+without the disease (unadjusted for other diseases).
+\item \code{"adjusted_linear"}: the coefficient of the disease in an additive
+(linear) regression of the outcome on the disease and the diseases in
+\code{adjusted_for}, in the same source population. The adjustment then uses
+the population projection of the omitted diseases (see \code{\link[=deconflate]{deconflate()}}).
+\code{adjusted_for = "all"} means every other disease in the model.
+}
+
+\code{adjusted_for} is only used with \code{estimand = "adjusted_linear"}; it is never
+used to infer the estimand. Other adjusted estimands (e.g. matched or
+propensity-score estimates) are not supported. The probabilities and
+associations must describe the population the estimates come from.
+}
+
 \examples{
-cm_impacts(c("d1", "d2", "d3"), c(2.5, 5, 7.5), outcome = "yield",
-           scale = "percent")
-cm_impacts(c("d1", "d2", "d3"), c(1.5, 2.3, 1.1), outcome = "culling",
-           scale = "hazard_ratio")
+cm_impacts(c("d1", "d2", "d3"), c(2.5, 5, 7.5), label = "yield", units = "\%")
 }

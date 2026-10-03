@@ -1,0 +1,13 @@
+disease,value,estimand,label,units,source
+CK,0.4321944,crude,milk yield loss,% decrease,"Rasmussen et al. 2024, analysis inputs"
+CM,3.2499,crude,milk yield loss,% decrease,"Rasmussen et al. 2024, analysis inputs"
+DA,2.83693,crude,milk yield loss,% decrease,"Rasmussen et al. 2024, analysis inputs"
+DYS,4.919088,crude,milk yield loss,% decrease,"Rasmussen et al. 2024, analysis inputs"
+LAM,4.8061,crude,milk yield loss,% decrease,"Rasmussen et al. 2024, analysis inputs"
+MET,5.613085,crude,milk yield loss,% decrease,"Rasmussen et al. 2024, analysis inputs"
+MF,0.5365130859025376,crude,milk yield loss,% decrease,"Rasmussen et al. 2024, analysis inputs"
+OC,3.747839,crude,milk yield loss,% decrease,"Rasmussen et al. 2024, analysis inputs"
+PTB,4.3,crude,milk yield loss,% decrease,"Rasmussen et al. 2024, analysis inputs"
+RP,4.198664,crude,milk yield loss,% decrease,"Rasmussen et al. 2024, analysis inputs"
+SCK,8.396472,crude,milk yield loss,% decrease,"Rasmussen et al. 2024, analysis inputs"
+SCM,6.293184,crude,milk yield loss,% decrease,"Rasmussen et al. 2024, analysis inputs"

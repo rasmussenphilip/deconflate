@@ -3,17 +3,20 @@
 \name{plots}
 \alias{plots}
 \alias{plot.cm_result}
+\alias{plot.cm_results}
 \alias{plot_burden}
 \alias{plot.cm_mc}
 \alias{plot.cm_screen}
 \alias{plot.cm_oat}
 \title{Plots}
 \usage{
-\method{plot}{cm_result}(x, outcome = NULL, ...)
+\method{plot}{cm_result}(x, ...)
 
-plot_burden(result, economics = NULL, ...)
+\method{plot}{cm_results}(x, ...)
 
-\method{plot}{cm_mc}(x, outcome = NULL, probs = c(0.025, 0.975), method = NULL, ...)
+plot_burden(result, valuation = NULL, ...)
+
+\method{plot}{cm_mc}(x, probs = c(0.025, 0.975), method = NULL, ...)
 
 \method{plot}{cm_screen}(x, top = 15, ...)
 
@@ -22,12 +25,10 @@ plot_burden(result, economics = NULL, ...)
 \arguments{
 \item{x, result}{The object to plot.}
 
-\item{outcome}{Outcome(s) to show (default all, or the first for
-Monte Carlo results).}
-
 \item{...}{Passed to the underlying graphics function.}
 
-\item{economics}{Optional economics list (see \code{\link[=value_losses]{value_losses()}}).}
+\item{valuation}{Optional valuation list (see \code{\link[=contribution_table]{contribution_table()}}), or
+for several analyses a list of them named after the analyses.}
 
 \item{probs}{Interval bounds for Monte Carlo plots.}
 
@@ -42,19 +43,20 @@ The input, invisibly.
 \description{
 Base-graphics plots for the main result types:
 \itemize{
-\item \verb{plot(<cm_result>)}: raw and adjusted impacts by disease, one panel per
-outcome.
-\item \code{plot_burden()}: each disease's share of the burden per outcome (main
-effects and interaction shares), or monetary losses if \code{economics} is
-given.
+\item \verb{plot(<cm_result>)}: raw and adjusted impacts by disease;
+\verb{plot(<cm_results>)} one panel per analysis.
+\item \code{plot_burden()}: each disease's contribution to the aggregate (main
+effect and interaction share), or its share of the value with
+\code{valuation}; for several analyses, one bar per analysis.
 \item \verb{plot(<cm_mc>)}: Monte Carlo means and intervals of adjusted impacts.
-\item \verb{plot(<cm_screen>)}: the most influential pairs from
-\code{\link[=screen_associations]{screen_associations()}} or \code{\link[=screen_interactions]{screen_interactions()}}.
+\item \verb{plot(<cm_screen>)}: the most influential scenarios from
+\code{\link[=screen_associations]{screen_associations()}}, \code{\link[=screen_interactions]{screen_interactions()}} or
+\code{\link[=screen_three_way]{screen_three_way()}}.
 \item \verb{plot(<cm_oat>)}: tornado plot from \code{\link[=sensitivity_oat]{sensitivity_oat()}}.
 }
 }
 \examples{
 res <- deconflate(example_uk_dairy_2022(), method = "published")
-plot(res, outcome = "yield")
+plot(res$yield)
 plot_burden(res)
 }

@@ -4,26 +4,26 @@
 \alias{contribution_table}
 \title{Contribution table}
 \usage{
-contribution_table(result, economics = NULL)
+contribution_table(result, valuation = NULL)
 }
 \arguments{
 \item{result}{A \code{\link[=deconflate]{deconflate()}} result.}
 
-\item{economics}{Optional list with \code{observed} and \code{unit_value} (see
-\code{\link[=value_losses]{value_losses()}}). Hazard-ratio outcomes are valued with
-\code{\link[=attributable_risk]{attributable_risk()}} (\code{observed} = overall risk, \code{unit_value} = value
-per animal removed).}
+\item{valuation}{Optional list with \code{observed}, \code{direction}, \code{effect} and
+(optionally) \code{unit_value}, passed to \code{\link[=productivity_gap]{productivity_gap()}} and
+\code{\link[=value_losses]{value_losses()}}.}
 }
 \value{
-A data frame. Burden columns are \code{NA} for hazard-ratio outcomes.
+A data frame.
 }
 \description{
-One row per outcome and disease with raw and adjusted impacts, the
-disease's burden (Shapley share of the expected loss, including any
-interaction share) and, if \code{economics} is given, the attributed gap and
-its monetary value.
+One row per disease with raw and adjusted impacts and the disease's
+contribution to the aggregate (its Shapley share, including any
+interaction share). With \code{valuation}, the attributed gap and its value are
+added (see \code{\link[=productivity_gap]{productivity_gap()}} and \code{\link[=value_losses]{value_losses()}}).
 }
 \examples{
-contribution_table(deconflate(example_uk_dairy_2022(), method = "published"),
-                   uk_dairy_2022_economics())
+contribution_table(deconflate(example_supplement()),
+                   list(observed = 10000, direction = "decrease", effect = "percent",
+                        unit_value = 0.3))
 }

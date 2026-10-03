@@ -56,7 +56,9 @@ interval for \code{dist_lognormal_ci()}.}
 \item{weights}{Mixture weights (normalised internally).}
 }
 \value{
-A \code{cm_dist} object.
+A \code{cm_dist} object, with the quantile function \code{q}, distribution
+function \code{p}, log-density \code{logd}, sampler \code{r}, \code{mean}, and its support
+(\code{lower}, \code{upper}; \code{discrete = TRUE} for point masses).
 }
 \description{
 Constructors for the distributions used by \code{\link[=cm_sampler]{cm_sampler()}}. Each returns a

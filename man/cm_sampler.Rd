@@ -9,8 +9,7 @@ cm_sampler(
   diseases = list(),
   associations = list(),
   impacts = list(),
-  interactions = list(),
-  outcome_correlation = NULL
+  interactions = list()
 )
 }
 \arguments{
@@ -21,23 +20,17 @@ cm_sampler(
 \item{associations}{Named list of \code{cm_dist}, names \code{"d1:d2"} (either
 order) matching rows of the model's associations.}
 
-\item{impacts}{Named list of \code{cm_dist}, names \code{"outcome:disease"}.}
+\item{impacts}{Named list of \code{cm_dist}, names = disease ids.}
 
-\item{interactions}{Named list of \code{cm_dist}, names \code{"outcome:d1:d2"}.}
-
-\item{outcome_correlation}{Optional correlation matrix with row and column
-names equal to outcome labels. Within each disease, the impacts on these
-outcomes are drawn with this correlation (Gaussian copula); marginal
-distributions are unchanged. Impacts of different diseases stay
-independent.}
+\item{interactions}{Named list of \code{cm_dist}, names \code{"d1:d2"} (either order)
+matching rows of the model's interactions.}
 }
 \value{
 A function of the draw index returning a \code{\link[=cm_model]{cm_model()}}, with
-attributes \code{specs} (the distributions, keyed as in \code{params} of
-\code{\link[=cm_monte_carlo]{cm_monte_carlo()}}) and \code{correlated} (keys drawn through the copula).
-The function also accepts \code{u} (named uniforms, for stratified sampling)
-and \code{values} (named input values that replace draws, for importance
-sampling); \code{\link[=cm_monte_carlo]{cm_monte_carlo()}} uses these.
+attribute \code{specs} (the distributions, keyed as in \code{params}). It also
+accepts \code{u} (named uniforms, for stratified sampling) and \code{values} (named
+input values that replace draws, for importance sampling and for batch
+runs); \code{\link[=cm_monte_carlo]{cm_monte_carlo()}} uses these.
 }
 \description{
 Creates a function that, for each draw, copies \code{model} and replaces
@@ -51,15 +44,19 @@ Draws are on the scale the inputs were entered on:
 \item diseases: the \code{value} given to \code{\link[=cm_diseases]{cm_diseases()}} (e.g. an incidence rate,
 converted to a probability as specified by its \code{type});
 \item associations: the association measure (e.g. odds ratio);
-\item impacts and interactions: the input scale (e.g. percent, if entered as
-percent).
+\item impacts and interactions: their own units.
 }
 
 A draw that produces an impossible input (a probability outside (0, 1), a
-non-positive odds ratio) is rejected by \code{\link[=cm_monte_carlo]{cm_monte_carlo()}} and counted.
+non-positive odds ratio, a conditional probability below 0 or above 1) is
+rejected by \code{\link[=cm_monte_carlo]{cm_monte_carlo()}} and counted.
+
+Keys (as in \code{params} of \code{\link[=cm_monte_carlo]{cm_monte_carlo()}}): \verb{prob:<disease>},
+\verb{assoc:<d1>:<d2>}, \verb{impact:<disease>} and \verb{inter:<d1>:<d2>}.
 }
 \examples{
-m <- example_supplement()
-s <- cm_sampler(m, associations = list("d1:d2" = dist_lognormal_ci(2, 1.4, 2.9)))
+s <- cm_sampler(example_supplement(),
+                associations = list("d1:d2" = dist_lognormal_ci(2, 1.4, 2.9)),
+                impacts = list(d1 = dist_normal(2.5, 0.5)))
 s(1)$associations
 }

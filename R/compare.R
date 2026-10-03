@@ -3,67 +3,75 @@
 #' Runs several adjustment methods on the same inputs and tabulates the
 #' results side by side:
 #' * `"published"`: the simple proportional approximation used in Rasmussen
-#'   et al. (2022, 2024) (eq. 16; for hazard ratios, `HR - 1` as in 2024);
+#'   et al. (2022, 2024) (eq. 16);
 #' * `"simultaneous"`: the exact solution of the system of equations;
 #' * `"global"`: the iterative (maximum-entropy) model of disease
 #'   combinations, which can also include interactions.
 #'
-#' For a model, every method is run on the model's inputs. For a Monte Carlo
-#' run made with several methods (`cm_monte_carlo(..., method = c(...))`),
-#' the methods were applied to identical draws, and the table compares their
-#' summaries.
+#' For a model, every method is run on the model's inputs; methods that
+#' cannot be run (e.g. the published approximation for adjusted estimands)
+#' are reported with the reason. For [cm_analyses()], each analysis is
+#' compared and the tables are stacked. For a hazard-ratio model, the
+#' methods of [deconflate_hr()] are compared. For a Monte Carlo run made with
+#' several methods, the methods were applied to identical draws, and their
+#' summaries are compared.
 #'
-#' @param x A [cm_model()], or a `cm_mc` object from [cm_monte_carlo()] run
-#'   with more than one method.
-#' @param methods Methods to compare (models only).
-#' @param economics Optional economics list (see [value_losses()]; for
-#'   hazard-ratio outcomes, [attributable_risk()]). Adds gaps and values per
-#'   method to `totals`.
-#' @param stat For Monte Carlo runs: the statistic to compare, `"mean"`,
-#'   `"median"` or `"trimmed_mean"`.
-#' @param ... Passed to [deconflate()] (models) or [summary.cm_mc()] (Monte
-#'   Carlo runs).
-#' @return A `cm_comparison` object with:
-#'   * `impacts`: one row per outcome and disease, with the raw impact and
-#'     one column of adjusted impacts per method;
-#'   * `change`: the same layout with the relative change from the raw
-#'     impact;
-#'   * `long`: the same information in long format, with sign-change flags
-#'     (Monte Carlo: the summary statistics and stability flags per method);
-#'   * `totals`: per outcome and method, the expected loss before and after
-#'     adjustment and, with `economics`, the gap and its value;
-#'   * `total_value`: total value per method (with `economics`);
-#'   * `diagnostics`: [deconflate()] diagnostics per method (models);
-#'   * `failed`: methods that could not be run, with the reason.
+#' @param x A [cm_model()], [cm_analyses()], [cm_hr_model()], or a `cm_mc`
+#'   object from [cm_monte_carlo()] run with more than one method.
+#' @param methods Methods to compare.
+#' @param valuation Optional valuation list for models (see
+#'   [contribution_table()]), or a named list of them (one per analysis) for
+#'   [cm_analyses()] (analyses without one are not valued); adds the gap and
+#'   value per method to `totals`.
+#' @param overall_risk For hazard-ratio models: optional overall risk, adding
+#'   the attributable risk per method (see [attributable_risk()]).
+#' @param stat For Monte Carlo runs: `"mean"`, `"median"` or
+#'   `"trimmed_mean"`.
+#' @param ... Passed to [deconflate()] or [deconflate_hr()] (for Monte Carlo
+#'   runs, to [summary.cm_mc()]).
+#' @return A `cm_comparison` object with `impacts` (raw and adjusted values,
+#'   one column per method), `change` (relative change from raw), `long`
+#'   (long format with sign-change flags, or the Monte Carlo summaries),
+#'   `totals` (aggregate per method, with gap and value if requested),
+#'   `diagnostics`, `failed` (methods that could not be run, or whose
+#'   valuation or attributable risk could not be computed, with reasons; their
+#'   `totals` are `NA`) and `methods`.
 #' @export
 #' @examples
-#' cmp <- compare_methods(example_uk_dairy_2022(), economics = uk_dairy_2022_economics())
-#' cmp
-#' cmp$totals
+#' compare_methods(example_supplement())
 compare_methods <- function(x, ...) UseMethod("compare_methods")
 
 #' @rdname compare_methods
 #' @export
 compare_methods.cm_model <- function(x, methods = c("published", "simultaneous", "global"),
-                                     economics = NULL, ...) {
-  methods <- unique(match.arg(methods, c("published", "simultaneous", "global"),
-                              several.ok = TRUE))
+                                     valuation = NULL, ...) {
+  methods <- unique(match.arg(methods, c("published", "simultaneous", "global"), several.ok = TRUE))
   res <- list()
   failed <- character(0)
   for (m in methods) {
-    r <- tryCatch(
-      withCallingHandlers(deconflate(x, method = m, warn = FALSE, ...),
-                          deconflate_nonconvergence = function(w) invokeRestart("muffleWarning")),
-      deconflate_error = function(e) e
-    )
+    r <- tryCatch(deconflate(x, method = m, warn = FALSE, ...), deconflate_error = function(e) e)
     if (inherits(r, "condition")) failed[m] <- conditionMessage(r) else res[[m]] <- r
   }
   if (!length(res)) {
     cm_abort(sprintf("All methods failed: %s", paste(names(failed), failed, sep = ": ", collapse = "; ")))
   }
+  # A valuation that cannot be evaluated for a method (e.g. an aggregate loss
+  # of 100% or more) is reported, not fatal.
+  vals <- list()
+  if (!is.null(valuation)) {
+    check_valuation(valuation)
+    for (m in names(res)) {
+      ev <- tryCatch(evaluate_valuation(res[[m]], valuation), deconflate_error = function(e) e)
+      if (inherits(ev, "condition")) {
+        failed[m] <- paste("valuation:", conditionMessage(ev))
+      } else {
+        vals[[m]] <- ev
+      }
+    }
+  }
   ok <- names(res)
   base <- res[[1]]$adjusted
-  impacts <- base[, c("outcome", "disease", "scale", "raw")]
+  impacts <- base[, c("disease", "raw")]
   change <- impacts
   for (m in ok) {
     impacts[[m]] <- res[[m]]$adjusted$adjusted
@@ -71,47 +79,136 @@ compare_methods.cm_model <- function(x, methods = c("published", "simultaneous",
   }
   long <- do.call(rbind, lapply(ok, function(m) {
     a <- res[[m]]$adjusted
-    hr <- a$scale == "hazard_ratio"
-    ex_raw <- ifelse(hr, a$raw - 1, a$raw)
-    ex_adj <- ifelse(hr, a$adjusted - 1, a$adjusted)
-    data.frame(outcome = a$outcome, disease = a$disease, method = m, raw = a$raw,
-               adjusted = a$adjusted, change = a$change,
-               sign_change = is.finite(ex_adj) & abs(ex_raw) > 1e-12 & abs(ex_adj) > 1e-12 &
-                 sign(ex_adj) != sign(ex_raw),
+    data.frame(disease = a$disease, method = m, raw = a$raw, adjusted = a$adjusted,
+               change = a$change, contribution = res[[m]]$contributions$total,
+               sign_change = is.finite(a$adjusted) & abs(a$raw) > 1e-12 & abs(a$adjusted) > 1e-12 &
+                 sign(a$adjusted) != sign(a$raw),
                stringsAsFactors = FALSE)
   }))
-  P <- stats::setNames(x$diseases$prob, x$diseases$id)
-  total_value <- NULL
   totals <- do.call(rbind, lapply(ok, function(m) {
     r <- res[[m]]
-    b <- attribute_burden(r)
-    add <- r$adjusted[r$adjusted$scale != "hazard_ratio", , drop = FALSE]
-    tt <- if (nrow(add)) {
-      do.call(rbind, lapply(split(add, add$outcome), function(a) {
-        data.frame(outcome = a$outcome[1], method = m,
-                   raw_loss = sum(a$raw * P[a$disease]),
-                   adjusted_loss = sum(b$total[b$outcome == a$outcome[1]]),
-                   stringsAsFactors = FALSE)
-      }))
-    } else {
-      data.frame(outcome = character(0), method = character(0), raw_loss = numeric(0),
-                 adjusted_loss = numeric(0), stringsAsFactors = FALSE)
-    }
-    if (!is.null(economics)) {
-      ev <- evaluate_economics(r, economics, allocate = FALSE)
-      ev_tab <- merge(ev$summary, ev$by_outcome, by = "outcome", sort = FALSE)
-      ev_tab$method <- m
-      tt <- merge(tt, ev_tab, by = c("outcome", "method"), all = TRUE, sort = FALSE)
-      total_value <<- c(total_value, stats::setNames(ev$total, m))
+    tt <- data.frame(method = m, raw_sum = r$totals$raw_sum, adjusted_total = r$totals$adjusted_total,
+                     stringsAsFactors = FALSE)
+    if (!is.null(valuation)) {
+      ev <- vals[[m]]
+      tt$gap <- if (is.null(ev)) NA_real_ else ev$gap$summary$gap
+      if (!is.null(valuation$unit_value)) tt$value <- if (is.null(ev)) NA_real_ else ev$value$value
     }
     tt
   }))
-  rownames(totals) <- NULL
   diagnostics <- do.call(rbind, lapply(ok, function(m) res[[m]]$diagnostics))
+  rownames(totals) <- NULL
   rownames(diagnostics) <- NULL
   structure(list(impacts = impacts, change = change, long = long, totals = totals,
-                 total_value = total_value, diagnostics = diagnostics, failed = failed,
-                 methods = ok, source = "model", results = res),
+                 diagnostics = diagnostics, failed = failed, methods = ok, source = "model",
+                 units = res[[1]]$units, label = res[[1]]$label, results = res),
+            class = "cm_comparison")
+}
+
+#' @rdname compare_methods
+#' @export
+compare_methods.cm_analyses <- function(x, methods = c("published", "simultaneous", "global"),
+                                        valuation = NULL, ...) {
+  nms <- names(x$models)
+  # One valuation per analysis: a single valuation list would otherwise be
+  # ignored silently (its elements are not named after analyses).
+  if (!is.null(valuation) && (!is.list(valuation) || is.null(names(valuation)) ||
+                              length(setdiff(names(valuation), nms)))) {
+    cm_abort(sprintf("For cm_analyses, `valuation` must be a list named after the analyses (%s), each element a valuation list.",
+                     paste(nms, collapse = ", ")))
+  }
+  # The global method needs one joint distribution for all analyses.
+  dots <- list(...)
+  if ("global" %in% methods && is.null(dots$joint)) {
+    fj <- dots[intersect(names(dots), c("tol", "max_iter", "max_diseases"))]
+    j <- tryCatch(withCallingHandlers(do.call(fit_joint, c(list(x$population), fj)),
+                                      deconflate_nonconvergence = function(w) invokeRestart("muffleWarning")),
+                  deconflate_error = function(e) NULL)
+    if (!is.null(j)) dots$joint <- j
+  }
+  cmps <- lapply(nms, function(nm) {
+    do.call(compare_methods, c(list(x$models[[nm]], methods = methods, valuation = valuation[[nm]]),
+                               dots))
+  })
+  names(cmps) <- nms
+  # Analyses can have different columns (e.g. a method that failed in one
+  # analysis only, or a valuation for some analyses): fill with NA.
+  stack <- function(el) {
+    parts <- lapply(nms, function(nm) {
+      d <- cmps[[nm]][[el]]
+      if (is.null(d) || !nrow(d)) return(NULL)
+      cbind(analysis = nm, d, stringsAsFactors = FALSE)
+    })
+    parts <- parts[!vapply(parts, is.null, logical(1))]
+    if (!length(parts)) return(NULL)
+    cols <- unique(unlist(lapply(parts, names)))
+    parts <- lapply(parts, function(d) {
+      for (cl in setdiff(cols, names(d))) d[[cl]] <- NA
+      d[cols]
+    })
+    out <- do.call(rbind, parts)
+    rownames(out) <- NULL
+    out
+  }
+  failed <- unlist(lapply(nms, function(nm) {
+    f <- cmps[[nm]]$failed
+    if (length(f)) stats::setNames(f, paste(nm, names(f), sep = ": ")) else NULL
+  }))
+  structure(list(impacts = stack("impacts"), change = stack("change"), long = stack("long"),
+                 totals = stack("totals"), diagnostics = stack("diagnostics"),
+                 failed = failed %||% character(0),
+                 methods = unique(unlist(lapply(cmps, `[[`, "methods"))),
+                 source = "analyses", comparisons = cmps),
+            class = "cm_comparison")
+}
+
+#' @rdname compare_methods
+#' @export
+compare_methods.cm_hr_model <- function(x, methods = c("published", "first_order", "snapshot"),
+                                        overall_risk = NULL, ...) {
+  methods <- unique(match.arg(methods, c("published", "first_order", "snapshot"), several.ok = TRUE))
+  if (!is.null(overall_risk)) {
+    check_numeric(overall_risk, "overall_risk")
+    if (length(overall_risk) != 1L || overall_risk <= 0 || overall_risk >= 1) {
+      cm_abort("`overall_risk` must be a single proportion between 0 and 1.")
+    }
+  }
+  res <- list()
+  failed <- character(0)
+  for (m in methods) {
+    r <- tryCatch(deconflate_hr(x, method = m, warn = FALSE, ...), deconflate_error = function(e) e)
+    if (inherits(r, "condition")) failed[m] <- conditionMessage(r) else res[[m]] <- r
+  }
+  if (!length(res)) cm_abort("All methods failed.")
+  ok <- names(res)
+  impacts <- res[[1]]$adjusted[, c("disease", "raw")]
+  change <- impacts
+  for (m in ok) {
+    impacts[[m]] <- res[[m]]$adjusted$adjusted
+    change[[m]] <- res[[m]]$adjusted$change
+  }
+  totals <- NULL
+  if (!is.null(overall_risk)) {
+    joint <- NULL
+    totals <- do.call(rbind, lapply(ok, function(m) {
+      r <- res[[m]]
+      joint <<- joint %||% r$joint %||% res$snapshot$joint %||% fit_joint(x$population)
+      ar <- tryCatch(attributable_risk(r, overall_risk, joint = joint, allocate = FALSE),
+                     deconflate_error = function(e) e)
+      if (inherits(ar, "condition")) {
+        failed[m] <<- paste("attributable risk:", conditionMessage(ar))
+        return(data.frame(method = m, overall_risk = overall_risk, disease_free_risk = NA_real_,
+                          attributable = NA_real_, stringsAsFactors = FALSE))
+      }
+      data.frame(method = m, overall_risk = overall_risk,
+                 disease_free_risk = ar$summary$disease_free_risk,
+                 attributable = ar$summary$attributable, stringsAsFactors = FALSE)
+    }))
+  }
+  diagnostics <- do.call(rbind, lapply(ok, function(m) res[[m]]$diagnostics))
+  structure(list(impacts = impacts, change = change, long = NULL, totals = totals,
+                 diagnostics = diagnostics, failed = failed, methods = ok, source = "hr",
+                 units = "hazard ratio", results = res),
             class = "cm_comparison")
 }
 
@@ -126,67 +223,54 @@ compare_methods.cm_mc <- function(x, stat = c("mean", "median", "trimmed_mean"),
   col <- switch(stat, mean = "mean", median = "q0.5", trimmed_mean = "trimmed_mean")
   if (is.null(s[[col]])) cm_abort("The median needs probs to include 0.5.")
   d <- x$draws
-  if (is.null(d$scale)) d$scale <- NA_character_
-  key <- unique(d[, c("outcome", "disease", "scale")])
-  rownames(key) <- NULL
-  raw <- vapply(seq_len(nrow(key)), function(i) {
-    sel <- d$outcome == key$outcome[i] & d$disease == key$disease[i] & d$method == x$method[1]
+  ids <- unique(d$disease)
+  raw <- vapply(ids, function(id) {
+    sel <- d$disease == id & d$method == x$method[1]
     w <- x$weights[match(d$draw[sel], x$params$draw)]
     sum(w * d$raw[sel]) / sum(w)
   }, numeric(1))
-  impacts <- data.frame(key, raw_mean = raw, stringsAsFactors = FALSE)
-  stability <- key[, c("outcome", "disease")]
+  impacts <- data.frame(disease = ids, raw_mean = unname(raw), stringsAsFactors = FALSE)
+  stability <- data.frame(disease = ids, stringsAsFactors = FALSE)
   for (m in x$method) {
     sm <- s[s$method == m, , drop = FALSE]
-    idx <- match(paste(key$outcome, key$disease), paste(sm$outcome, sm$disease))
+    idx <- match(ids, sm$disease)
     impacts[[m]] <- sm[[col]][idx]
     stability[[m]] <- sm$stability[idx]
   }
-  rownames(impacts) <- NULL
-  totals <- NULL
-  total_value <- NULL
-  if (!is.null(x$losses)) {
-    tt <- summary(x, what = "total", diagnose = FALSE)
-    totals <- tt[, c("outcome", "method", "mean", "q0.5", "trimmed_mean", "stability")]
-    tv <- tt[tt$outcome == "total", , drop = FALSE]
-    total_value <- stats::setNames(tv[[col]], tv$method)
-  }
-  structure(list(impacts = impacts, stability = stability, long = s, totals = totals,
-                 total_value = total_value, failed = character(0), methods = x$method,
-                 source = "mc", stat = stat, n_draws = x$n_draws, n_rejected = x$n_rejected),
+  tt <- summary(x, what = "total", diagnose = FALSE)
+  structure(list(impacts = impacts, stability = stability, long = s,
+                 totals = tt[, c("quantity", "method", "mean", "q0.5", "trimmed_mean", "mcse", "stability")],
+                 failed = character(0), methods = x$method, source = "mc", stat = stat,
+                 n_draws = x$n_draws, n_rejected = x$n_rejected, units = x$units),
             class = "cm_comparison")
 }
 
 #' @export
 print.cm_comparison <- function(x, digits = 3, ...) {
   cat(sprintf("<cm_comparison> methods: %s\n", paste(x$methods, collapse = ", ")))
+  if (!is.null(x$units)) cat(sprintf("Units: %s\n", x$units))
   if (identical(x$source, "mc")) {
     cat(sprintf("Monte Carlo: %d draws (%d rejected); statistic: %s\n",
                 x$n_draws, x$n_rejected, x$stat))
   }
   tab <- x$impacts
   num <- vapply(tab, is.numeric, logical(1))
-  if (!is.null(tab$scale)) {
-    pct <- !is.na(tab$scale) & tab$scale == "proportion"
-    tab[pct, num] <- tab[pct, num] * 100
-    tab$scale <- ifelse(pct, "%", ifelse(!is.na(tab$scale) & tab$scale == "hazard_ratio", "HR", tab$scale))
-    names(tab)[names(tab) == "scale"] <- "unit"
-  }
   tab[num] <- lapply(tab[num], signif, digits = digits)
-  cat("\nAdjusted impacts:\n")
+  cat("\nAdjusted values:\n")
   print(tab, row.names = FALSE)
-  if (identical(x$source, "model")) {
+  if (!is.null(x$long) && !is.null(x$long$sign_change)) {
     sc <- x$long[x$long$sign_change, , drop = FALSE]
     if (nrow(sc)) {
-      cat("\nSign changes (adjusted impact on the other side of zero, or of 1 for hazard ratios):\n")
+      cat("\nSign changes (adjusted impact on the other side of zero from the raw impact):\n")
       for (m in unique(sc$method)) {
         s <- sc[sc$method == m, , drop = FALSE]
-        cat(sprintf("  %s: %s\n", m, paste(sprintf("%s %s", s$outcome, s$disease), collapse = ", ")))
+        lab <- if (!is.null(s$analysis)) paste(s$analysis, s$disease) else s$disease
+        cat(sprintf("  %s: %s\n", m, paste(lab, collapse = ", ")))
       }
     }
-  } else {
-    st <- x$stability
-    flagged <- vapply(x$methods, function(m) sum(st[[m]] != "ok", na.rm = TRUE), numeric(1))
+  }
+  if (!is.null(x$stability)) {
+    flagged <- vapply(x$methods, function(m) sum(x$stability[[m]] != "ok", na.rm = TRUE), numeric(1))
     if (any(flagged > 0)) {
       cat(sprintf("\nUnstable estimates per method: %s (see cm_diagnose()).\n",
                   paste(sprintf("%s %d", x$methods, flagged), collapse = ", ")))
@@ -199,12 +283,8 @@ print.cm_comparison <- function(x, digits = 3, ...) {
     tt[nn] <- lapply(tt[nn], signif, digits = 4)
     print(tt, row.names = FALSE)
   }
-  if (!is.null(x$total_value)) {
-    cat(sprintf("\nTotal value: %s\n",
-                paste(sprintf("%s %.2f", names(x$total_value), x$total_value), collapse = "; ")))
-  }
   if (length(x$failed)) {
-    cat("\nFailed:\n")
+    cat("\nNot run (or not valued):\n")
     for (m in names(x$failed)) cat(sprintf("  %s: %s\n", m, x$failed[[m]]))
   }
   invisible(x)

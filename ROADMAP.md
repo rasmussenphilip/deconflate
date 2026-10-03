@@ -21,12 +21,14 @@
 
 ## v0.2 (in progress)
 
-- [x] Culling hazard ratios: exact multiplicative model (global), first-order log-linear (simultaneous) and the 2024 approach (published).
+- [x] Culling hazard ratios: a separate multiplicative adapter (`deconflate_hr()`: snapshot, first-order and published) with stratified adjustment sets.
 - [x] `attributable_risk()`: culling attributable to disease without double counting, with Shapley allocation.
-- [x] Reading inputs from CSV files or data frames, with all problems reported at once; template files.
-- [x] Method comparison tables for models and for Monte Carlo runs (several methods on the same draws).
-- [x] Monte Carlo stability diagnostics with suggestions; Latin hypercube and importance sampling.
-- [ ] Run `devtools::document()`, `test()` and `check()`, and fix any issues.
+- [x] Reading inputs from CSV files or data frames, with all problems reported at once; template files; one impact file per analysis.
+- [x] Method comparison tables for models, analyses, hazard-ratio models and Monte Carlo runs.
+- [x] Monte Carlo stability diagnostics with suggestions; Latin hypercube (replicate blocks) and importance sampling (support checks).
+- [x] External review (Bob): one impact vector per analysis in arbitrary units; explicit estimands with the exact projection mapping for additive-regression coefficients; feasibility screening by default; condition classes; three-way scenarios; complete Shapley allocation; reproduction functions; the reviewer's regression tests.
+- [x] Run `devtools::document()`, `test()` and `check()`, and fix any issues.
+- [ ] Tag v0.2.0.
 
 ## To discuss
 

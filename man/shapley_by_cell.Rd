@@ -4,7 +4,7 @@
 \alias{shapley_by_cell}
 \title{Shapley attribution of a general loss function over disease combinations}
 \usage{
-shapley_by_cell(joint, loss, max_present = 10L)
+shapley_by_cell(joint, loss, max_present = Inf)
 }
 \arguments{
 \item{joint}{A \code{\link[=fit_joint]{fit_joint()}} result.}
@@ -13,13 +13,18 @@ shapley_by_cell(joint, loss, max_present = 10L)
 returning the loss for an animal with those diseases; a loss of zero for
 no disease is assumed. See \code{\link[=loss_additive]{loss_additive()}} and \code{\link[=loss_multiplicative]{loss_multiplicative()}}.}
 
-\item{max_present}{Cells with more diseases present than this are skipped;
-the skipped probability mass is reported.}
+\item{max_present}{Cells with more diseases present than this are skipped
+(the cost grows as 2^k for a cell with k diseases). The default skips
+nothing. Skipped cells are reported: their probability (\code{skipped_mass})
+and their expected loss (\code{skipped_loss}), which is the part of the total
+that is not allocated.}
 }
 \value{
-A data frame with each disease's expected Shapley value and share,
-with attributes \code{total} (expected loss over the cells evaluated) and
-\code{skipped_mass}.
+A data frame with each disease's expected Shapley value and share
+(of the allocated amount, which is the total only when no cell is
+skipped), with attributes \code{total} (expected loss over all cells),
+\code{allocated} (the sum of the Shapley values), \code{skipped_mass} and
+\code{skipped_loss}.
 }
 \description{
 Computes each disease's expected Shapley value for an arbitrary loss

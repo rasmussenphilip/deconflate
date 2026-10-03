@@ -7,24 +7,28 @@
 cm_check_inputs(
   diseases = NULL,
   associations = NULL,
+  three_way = NULL,
   impacts = NULL,
   interactions = NULL,
   uncertainty = NULL,
+  hazard_ratios = NULL,
   dir = NULL,
   missing_associations = c("independent", "unknown"),
-  outcome_correlation = NULL
+  adjusted_associations = c("error", "use_as_marginal")
 )
 }
 \arguments{
-\item{diseases, associations, impacts, interactions, uncertainty}{Paths to CSV
-files or data frames. \code{NULL} tables are taken from \code{dir} (if given) or
-left out.}
+\item{diseases, associations, three_way, hazard_ratios}{Paths to CSV files or
+data frames.}
 
-\item{dir}{Optional folder with the CSV files named as above.}
+\item{impacts, interactions, uncertainty}{A path or data frame, or a named
+list of them (one per analysis; see Files).}
 
-\item{missing_associations}{Passed to \code{\link[=cm_model]{cm_model()}}.}
+\item{dir}{Optional folder with CSV files named as in Files. Arguments
+given explicitly take precedence over files.}
 
-\item{outcome_correlation}{Passed to \code{\link[=cm_sampler]{cm_sampler()}}.}
+\item{missing_associations, adjusted_associations}{Passed to
+\code{\link[=cm_population]{cm_population()}}.}
 }
 \value{
 A data frame (class \code{cm_problems}) with \code{table}, \code{row}, \code{column},
@@ -38,6 +42,6 @@ without stopping.
 \examples{
 cm_check_inputs(
   diseases = data.frame(id = c("d1", "d2"), value = c(0.10, 1.5)),
-  impacts = data.frame(disease = c("d1", "d3"), outcome = "yield", value = c(2, "x"))
+  impacts = data.frame(disease = c("d1", "d3"), value = c(2, "x"))
 )
 }

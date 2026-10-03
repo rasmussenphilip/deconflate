@@ -1,5 +1,12 @@
 key,dist,p1,p2,p3,p4,note
-prob:LAM,beta,78.29,227.42,,,
-assoc:LAM:SCK,normal,2.01,,,,"Error: normal needs a standard deviation"
+prob:LAM,beta,78.29,227.42,,,"beta(shape1, shape2)"
+assoc:LAM:SCK,normal,2.01,,,,"Error: normal needs a standard deviation (p2)"
+assoc:LAM:RP,normal,1.50,0.31,0,,"Error: LAM:RP is not in associations.csv"
 impact:yield:CM,normal,4.81,0.87,,,"Error: CM is not a disease"
-impact:culling:LAM,lognormal_ci,1.74,1.40,2.10,,
+impact:culling:LAM,lognormal_ci,1.74,1.40,2.10,,"Error: there is no analysis named culling (hazard ratios cannot be given distributions here)"
+impact:LAM,normal,4.81,0.87,,,"Error: with several analyses the key must name one (impact:yield:LAM)"
+impact:yield:SCK,pert,9.0,8.40,12.0,,"Error: PERT needs min <= mode <= max"
+impact:fertility:LAM,pert,1.19,3.30,10.71,,"pert(min, mode, max)"
+inter:yield:LAM:SCK,normal,0.5,0.2,,,"Error: yield has no interaction LAM:SCK (no interactions_yield.csv)"
+milk_price,uniform,0.30,0.40,,,"Error: keys start with prob:, assoc:, impact: or inter:"
+impact:yield:RP,gamma,2,1,,,"Error: unknown distribution"

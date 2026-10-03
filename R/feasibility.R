@@ -18,7 +18,7 @@
 #'   needed for each pair identifies the conflicting associations. This is
 #'   exact, and requires the `lpSolve` package.
 #'
-#' @param model A [cm_model()].
+#' @param model A [cm_population()] or [cm_model()].
 #' @param method `"auto"` (both checks if `lpSolve` is installed and the
 #'   number of diseases is at most `max_lp_diseases`, otherwise triples
 #'   only), `"triples"` or `"lp"`.
@@ -33,44 +33,19 @@
 #' check_feasibility(example_supplement())
 #'
 #' # Three strongly linked diseases that cannot all be associated this way:
-#' bad <- cm_model(
+#' bad <- cm_population(
 #'   cm_diseases(c("a", "b", "c"), c(0.5, 0.5, 0.5)),
 #'   cm_associations(c("a", "a", "b"), c("b", "c", "c"), c(20, 20, 0.05))
 #' )
 #' check_feasibility(bad, method = "triples")
 check_feasibility <- function(model, method = c("auto", "triples", "lp"),
                               max_lp_diseases = 14L, tol = 1e-9) {
-  check_model(model)
+  check_population(model)
   method <- match.arg(method)
   ids <- model$diseases$id
   P <- stats::setNames(model$diseases$prob, ids)
   pt <- pair_tables(model)
-  J <- matrix(NA_real_, length(ids), length(ids), dimnames = list(ids, ids))
-  for (r in seq_len(nrow(pt))) {
-    J[pt$disease1[r], pt$disease2[r]] <- J[pt$disease2[r], pt$disease1[r]] <- pt$p11[r]
-  }
-
-  # Triple screen.
-  tri <- list()
-  if (length(ids) >= 3L) {
-    combos <- utils::combn(length(ids), 3)
-    for (j in seq_len(ncol(combos))) {
-      i3 <- combos[, j]
-      a <- i3[1]; b <- i3[2]; c3 <- i3[3]
-      pab <- J[a, b]; pac <- J[a, c3]; pbc <- J[b, c3]
-      if (anyNA(c(pab, pac, pbc))) next
-      lower <- max(0, pab + pac - P[[a]], pab + pbc - P[[b]], pac + pbc - P[[c3]])
-      upper <- min(pab, pac, pbc, 1 - P[[a]] - P[[b]] - P[[c3]] + pab + pac + pbc)
-      if (lower > upper + tol) {
-        tri[[length(tri) + 1L]] <- data.frame(
-          disease1 = ids[a], disease2 = ids[b], disease3 = ids[c3],
-          gap = lower - upper, stringsAsFactors = FALSE)
-      }
-    }
-  }
-  triples <- if (length(tri)) do.call(rbind, tri) else
-    data.frame(disease1 = character(0), disease2 = character(0),
-               disease3 = character(0), gap = numeric(0))
+  triples <- triple_screen(pt, P, tol)
 
   run_lp <- method == "lp" ||
     (method == "auto" && length(ids) <= max_lp_diseases &&
@@ -90,6 +65,28 @@ check_feasibility <- function(model, method = c("auto", "triples", "lp"),
   structure(list(feasible = feasible, triples = triples, lp = lp_res,
                  method = if (run_lp) "lp + triples" else "triples"),
             class = "cm_feasibility")
+}
+
+# Triple screen: for every triple whose three pairs are constrained, is there
+# a probability of all three that keeps the 2x2x2 table non-negative?
+triple_screen <- function(pt, P, tol = 1e-9) {
+  ids <- names(P)
+  J <- matrix(NA_real_, length(ids), length(ids), dimnames = list(ids, ids))
+  J[cbind(pt$disease1, pt$disease2)] <- pt$p11
+  J[cbind(pt$disease2, pt$disease1)] <- pt$p11
+  empty <- data.frame(disease1 = character(0), disease2 = character(0),
+                      disease3 = character(0), gap = numeric(0), stringsAsFactors = FALSE)
+  if (length(ids) < 3L) return(empty)
+  cb <- utils::combn(length(ids), 3)
+  a <- cb[1, ]; b <- cb[2, ]; c3 <- cb[3, ]
+  pab <- J[cbind(a, b)]; pac <- J[cbind(a, c3)]; pbc <- J[cbind(b, c3)]
+  Pa <- P[a]; Pb <- P[b]; Pc <- P[c3]
+  lower <- pmax(0, pab + pac - Pa, pab + pbc - Pb, pac + pbc - Pc)
+  upper <- pmin(pab, pac, pbc, 1 - Pa - Pb - Pc + pab + pac + pbc)
+  bad <- !is.na(lower) & !is.na(upper) & lower > upper + tol
+  if (!any(bad)) return(empty)
+  data.frame(disease1 = ids[a[bad]], disease2 = ids[b[bad]], disease3 = ids[c3[bad]],
+             gap = unname(lower[bad] - upper[bad]), stringsAsFactors = FALSE)
 }
 
 feasibility_lp <- function(model, pt, P, tol) {

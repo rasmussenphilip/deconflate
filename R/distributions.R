@@ -31,7 +31,9 @@
 #' @param ... `cm_dist` components for `dist_mixture()`.
 #' @param weights Mixture weights (normalised internally).
 #'
-#' @return A `cm_dist` object.
+#' @return A `cm_dist` object, with the quantile function `q`, distribution
+#'   function `p`, log-density `logd`, sampler `r`, `mean`, and its support
+#'   (`lower`, `upper`; `discrete = TRUE` for point masses).
 #' @name distributions
 #' @examples
 #' d <- dist_pert(1.19, 3.30, 10.71)
@@ -40,9 +42,13 @@
 #' dist_lognormal_ci(2.7, 1.5, 4.9)
 NULL
 
-new_dist <- function(type, params, q, p, logd, mean) {
+# `lower`/`upper` give the support; `discrete` marks point masses (fixed
+# values), whose `logd` is a probability mass rather than a density.
+new_dist <- function(type, params, q, p, logd, mean, lower = -Inf, upper = Inf,
+                     discrete = FALSE) {
   structure(list(type = type, params = params, q = q, p = p, logd = logd,
-                 mean = mean, r = function(n) q(stats::runif(n))),
+                 mean = mean, r = function(n) q(stats::runif(n)),
+                 lower = lower, upper = upper, discrete = discrete),
             class = "cm_dist")
 }
 
@@ -54,7 +60,7 @@ dist_fixed <- function(value) {
            q = function(u) rep(value, length(u)),
            p = function(x) as.numeric(x >= value),
            logd = function(x) ifelse(x == value, 0, -Inf),
-           mean = value)
+           mean = value, lower = value, upper = value, discrete = TRUE)
 }
 
 #' @rdname distributions
@@ -62,6 +68,9 @@ dist_fixed <- function(value) {
 dist_normal <- function(mean, sd, lower = -Inf, upper = Inf) {
   check_numeric(c(mean, sd), "mean/sd")
   if (sd <= 0) cm_abort("`sd` must be positive.")
+  if (!is.numeric(c(lower, upper)) || anyNA(c(lower, upper))) {
+    cm_abort("`lower` and `upper` must be numbers (-Inf and Inf for no bound).")
+  }
   if (lower >= upper) cm_abort("`lower` must be below `upper`.")
   Fl <- stats::pnorm(lower, mean, sd)
   Fu <- stats::pnorm(upper, mean, sd)
@@ -75,26 +84,29 @@ dist_normal <- function(mean, sd, lower = -Inf, upper = Inf) {
            p = function(x) pmin(pmax((stats::pnorm(x, mean, sd) - Fl) / Z, 0), 1),
            logd = function(x) ifelse(x < lower | x > upper, -Inf,
                                      stats::dnorm(x, mean, sd, log = TRUE) - log(Z)),
-           mean = m)
+           mean = m, lower = lower, upper = upper)
 }
 
 #' @rdname distributions
 #' @export
 dist_lognormal <- function(meanlog, sdlog) {
+  check_numeric(c(meanlog, sdlog), "meanlog/sdlog")
   if (sdlog <= 0) cm_abort("`sdlog` must be positive.")
   new_dist("lognormal", list(meanlog = meanlog, sdlog = sdlog),
            q = function(u) stats::qlnorm(u, meanlog, sdlog),
            p = function(x) stats::plnorm(x, meanlog, sdlog),
            logd = function(x) stats::dlnorm(x, meanlog, sdlog, log = TRUE),
-           mean = exp(meanlog + sdlog^2 / 2))
+           mean = exp(meanlog + sdlog^2 / 2), lower = 0, upper = Inf)
 }
 
 #' @rdname distributions
 #' @export
 dist_lognormal_ci <- function(estimate, ci_lower, ci_upper, level = 0.95) {
+  check_numeric(c(estimate, ci_lower, ci_upper, level), "estimate/ci_lower/ci_upper/level")
   if (!(ci_lower > 0 && ci_lower < estimate && estimate < ci_upper)) {
     cm_abort("Need 0 < ci_lower < estimate < ci_upper.")
   }
+  if (!(level > 0 && level < 1)) cm_abort("`level` must be between 0 and 1 (e.g. 0.95).")
   z <- stats::qnorm(1 - (1 - level) / 2)
   dist_lognormal(log(estimate), (log(ci_upper) - log(ci_lower)) / (2 * z))
 }
@@ -102,6 +114,7 @@ dist_lognormal_ci <- function(estimate, ci_lower, ci_upper, level = 0.95) {
 #' @rdname distributions
 #' @export
 dist_beta <- function(shape1, shape2, min = 0, max = 1) {
+  check_numeric(c(shape1, shape2, min, max), "shape1/shape2/min/max")
   if (shape1 <= 0 || shape2 <= 0) cm_abort("Beta shape parameters must be positive.")
   if (min >= max) cm_abort("`min` must be below `max`.")
   w <- max - min
@@ -109,12 +122,13 @@ dist_beta <- function(shape1, shape2, min = 0, max = 1) {
            q = function(u) min + w * stats::qbeta(u, shape1, shape2),
            p = function(x) stats::pbeta((x - min) / w, shape1, shape2),
            logd = function(x) stats::dbeta((x - min) / w, shape1, shape2, log = TRUE) - log(w),
-           mean = min + w * shape1 / (shape1 + shape2))
+           mean = min + w * shape1 / (shape1 + shape2), lower = min, upper = max)
 }
 
 #' @rdname distributions
 #' @export
 dist_pert <- function(min, mode, max, lambda = 4) {
+  check_numeric(c(min, mode, max, lambda), "min/mode/max/lambda")
   if (!(min < max && mode >= min && mode <= max)) {
     cm_abort("PERT needs min <= mode <= max and min < max.")
   }
@@ -129,6 +143,7 @@ dist_pert <- function(min, mode, max, lambda = 4) {
 #' @rdname distributions
 #' @export
 dist_pert_mean <- function(min, mean, max, lambda = 4) {
+  check_numeric(c(min, mean, max, lambda), "min/mean/max/lambda")
   mode <- ((lambda + 2) * mean - min - max) / lambda
   if (mode < min || mode > max) {
     cm_abort(sprintf("No PERT distribution on [%g, %g] has mean %g.", min, max, mean))
@@ -139,12 +154,13 @@ dist_pert_mean <- function(min, mean, max, lambda = 4) {
 #' @rdname distributions
 #' @export
 dist_uniform <- function(min, max) {
+  check_numeric(c(min, max), "min/max")
   if (min >= max) cm_abort("`min` must be below `max`.")
   new_dist("uniform", list(min = min, max = max),
            q = function(u) stats::qunif(u, min, max),
            p = function(x) stats::punif(x, min, max),
            logd = function(x) stats::dunif(x, min, max, log = TRUE),
-           mean = (min + max) / 2)
+           mean = (min + max) / 2, lower = min, upper = max)
 }
 
 #' @rdname distributions
@@ -177,7 +193,10 @@ dist_mixture <- function(..., weights = NULL) {
       for (j in seq_len(k)) dens <- dens + w[j] * exp(comps[[j]]$logd(x))
       log(dens)
     },
-    mean = sum(w * vapply(comps, function(cmp) cmp$mean, numeric(1)))
+    mean = sum(w * vapply(comps, function(cmp) cmp$mean, numeric(1))),
+    lower = min(vapply(comps, function(cmp) cmp$lower %||% -Inf, numeric(1))),
+    upper = max(vapply(comps, function(cmp) cmp$upper %||% Inf, numeric(1))),
+    discrete = any(vapply(comps, function(cmp) isTRUE(cmp$discrete), logical(1)))
   )
   # Direct sampling is faster than inverting the mixture distribution function.
   d$r <- function(n) {

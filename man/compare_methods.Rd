@@ -3,6 +3,8 @@
 \name{compare_methods}
 \alias{compare_methods}
 \alias{compare_methods.cm_model}
+\alias{compare_methods.cm_analyses}
+\alias{compare_methods.cm_hr_model}
 \alias{compare_methods.cm_mc}
 \title{Compare adjustment methods}
 \usage{
@@ -11,63 +13,75 @@ compare_methods(x, ...)
 \method{compare_methods}{cm_model}(
   x,
   methods = c("published", "simultaneous", "global"),
-  economics = NULL,
+  valuation = NULL,
+  ...
+)
+
+\method{compare_methods}{cm_analyses}(
+  x,
+  methods = c("published", "simultaneous", "global"),
+  valuation = NULL,
+  ...
+)
+
+\method{compare_methods}{cm_hr_model}(
+  x,
+  methods = c("published", "first_order", "snapshot"),
+  overall_risk = NULL,
   ...
 )
 
 \method{compare_methods}{cm_mc}(x, stat = c("mean", "median", "trimmed_mean"), ...)
 }
 \arguments{
-\item{x}{A \code{\link[=cm_model]{cm_model()}}, or a \code{cm_mc} object from \code{\link[=cm_monte_carlo]{cm_monte_carlo()}} run
-with more than one method.}
+\item{x}{A \code{\link[=cm_model]{cm_model()}}, \code{\link[=cm_analyses]{cm_analyses()}}, \code{\link[=cm_hr_model]{cm_hr_model()}}, or a \code{cm_mc}
+object from \code{\link[=cm_monte_carlo]{cm_monte_carlo()}} run with more than one method.}
 
-\item{...}{Passed to \code{\link[=deconflate]{deconflate()}} (models) or \code{\link[=summary.cm_mc]{summary.cm_mc()}} (Monte
-Carlo runs).}
+\item{...}{Passed to \code{\link[=deconflate]{deconflate()}} or \code{\link[=deconflate_hr]{deconflate_hr()}} (for Monte Carlo
+runs, to \code{\link[=summary.cm_mc]{summary.cm_mc()}}).}
 
-\item{methods}{Methods to compare (models only).}
+\item{methods}{Methods to compare.}
 
-\item{economics}{Optional economics list (see \code{\link[=value_losses]{value_losses()}}; for
-hazard-ratio outcomes, \code{\link[=attributable_risk]{attributable_risk()}}). Adds gaps and values per
-method to \code{totals}.}
+\item{valuation}{Optional valuation list for models (see
+\code{\link[=contribution_table]{contribution_table()}}), or a named list of them (one per analysis) for
+\code{\link[=cm_analyses]{cm_analyses()}} (analyses without one are not valued); adds the gap and
+value per method to \code{totals}.}
 
-\item{stat}{For Monte Carlo runs: the statistic to compare, \code{"mean"},
-\code{"median"} or \code{"trimmed_mean"}.}
+\item{overall_risk}{For hazard-ratio models: optional overall risk, adding
+the attributable risk per method (see \code{\link[=attributable_risk]{attributable_risk()}}).}
+
+\item{stat}{For Monte Carlo runs: \code{"mean"}, \code{"median"} or
+\code{"trimmed_mean"}.}
 }
 \value{
-A \code{cm_comparison} object with:
-\itemize{
-\item \code{impacts}: one row per outcome and disease, with the raw impact and
-one column of adjusted impacts per method;
-\item \code{change}: the same layout with the relative change from the raw
-impact;
-\item \code{long}: the same information in long format, with sign-change flags
-(Monte Carlo: the summary statistics and stability flags per method);
-\item \code{totals}: per outcome and method, the expected loss before and after
-adjustment and, with \code{economics}, the gap and its value;
-\item \code{total_value}: total value per method (with \code{economics});
-\item \code{diagnostics}: \code{\link[=deconflate]{deconflate()}} diagnostics per method (models);
-\item \code{failed}: methods that could not be run, with the reason.
-}
+A \code{cm_comparison} object with \code{impacts} (raw and adjusted values,
+one column per method), \code{change} (relative change from raw), \code{long}
+(long format with sign-change flags, or the Monte Carlo summaries),
+\code{totals} (aggregate per method, with gap and value if requested),
+\code{diagnostics}, \code{failed} (methods that could not be run, or whose
+valuation or attributable risk could not be computed, with reasons; their
+\code{totals} are \code{NA}) and \code{methods}.
 }
 \description{
 Runs several adjustment methods on the same inputs and tabulates the
 results side by side:
 \itemize{
 \item \code{"published"}: the simple proportional approximation used in Rasmussen
-et al. (2022, 2024) (eq. 16; for hazard ratios, \code{HR - 1} as in 2024);
+et al. (2022, 2024) (eq. 16);
 \item \code{"simultaneous"}: the exact solution of the system of equations;
 \item \code{"global"}: the iterative (maximum-entropy) model of disease
 combinations, which can also include interactions.
 }
 }
 \details{
-For a model, every method is run on the model's inputs. For a Monte Carlo
-run made with several methods (\code{cm_monte_carlo(..., method = c(...))}),
-the methods were applied to identical draws, and the table compares their
-summaries.
+For a model, every method is run on the model's inputs; methods that
+cannot be run (e.g. the published approximation for adjusted estimands)
+are reported with the reason. For \code{\link[=cm_analyses]{cm_analyses()}}, each analysis is
+compared and the tables are stacked. For a hazard-ratio model, the
+methods of \code{\link[=deconflate_hr]{deconflate_hr()}} are compared. For a Monte Carlo run made with
+several methods, the methods were applied to identical draws, and their
+summaries are compared.
 }
 \examples{
-cmp <- compare_methods(example_uk_dairy_2022(), economics = uk_dairy_2022_economics())
-cmp
-cmp$totals
+compare_methods(example_supplement())
 }

@@ -4,23 +4,19 @@
 \alias{summary.cm_result}
 \title{Summarise an adjustment result}
 \usage{
-\method{summary}{cm_result}(object, economics = NULL, ...)
+\method{summary}{cm_result}(object, valuation = NULL, ...)
 }
 \arguments{
 \item{object}{A \code{\link[=deconflate]{deconflate()}} result.}
 
-\item{economics}{Optional economics list (see \code{\link[=value_losses]{value_losses()}}). For
-outcomes on the hazard-ratio scale, \code{observed} is the overall risk of
-the event (e.g. the annual culling rate as a proportion) and
-\code{unit_value} the value per animal removed; see \code{\link[=attributable_risk]{attributable_risk()}}.}
+\item{valuation}{Optional valuation list (see \code{\link[=contribution_table]{contribution_table()}}).}
 
 \item{...}{Unused.}
 }
 \value{
-A \code{summary.cm_result} list with \code{method}, \code{diagnostics},
-\code{totals} (expected loss per outcome, raw and adjusted, plus gaps and
-values if \code{economics} is given; hazard-ratio outcomes appear only when
-valued), \code{total_value} and \code{contributions} (\code{\link[=contribution_table]{contribution_table()}}).
+A \code{summary.cm_result} list with \code{method}, \code{label}, \code{units},
+\code{totals} (naive and adjusted aggregate, their difference, and the gap
+and value with \code{valuation}), \code{diagnostics} and \code{contributions}.
 }
 \description{
 Summarise an adjustment result

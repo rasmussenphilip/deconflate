@@ -1,6 +1,7 @@
-disease1,disease2,value,measure,source
-LAM,SCK,2.01,OR,Illustrative
-MET,LAM,6.10,OR,Illustrative
-MET,CM,2.30,OR,"Error: CM is not in diseases.csv"
-SCK,LAM,1.50,OR,"Error: the same pair twice"
-MET,SCK,,OR,"Error: missing value"
+disease1,disease2,value,measure,adjusted,adjusted_for,source
+LAM,SCK,2.01,OR,FALSE,,Illustrative
+MET,LAM,6.10,OR,FALSE,,Illustrative
+MET,CM,2.30,OR,FALSE,,"Error: CM is not in diseases.csv"
+SCK,LAM,1.50,OR,FALSE,,"Error: the same pair as row 1"
+MET,SCK,,OR,FALSE,,"Error: missing value"
+MET,RP,3.53,OR,TRUE,parity; herd,"Error: a covariate-adjusted odds ratio is not a marginal 2x2 association (use the crude odds ratio, or adjusted_associations = 'use_as_marginal' as an approximation)"

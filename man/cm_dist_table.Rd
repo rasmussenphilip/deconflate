@@ -15,10 +15,10 @@ A named list of \code{cm_dist} objects (names = keys).
 \description{
 Converts a table with columns \code{key}, \code{dist} and \code{p1}-\code{p4} (see the
 Columns section of \code{\link[=cm_read_inputs]{cm_read_inputs()}}) into a named list of \code{cm_dist}
-objects.
+objects. Keys are kept as given.
 }
 \examples{
-cm_dist_table(data.frame(key = c("impact:yield:d1", "assoc:d1:d2"),
+cm_dist_table(data.frame(key = c("impact:d1", "assoc:d1:d2"),
                          dist = c("normal", "lognormal_ci"),
                          p1 = c(2.5, 2), p2 = c(0.5, 1.4), p3 = c(NA, 2.9)))
 }

@@ -2,106 +2,135 @@
 % Please edit documentation in R/deconflate.R
 \name{deconflate}
 \alias{deconflate}
+\alias{deconflate.cm_model}
+\alias{deconflate.cm_analyses}
 \title{Adjust raw impact estimates for comorbidity}
 \usage{
-deconflate(
+deconflate(model, ...)
+
+\method{deconflate}{cm_model}(
   model,
   method = c("simultaneous", "published", "global"),
   joint = NULL,
   warn = TRUE,
+  feasibility = c("screen", "lp", "none"),
+  ...
+)
+
+\method{deconflate}{cm_analyses}(
+  model,
+  method = c("simultaneous", "published", "global"),
+  joint = NULL,
   ...
 )
 }
 \arguments{
-\item{model}{A \code{\link[=cm_model]{cm_model()}} with impacts.}
+\item{model}{A \code{\link[=cm_model]{cm_model()}}, or a \code{\link[=cm_analyses]{cm_analyses()}} object (each analysis is
+adjusted in turn).}
+
+\item{...}{Passed to \code{\link[=fit_joint]{fit_joint()}} (method \code{"global"}), or to the method
+for each analysis.}
 
 \item{method}{\itemize{
-\item \code{"simultaneous"} (default): solves the additive equations exactly
-(\verb{(I + t(E)) m = m_raw}) using the pairwise 2x2 tables. No joint
-distribution is needed.
+\item \code{"simultaneous"} (default): solves \verb{raw = A b} exactly using the
+pairwise 2x2 tables. No joint distribution is needed.
 \item \code{"published"}: the proportional approximation of Rasmussen et al.
-(2022), eq. 16: \verb{m[i] = m_raw[i]^2 / (m_raw[i] + sum_k E[k, i] * m_raw[k])}.
-Provided for reproduction and comparison; it can mask incompatible
-inputs because it cannot return negative impacts.
+(2022), eq. 16: \verb{b[i] = raw[i]^2 / (raw[i] + sum_\{k != i\} A[i, k] raw[k])},
+for crude estimates only. Provided for reproduction and comparison;
+it can mask incompatible inputs, and its value is undefined when the
+denominator is zero.
 \item \code{"global"}: fits the maximum-entropy joint distribution
-(\code{\link[=fit_joint]{fit_joint()}}; the "iterative" model) and solves the full equations,
-including any interactions in the model. Unknown pairs are left
-unconstrained. Without interactions and unknown pairs, it equals
-\code{"simultaneous"} for additive outcomes.
+(\code{\link[=fit_joint]{fit_joint()}}; the "iterative" model) and solves the equations
+including any interactions. Unknown pairs are left unconstrained.
+Without interactions and unknown pairs, it equals \code{"simultaneous"}.
 }}
 
-\item{joint}{Optional pre-computed \code{\link[=fit_joint]{fit_joint()}} result for
-\code{method = "global"}.}
+\item{joint}{Optional \code{\link[=fit_joint]{fit_joint()}} result for \code{method = "global"}. It is
+checked against the model (diseases, probabilities, associations and
+three-way terms); impact-only changes do not require a refit.}
 
-\item{warn}{Logical: warn when adjusted impacts change sign or the method
-produces non-finite values?}
+\item{warn}{Logical: warn when adjusted impacts change sign or are not
+finite?}
 
-\item{...}{Passed to \code{\link[=fit_joint]{fit_joint()}}.}
+\item{feasibility}{For the pairwise methods: \code{"screen"} (default; triple
+screen), \code{"lp"} (exact check, needs \code{lpSolve}) or \code{"none"}.}
 }
 \value{
-A \code{cm_result} with elements \code{adjusted} (long data frame of raw and
-adjusted impacts), \code{diagnostics}, \code{conflation} (the matrix \code{A} per
-outcome, with \verb{m_raw = A m + offset}), \code{joint_pairs} (matrix of
-\verb{P(j and k)}), the \code{model}, the \code{joint} fit (global only) and \code{method}.
+A \code{cm_result} with elements:
+\itemize{
+\item \code{adjusted}: raw and adjusted impacts, relative change and estimand;
+\item \code{totals}: the sum of \code{p_i * raw_i} (the naive aggregate), the adjusted
+aggregate and its interaction part;
+\item \code{contributions}: per disease, main and interaction contributions,
+their total and share;
+\item \code{diagnostics}: reconstruction residual, rank and condition number of
+\code{A}, sign changes and the feasibility check;
+\item \code{conflation} (\code{A} and \code{offset}), \code{interactions} (matrix of \code{delta}),
+\code{joint_pairs} (matrix of \verb{P(j and k)}), \code{model}, \code{joint}, \code{method},
+\code{label} and \code{units}.
+For a \code{\link[=cm_analyses]{cm_analyses()}} object, a named list of results (class
+\code{cm_results}).
+}
 }
 \description{
 Raw impact estimates (comparisons of animals with and without a disease)
 are treated as conflations of the disease's own impact and the impacts of
-associated diseases. Under additive impacts, the raw impact of disease \code{i}
-is
+associated diseases. For one vector of additive impacts \code{b} (in any
+units), the raw estimates satisfy
 }
 \details{
-\verb{m_raw[i] = m[i] + sum_k E[k, i] * m[k]}
+\code{raw = A \%*\% b + offset},
 
-and, with pairwise interactions \code{delta}, additionally
-
-\verb{+ sum_k delta[i, k] * P(k | i) + sum_\{j < k; j, k != i\} delta[j, k] * (P(j, k | i) - P(j, k | not i))}.
-
-Impacts flagged with \code{adjusted_for} in \code{\link[=cm_impacts]{cm_impacts()}} have the
-corresponding conflation terms set to zero. This is not yet supported
-for hazard-ratio outcomes with \code{method = "global"}.
-
-The diagnostics report, per outcome: the maximum absolute difference
-between the supplied raw impacts and those reconstructed from the
-adjusted impacts under the model (on the log scale for hazard ratios,
-and on the \code{HR - 1} scale for the published method); the number of
-adjusted impacts whose sign differs from the raw impact (for hazard
-ratios: on which side of 1 they lie); and the condition number of the
-conflation matrix (or of the Jacobian, for the exact hazard model). For
-the published method a non-zero reconstruction residual is expected: it
-measures the approximation error.
+where \code{A} depends on the disease probabilities and associations (and on
+each estimate's estimand), and \code{offset} holds the contribution of any
+pairwise interactions. Results are in the units of the impacts supplied.
 }
-\section{Hazard ratios}{
+\section{Estimands and the conflation matrix}{
 
-Impacts on the \code{"hazard_ratio"} scale (see \code{\link[=cm_impacts]{cm_impacts()}}) are adjusted
-under a multiplicative (Cox-type) model, in which an animal's hazard is
-\verb{h0 * exp(sum_i beta[i] * D[i])} and the adjusted hazard ratio of disease
-\code{i} is \code{exp(beta[i])}:
-\itemize{
-\item \code{"global"} solves the model exactly: the raw hazard ratio of disease \code{i}
-is the ratio of the average hazard among animals with and without \code{i},
-\verb{E[exp(beta . D) | i] / E[exp(beta . D) | not i]}, over the fitted
-distribution of disease combinations. The equations are solved by
-Newton's method.
-\item \code{"simultaneous"} uses the first-order (log-linear) version,
-\verb{log HR_raw = (I + t(E)) beta}, which needs no joint distribution.
-\item \code{"published"} reproduces Rasmussen et al. (2024): \code{HR - 1} is adjusted
-with eq. 16 and 1 is added back.
+For a crude estimate of disease \code{i}, \verb{A[i, k] = P(k | i) - P(k | not i)}
+(the excess probability; Rasmussen et al. 2022, eq. 14). For a coefficient
+from an additive regression adjusted for the diseases \code{S}
+(\code{estimand = "adjusted_linear"} in \code{\link[=cm_impacts]{cm_impacts()}}), \code{A[i, k]} is the
+coefficient of \code{D_i} in the population linear projection of \code{D_k} on
+\code{D_i} and \code{D_S}, and \code{A[i, S] = 0}. These coefficients depend only on the
+pairwise tables. They assume the probabilities and associations describe
+the population the estimates come from. An adjustment set that is
+collinear with the disease is not identifiable and is rejected.
+
+With interactions \code{delta} (global method), the offset of disease \code{i} is
+the corresponding regression coefficient of the interaction burden
+\verb{sum_\{j<k\} delta[j, k] D_j D_k}, which needs the joint distribution of
+disease combinations.
 }
 
-The adjusted values in the result are hazard ratios for all three
-methods. Use \code{\link[=attributable_risk]{attributable_risk()}} to turn them into culling (or
-mortality) attributable to disease.
+\section{Aggregate and contributions}{
+
+The expected aggregate impact per animal is
+\verb{sum_i p_i b_i + sum_\{j<k\} P(j and k) delta[j, k]}. Each disease's
+contribution is its own term plus half of each interaction term it is
+involved in (the closed-form Shapley value); contributions add up to the
+aggregate. Shares are \code{NA} when the aggregate is zero.
+}
+
+\section{Feasibility}{
+
+Pairwise tables can each be valid while no population has all of them
+(an invertible \code{A} does not mean the inputs are feasible). By default the
+pairwise methods screen every triple of diseases (a necessary condition;
+see \code{\link[=check_feasibility]{check_feasibility()}}); \code{feasibility = "lp"} runs the exact check. The
+global method fits the joint distribution, and stops if it does not
+converge.
 }
 
 \examples{
 res <- deconflate(example_supplement())
 res$adjusted
+res$totals
 
-# Culling hazard ratios: exact multiplicative model
+# A coefficient adjusted for one other disease
 m <- example_supplement()
-m$impacts <- combine_impacts(m$impacts,
-  cm_impacts(c("d1", "d2", "d3"), c(1.5, 2.0, 1.3), outcome = "culling",
-             scale = "hazard_ratio"))
-deconflate(m, method = "global")$adjusted
+m$impacts <- cm_impacts(c("d1", "d2", "d3"), c(2.2, 5, 7.5),
+                        estimand = c("adjusted_linear", "crude", "crude"),
+                        adjusted_for = c("d2", NA, NA), units = "\%")
+deconflate(m)$adjusted
 }

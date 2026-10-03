@@ -1,7 +1,7 @@
 """Reference values for deconflate 0.2 (hazard ratios, attributable risk,
 method comparison). Run from this directory: python3 reference_v02.py
 Requires numpy and scipy. Values printed here are hard-coded in
-tests/testthat/test-hazard-ratio.R and test-compare.R.
+tests/testthat/test-hazard.R and test-compare.R.
 """
 import itertools
 from math import factorial

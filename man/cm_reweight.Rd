@@ -10,24 +10,22 @@ cm_reweight(mc, log_ratio)
 \item{mc}{A \code{cm_mc} object.}
 
 \item{log_ratio}{A function taking \code{mc$params} (one row per accepted draw)
-and returning \verb{log(target density / proposal density)} for each row.}
+and returning \verb{log(target density / density of the inputs' own distributions)} for each row. Importance weights from the original run
+are kept.}
 }
 \value{
-\code{mc} with updated \code{weights} and \code{ess} (effective sample size,
-\code{1 / sum(w^2)}). Importance weights from the original run (see the
-\code{proposal} argument of \code{\link[=cm_monte_carlo]{cm_monte_carlo()}}) are kept.
+\code{mc} with updated \code{weights} and \code{ess} (Kish effective sample size,
+\code{1 / sum(w^2)}).
 }
 \description{
 Reweights accepted draws from \code{\link[=cm_monte_carlo]{cm_monte_carlo()}} so that summaries reflect
-a different input distribution, without re-running the adjustment. Weights
-are self-normalised, so densities need only be known up to a constant.
-\code{\link[=cm_scenario]{cm_scenario()}} builds the log-ratio from distributions; use
-\code{cm_reweight()} directly for custom targets.
+a different input distribution, without re-running the adjustment.
+Weights are self-normalised, so densities need only be known up to a
+constant. \code{\link[=cm_scenario]{cm_scenario()}} builds the log-ratio from distributions and
+checks supports; use \code{cm_reweight()} directly for custom targets.
 }
 \details{
-The sampling (proposal) distribution must cover the scenario: give the
-sampler wider spread than the base case (e.g. \code{\link[=dist_mixture]{dist_mixture()}}).
-Reweighting cannot recover rejected draws: if the scenario puts weight
-where draws were infeasible, results are conditional on feasibility.
-Always check the effective sample size.
+Reweighting cannot recover rejected draws: if the target puts weight
+where draws were rejected, results are conditional on acceptance. Always
+check the effective sample size.
 }

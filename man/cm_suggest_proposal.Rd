@@ -4,19 +4,12 @@
 \alias{cm_suggest_proposal}
 \title{Suggest an importance-sampling proposal for an unstable estimate}
 \usage{
-cm_suggest_proposal(
-  mc,
-  outcome,
-  disease,
-  method = NULL,
-  top = 0.02,
-  weight = 0.5
-)
+cm_suggest_proposal(mc, disease, method = NULL, top = 0.02, weight = 0.5)
 }
 \arguments{
 \item{mc}{A \code{cm_mc} object from a \code{\link[=cm_sampler]{cm_sampler()}}-based run.}
 
-\item{outcome, disease}{The estimate to stabilise.}
+\item{disease}{The disease whose adjusted impact is unstable.}
 
 \item{method}{Adjustment method (default: the first in \code{mc}).}
 
@@ -30,15 +23,11 @@ A named list with one \code{cm_dist}, for the \code{proposal} argument of
 }
 \description{
 Finds the sampled input most associated with the most extreme draws of
-one adjusted impact, and builds a defensive mixture proposal for it: half
-the input's own distribution and half a uniform distribution over the
-range of that input in the extreme draws. Re-running \code{\link[=cm_monte_carlo]{cm_monte_carlo()}}
-with this proposal samples the region that produces extreme values more
-often and down-weights it, which reduces the Monte Carlo error when the
-mean exists. Weights are bounded by \code{1 / (1 - weight)}, so the run cannot
-be dominated by a single draw.
-}
-\details{
-It cannot help when the mean does not exist (stability \code{"no_mean"}; see
-\code{\link[=cm_diagnose]{cm_diagnose()}}).
+one adjusted impact, and builds a defensive mixture proposal for it: part
+the input's own distribution and part a uniform distribution over the
+range of that input in the extreme draws (within the input's support).
+The mixture always covers the input's support and bounds the weights by
+\code{1 / (1 - weight)}. It may reduce the Monte Carlo error when the extreme
+values come from that region and the mean exists; it does not guarantee a
+finite variance or better precision, so compare standard errors.
 }

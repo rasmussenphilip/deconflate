@@ -18,40 +18,39 @@ library(deconflate)
 This vignette reproduces the calculations in Rasmussen et al. (2022, *Prev.
 Vet. Med.* 203:105617) and Rasmussen et al. (2024, *J. Dairy Sci.*
 107:6945-6970), and explains where the package's results differ from the
-published tables.
+published tables. `reproduce_rasmussen_2022()` and
+`reproduce_rasmussen_2024()` use the published (eq. 16) method and the
+hazard-ratio conversions of the papers. Those conversions are not offered for
+new analyses (see `vignette("culling-hazard-ratios")`).
 
 ## Supplementary File example (2022)
+
+The impacts are entered in percent, so the adjusted impacts are in percent:
 
 ```{r}
 res <- deconflate(example_supplement(), method = "published")
 res$adjusted[, c("disease", "raw", "adjusted")]
-productivity_gap(res, c(yield = 10000))
+productivity_gap(res, 10000, "decrease", "percent")
 ```
 
 The published gap of 10,225 units (20, 61 and 143 units per disease) comes
-from rounding the adjusted impacts to 0.02, 0.04 and 0.07 before computing
-the gap. Without rounding, the published method gives 10,215.7 units.
+from rounding the adjusted impacts to 2%, 4% and 7% before computing the
+gap. Without rounding, the published method gives 10,215.7 units (21.1, 56.7
+and 137.9 units per disease).
 
 ## UK dairy example (2022, Tables 8-10)
 
 `example_uk_dairy_2022()` contains the 13 diseases, the 19 odds ratios and the
-yield, fertility and culling inputs of Tables 2-6. Culling hazard ratios are
-converted to excess annual culling risk by treating them as odds ratios, as in
-the paper (`culling_method = "or_approx"`).
+yield, fertility and culling inputs of Tables 2-6, as three analyses.
+Following the paper, the culling hazard ratios are converted to excess annual
+culling risks by treating them as odds ratios, and adjusted hazard ratios are
+recovered by rescaling (eq. 23). `uk_dairy_2022_economics()` holds the
+observed means and unit values of Table 1 and the veterinary expenditure.
+`reproduce_rasmussen_2022()` runs the whole calculation:
 
 ```{r}
-m <- example_uk_dairy_2022()
-eco <- uk_dairy_2022_economics()
-res <- deconflate(m, method = "published")
-gaps <- productivity_gap(res, eco$observed)
-gaps$summary
-value_losses(gaps, eco$unit_value, eco$additional)$total
-```
-
-Adjusted culling hazard ratios (Table 8, eq. 23):
-
-```{r}
-adjusted_hr(res, attr(m, "culling_conversion"), method = "published")
+r22 <- reproduce_rasmussen_2022()
+r22
 ```
 
 ### Comparison with Table 9
@@ -95,35 +94,49 @@ does not explain them: it corrects Table 7 only (the dystocia loss taken from
 the literature, GBP 20.97 to GBP 31.92, and the directly aggregated total, now
 GBP 660.26), which is not an input to the comorbidity adjustment.
 
-```{r}
-m389 <- example_uk_dairy_2022(yield_sck = 100 * 340 / 8737)
-y <- deconflate(m389, method = "published")$adjusted
-y[y$outcome == "yield", c("disease", "raw", "adjusted")]
-```
-
-### Corrections the package makes available
-
-* **Exact solution.** `method = "simultaneous"` solves the additive
-  equations instead of approximating them.
-* **Hazard ratios.** `culling_method = "proportional_hazards"` converts
-  hazard ratios to risks under proportional hazards, instead of treating
-  them as odds ratios. This gives larger excess risks.
-* **Additive culling gap.** `culling_scale = "absolute"` subtracts the
-  excess risk from the observed culling rate. The published approach
-  instead treats excess risk as a proportional increase in the rate.
+Adjusted yield impacts (percent) with the printed value of 3.05% and with
+3.89% for subclinical ketosis:
 
 ```{r}
-m2 <- example_uk_dairy_2022(culling_method = "proportional_hazards",
-                            culling_scale = "absolute")
-eco2 <- uk_dairy_2022_economics("absolute")
-res2 <- suppressWarnings(deconflate(m2))
-summary(res2, economics = eco2)
+r389 <- reproduce_rasmussen_2022(yield_sck = 100 * 340 / 8737)
+data.frame(disease = r22$adjusted$disease,
+           sck_3.05 = r22$adjusted$yield,
+           sck_3.89 = r389$adjusted$yield)
 ```
+
+### What the package offers instead
+
+**Exact solution.** `method = "simultaneous"` solves the additive equations
+instead of approximating them. With the same inputs and valuation (the
+culling analysis keeps the paper's conversion), the total including
+veterinary costs falls from GBP 402.25 to 393.13 per cow per year:
+
+```{r}
+uk <- example_uk_dairy_2022()
+eco <- uk_dairy_2022_economics()
+cmp <- compare_methods(uk, methods = c("published", "simultaneous"),
+                       valuation = eco$valuation)
+cmp$totals
+tapply(cmp$totals$value, cmp$totals$method, sum) + sum(eco$additional)
+```
+
+**Hazard ratios.** For new analyses, the culling hazard ratios are adjusted
+with the hazard-ratio adapter, and the culling attributable to disease is
+computed without counting a cow twice. The hazard ratios of Table 6 are
+attached to the example:
+
+```{r}
+hr_uk <- cm_hr_model(uk$population, attr(uk, "hazard_ratios"))
+compare_methods(hr_uk, overall_risk = 0.27, joint = fit_joint(uk$population))
+```
+
+The attributable risk times the replacement price (GBP 1335.36) gives its
+value per cow and year; `attributable_risk()` does this with `unit_value`.
 
 ## Global dairy analysis (2024, Table 5)
 
 Table 5 reports the means of comorbidity-adjusted impacts over 50,000 Monte
-Carlo draws per outcome. `sampler_global_dairy()` encodes the input
+Carlo draws per analysis. `sampler_global_dairy()` encodes the input
 distributions. By default (`inputs = "analysis"`) it follows the published
 analysis code rather than the printed tables:
 
@@ -138,27 +151,21 @@ analysis code rather than the printed tables:
 * **Culling** was adjusted on the hazard ratio scale: HR - 1 was adjusted,
   and 1 was added back. Normal standard deviations were scaled by
   (HR - 1) / HR, and metritis used a PERT distribution (mode 1.12) rather
-  than the normal distribution in Table 4 (mean 1.05).
+  than the normal distribution in Table 4 (mean 1.05). This is the analysis
+  `culling_hr_minus_1` of `example_global_dairy(culling = TRUE)`, kept for
+  reproduction only.
 
 `sampler_global_dairy(inputs = "tables")` uses Tables 2-4 as printed
-instead. Run with many more draws for stable estimates; 200 are used here to
-keep the vignette fast.
+instead. `reproduce_rasmussen_2024()` runs the published method on the
+sampler and sets the means beside Table 5 (yield and fertility in percent,
+culling as hazard ratios). Run it with many more draws for stable estimates;
+200 are used here to keep the vignette fast.
 
 ```{r}
-mc <- cm_monte_carlo(sampler_global_dairy(), 200, method = "published", seed = 2024)
-s <- summary(mc)
-s$package <- round(ifelse(s$outcome == "culling", 1 + s$mean, 100 * s$mean), 2)
-table5 <- list(
-  yield = c(0.03, 1.36, 1.18, 3.48, 2.62, 2.87, 0.07, 2.59, 3.37, 2.30, 7.11, 5.58),
-  culling = c(1.18, 1.90, 2.75, 1.18, 1.40, 1.03, 2.64, 1.51, 2.07, 1.29, 1.67, 1.25)
-)
-ids <- c("CK", "CM", "DA", "DYS", "LAM", "MET", "MF", "OC", "PTB", "RP", "SCK", "SCM")
-pkg <- function(o) s$package[s$outcome == o][match(ids, s$disease[s$outcome == o])]
-data.frame(
-  disease = ids,
-  yield_package = pkg("yield"), yield_table5 = table5$yield,
-  culling_package = pkg("culling"), culling_table5 = table5$culling
-)
+r24 <- reproduce_rasmussen_2024(n_draws = 200)
+cmp24 <- r24$comparison
+cmp24[cmp24$analysis == "yield", c("disease", "table5", "mean", "median", "stability")]
+cmp24[cmp24$analysis == "culling_hr", c("disease", "table5", "mean", "median", "stability")]
 ```
 
 With 200,000 draws (`inst/validation/reference_2024_analysis.py`), the means
@@ -200,24 +207,38 @@ subclinical ketosis and subclinical mastitis), the published approximation
 extreme values. For subclinical ketosis the Monte Carlo mean does not settle
 even with 200,000 draws, and for subclinical mastitis the archived inputs
 give 0.52% rather than the 0.04% in Table 5. Medians, or the exact
-(simultaneous) solution, are more robust summaries.
+(simultaneous) solution, are more robust summaries. The `stability` column
+flags estimates whose means are unreliable (see `vignette("uncertainty")`):
+
+```{r}
+cmp24[cmp24$analysis == "fertility", c("disease", "table5", "mean", "median", "stability")]
+```
 
 The simultaneous solution at the central values shows the inconsistency
-directly. Several adjusted impacts change sign, while the total burden stays
-similar:
+directly. Several adjusted impacts change sign, while the aggregates move
+less (about 3% for yield and 18% for fertility):
 
 ```{r}
-res24 <- suppressWarnings(deconflate(example_global_dairy()))
-res24$diagnostics[, c("outcome", "n_sign_changes", "sign_changes")]
-```
-
-Adjusted culling impacts convert back to hazard ratios with
-`adjusted_hr(..., method = "excess_hr")`. For the losses, the paper converted
-each adjusted hazard ratio to an excess culling risk relative to the overall
-culling rate `r`, `HR * r / (HR * r + 1 - r) - r`; this is
-`hr_to_risk(hr, NA, r, method = "overall_odds")`.
-
-```{r}
+res24 <- deconflate(example_global_dairy(), warn = FALSE)
+vapply(res24, function(r) r$diagnostics$sign_changes, character(1))
 pub24 <- deconflate(example_global_dairy(), method = "published")
-adjusted_hr(pub24, method = "excess_hr")
+rbind(published = vapply(pub24, function(r) r$totals$adjusted_total, numeric(1)),
+      simultaneous = vapply(res24, function(r) r$totals$adjusted_total, numeric(1)))
 ```
+
+**Culling losses.** The adjusted culling impacts of the 2024 analysis are
+adjusted HR - 1; adding 1 gives the adjusted hazard ratios. They equal the
+`"published"` method of `deconflate_hr()` at the central values:
+
+```{r}
+cu <- r24$central$culling_hr_minus_1$adjusted
+hr_pub <- deconflate_hr(example_global_dairy_hr(), method = "published")
+data.frame(disease = cu$disease, hr = 1 + cu$raw, adjusted_hr = 1 + cu$adjusted,
+           deconflate_hr = hr_pub$adjusted$adjusted)
+```
+
+For the losses, the paper converted each adjusted hazard ratio to an excess
+culling risk relative to the overall culling rate `r`,
+`HR * r / (HR * r + 1 - r) - r`, which treats the hazard ratio as an odds
+ratio and counts cows with several diseases more than once. For new analyses
+use `attributable_risk()` (see `vignette("culling-hazard-ratios")`).

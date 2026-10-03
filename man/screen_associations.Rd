@@ -10,8 +10,7 @@ screen_associations(
   or_values = c(0.5, 2),
   multipliers = c(0.5, 2),
   pairs = NULL,
-  outcome = NULL,
-  economics = NULL
+  valuation = NULL
 )
 }
 \arguments{
@@ -21,31 +20,31 @@ screen_associations(
 
 \item{or_values}{Odds ratios tried for unspecified pairs.}
 
-\item{multipliers}{Factors applied to specified odds ratios or risk ratios.}
+\item{multipliers}{Factors applied to specified associations.}
 
-\item{pairs}{Optional character vector of pairs (\code{"d1:d2"}) to screen;
-default all pairs.}
+\item{pairs}{Optional character vector of pairs (\code{"d1:d2"}); default all.}
 
-\item{outcome}{Outcome whose burden is the metric (ignored if \code{economics}
-is given); default the first outcome.}
-
-\item{economics}{Optional list (\code{observed}, \code{unit_value}, \code{additional}) to
-use total monetary losses as the metric (see \code{\link[=value_losses]{value_losses()}}).}
+\item{valuation}{Optional valuation list (see \code{\link[=contribution_table]{contribution_table()}}) to
+use the gap's value as the metric; otherwise the adjusted aggregate.}
 }
 \value{
-A data frame sorted by the absolute relative change in the total,
-with the scenario, total, change, relative change, the largest shift in
-any disease's rank and the Spearman correlation of disease burdens with
-the baseline. Infeasible scenarios have \code{NA} totals.
+A \code{cm_screen} data frame sorted by the absolute relative change in
+the total, with the scenario, total, change, relative change, the
+largest shift in any disease's rank, the Spearman correlation of disease
+contributions with the baseline, and \code{failed} (the reason a scenario
+could not be run).
 }
 \description{
 Re-runs the adjustment with each disease pair's association changed, one
-pair at a time, and reports how much the total burden and the ranking of
+pair at a time, and reports how much the aggregate and the ranking of
 diseases change. Pairs without a specified association (independent by
-default, or unknown) are set to each of \code{or_values}; specified odds ratios
-and risk ratios are multiplied by each of \code{multipliers}. This identifies
-associations worth estimating, as in Rasmussen et al. (2022), Fig. 3 and
-Rasmussen et al. (2024), Fig. 7C-D.
+default, or unknown) are set to each of \code{or_values}; specified
+associations of any measure are multiplied by each of \code{multipliers}
+(contingency tables via their odds ratio). Scenarios whose inputs are
+invalid or infeasible are kept, with \code{NA} results and the reason, so that
+no measure is skipped silently. This identifies associations worth
+estimating, as in Rasmussen et al. (2022), Fig. 3 and Rasmussen et al.
+(2024), Fig. 7C-D.
 }
 \examples{
 screen_associations(example_supplement(), or_values = c(0.5, 3))

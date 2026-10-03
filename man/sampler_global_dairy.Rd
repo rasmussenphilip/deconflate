@@ -4,64 +4,38 @@
 \alias{sampler_global_dairy}
 \title{Monte Carlo sampler for the global dairy inputs (Rasmussen et al. 2024)}
 \usage{
-sampler_global_dairy(
-  inputs = c("analysis", "tables"),
-  culling = TRUE,
-  culling_scale = c("excess_hr", "hazard_ratio")
-)
+sampler_global_dairy(inputs = c("analysis", "tables"), culling = FALSE)
 }
 \arguments{
-\item{inputs}{\code{"analysis"} or \code{"tables"}; see the section above.}
+\item{inputs}{\code{"analysis"} or \code{"tables"}.}
 
-\item{culling}{Include the culling outcome?}
-
-\item{culling_scale}{\code{"excess_hr"} (HR - 1) or \code{"hazard_ratio"}, as in
-\code{\link[=example_global_dairy]{example_global_dairy()}}. Hazard-ratio distributions are the HR - 1
-distributions shifted by 1.}
+\item{culling}{Include the legacy \code{culling_hr_minus_1} analysis?}
 }
 \value{
-A \code{\link[=cm_sampler]{cm_sampler()}}.
+A \code{\link[=cm_batch_sampler]{cm_batch_sampler()}}.
 }
 \description{
-Input distributions for \code{\link[=example_global_dairy]{example_global_dairy()}}. PERT distributions use
-the reported central value as the mode (shape 4), and normal distributions
-of odds ratios are truncated at zero.
+A \code{\link[=cm_batch_sampler]{cm_batch_sampler()}} for \code{\link[=example_global_dairy]{example_global_dairy()}}: shared draws of the
+odds ratios (and, with \code{inputs = "tables"}, the incidences), and each
+analysis's impact distributions. PERT distributions use the reported
+central value as the mode (shape 4), and normal distributions of odds
+ratios are truncated at zero.
 }
-\section{Two versions of the inputs}{
+\details{
+With \code{inputs = "analysis"} the disease probabilities are fixed and the
+impact distributions use the unrounded parameters of the analysis code.
+For \code{culling_hr_minus_1}, the analysis entered HR - 1 and scaled the
+standard deviations of normal distributions by (HR - 1) / HR; this is kept
+for reproduction. With \code{inputs = "tables"}, incidences are drawn from the
+global distributions of Table 2 and Tables 3-4 are used as printed.
 
-\itemize{
-\item \code{inputs = "analysis"} (default) follows the published analysis code
-(1st revision): disease probabilities are fixed (not drawn), and the
-impact distributions use the unrounded parameters. For culling, the
-analysis entered HR - 1 and scaled the standard deviations of normal
-distributions by (HR - 1) / HR, which narrows them (e.g. clinical
-ketosis: SD 0.10 instead of 0.30). This is kept for reproduction.
-\item \code{inputs = "tables"} draws incidence from the global distributions of
-Table 2 and uses Tables 3-4 as printed. Culling hazard ratios are shifted
-by 1 with their standard deviations unchanged.
+With \code{method = "published"}, Monte Carlo means reproduce Table 5 (see
+\code{\link[=reproduce_rasmussen_2024]{reproduce_rasmussen_2024()}} and \code{vignette("reproducing-published")}).
 }
-}
-
-\section{Reproducing Table 5}{
-
-With \code{inputs = "analysis"} and \code{method = "published"}, Monte Carlo means of
-the adjusted impacts reproduce Table 5 for yield (within about 0.02 points,
-except ovarian cyst 2.51 vs 2.59 and paratuberculosis 3.32 vs 3.37) and
-culling (within about 0.04, after adding 1). The analysis code used
-negative odds-ratio draws as they were; the package truncates them at
-zero, which accounts for the paratuberculosis difference. Fertility means
-for impacts whose raw distributions extend below zero (displaced abomasum,
-metritis, subclinical ketosis, subclinical mastitis) are unstable under the
-published approximation. See \code{vignette("reproducing-published")}.
-}
-
 \examples{
 \donttest{
 mc <- cm_monte_carlo(sampler_global_dairy(), 200, method = "published", seed = 1)
-s <- summary(mc)
-s[s$outcome == "yield", c("disease", "mean")]
-# Culling: adjusted hazard ratio = adjusted (HR - 1) + 1
-cull <- s[s$outcome == "culling", ]
-data.frame(disease = cull$disease, hr_adjusted = 1 + cull$mean)
+s <- summary(mc, diagnose = FALSE)
+s[s$analysis == "yield", c("disease", "mean")]
 }
 }

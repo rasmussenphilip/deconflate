@@ -2,22 +2,20 @@
 % Please edit documentation in R/sensitivity.R
 \name{set_interaction}
 \alias{set_interaction}
-\title{Set or replace one pairwise interaction in a model}
+\title{Set or replace one pairwise interaction}
 \usage{
-set_interaction(model, disease1, disease2, value, outcome)
+set_interaction(model, disease1, disease2, value)
 }
 \arguments{
 \item{model}{A \code{\link[=cm_model]{cm_model()}}.}
 
 \item{disease1, disease2}{Disease ids.}
 
-\item{value}{Interaction value on the outcome's proportion scale.}
-
-\item{outcome}{Outcome label.}
+\item{value}{Interaction value (same units as the impacts).}
 }
 \value{
 The modified model.
 }
 \description{
-Set or replace one pairwise interaction in a model
+Set or replace one pairwise interaction
 }

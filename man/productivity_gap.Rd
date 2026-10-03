@@ -2,38 +2,54 @@
 % Please edit documentation in R/gap.R
 \name{productivity_gap}
 \alias{productivity_gap}
-\title{Productivity gaps and their attribution}
+\title{Productivity gap of one adjusted impact vector (optional helper)}
 \usage{
-productivity_gap(result, observed)
+productivity_gap(
+  result,
+  observed,
+  direction = c("decrease", "increase"),
+  effect = c("proportion", "percent", "absolute")
+)
 }
 \arguments{
 \item{result}{A \code{\link[=deconflate]{deconflate()}} result.}
 
-\item{observed}{Named numeric vector of observed mean values, one per
-outcome to evaluate (names = outcome labels).}
+\item{observed}{Observed mean of the outcome.}
+
+\item{direction}{\code{"decrease"} or \code{"increase"}: what disease does to the
+outcome.}
+
+\item{effect}{\code{"proportion"}, \code{"percent"} or \code{"absolute"}: how the impacts
+relate to the outcome.}
 }
 \value{
-A list with \code{summary} (observed, disease-free value, gap and \code{L}
-per outcome) and \code{attribution} (gap attributed to each disease, split
-into main and interaction parts).
+A list with \code{summary} (observed, disease-free value, gap and
+aggregate) and \code{attribution} (gap attributed to each disease, split into
+main and interaction parts).
 }
 \description{
-Generalises Rasmussen et al. (2022), eqs. 17-22. For an outcome with
-observed mean \code{x} and expected loss \code{L} (see \code{\link[=attribute_burden]{attribute_burden()}}):
-\itemize{
-\item proportion scale: the disease-free value is \code{x / (1 - L)} for outcomes
-that disease decreases (e.g. yield), or \code{x / (1 + L)} for outcomes that
-disease increases (e.g. calving interval);
-\item absolute scale: the disease-free value is \code{x + L} (decrease) or \code{x - L}
-(increase), with \code{x} in the impacts' units (e.g. a culling risk of
-\code{0.27} with excess-risk impacts from \code{\link[=as_impacts]{as_impacts()}}).
-}
+Converts the adjusted aggregate impact of one analysis into the gap
+between the observed mean of an outcome and its disease-free value, and
+attributes the gap to diseases. This generalises Rasmussen et al. (2022),
+eqs. 17-22. It is a separate step from the adjustment, because it needs to
+know what the impacts mean.
 }
 \details{
-The gap is attributed to diseases in proportion to their Shapley shares,
-which reduces to eq. 22 when there are no interactions.
+With aggregate \code{L} and observed mean \code{x}:
+\itemize{
+\item \code{effect = "proportion"} (or \code{"percent"}, divided by 100 first): impacts
+are proportional changes relative to the disease-free value. For an
+outcome that disease decreases (e.g. yield) the disease-free value is
+\code{x / (1 - L)}; for one it increases (e.g. calving interval), \code{x / (1 + L)}.
+\item \code{effect = "absolute"}: impacts are in the outcome's units; the
+disease-free value is \code{x + L} (decrease) or \code{x - L} (increase).
+}
+
+Each disease's part of the gap is its contribution (see
+\code{\link[=attribute_burden]{attribute_burden()}}) times the same factor, computed directly rather
+than by dividing by \code{L}, so it stays defined when contributions cancel.
 }
 \examples{
 res <- deconflate(example_supplement(), method = "published")
-productivity_gap(res, c(yield = 10000))
+productivity_gap(res, observed = 10000, direction = "decrease", effect = "percent")
 }

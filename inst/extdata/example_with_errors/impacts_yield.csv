@@ -1,0 +1,4 @@
+disease,value,estimand,adjusted_for,label,units,source
+LAM,4.81,crude,,milk yield loss,% decrease,Illustrative
+SCK,"8,40",crude,,milk yield loss,% decrease,"Error: decimal comma (write 8.40)"
+RP,4.20,crude,LAM,milk yield loss,% decrease,"Error: adjusted_for is given for a crude estimate (use estimand adjusted_linear for a coefficient from an additive regression); also MET has no row in this table (every disease needs one, 0 for no impact)"

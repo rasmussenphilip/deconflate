@@ -14,7 +14,8 @@ cm_diseases(
 )
 }
 \arguments{
-\item{id}{Character vector of unique disease identifiers.}
+\item{id}{Character vector of unique disease identifiers (no \code{|}, \verb{;} or
+\code{:}; \code{"all"} is reserved).}
 
 \item{value}{Numeric vector of disease occurrence values. Interpreted
 according to \code{type}.}

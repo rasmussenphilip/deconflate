@@ -6,7 +6,7 @@
 \usage{
 \method{summary}{cm_mc}(
   object,
-  what = c("adjusted", "loss", "total", "rejections"),
+  what = c("adjusted", "contribution", "total", "rejections"),
   probs = c(0.025, 0.5, 0.975),
   trim = 0.05,
   diagnose = TRUE,
@@ -16,34 +16,45 @@
 \arguments{
 \item{object}{A \code{cm_mc} object.}
 
-\item{what}{\code{"adjusted"} (adjusted impacts by outcome and disease),
-\code{"loss"} (monetary losses by outcome and disease), \code{"total"} (total
-losses per outcome and overall) or \code{"rejections"}.}
+\item{what}{\code{"adjusted"} (adjusted impacts by disease), \code{"contribution"}
+(contributions to the aggregate by disease), \code{"total"} (naive and
+adjusted aggregate) or \code{"rejections"} (counts by type).}
 
 \item{probs}{Quantiles to report.}
 
-\item{trim}{Fraction trimmed from each tail for \code{trimmed_mean}.}
+\item{trim}{Fraction trimmed from each tail for \code{trimmed_mean} (a
+different estimand from the mean).}
 
 \item{diagnose}{Logical: print suggestions when estimates look unstable?}
 
 \item{...}{Unused.}
 }
 \value{
-A data frame of (weighted) means, SDs, the Monte Carlo standard
-error of the mean (\code{mcse}, based on the effective sample size),
-quantiles, a trimmed mean and stability diagnostics:
+A data frame with (weighted) means, SDs, the Monte Carlo standard
+error of the mean (\code{mcse}), quantiles, a trimmed mean and stability
+diagnostics:
 \itemize{
+\item \code{mcse}: for independent draws, the self-normalised importance-sampling
+estimate \code{sqrt(sum(w^2 (x - mean)^2))} (with equal weights,
+\code{sd / sqrt(n)}); for Latin hypercube runs, estimated from the spread
+of the R block means \code{m_b} around the pooled mean, weighted by each
+block's share of the weight \code{W_b}:
+\code{sqrt(R / (R - 1) * sum(W_b^2 (m_b - mean)^2))} (with equal block
+weights, the standard deviation of the block means over \code{sqrt(R)});
 \item \code{rel_mcse}: \code{mcse} relative to the absolute mean;
 \item \code{tail_share}: the share of the variance contributed by the most
 extreme 1\% of draws;
 \item \code{stability}: \code{"ok"}, \code{"imprecise"} (\code{rel_mcse} above 5\%),
-\code{"heavy_tail"} (\code{tail_share} above 60\%) or \code{"no_mean"} (the published
-approximation divides by a quantity that changes sign across draws,
-so the mean does not exist).
+\code{"heavy_tail"} (\code{tail_share} above 60\%) or \code{"possible_pole"} (the
+published approximation's denominator changes sign within the
+sampled inputs in a way the raw impact does not explain, so the
+estimate has a pole inside the input distribution and its mean may not
+exist).
 }
 }
 \description{
-Summarises adjusted impacts (or losses) over the accepted draws, and checks
-each estimate's stability. When some estimates look unstable, a message
-explains why and suggests a remedy (see \code{\link[=cm_diagnose]{cm_diagnose()}}).
+Summarises adjusted impacts, contributions or aggregates over the accepted
+draws, with Monte Carlo standard errors and stability checks. When some
+estimates look unstable, a message explains why and suggests what to do
+(see \code{\link[=cm_diagnose]{cm_diagnose()}}).
 }

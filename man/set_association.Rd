@@ -2,12 +2,12 @@
 % Please edit documentation in R/sensitivity.R
 \name{set_association}
 \alias{set_association}
-\title{Set or replace one association in a model}
+\title{Set or replace one association}
 \usage{
 set_association(model, disease1, disease2, value, measure = "OR")
 }
 \arguments{
-\item{model}{A \code{\link[=cm_model]{cm_model()}}.}
+\item{model}{A \code{\link[=cm_population]{cm_population()}} or \code{\link[=cm_model]{cm_model()}}.}
 
 \item{disease1, disease2}{Disease ids.}
 
@@ -16,8 +16,8 @@ set_association(model, disease1, disease2, value, measure = "OR")
 \item{measure}{Measure (see \code{\link[=cm_associations]{cm_associations()}}).}
 }
 \value{
-The modified model.
+The modified object.
 }
 \description{
-Set or replace one association in a model
+Set or replace one association
 }

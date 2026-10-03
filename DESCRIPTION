@@ -10,14 +10,16 @@ Description: Adjusts ("de-conflates") single-disease impact estimates for
     aggregated without double counting. Implements the published proportional
     approximation of Rasmussen et al. (2022) <doi:10.1016/j.prevetmed.2022.105617>,
     an exact simultaneous solution of the underlying additive impact
-    equations, and a global model that fits a maximum-entropy distribution of
-    disease combinations by iterative proportional fitting and incorporates
-    specified pairwise impact interactions. Includes productivity-gap
-    estimation, Shapley attribution, hazard-ratio conversion, Monte Carlo
-    propagation of input uncertainty (including correlated outcomes) with
-    rejection reporting, importance reweighting of draws for scenario
-    analysis, feasibility checks, sensitivity screening and reproduction of
-    the published analyses.
+    equations for crude estimates and for coefficients of additive regressions
+    with recorded adjustment sets, and a global model that fits a
+    maximum-entropy distribution of disease combinations by iterative
+    proportional fitting and incorporates specified pairwise impact
+    interactions and three-way association scenarios. Hazard ratios are
+    adjusted with a separate multiplicative adapter, with attributable risk.
+    Includes Shapley attribution, feasibility checks, Monte Carlo propagation
+    of input uncertainty with stability diagnostics, Latin hypercube and
+    importance sampling, sensitivity screening and reproduction of the
+    published analyses.
 License: MIT + file LICENSE
 Encoding: UTF-8
 Depends:

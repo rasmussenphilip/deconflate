@@ -9,8 +9,7 @@ sensitivity_oat(
   method = "simultaneous",
   variation = 0.2,
   inputs = c("prob", "assoc", "impact"),
-  outcome = NULL,
-  economics = NULL
+  valuation = NULL
 )
 }
 \arguments{
@@ -22,16 +21,16 @@ sensitivity_oat(
 
 \item{inputs}{Which inputs to vary: \code{"prob"}, \code{"assoc"}, \code{"impact"}.}
 
-\item{outcome, economics}{Metric, as in \code{\link[=screen_associations]{screen_associations()}}.}
+\item{valuation}{Optional valuation list (see \code{\link[=screen_associations]{screen_associations()}}).}
 }
 \value{
-A \code{cm_screen}-like data frame with one row per input: the input
-key, totals at the low and high values and the swing, sorted by swing.
+A \code{cm_oat} data frame with one row per input: the input key,
+totals at the low and high values and the swing, sorted by swing.
 }
 \description{
 Varies each input by \code{variation} (e.g. +/- 20\%) with everything else
 fixed, as in Rasmussen et al. (2024), Fig. 7, and reports the resulting
-range of the total burden.
+range of the aggregate (or value).
 }
 \examples{
 sensitivity_oat(example_supplement())

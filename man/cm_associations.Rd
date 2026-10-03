@@ -13,6 +13,7 @@ cm_associations(
   n10 = NA_real_,
   n01 = NA_real_,
   n00 = NA_real_,
+  zero_cell = c("haldane", "error"),
   adjusted = FALSE,
   adjusted_for = NA_character_,
   source = NA_character_
@@ -34,8 +35,9 @@ disease:
 \item \code{"cond_prob"}: conditional probability \code{P(d1 | d2)}.
 \item \code{"phi"}: binary (phi) correlation coefficient (symmetric).
 \item \code{"table"}: a study contingency table given in \code{n11}, \code{n10}, \code{n01} and
-\code{n00}. The table's odds ratio is used, because the study's marginal
-frequencies generally differ from the modelled population's.
+\code{n00}. The table's odds ratio is used (transported to the modelled
+marginals), because the study's marginal frequencies generally differ
+from the modelled population's.
 \item \code{"independent"}: independence is imposed (odds ratio 1).
 \item \code{"unknown"}: the association is unknown. The pairwise methods reject
 unknown pairs; the global method leaves them unconstrained, so their
@@ -45,10 +47,14 @@ association is implied by the maximum-entropy fit.
 \item{n11, n10, n01, n00}{Counts for \code{measure = "table"}: both diseases, \code{d1}
 only, \code{d2} only and neither.}
 
+\item{zero_cell}{For tables with a zero cell: \code{"haldane"} (default) adds
+0.5 to every cell (Haldane-Anscombe correction) and records it in column
+\code{corrected}; \code{"error"} rejects such tables.}
+
 \item{adjusted}{Logical: was the measure adjusted for covariates (e.g. an
-odds ratio from multivariable logistic regression)? The 2x2 algebra
-assumes marginal measures; adjusted measures are used as if marginal and
-flagged in the model summary.}
+odds ratio from multivariable logistic regression)? The 2x2 algebra needs
+marginal (crude) measures, so \code{\link[=cm_population]{cm_population()}} rejects adjusted measures
+unless told to use them as marginal.}
 
 \item{adjusted_for}{Optional description of the adjustment set.}
 
@@ -59,7 +65,12 @@ A \code{cm_associations} data frame.
 }
 \description{
 Each row gives one association measure for one pair. Pairs not listed are
-handled by \code{missing_associations} in \code{\link[=cm_model]{cm_model()}}.
+handled by \code{missing_associations} in \code{\link[=cm_population]{cm_population()}}.
+}
+\details{
+Odds ratios (and the other measures) are applied to the modelled
+population's own marginal probabilities ("transported"). This assumes the
+measure is the same in the source study and in the modelled population.
 }
 \examples{
 cm_associations(c("d1", "d2"), c("d2", "d3"), c(2, 3), measure = "OR")
