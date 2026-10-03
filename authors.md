@@ -7,7 +7,7 @@
 ## Citation
 
 Source:
-[`DESCRIPTION`](https://github.com/rasmussenphilip/deconflate/blob/master/DESCRIPTION)
+[`DESCRIPTION`](https://github.com/rasmussenphilip/deconflate/blob/v0.3.0/DESCRIPTION)
 
 Rasmussen P (2026). *deconflate: Comorbidity Adjustment of Disease
 Impact Estimates*. R package version 0.3.0,

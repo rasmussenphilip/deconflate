@@ -65,7 +65,7 @@
       <h1>Threshold searches and many diseases</h1>
             
       
-      <small class="dont-index">Source: <a href="https://github.com/rasmussenphilip/deconflate/blob/master/vignettes/thresholds-and-scaling.Rmd" class="external-link"><code>vignettes/thresholds-and-scaling.Rmd</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/rasmussenphilip/deconflate/blob/v0.3.0/vignettes/thresholds-and-scaling.Rmd" class="external-link"><code>vignettes/thresholds-and-scaling.Rmd</code></a></small>
       <div class="d-none name"><code>thresholds-and-scaling.Rmd</code></div>
     </div>
 
@@ -529,7 +529,7 @@ tolerance:</p>
 <code class="sourceCode R"><span><span class="va">r_sim</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/deconflate.html">deconflate</a></span><span class="op">(</span><span class="va">m24</span><span class="op">)</span></span>
 <span><span class="va">r_glob</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/deconflate.html">deconflate</a></span><span class="op">(</span><span class="va">m24</span>, method <span class="op">=</span> <span class="st">"global"</span>, joint <span class="op">=</span> <span class="va">j24</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">max</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">abs</a></span><span class="op">(</span><span class="va">r_glob</span><span class="op">$</span><span class="va">adjusted</span><span class="op">$</span><span class="va">adjusted</span> <span class="op">-</span> <span class="va">r_sim</span><span class="op">$</span><span class="va">adjusted</span><span class="op">$</span><span class="va">adjusted</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="co">#&gt; [1] 1.021939e-09</span></span>
+<span><span class="co">#&gt; [1] 1.021933e-09</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>simultaneous <span class="op">=</span> <span class="va">r_sim</span><span class="op">$</span><span class="va">totals</span><span class="op">$</span><span class="va">adjusted_total</span>, global <span class="op">=</span> <span class="va">r_glob</span><span class="op">$</span><span class="va">totals</span><span class="op">$</span><span class="va">adjusted_total</span><span class="op">)</span></span>
 <span><span class="co">#&gt; simultaneous       global </span></span>
 <span><span class="co">#&gt;      11.9101      11.9101</span></span></code></pre></div>

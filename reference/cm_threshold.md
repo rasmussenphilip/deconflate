@@ -172,6 +172,6 @@ th
 cm_threshold(m, "assoc:d1:d3", c(1, 50), conclusion = "change", target = -0.1)$thresholds
 #>   conclusion  item    status threshold    lower    upper        below
 #> 1     change total threshold  5.263907 5.263907 5.263907 4.931178e-10
-#>           above                                                 description
-#> 1 -3.748852e-10 the aggregate falls below the baseline by the target change
+#>          above                                                 description
+#> 1 -3.74885e-10 the aggregate falls below the baseline by the target change
 ```
