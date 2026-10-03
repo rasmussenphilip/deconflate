@@ -1,0 +1,5 @@
+key,dist,p1,p2,p3,p4,note
+prob:LAM,beta,78.29,227.42,,,
+assoc:LAM:SCK,normal,2.01,,,,"Error: normal needs a standard deviation"
+impact:yield:CM,normal,4.81,0.87,,,"Error: CM is not a disease"
+impact:culling:LAM,lognormal_ci,1.74,1.40,2.10,,

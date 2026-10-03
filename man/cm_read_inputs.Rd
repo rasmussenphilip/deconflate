@@ -94,6 +94,12 @@ inp <- cm_read_inputs(dir = dir)
 inp
 deconflate(inp$model, method = "global")
 
+# Example files shipped with the package: the 2024 global dairy inputs,
+# and a set with deliberate errors
+gd <- cm_read_inputs(dir = system.file("extdata", "global_dairy_2024", package = "deconflate"))
+gd$model
+cm_check_inputs(dir = system.file("extdata", "example_with_errors", package = "deconflate"))
+
 # The same tables typed in R
 inp2 <- cm_read_inputs(
   diseases = data.frame(id = c("d1", "d2"), value = c(0.10, 0.15)),

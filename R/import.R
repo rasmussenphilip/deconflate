@@ -70,6 +70,12 @@
 #' inp
 #' deconflate(inp$model, method = "global")
 #'
+#' # Example files shipped with the package: the 2024 global dairy inputs,
+#' # and a set with deliberate errors
+#' gd <- cm_read_inputs(dir = system.file("extdata", "global_dairy_2024", package = "deconflate"))
+#' gd$model
+#' cm_check_inputs(dir = system.file("extdata", "example_with_errors", package = "deconflate"))
+#'
 #' # The same tables typed in R
 #' inp2 <- cm_read_inputs(
 #'   diseases = data.frame(id = c("d1", "d2"), value = c(0.10, 0.15)),
@@ -191,7 +197,7 @@ cm_template <- function(dir, overwrite = FALSE) {
     impacts = data.frame(
       disease = rep(c("LAM", "SCK", "MET"), 2),
       outcome = rep(c("yield", "culling"), each = 3),
-      value = c(4.81, 8.40, 5.61, 1.74, 1.92, 1.12),
+      value = c(4.81, 8.40, 5.61, 1.74, 1.92, 1.50),
       scale = rep(c("percent", "hazard_ratio"), each = 3),
       direction = rep(c("decrease", NA), each = 3),
       units = NA, adjusted_for = NA, source = "Illustrative values",

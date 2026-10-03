@@ -77,3 +77,32 @@ test_that("cm_dist_table builds distributions", {
   expect_equal(d$c$params$lower, 0)
   expect_error(cm_dist_table(data.frame(key = "a", dist = "gamma", p1 = 1)), "Unknown distribution")
 })
+
+test_that("the bundled global dairy CSV files reproduce example_global_dairy()", {
+  dir <- system.file("extdata", "global_dairy_2024", package = "deconflate")
+  inp <- cm_read_inputs(dir = dir)
+  ref <- example_global_dairy(culling_scale = "hazard_ratio")
+  expect_equal(inp$model$diseases$id, ref$diseases$id)
+  expect_equal(inp$model$diseases$prob, ref$diseases$prob, tolerance = 1e-12)
+  a <- deconflate(inp$model, method = "published", warn = FALSE)$adjusted
+  b <- deconflate(ref, method = "published", warn = FALSE)$adjusted
+  expect_equal(a$outcome, b$outcome)
+  expect_equal(a$adjusted, b$adjusted, tolerance = 1e-12)
+  ref_specs <- attr(sampler_global_dairy(culling_scale = "hazard_ratio"), "specs")
+  specs <- attr(inp$sampler, "specs")
+  expect_setequal(names(specs), names(ref_specs))
+  expect_equal(vapply(specs[names(ref_specs)], function(d) d$mean, numeric(1)),
+               vapply(ref_specs, function(d) d$mean, numeric(1)), tolerance = 1e-10)
+})
+
+test_that("the bundled example with errors reports every problem", {
+  dir <- system.file("extdata", "example_with_errors", package = "deconflate")
+  pr <- cm_check_inputs(dir = dir)
+  err <- pr$problem[pr$severity == "error"]
+  expect_gte(length(err), 10)
+  expect_true(any(grepl("Duplicate disease id 'SCK'", err)))
+  expect_true(any(grepl("'8,40' is not a number", err)))
+  expect_true(any(grepl("no impact for: MET", err)))
+  expect_true(any(grepl("Duplicate pair", err)))
+  expect_error(cm_read_inputs(dir = dir), "problem")
+})

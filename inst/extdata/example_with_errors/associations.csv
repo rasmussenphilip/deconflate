@@ -1,0 +1,6 @@
+disease1,disease2,value,measure,source
+LAM,SCK,2.01,OR,Illustrative
+MET,LAM,6.10,OR,Illustrative
+MET,CM,2.30,OR,"Error: CM is not in diseases.csv"
+SCK,LAM,1.50,OR,"Error: the same pair twice"
+MET,SCK,,OR,"Error: missing value"

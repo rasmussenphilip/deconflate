@@ -1,0 +1,13 @@
+id,value,type,time_horizon,source
+CK,0.0306287320599544,incidence_rate,lactation,"Rasmussen et al. 2024, analysis inputs"
+CM,0.305081708702075,incidence_rate,lactation,"Rasmussen et al. 2024, analysis inputs"
+DA,0.0216266798689032,incidence_rate,lactation,"Rasmussen et al. 2024, analysis inputs"
+DYS,0.0611107185570655,incidence_rate,lactation,"Rasmussen et al. 2024, analysis inputs"
+LAM,0.254288506511192,incidence_rate,lactation,"Rasmussen et al. 2024, analysis inputs"
+MET,0.09580136644733861,incidence_rate,lactation,"Rasmussen et al. 2024, analysis inputs"
+MF,0.0241829408262443,incidence_rate,lactation,"Rasmussen et al. 2024, analysis inputs"
+OC,0.112683551256031,incidence_rate,lactation,"Rasmussen et al. 2024, analysis inputs"
+PTB,0.103964073833149,prevalence,lactation,"Rasmussen et al. 2024, analysis inputs"
+RP,0.12346845541710999,incidence_rate,lactation,"Rasmussen et al. 2024, analysis inputs"
+SCK,0.47905218770823504,incidence_rate,lactation,"Rasmussen et al. 2024, analysis inputs"
+SCM,0.409414831921559,probability,lactation,"Rasmussen et al. 2024, analysis inputs; entered without conversion, as in the analysis"

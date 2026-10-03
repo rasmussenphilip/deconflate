@@ -14,6 +14,7 @@ Work towards 0.2.0.
 ## Reading your own data
 * New `cm_read_inputs()`: builds a model (and a Monte Carlo sampler) from CSV files or data frames, after checking every table and reporting all problems at once. `cm_check_inputs()` returns the problems without stopping.
 * New `cm_template()` (example CSV files) and `cm_dist_table()` (distributions from an uncertainty table).
+* Example input files installed with the package: `system.file("extdata", "global_dairy_2024", package = "deconflate")` (the 2024 analysis inputs, with distributions) and `"example_with_errors"` (deliberate mistakes).
 * New vignette: "Using your own data".
 
 ## Comparing methods

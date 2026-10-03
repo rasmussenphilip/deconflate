@@ -52,6 +52,18 @@ Yield impacts are percent decreases; culling impacts are hazard ratios
 `vignette("culling-hazard-ratios")`). Every disease needs a row for every
 outcome; use 0 for no impact.
 
+Two more example sets are installed with the package:
+
+* `global_dairy_2024`: the 12 diseases, 38 odds ratios, yield, fertility and
+  culling impacts, and input distributions of Rasmussen et al. (2024), as
+  used in the published analysis (culling as hazard ratios);
+* `example_with_errors`: a small set with deliberate mistakes, to see how
+  problems are reported.
+
+```{r}
+system.file("extdata", package = "deconflate")
+```
+
 ## Read the files
 
 ```{r}
@@ -87,7 +99,21 @@ cm_check_inputs(
 )
 ```
 
-`cm_read_inputs()` stops with the same list when there are errors.
+`cm_read_inputs()` stops with the same list when there are errors. The
+installed example with errors shows more cases:
+
+```{r}
+cm_check_inputs(dir = system.file("extdata", "example_with_errors", package = "deconflate"))
+```
+
+## The global dairy example
+
+```{r}
+gd <- cm_read_inputs(dir = system.file("extdata", "global_dairy_2024", package = "deconflate"))
+gd
+cmp <- compare_methods(gd$model, methods = c("published", "simultaneous"))
+head(cmp$impacts, 12)
+```
 
 ## Tables typed in R
 
