@@ -17,9 +17,9 @@ library(deconflate)
 
 Inputs can be kept in CSV files (one per table) or typed in R as data
 frames. `cm_read_inputs()` checks every table, reports all problems at once,
-and returns the population, one analysis per impact table, a hazard-ratio
-model if there are hazard ratios, and a Monte Carlo sampler if there are
-input distributions.
+and returns the population, the model (one analysis per impact table), a
+hazard-ratio model if there are hazard ratios, and a Monte Carlo sampler if
+any value has a distribution.
 
 ## Files
 
@@ -28,11 +28,10 @@ input distributions.
 | `diseases.csv` | one row per disease | `id`, `value` |
 | `associations.csv` | one row per associated pair | `disease1`, `disease2` |
 | `three_way.csv` | optional three-way association scenarios | `disease1`, `disease2`, `disease3`, `ratio` |
-| `impacts_<analysis>.csv` | one impact table per analysis, e.g. `impacts_yield.csv` | `disease`, `value` |
-| `interactions_<analysis>.csv` | optional impact interactions of that analysis | `disease1`, `disease2`, `value` |
-| `uncertainty.csv` | optional input distributions shared by all analyses | `key`, `dist` |
-| `uncertainty_<analysis>.csv` | optional input distributions of one analysis | `key`, `dist` |
-| `hazard_ratios.csv` | optional culling (or mortality) hazard ratios | `disease`, `value` |
+| `impacts.csv` | the impact table of a single analysis | `disease`, `value` |
+| `impacts_<analysis>.csv` | for several analyses, one impact table each, e.g. `impacts_yield.csv` | `disease`, `value` |
+| `interactions.csv`, `interactions_<analysis>.csv` | optional impact interactions | `disease1`, `disease2`, `value` |
+| `hazard_ratios.csv` | optional culling (or mortality) hazard ratios | `disease`, `value`, `estimand` |
 
 Only `diseases.csv` is required. A single `impacts.csv` is read as one
 analysis named `impacts`. All analyses share the diseases, associations and
@@ -43,31 +42,34 @@ three-way terms. The optional columns are described in `?cm_read_inputs`:
 * `associations.csv`: `value`, `measure` (`OR`, `RR`, `RD`, `cond_prob`,
   `phi`, `table`, `independent` or `unknown`), the counts `n11`, `n10`, `n01`,
   `n00` for `measure = table`, `adjusted`, `adjusted_for`, `source`;
-* `impacts_<analysis>.csv`: `estimand` (`crude` or `adjusted_linear`),
-  `adjusted_for`, `source`, and one `label` and one `units` per table;
-* `hazard_ratios.csv`: `estimand` (`crude` or `adjusted`), `adjusted_for`,
-  `source`.
+* impact tables: `estimand` (`crude` or `adjusted_linear`), `adjusted_for`,
+  `source`, and one `label` and one `units` per table;
+* `hazard_ratios.csv`: `adjusted_for`, `source`. The `estimand` column is
+  required (`snapshot_crude` or `snapshot_stratified`; see below).
 
 Every disease needs a row in every impact table (use 0 for no impact) and in
 the hazard-ratio table (use 1 for no effect). Impact values can be in any
 units, the same within a table; results come back in those units.
 
+There is no separate uncertainty file: an uncertain value gets its
+distribution in its own row, in the columns `dist` and `p1`-`p4` (see
+Uncertainty below), so point values and uncertain values sit side by side.
+Every table can also have a free-text `note` column.
+
 ## Start from the template
 
-`cm_template()` writes an example set of files to a folder:
+`cm_template()` writes an example set of files to a folder. By default it is
+a single analysis, the standard workflow:
 
 ```{r}
 dir <- file.path(tempdir(), "my-inputs")
 cm_template(dir, overwrite = TRUE)
 list.files(dir)
+read.csv(file.path(dir, "impacts.csv"))
 ```
 
-It has two analyses, milk yield (in percent) and calving interval (in days):
-
-```{r}
-read.csv(file.path(dir, "impacts_yield.csv"))
-read.csv(file.path(dir, "impacts_calving_interval.csv"))
-```
+`interactions.csv` and `three_way.csv` are empty (header only); fill them in
+if needed.
 
 ## Read the files
 
@@ -80,29 +82,113 @@ The result holds:
 
 * `population`: the diseases, associations and three-way terms, as a
   `cm_population()` object;
-* `analyses`: a `cm_analyses()` object with one model per impact table;
 * `model`: the `cm_model()` when there is exactly one analysis (otherwise
   `NULL`);
-* `hr_model`: the hazard-ratio model, for `deconflate_hr()`;
+* `analyses`: a `cm_analyses()` object with one model per impact table
+  (here one, named `impacts`);
+* `hr_model`: the hazard-ratio model, for `deconflate_hr()` (`NULL` without
+  `hazard_ratios.csv`);
 * `sampler`: a `cm_sampler()` for one analysis, or a `cm_batch_sampler()`
   for several, for `cm_monte_carlo()`.
 
 ```{r}
 inp$population
-names(inp$analyses$models)
-deconflate(inp$analyses)
-deconflate_hr(inp$hr_model)
+deconflate(inp$model)
 ```
 
-The template has two analyses, so the sampler is a batch sampler: every
-draw of the shared disease and association inputs is used by both analyses.
+## From the files to a Monte Carlo run
+
+In the template, four values have a distribution in their row: the lameness
+prevalence (`diseases.csv`), the lameness:subclinical ketosis odds ratio
+(`associations.csv`) and two yield impacts (`impacts.csv`). The other values
+are point values (empty `dist`). With one analysis, the sampler is a
+`cm_sampler()`:
 
 ```{r}
+read.csv(file.path(dir, "diseases.csv"))[, c("id", "value", "type", "dist", "p1", "p2")]
+read.csv(file.path(dir, "associations.csv"))[, c("disease1", "disease2", "value", "dist", "p1", "p2", "p3")]
 inp$sampler
 mc <- cm_monte_carlo(inp$sampler, 200, seed = 1)
 mc
-s <- summary(mc, diagnose = FALSE)
+summary(mc, diagnose = FALSE)[, c("disease", "mean", "mcse", "q0.025", "q0.975")]
+```
+
+A single-analysis sampler supports Latin hypercube sampling
+(`sampling = "lhs"`) and importance sampling. For importance sampling, each
+proposal must cover the whole support of the input's own distribution. A
+defensive mixture, part the input's own distribution and part a wider or
+shifted one, does so by construction. Here the lameness yield impact is
+sampled more often around 6%:
+
+```{r}
+specs <- attr(inp$sampler, "specs")
+prop <- list("impact:LAM" = dist_mixture(specs[["impact:LAM"]], dist_normal(6, 1.5),
+                                         weights = c(0.5, 0.5)))
+mc_is <- cm_monte_carlo(inp$sampler, 200, proposal = prop, seed = 1)
+mc_is
+summary(mc_is, diagnose = FALSE)[, c("disease", "mean", "mcse", "q0.025", "q0.975")]
+```
+
+The draws are weighted by the ratio of the densities, so the estimates still
+refer to the input's own distribution; compare the standard errors (`mcse`)
+to see whether the proposal helped. See `vignette("uncertainty")`.
+
+## Several analyses
+
+`cm_template(type = "analyses")` writes two analyses on one population,
+milk yield (in percent) and calving interval (in days):
+
+```{r}
+dir2 <- file.path(tempdir(), "my-analyses")
+cm_template(dir2, type = "analyses", overwrite = TRUE)
+list.files(dir2)
+read.csv(file.path(dir2, "impacts_calving_interval.csv"))
+inp2 <- cm_read_inputs(dir = dir2)
+inp2
+names(inp2$analyses$models)
+deconflate(inp2$analyses)
+```
+
+With several analyses, `model` is `NULL` and the sampler is a batch sampler:
+every draw of the shared disease and association inputs is used by both
+analyses. Batch runs use simple random sampling.
+
+```{r}
+inp2$sampler
+mcb <- cm_monte_carlo(inp2$sampler, 200, seed = 1)
+mcb
+s <- summary(mcb, diagnose = FALSE)
 s[, c("analysis", "disease", "mean", "q0.025", "q0.975")]
+```
+
+## Hazard ratios
+
+Hazard ratios go in `hazard_ratios.csv`. They are adjusted by a separate
+model (`vignette("culling-hazard-ratios")`), and the `estimand` column
+states how each value is to be read: `snapshot_crude`, or
+`snapshot_stratified` with `adjusted_for`. Entering a published Cox hazard
+ratio as either is an approximation and your assumption, so there is no
+default:
+
+```{r}
+write.csv(data.frame(disease = c("LAM", "SCK", "MET"), value = c(1.74, 1.5, 1.9),
+                     estimand = "snapshot_crude", source = "Illustrative"),
+          file.path(dir, "hazard_ratios.csv"), row.names = FALSE)
+inp_hr <- cm_read_inputs(dir = dir)
+deconflate_hr(inp_hr$hr_model)
+```
+
+A table without the `estimand` column, or with the names used before
+version 0.3.0 (`crude`, `adjusted`), is reported:
+
+```{r}
+d3 <- data.frame(id = c("LAM", "SCK", "MET"), value = c(0.25, 0.38, 0.10))
+cm_check_inputs(diseases = d3,
+                hazard_ratios = data.frame(disease = c("LAM", "SCK", "MET"),
+                                           value = c(1.74, 1.5, 1.9)))
+cm_check_inputs(diseases = d3,
+                hazard_ratios = data.frame(disease = c("LAM", "SCK", "MET"),
+                                           value = c(1.74, 1.5, 1.9), estimand = "crude"))
 ```
 
 ## When something is wrong
@@ -131,9 +217,10 @@ cm_check_inputs(dir = system.file("extdata", "example_with_errors", package = "d
 
 The folder `global_dairy_2024` holds the inputs of Rasmussen et al. (2024):
 `diseases.csv` (12 diseases), `associations.csv` (38 odds ratios),
-`impacts_yield.csv` and `impacts_fertility.csv` (in percent),
-`hazard_ratios.csv` (culling) and `uncertainty.csv` (the input
-distributions).
+`impacts_yield.csv` and `impacts_fertility.csv` (in percent) and
+`hazard_ratios.csv` (culling, entered as `snapshot_crude`). The input
+distributions of the paper's Monte Carlo analysis are in the `dist` and
+`p1`-`p4` columns of the association and impact tables.
 
 ```{r}
 gd <- cm_read_inputs(dir = system.file("extdata", "global_dairy_2024", package = "deconflate"))
@@ -153,28 +240,27 @@ deconflate_hr(gd$hr_model, method = "published")
 ## Tables typed in R
 
 Any table can be a data frame instead of a file. Tables that come one per
-analysis (`impacts`, `interactions`, `uncertainty`) are named lists, named
-after the analyses; `uncertainty` can also have an element named `shared`
-for the population inputs:
+analysis (`impacts`, `interactions`) are named lists, named after the
+analyses. Distributions are columns of the tables, as in the files:
 
 ```{r}
-inp2 <- cm_read_inputs(
+inp3 <- cm_read_inputs(
   diseases = data.frame(id = c("d1", "d2", "d3"), value = c(0.10, 0.15, 0.20)),
   associations = data.frame(disease1 = c("d1", "d2"), disease2 = c("d2", "d3"),
-                            value = c(2, 3), measure = "OR"),
+                            value = c(2, 3), measure = "OR",
+                            dist = c("lognormal_ci", NA), p1 = c(2, NA), p2 = c(1.4, NA),
+                            p3 = c(2.9, NA)),
   impacts = list(
     yield = data.frame(disease = c("d1", "d2", "d3"), value = c(2.5, 5, 7.5),
-                       units = "% of yield"),
+                       units = "% of yield", dist = c("normal", NA, NA),
+                       p1 = c(2.5, NA, NA), p2 = c(0.5, NA, NA)),
     fertility = data.frame(disease = c("d1", "d2", "d3"), value = c(1, 2, 0),
                            units = "% of calving interval")
-  ),
-  uncertainty = list(
-    shared = data.frame(key = "assoc:d1:d2", dist = "lognormal_ci", p1 = 2, p2 = 1.4, p3 = 2.9),
-    yield = data.frame(key = "impact:d1", dist = "normal", p1 = 2.5, p2 = 0.5)
   )
 )
-inp2
-deconflate(inp2$analyses)$yield$adjusted
+inp3
+inp3$sampler
+deconflate(inp3$analyses)$yield$adjusted
 ```
 
 With a single analysis (e.g. `impacts = list(yield = ...)`, or one data
@@ -243,20 +329,22 @@ tryCatch(cm_diseases(c("LAM", "all"), c(0.25, 0.40)),
 
 ## Uncertainty
 
-Each row of an uncertainty table gives one input a distribution. The key
-names the input:
+The tables `diseases`, `associations`, `three_way`, `impacts` and
+`interactions` can have the columns `dist` and `p1`-`p4`. A row with a
+`dist` has an uncertain value; a row with an empty `dist` is a point value.
+The deterministic methods use the point value (`value`, or `ratio` for a
+three-way term); Monte Carlo runs draw from the distribution, on the scale
+the value was entered on:
 
-* `prob:<disease>`: the disease's `value` (e.g. a prevalence or incidence
-  rate);
-* `assoc:<d1>:<d2>`: the association's `value` (e.g. an odds ratio);
-* `impact:<analysis>:<disease>`: an impact, in the units of its table;
-* `inter:<analysis>:<d1>:<d2>`: an interaction.
+* a disease's `value` (e.g. a prevalence or an incidence rate);
+* an association's `value` (e.g. an odds ratio); the measure must be
+  numeric (`OR`, `RR`, `RD`, `cond_prob` or `phi`), not `table`,
+  `independent` or `unknown`;
+* a three-way `ratio`;
+* an impact or an interaction, in the units of its table.
 
-In `uncertainty_<analysis>.csv`, or when there is only one analysis, the
-analysis can be left out (`impact:<disease>`, `inter:<d1>:<d2>`). Disease
-and association keys belong in the shared `uncertainty.csv`.
-
-`dist` and the parameters `p1`-`p4`:
+Hazard ratios cannot have distributions (the Monte Carlo tools adjust
+additive impacts). `dist` and the parameters `p1`-`p4`:
 
 | `dist` | `p1` | `p2` | `p3` | `p4` |
 |---|---|---|---|---|
@@ -269,10 +357,38 @@ and association keys belong in the shared `uncertainty.csv`.
 | `pert_mean` | min | mean | max | lambda (default 4) |
 | `uniform` | min | max | | |
 
+The checks report a distribution with missing or invalid parameters,
+parameters without a `dist`, and a distribution on a non-numeric
+association measure; a point value outside its distribution's range is
+noted. In the sampler, inputs are keyed `prob:<disease>`,
+`assoc:<d1>:<d2>`, `three:<d1>:<d2>:<d3>`, `impact:<disease>` and
+`inter:<d1>:<d2>` (the keys of `mc$params`, of proposals in importance
+sampling and of `cm_scenario()`):
+
 ```{r}
-read.csv(file.path(dir, "uncertainty.csv"))
+names(attr(inp2$sampler$samplers$yield, "specs"))
 ```
 
-`cm_dist_table()` builds the distributions alone, if you want to pass them
-to `cm_sampler()` yourself. See `vignette("uncertainty")` for the Monte
-Carlo analysis.
+Files named `uncertainty.csv` or `uncertainty_<analysis>.csv`, used by
+version 0.2, are reported as an error: move each distribution into the row
+of its value.
+
+`cm_dist_table()` builds distributions from a table with columns `key`,
+`dist` and `p1`-`p4`, if you want to pass them to `cm_sampler()` yourself.
+See `vignette("uncertainty")` for the Monte Carlo analysis.
+
+## A fuller example
+
+The folder `five_diseases` uses every feature on five diseases: all
+probability types and association measures, a three-way term, crude and
+adjusted impacts, interactions, hazard ratios, and every distribution type
+mixed with point values. Its `run_all_features.R` script runs every part of
+the package on it:
+
+```{r}
+five <- system.file("extdata", "five_diseases", package = "deconflate")
+list.files(five)
+inp5 <- cm_read_inputs(dir = five)
+inp5
+read.csv(file.path(five, "impacts_yield.csv"))[, c("disease", "value", "dist", "p1", "p2", "p3")]
+```

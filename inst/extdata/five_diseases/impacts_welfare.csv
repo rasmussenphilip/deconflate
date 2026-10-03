@@ -1,0 +1,6 @@
+disease,value,estimand,adjusted_for,label,units,source,dist,p1,p2,p3,p4,note
+LAM,10,crude,,welfare impact,score points,Illustrative,normal,10,2,,,"normal(mean, sd)"
+MAS,6,crude,,welfare impact,score points,Illustrative,pert,3,6,9,,"pert(min, mode, max)"
+MET,5,crude,,welfare impact,score points,Illustrative,,,,,,"point value"
+SCK,3,crude,,welfare impact,score points,Illustrative,normal,3,0.5,,,"normal(mean, sd)"
+RP,4,crude,,welfare impact,score points,Illustrative,uniform,2,6,,,"uniform(min, max)"

@@ -44,15 +44,33 @@ shapley_by_cell <- function(joint, loss, max_present = Inf) {
   # Every subset of the diseases present in a combination is itself a
   # combination, so the loss is evaluated at most once per combination
   # (cached by its binary code) rather than once per subset and cell.
+  if (n > 52L) cm_abort("Cell-wise Shapley allocation supports at most 52 diseases.")
   bits <- 2^(seq_len(n) - 1)
-  cache <- rep(NA_real_, 2^n)
-  loss_of <- function(codes) {
-    need <- unique(codes[is.na(cache[codes + 1])])
-    for (cd in need) {
-      x <- stats::setNames(as.numeric(bitwAnd(cd, bits) > 0), ids)
-      cache[cd + 1] <<- loss(x)
+  # Small n: a vector indexed by code; large n (sampled joints): a hash.
+  if (n <= 20L) {
+    vcache <- rep(NA_real_, 2^n)
+    loss_of <- function(codes) {
+      need <- unique(codes[is.na(vcache[codes + 1])])
+      for (cd in need) {
+        x <- stats::setNames(as.numeric(floor(cd / bits) %% 2 == 1), ids)
+        vcache[cd + 1] <<- loss(x)
+      }
+      vcache[codes + 1]
     }
-    cache[codes + 1]
+  } else {
+    cache <- new.env(hash = TRUE, parent = emptyenv())
+    loss_of <- function(codes) {
+      vapply(codes, function(cd) {
+        key <- sprintf("%.0f", cd)
+        v <- cache[[key]]
+        if (is.null(v)) {
+          x <- stats::setNames(as.numeric(floor(cd / bits) %% 2 == 1), ids)
+          v <- loss(x)
+          assign(key, v, envir = cache)
+        }
+        v
+      }, numeric(1))
+    }
   }
   for (r in seq_len(nrow(joint$cells))) {
     pr <- joint$prob[r]

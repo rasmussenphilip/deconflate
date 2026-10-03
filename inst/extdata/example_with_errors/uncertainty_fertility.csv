@@ -1,4 +1,0 @@
-key,dist,p1,p2,p3,p4,note
-impact:SCK,normal,1.12,1.82,,,"normal(mean, sd); in an analysis's own file the analysis can be left out of the key"
-impact:LAM,normal,3.30,0.90,,,"Error: the same input as impact:fertility:LAM in uncertainty.csv"
-prob:SCK,beta,178.14,193.73,,,"Error: disease probabilities are shared by all analyses; put prob: keys in uncertainty.csv"

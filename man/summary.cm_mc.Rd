@@ -36,20 +36,26 @@ diagnostics:
 \itemize{
 \item \code{mcse}: for independent draws, the self-normalised importance-sampling
 estimate \code{sqrt(sum(w^2 (x - mean)^2))} (with equal weights,
-\code{sd / sqrt(n)}); for Latin hypercube runs, estimated from the spread
-of the R block means \code{m_b} around the pooled mean, weighted by each
-block's share of the weight \code{W_b}:
-\code{sqrt(R / (R - 1) * sum(W_b^2 (m_b - mean)^2))} (with equal block
-weights, the standard deviation of the block means over \code{sqrt(R)});
+\code{sd / sqrt(n)}); for Latin hypercube runs, the standard error of the
+pooled mean as a ratio estimator over the R replicate blocks, with
+\code{S_b} the weighted sum and \code{W_b} the weight of block b:
+\code{sqrt(sum((S_b - mean * W_b)^2) / (R (R - 1))) / mean(W_b)}. Blocks whose
+draws were all rejected, or have zero weight, count in R with
+\code{S_b = W_b = 0}. With equal weights and every block present, this is
+the standard deviation of the block means over \code{sqrt(R)};
 \item \code{rel_mcse}: \code{mcse} relative to the absolute mean;
 \item \code{tail_share}: the share of the variance contributed by the most
 extreme 1\% of draws;
 \item \code{stability}: \code{"ok"}, \code{"imprecise"} (\code{rel_mcse} above 5\%),
-\code{"heavy_tail"} (\code{tail_share} above 60\%) or \code{"possible_pole"} (the
-published approximation's denominator changes sign within the
-sampled inputs in a way the raw impact does not explain, so the
-estimate has a pole inside the input distribution and its mean may not
-exist).
+\code{"insufficient_info"} (precision cannot be assessed: fewer than two
+Latin hypercube blocks with positive weight, or a mean of zero with a
+positive standard error; \code{mcse} gives the absolute precision where
+available), \code{"heavy_tail"} (\code{tail_share} above 60\%) or
+\code{"possible_pole"} (the published approximation's denominator changes
+sign within the sampled inputs in a way the raw impact does not
+explain, so the estimate has a pole inside the input distribution and
+its mean may not exist). A missing precision is never reported as
+\code{"ok"}.
 }
 }
 \description{

@@ -15,8 +15,10 @@ models with interactions or three-way terms).}
 \item{valuation}{Optional valuation list (see \code{\link[=screen_associations]{screen_associations()}}).}
 }
 \value{
-A list with \code{totals} (one row per scenario) and \code{by_disease}
-(contribution and rank per disease and scenario).
+A list with \code{totals} (one row per scenario, with the reason in
+\code{failed} when a scenario could not be adjusted or gave an undefined
+result) and \code{by_disease} (contribution and rank per disease and
+scenario).
 }
 \description{
 Adjusts several versions of a model (e.g. with different association,

@@ -1,0 +1,6 @@
+disease,value,estimand,adjusted_for,label,units,source,dist,p1,p2,p3,p4,note
+LAM,4.8,crude,,milk yield loss,% of yield,Illustrative,normal,4.8,0.9,,,"normal(mean, sd)"
+MAS,3.3,crude,,milk yield loss,% of yield,Illustrative,pert,1.5,3.3,6.0,,"pert(min, mode, max)"
+MET,5.6,crude,,milk yield loss,% of yield,Illustrative,pert_mean,3.0,5.6,8.0,,"pert_mean(min, mean, max)"
+SCK,2.5,crude,,milk yield loss,% of yield,Illustrative,fixed,2.5,,,,"fixed(value): a point mass"
+RP,4.2,crude,,milk yield loss,% of yield,Illustrative,,,,,,"point value"

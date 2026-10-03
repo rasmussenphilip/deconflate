@@ -9,7 +9,8 @@ cm_sampler(
   diseases = list(),
   associations = list(),
   impacts = list(),
-  interactions = list()
+  interactions = list(),
+  three_way = list()
 )
 }
 \arguments{
@@ -24,6 +25,10 @@ order) matching rows of the model's associations.}
 
 \item{interactions}{Named list of \code{cm_dist}, names \code{"d1:d2"} (either order)
 matching rows of the model's interactions.}
+
+\item{three_way}{Named list of \code{cm_dist}, names \code{"d1:d2:d3"} (any order)
+matching rows of the model's three-way terms. Three-way terms affect the
+global method only.}
 }
 \value{
 A function of the draw index returning a \code{\link[=cm_model]{cm_model()}}, with
@@ -44,6 +49,8 @@ Draws are on the scale the inputs were entered on:
 \item diseases: the \code{value} given to \code{\link[=cm_diseases]{cm_diseases()}} (e.g. an incidence rate,
 converted to a probability as specified by its \code{type});
 \item associations: the association measure (e.g. odds ratio);
+\item three-way terms: the ratio of conditional odds ratios (see
+\code{\link[=cm_three_way]{cm_three_way()}});
 \item impacts and interactions: their own units.
 }
 
@@ -52,7 +59,8 @@ non-positive odds ratio, a conditional probability below 0 or above 1) is
 rejected by \code{\link[=cm_monte_carlo]{cm_monte_carlo()}} and counted.
 
 Keys (as in \code{params} of \code{\link[=cm_monte_carlo]{cm_monte_carlo()}}): \verb{prob:<disease>},
-\verb{assoc:<d1>:<d2>}, \verb{impact:<disease>} and \verb{inter:<d1>:<d2>}.
+\verb{assoc:<d1>:<d2>}, \verb{three:<d1>:<d2>:<d3>}, \verb{impact:<disease>} and
+\verb{inter:<d1>:<d2>}.
 }
 \examples{
 s <- cm_sampler(example_supplement(),

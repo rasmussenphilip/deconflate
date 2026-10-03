@@ -1,0 +1,6 @@
+disease,value,estimand,adjusted_for,source,note
+LAM,1.74,snapshot_crude,,Illustrative,"entering a published hazard ratio as a snapshot estimand is an assumption"
+MAS,1.6,snapshot_stratified,LAM;SCK,Illustrative,"stratified by LAM and SCK"
+MET,1.3,snapshot_crude,,Illustrative,
+SCK,1.4,snapshot_crude,,Illustrative,
+RP,1.5,snapshot_stratified,all,Illustrative,"stratified by all other diseases: the disease's own hazard multiplier"

@@ -1,0 +1,2 @@
+disease1,disease2,disease3,ratio,source,dist,p1,p2,p3,p4,note
+LAM,MAS,SCK,1.5,Scenario,lognormal_ci,1.5,0.8,2.8,,"ratio of conditional odds ratios (a scenario: pairwise data cannot identify it)"

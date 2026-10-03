@@ -143,7 +143,8 @@ test_that("stacked analyses fill columns that only some analyses have", {
 test_that("compare_methods reproduces the UK dairy totals (Rasmussen et al. 2022)", {
   skip_on_cran()
   eco <- uk_dairy_2022_economics()
-  cmp <- compare_methods(example_uk_dairy_2022(), valuation = eco$valuation)
+  eco$valuation$culling <- uk_dairy_2022_culling_valuation()
+  cmp <- compare_methods(uk_dairy_2022_analyses(3.05, culling = TRUE), valuation = eco$valuation)
   expect_equal(cmp$methods, c("published", "simultaneous", "global"))
   expect_equal(nrow(cmp$impacts), 3 * 13)
   expect_equal(nrow(cmp$long), 3 * 3 * 13)
@@ -178,7 +179,7 @@ test_that("compare_methods compares the hazard-ratio methods", {
   expect_output(print(compare_methods(supp_hr_model())), "hazard ratio")
 
   # The published approach cannot handle adjusted hazard ratios.
-  hr_adj <- cm_hazard_ratios(ids3, c(1.5, 2.0, 1.3), estimand = c("adjusted", "crude", "crude"),
+  hr_adj <- cm_hazard_ratios(ids3, c(1.5, 2.0, 1.3), estimand = c("snapshot_stratified", "snapshot_crude", "snapshot_crude"),
                              adjusted_for = c("d2", NA, NA))
   cmp2 <- compare_methods(cm_hr_model(supp_population(), hr_adj), overall_risk = 0.25)
   expect_equal(cmp2$methods, c("first_order", "snapshot"))
@@ -186,15 +187,14 @@ test_that("compare_methods compares the hazard-ratio methods", {
   expect_equal(nrow(cmp2$totals), 2)
   expect_output(print(cmp2), "Not run")
 
-  # A method whose adjusted hazard ratios cannot be valued keeps its column
-  # and gets NA attributable risk, with the reason in `failed`.
-  cmp3 <- compare_methods(cm_hr_model(supp_population(), cm_hazard_ratios(ids3, c(0.5, 4, 1))),
+  # A method that gives a non-positive adjusted hazard ratio is undefined: it
+  # is reported in `failed` and left out of the comparison.
+  cmp3 <- compare_methods(cm_hr_model(supp_population(), cm_hazard_ratios(ids3, c(0.5, 4, 1), estimand = "snapshot_crude")),
                           overall_risk = 0.25)
-  expect_equal(cmp3$methods, c("published", "first_order", "snapshot"))
+  expect_equal(cmp3$methods, c("first_order", "snapshot"))
   expect_equal(names(cmp3$failed), "published")
-  expect_match(cmp3$failed[["published"]], "^attributable risk: ")
-  expect_true(is.na(cmp3$totals$attributable[cmp3$totals$method == "published"]))
-  expect_true(all(is.finite(cmp3$totals$attributable[cmp3$totals$method != "published"])))
+  expect_match(cmp3$failed[["published"]], "^undefined")
+  expect_true(all(is.finite(cmp3$totals$attributable)))
   expect_error(compare_methods(supp_hr_model(), overall_risk = 1.5), "between 0 and 1")
 })
 

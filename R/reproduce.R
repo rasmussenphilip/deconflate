@@ -15,17 +15,20 @@
 #' [attributable_risk()].
 #'
 #' @section 2022 (Tables 8-10):
-#' `reproduce_rasmussen_2022()` adjusts yield, calving interval and culling
-#' for the UK example ([example_uk_dairy_2022()]), computes the productivity
-#' gaps and their values with [uk_dairy_2022_economics()], adds veterinary
-#' expenditure, and back-converts the culling impacts to hazard ratios.
+#' `reproduce_rasmussen_2022()` adjusts yield and calving interval for the UK
+#' example ([example_uk_dairy_2022()]) and the historical culling analysis,
+#' computes the productivity gaps and their values with
+#' [uk_dairy_2022_economics()] (and the paper's culling valuation), adds
+#' veterinary expenditure, and back-converts the culling impacts to hazard
+#' ratios.
 #' Fertility and the culling hazard ratios reproduce the paper; yield does not
 #' reproduce exactly from the printed Table 4 (see
 #' `vignette("reproducing-published")`).
 #'
 #' @section 2024 (Table 5):
-#' `reproduce_rasmussen_2024()` runs [cm_monte_carlo()] with
-#' [sampler_global_dairy()] (`culling = TRUE`) and the published method, and
+#' `reproduce_rasmussen_2024()` runs [cm_monte_carlo()] with the samplers of
+#' [sampler_global_dairy()] plus the historical culling analysis (HR - 1,
+#' named `culling_hr_minus_1`) and the published method, and
 #' reports the means beside Table 5. Culling is reported on the hazard-ratio
 #' scale (1 + adjusted HR - 1). Table 5 used 50,000 draws; use at least
 #' several thousand for stable means. Some fertility means are unstable for
@@ -53,8 +56,9 @@ NULL
 #' @rdname reproduce
 #' @export
 reproduce_rasmussen_2022 <- function(yield_sck = 3.05) {
-  uk <- example_uk_dairy_2022(yield_sck = yield_sck)
+  uk <- uk_dairy_2022_analyses(yield_sck, culling = TRUE)
   eco <- uk_dairy_2022_economics()
+  eco$valuation$culling <- uk_dairy_2022_culling_valuation()
   res <- deconflate(uk, method = "published", warn = FALSE)
   ids <- uk$population$diseases$id
   nms <- names(uk$models)
@@ -111,7 +115,7 @@ reproduce_rasmussen_2022 <- function(yield_sck = 3.05) {
 reproduce_rasmussen_2024 <- function(n_draws = 5000, seed = 2024,
                                      inputs = c("analysis", "tables")) {
   inputs <- match.arg(inputs)
-  mc <- cm_monte_carlo(sampler_global_dairy(inputs = inputs, culling = TRUE), n_draws,
+  mc <- cm_monte_carlo(global_dairy_sampler(inputs, culling = TRUE), n_draws,
                        method = "published", seed = seed)
   s <- summary(mc, diagnose = FALSE)
   ids <- c("CK", "CM", "DA", "DYS", "LAM", "MET", "MF", "OC", "PTB", "RP", "SCK", "SCM")
@@ -130,7 +134,7 @@ reproduce_rasmussen_2024 <- function(n_draws = 5000, seed = 2024,
   }))
   comparison$analysis[comparison$analysis == "culling_hr_minus_1"] <- "culling_hr"
   rownames(comparison) <- NULL
-  adjusted <- deconflate(example_global_dairy(inputs = inputs, culling = TRUE),
+  adjusted <- deconflate(global_dairy_analyses(inputs, culling = TRUE),
                          method = "published", warn = FALSE)
   structure(list(study = "Rasmussen et al. (2024)", comparison = comparison,
                  central = adjusted, mc = mc, n_draws = n_draws, inputs = inputs),

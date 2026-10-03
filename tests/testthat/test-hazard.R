@@ -41,22 +41,22 @@ snapshot_stratified_log_hr <- function(joint, beta, i, s) {
 }
 
 test_that("hazard ratios and hazard-ratio models are validated", {
-  expect_error(cm_hazard_ratios("d1", 0), "positive")
-  expect_error(cm_hazard_ratios(c("d1", "d1"), c(1.5, 2)), "only one")
-  expect_error(cm_hazard_ratios(ids3, c(1.5, 2)), "one entry per disease")
-  expect_error(cm_hazard_ratios("d1", 1.5, adjusted_for = "d2"), class = "deconflate_unsupported")
-  expect_error(cm_hazard_ratios("d1", 1.5, estimand = "adjusted"), "adjusted_for")
+  expect_error(cm_hazard_ratios("d1", 0, estimand = "snapshot_crude"), "positive")
+  expect_error(cm_hazard_ratios(c("d1", "d1"), c(1.5, 2), estimand = "snapshot_crude"), "only one")
+  expect_error(cm_hazard_ratios(ids3, c(1.5, 2), estimand = "snapshot_crude"), "one entry per disease")
+  expect_error(cm_hazard_ratios("d1", 1.5, adjusted_for = "d2", estimand = "snapshot_crude"), class = "deconflate_unsupported")
+  expect_error(cm_hazard_ratios("d1", 1.5, estimand = "snapshot_stratified"), "adjusted_for")
   expect_error(cm_hazard_ratios("d1", 1.5, estimand = "cox"), "estimand")
-  h <- cm_hazard_ratios(ids3, c(1.5, 2.0, 1.3))
+  h <- cm_hazard_ratios(ids3, c(1.5, 2.0, 1.3), estimand = "snapshot_crude")
   expect_s3_class(h, "cm_hazard_ratios")
-  expect_equal(h$estimand, rep("crude", 3))
+  expect_equal(h$estimand, rep("snapshot_crude", 3))
 
-  expect_error(cm_hr_model(supp_population(), cm_hazard_ratios(c("d1", "d2"), c(1.5, 2))),
+  expect_error(cm_hr_model(supp_population(), cm_hazard_ratios(c("d1", "d2"), c(1.5, 2), estimand = "snapshot_crude")),
                "No hazard ratio for: d3")
-  expect_error(cm_hr_model(supp_population(), cm_hazard_ratios(c(ids3, "zz"), c(1.5, 2, 1.3, 1))),
+  expect_error(cm_hr_model(supp_population(), cm_hazard_ratios(c(ids3, "zz"), c(1.5, 2, 1.3, 1), estimand = "snapshot_crude")),
                "unknown diseases")
   expect_error(cm_hr_model(supp_population(),
-                           cm_hazard_ratios(ids3, c(1.5, 2, 1.3), estimand = c("adjusted", "crude", "crude"),
+                           cm_hazard_ratios(ids3, c(1.5, 2, 1.3), estimand = c("snapshot_stratified", "snapshot_crude", "snapshot_crude"),
                                             adjusted_for = c("zz", NA, NA))),
                "unknown diseases")
   expect_error(cm_hr_model(supp_population(), data.frame(disease = ids3, value = 1)), "cm_hazard_ratios")
@@ -65,11 +65,11 @@ test_that("hazard ratios and hazard-ratio models are validated", {
   expect_s3_class(m, "cm_hr_model")
   expect_s3_class(m$population, "cm_population")
   # Hazard ratios are put in the population's disease order.
-  m2 <- cm_hr_model(supp_population(), cm_hazard_ratios(rev(ids3), c(1.3, 2.0, 1.5)))
+  m2 <- cm_hr_model(supp_population(), cm_hazard_ratios(rev(ids3), c(1.3, 2.0, 1.5), estimand = "snapshot_crude"))
   expect_equal(m2$hazard_ratios$disease, ids3)
   expect_equal(m2$hazard_ratios$value, c(1.5, 2.0, 1.3))
   # A cm_model can be given; its impacts are dropped.
-  m3 <- cm_hr_model(example_supplement(), cm_hazard_ratios(ids3, c(1.5, 2.0, 1.3)))
+  m3 <- cm_hr_model(example_supplement(), cm_hazard_ratios(ids3, c(1.5, 2.0, 1.3), estimand = "snapshot_crude"))
   expect_null(m3$population$impacts)
   expect_equal(class(m3$population), "cm_population")
   expect_output(print(m), "cm_hr_model")
@@ -113,7 +113,7 @@ test_that("the snapshot method reproduces the raw hazard ratios over the fitted 
 
 test_that("three-way terms change the snapshot method only", {
   m3 <- cm_hr_model(supp_population(cm_three_way("d1", "d2", "d3", 2)),
-                    cm_hazard_ratios(ids3, c(1.5, 2.0, 1.3)))
+                    cm_hazard_ratios(ids3, c(1.5, 2.0, 1.3), estimand = "snapshot_crude"))
   expect_equal(deconflate_hr(m3, method = "first_order")$adjusted$adjusted,
                supp_hr_ref$first_order, tolerance = 1e-8)
   expect_equal(deconflate_hr(m3, method = "published")$adjusted$adjusted,
@@ -129,11 +129,11 @@ test_that("three-way terms change the snapshot method only", {
 })
 
 test_that("adjusted hazard ratios are matched within strata of their adjustment set", {
-  hr <- cm_hazard_ratios(ids3, c(1.5, 2.0, 1.3), estimand = c("adjusted", "crude", "crude"),
+  hr <- cm_hazard_ratios(ids3, c(1.5, 2.0, 1.3), estimand = c("snapshot_stratified", "snapshot_crude", "snapshot_crude"),
                          adjusted_for = c("d2", NA, NA))
   m <- cm_hr_model(supp_population(), hr)
   res <- deconflate_hr(m)
-  expect_equal(res$adjusted$estimand, c("adjusted", "crude", "crude"))
+  expect_equal(res$adjusted$estimand, c("snapshot_stratified", "snapshot_crude", "snapshot_crude"))
   expect_equal(res$adjusted$adjusted_for, c("d2", NA, NA))
   beta <- log(res$adjusted$adjusted)
   expect_equal(snapshot_stratified_log_hr(res$joint, beta, 1, 2), log(1.5), tolerance = 1e-9)
@@ -150,7 +150,7 @@ test_that("adjusted hazard ratios are matched within strata of their adjustment 
 })
 
 test_that("hazard ratios adjusted for all other diseases are used as they are", {
-  hr_all <- cm_hazard_ratios(ids3, c(1.5, 2.0, 1.3), estimand = "adjusted", adjusted_for = "all")
+  hr_all <- cm_hazard_ratios(ids3, c(1.5, 2.0, 1.3), estimand = "snapshot_stratified", adjusted_for = "all")
   m <- cm_hr_model(supp_population(), hr_all)
   for (meth in c("snapshot", "first_order")) {
     r <- deconflate_hr(m, method = meth)
@@ -159,7 +159,7 @@ test_that("hazard ratios adjusted for all other diseases are used as they are", 
   }
   expect_error(deconflate_hr(m, method = "published"), class = "deconflate_unsupported")
   # Mixed: d1 adjusted for all, the others crude. d1 keeps its value.
-  hr_mix <- cm_hazard_ratios(ids3, c(1.5, 2.0, 1.3), estimand = c("adjusted", "crude", "crude"),
+  hr_mix <- cm_hazard_ratios(ids3, c(1.5, 2.0, 1.3), estimand = c("snapshot_stratified", "snapshot_crude", "snapshot_crude"),
                              adjusted_for = c("all", NA, NA))
   mix <- deconflate_hr(cm_hr_model(supp_population(), hr_mix))
   expect_equal(mix$adjusted$adjusted[1], 1.5, tolerance = 1e-10)
@@ -168,7 +168,7 @@ test_that("hazard ratios adjusted for all other diseases are used as they are", 
 })
 
 test_that("hazard ratios of 1 stay 1 and give no attributable risk", {
-  m <- cm_hr_model(supp_population(), cm_hazard_ratios(ids3, c(1, 1, 1)))
+  m <- cm_hr_model(supp_population(), cm_hazard_ratios(ids3, c(1, 1, 1), estimand = "snapshot_crude"))
   for (meth in c("snapshot", "first_order", "published")) {
     r <- deconflate_hr(m, method = meth)
     expect_equal(r$adjusted$adjusted, c(1, 1, 1), tolerance = 1e-12)
@@ -249,7 +249,7 @@ test_that("a joint supplied to the pairwise methods is checked and kept", {
 test_that("non-positive published hazard ratios are flagged and cannot be valued", {
   # HR 0.5 for d1 with a strong d2: the published denominator of d1 is
   # negative (reference_v02.py hr_methods).
-  m <- cm_hr_model(supp_population(), cm_hazard_ratios(ids3, c(0.5, 4, 1)))
+  m <- cm_hr_model(supp_population(), cm_hazard_ratios(ids3, c(0.5, 4, 1), estimand = "snapshot_crude"))
   expect_warning(pub <- deconflate_hr(m, method = "published"), class = "deconflate_nonfinite_warning")
   expect_equal(pub$adjusted$adjusted, c(-0.3585461449, 4.0376405055, 1), tolerance = 1e-8)
   expect_equal(pub$diagnostics$n_sign_changes, 0)
@@ -275,7 +275,7 @@ test_that("global dairy culling: the three hazard-ratio methods", {
                tolerance = 1e-8)
   # Identical to adjusting HR - 1 additively with the published method, as
   # in Rasmussen et al. (2024).
-  legacy <- deconflate(example_global_dairy(culling = TRUE), method = "published",
+  legacy <- deconflate(global_dairy_analyses("analysis", culling = TRUE), method = "published",
                        warn = FALSE)$culling_hr_minus_1
   expect_equal(pub$adjusted$adjusted, 1 + legacy$adjusted$adjusted, tolerance = 1e-12)
 
@@ -308,7 +308,7 @@ test_that("legacy conversions reproduce the published culling inputs", {
   # P = 0.30).
   ex <- legacy_hr_as_or_excess(c(3.83, 3.40, 1), c(0.03, 0.30, 0.10), 0.27)
   expect_equal(ex, c(0.3138414572431465, 0.2556484948872295, 0), tolerance = 1e-10)
-  uk <- example_uk_dairy_2022()
+  uk <- uk_dairy_2022_analyses(3.05, culling = TRUE)
   cu <- uk$models$culling$impacts
   expect_equal(cu$value[cu$disease %in% c("DA", "LAM")], ex[1:2], tolerance = 1e-12)
   expect_equal(cu$value[cu$disease == "CO"], 0)

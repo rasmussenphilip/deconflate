@@ -34,6 +34,15 @@
 #' involved in (the closed-form Shapley value); contributions add up to the
 #' aggregate. Shares are `NA` when the aggregate is zero.
 #'
+#' @section Number of diseases:
+#' The `"simultaneous"` and `"published"` methods use the pairwise tables
+#' only, so they work for any number of diseases (the triple screen checks
+#' n(n-1)(n-2)/6 triples). The `"global"` method needs the joint
+#' distribution: the exact backend of [fit_joint()] enumerates 2^n
+#' combinations (about 20 diseases at most); the sampled backend fits the
+#' same model by Monte Carlo for more. The exact LP feasibility check is
+#' limited to 14 diseases.
+#'
 #' @section Feasibility:
 #' Pairwise tables can each be valid while no population has all of them
 #' (an invertible `A` does not mean the inputs are feasible). By default the
@@ -56,6 +65,8 @@
 #'     ([fit_joint()]; the "iterative" model) and solves the equations
 #'     including any interactions. Unknown pairs are left unconstrained.
 #'     Without interactions and unknown pairs, it equals `"simultaneous"`.
+#'     For more than about 20 diseases, pass `backend = "sampled"` (through
+#'     `...`, or fit the joint with [fit_joint()] and pass it as `joint`).
 #' @param joint Optional [fit_joint()] result for `method = "global"`. It is
 #'   checked against the model (diseases, probabilities, associations and
 #'   three-way terms); impact-only changes do not require a refit.
@@ -136,8 +147,13 @@ deconflate.cm_model <- function(model, method = c("simultaneous", "published", "
       validate_joint(joint, model)
     }
     if (!joint$converged) {
-      cm_abort(sprintf("The joint distribution did not converge (max residual %.2e). The pairwise associations may be jointly infeasible; see check_feasibility(method = 'lp').",
-                       joint$max_residual), class = "deconflate_nonconvergence")
+      cm_abort(if (identical(joint$backend, "sampled")) {
+        sprintf("The sampled joint distribution is unresolved (residual %.2e); see its diagnostics, and try more samples or chains. This does not show that the inputs are infeasible.",
+                joint$max_residual)
+      } else {
+        sprintf("The joint distribution did not converge (max residual %.2e). The pairwise associations may be jointly infeasible; see check_feasibility(method = 'lp').",
+                joint$max_residual)
+      }, class = "deconflate_nonconvergence")
     }
     cells <- joint$cells
     J <- crossprod(cells * joint$prob, cells)
@@ -254,7 +270,7 @@ deconflate.cm_analyses <- function(model, method = c("simultaneous", "published"
     # One joint distribution serves every analysis (it depends on the
     # population only).
     dots <- list(...)
-    fj <- dots[intersect(names(dots), c("tol", "max_iter", "max_diseases"))]
+    fj <- dots[intersect(names(dots), joint_arg_names)]
     joint <- withCallingHandlers(do.call(fit_joint, c(list(model$population), fj)),
                                  deconflate_nonconvergence = function(w) invokeRestart("muffleWarning"))
   }

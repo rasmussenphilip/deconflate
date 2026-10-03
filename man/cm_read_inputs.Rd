@@ -10,7 +10,6 @@ cm_read_inputs(
   three_way = NULL,
   impacts = NULL,
   interactions = NULL,
-  uncertainty = NULL,
   hazard_ratios = NULL,
   dir = NULL,
   missing_associations = c("independent", "unknown"),
@@ -21,8 +20,8 @@ cm_read_inputs(
 \item{diseases, associations, three_way, hazard_ratios}{Paths to CSV files or
 data frames.}
 
-\item{impacts, interactions, uncertainty}{A path or data frame, or a named
-list of them (one per analysis; see Files).}
+\item{impacts, interactions}{A path or data frame, or a named list of them
+(one per analysis; see Files).}
 
 \item{dir}{Optional folder with CSV files named as in Files. Arguments
 given explicitly take precedence over files.}
@@ -35,14 +34,15 @@ A \code{cm_inputs} list with \code{population}, \code{analyses} (a
 \code{\link[=cm_analyses]{cm_analyses()}} object, or \code{NULL} without impact tables), \code{model} (the
 \code{\link[=cm_model]{cm_model()}} when there is exactly one analysis), \code{hr_model} (or
 \code{NULL}), \code{sampler} (a \code{\link[=cm_sampler]{cm_sampler()}} for one analysis, a
-\code{\link[=cm_batch_sampler]{cm_batch_sampler()}} for several, or \code{NULL}), \code{tables} (as read; columns
+\code{\link[=cm_batch_sampler]{cm_batch_sampler()}} for several, or \code{NULL} when no value has a
+distribution), \code{tables} (as read; columns
 of CSV files are read as text and converted by the checks) and
 \code{problems} (notes only, since errors stop).
 }
 \description{
 Builds a population (\code{\link[=cm_population]{cm_population()}}), one analysis per impact table
 (\code{\link[=cm_analyses]{cm_analyses()}}), optionally a hazard-ratio model (\code{\link[=cm_hr_model]{cm_hr_model()}}) and,
-if uncertainty tables are given, a Monte Carlo sampler. Each table can be
+if any value has a distribution, a Monte Carlo sampler. Each table can be
 a path to a CSV file or a data frame typed in R; alternatively, \code{dir}
 names a folder of CSV files (see Files). \code{\link[=cm_template]{cm_template()}} writes an example
 set to start from.
@@ -64,16 +64,16 @@ is an analysis named \code{impacts}. All analyses share the diseases and
 associations;
 \item optional interactions per analysis: \verb{interactions_<analysis>.csv} (or
 \code{interactions.csv} when there is one analysis);
-\item optional uncertainty: \code{uncertainty.csv} (shared: disease probabilities,
-associations, and impacts keyed by analysis) and/or
-\verb{uncertainty_<analysis>.csv} (that analysis's impacts and interactions);
 \item optional \code{hazard_ratios.csv} (culling or mortality hazard ratios, for
 \code{\link[=deconflate_hr]{deconflate_hr()}}).
 }
 
-In R, \code{impacts}, \code{interactions} and \code{uncertainty} can be one table or a
-named list of tables, named after the analyses (\code{uncertainty} may also
-have an element named \code{shared}).
+There is no separate uncertainty file: the uncertainty of a value is
+given in its own row (see Uncertainty). Files named \code{uncertainty*.csv},
+used by deconflate 0.2, are reported as an error.
+
+In R, \code{impacts} and \code{interactions} can be one table or a named list of
+tables, named after the analyses.
 }
 
 \section{Columns}{
@@ -107,18 +107,28 @@ row; results come back in those units.
 
 \strong{interactions}: \code{disease1}, \code{disease2}, \code{value} (required); \code{source}.
 
-\strong{hazard_ratios}: \code{disease}, \code{value} (required); \code{estimand} (\code{crude}
-(default) or \code{adjusted}), \code{adjusted_for}, \code{source}. Every disease needs a
-row (use 1 for no effect).
+\strong{hazard_ratios}: \code{disease}, \code{value}, \code{estimand} (required;
+\code{snapshot_crude} or \code{snapshot_stratified}, see \code{\link[=cm_hazard_ratios]{cm_hazard_ratios()}});
+\code{adjusted_for}, \code{source}. Every disease needs a row (use 1 for no
+effect).
 
-\strong{uncertainty}: \code{key}, \code{dist} (required); \code{p1}-\code{p4} (parameters),
-\code{note}. Keys name the input: \verb{prob:<disease>}, \verb{assoc:<d1>:<d2>},
-\verb{impact:<analysis>:<disease>} and \verb{inter:<analysis>:<d1>:<d2>}. In an
-analysis's own file (\verb{uncertainty_<analysis>.csv}), or when there is only
-one analysis, the analysis can be left out: \verb{impact:<disease>},
-\verb{inter:<d1>:<d2>}. Values are drawn on the scale the input was entered on
-(e.g. an incidence rate, or a percent impact). Distributions and their
-parameters:\tabular{lllll}{
+Every table can also have a free-text \code{note} column.
+}
+
+\section{Uncertainty}{
+
+The tables \code{diseases}, \code{associations}, \code{three_way}, \code{impacts} and
+\code{interactions} can have the columns \code{dist} and \code{p1}-\code{p4}. A row with a
+\code{dist} has an uncertain value: its distribution is used by Monte Carlo
+runs (\code{\link[=cm_monte_carlo]{cm_monte_carlo()}} with \verb{$sampler}), while the point value (\code{value},
+or \code{ratio} for three-way terms) is used by the deterministic methods. A
+row with an empty \code{dist} is a fixed point value, so point values and
+uncertain values can be mixed freely. Values are drawn on the scale they
+were entered on (e.g. an incidence rate, an odds ratio or a percent
+impact). An association needs a numeric measure (\code{OR}, \code{RR}, \code{RD},
+\code{cond_prob} or \code{phi}) to have a distribution. A point value outside the
+support of its distribution is noted. Hazard ratios cannot have
+distributions. Distributions and their parameters:\tabular{lllll}{
    \code{dist} \tab \code{p1} \tab \code{p2} \tab \code{p3} \tab \code{p4} \cr
    \code{fixed} \tab value \tab  \tab  \tab  \cr
    \code{normal} \tab mean \tab sd \tab lower bound (optional) \tab upper bound (optional) \cr
@@ -139,9 +149,12 @@ inp
 deconflate(inp$analyses)
 
 # Example files shipped with the package: the 2024 global dairy inputs,
-# and a set with deliberate errors
+# a five-disease set that uses every feature, and a set with deliberate
+# errors
 gd <- cm_read_inputs(dir = system.file("extdata", "global_dairy_2024", package = "deconflate"))
 gd$analyses
+five <- cm_read_inputs(dir = system.file("extdata", "five_diseases", package = "deconflate"))
+five
 cm_check_inputs(dir = system.file("extdata", "example_with_errors", package = "deconflate"))
 
 # The same kind of tables typed in R

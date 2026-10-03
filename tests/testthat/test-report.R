@@ -140,8 +140,9 @@ test_that("summary() reports totals, valuation and contributions", {
 })
 
 test_that("the UK dairy example reproduces the published total value (2022)", {
-  res <- deconflate(example_uk_dairy_2022(), method = "published")
+  res <- deconflate(uk_dairy_2022_analyses(3.05, culling = TRUE), method = "published")
   eco <- uk_dairy_2022_economics()
+  eco$valuation$culling <- uk_dairy_2022_culling_valuation()
   vals <- vapply(names(res), function(nm) summary(res[[nm]], eco$valuation[[nm]])$totals$value,
                  numeric(1))
   expect_equal(unname(sum(vals)) + sum(eco$additional), 402.2475530293503, tolerance = 1e-9)

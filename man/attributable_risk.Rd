@@ -23,7 +23,10 @@ attributable_risk(
 cost less salvage value); adds \code{value} columns.}
 
 \item{joint}{Optional \code{\link[=fit_joint]{fit_joint()}} result; by default the result's own
-joint distribution or a new fit. It is checked against the population.}
+joint distribution or a new (exact) fit. It is checked against the
+population. For more than about 20 diseases, fit it with
+\code{fit_joint(..., backend = "sampled")} and pass it here or to
+\code{\link[=deconflate_hr]{deconflate_hr()}}.}
 
 \item{allocate}{Logical: allocate the attributable risk to diseases?}
 
@@ -59,6 +62,8 @@ within the period, multiplicative hazard ratios, no change in the mixture
 of diseases over the period).
 }
 \examples{
-hr <- cm_hr_model(example_supplement(), cm_hazard_ratios(c("d1", "d2", "d3"), c(1.5, 2.0, 1.3)))
+hr <- cm_hr_model(example_supplement(),
+                  cm_hazard_ratios(c("d1", "d2", "d3"), c(1.5, 2.0, 1.3),
+                                   estimand = "snapshot_crude"))
 attributable_risk(deconflate_hr(hr), overall_risk = 0.25, unit_value = 1300)
 }

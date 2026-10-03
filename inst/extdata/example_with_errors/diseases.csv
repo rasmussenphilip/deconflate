@@ -1,6 +1,6 @@
-id,value,type,source
-LAM,0.25,prevalence,Illustrative
-SCK,0.48,incidence_rate,Illustrative
-MET,1.10,prevalence,"Error: a prevalence above 1"
-RP,0.12,prevalence,Illustrative
-SCK,0.30,prevalence,"Error: duplicate id (SCK is in row 2)"
+id,value,type,source,dist,p1,p2,p3,p4,note
+LAM,0.25,prevalence,Illustrative,beta,78.29,227.42,,,"beta(shape1, shape2)"
+SCK,0.48,incidence_rate,Illustrative,normal,0.48,,,,"Error: normal needs a standard deviation (p2)"
+MET,1.10,prevalence,Illustrative,,,,,,"Error: a prevalence above 1"
+RP,0.12,prevalence,Illustrative,,0.08,0.16,,,"Error: parameters p1-p4 without a distribution (dist is empty)"
+SCK,0.30,prevalence,Illustrative,,,,,,"Error: duplicate id (SCK is in row 2)"

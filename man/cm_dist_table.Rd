@@ -2,7 +2,7 @@
 % Please edit documentation in R/import.R
 \name{cm_dist_table}
 \alias{cm_dist_table}
-\title{Build distributions from an uncertainty table}
+\title{Build distributions from a table}
 \usage{
 cm_dist_table(x)
 }
@@ -13,9 +13,10 @@ cm_dist_table(x)
 A named list of \code{cm_dist} objects (names = keys).
 }
 \description{
-Converts a table with columns \code{key}, \code{dist} and \code{p1}-\code{p4} (see the
-Columns section of \code{\link[=cm_read_inputs]{cm_read_inputs()}}) into a named list of \code{cm_dist}
-objects. Keys are kept as given.
+Converts a table with columns \code{key}, \code{dist} and \code{p1}-\code{p4} (distributions
+as in the Uncertainty section of \code{\link[=cm_read_inputs]{cm_read_inputs()}}) into a named list of
+\code{cm_dist} objects, e.g. to build the arguments of \code{\link[=cm_sampler]{cm_sampler()}} in R.
+Keys are kept as given.
 }
 \examples{
 cm_dist_table(data.frame(key = c("impact:d1", "assoc:d1:d2"),

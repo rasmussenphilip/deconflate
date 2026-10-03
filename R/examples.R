@@ -93,20 +93,24 @@ global_dairy_inputs <- function(inputs) {
 #'
 #' @section Culling:
 #' The culling hazard ratios are available as a hazard-ratio model from
-#' [example_global_dairy_hr()] (see [deconflate_hr()]). With `culling = TRUE`
-#' the analyses also include `culling_hr_minus_1`: hazard ratios minus 1
-#' treated as additive impacts, which is how the 2024 analysis adjusted them
-#' (with the published method). It is included only to reproduce Table 5.
+#' [example_global_dairy_hr()] (see [deconflate_hr()]). The 2024 analysis
+#' adjusted hazard ratios minus 1 as if they were additive impacts; that
+#' historical calculation is only available inside
+#' [reproduce_rasmussen_2024()].
 #'
 #' @param inputs `"analysis"` or `"tables"`.
-#' @param culling Include the legacy `culling_hr_minus_1` analysis?
 #' @return A [cm_analyses()] object.
 #' @export
 #' @examples
 #' gd <- example_global_dairy()
 #' deconflate(gd, method = "published")$yield$adjusted
-example_global_dairy <- function(inputs = c("analysis", "tables"), culling = FALSE) {
-  inputs <- match.arg(inputs)
+example_global_dairy <- function(inputs = c("analysis", "tables")) {
+  global_dairy_analyses(match.arg(inputs), culling = FALSE)
+}
+
+# The analyses of the 2024 global dairy example. `culling = TRUE` adds the
+# historical HR - 1 analysis, used only by reproduce_rasmussen_2024().
+global_dairy_analyses <- function(inputs, culling = FALSE) {
   g <- global_dairy_inputs(inputs)
   yield <- cm_impacts(g$ids, unname(g$yield[g$ids]), label = "milk yield loss",
                       units = "% decrease", source = g$src)
@@ -139,23 +143,23 @@ example_global_dairy <- function(inputs = c("analysis", "tables"), culling = FAL
 example_global_dairy_hr <- function(inputs = c("analysis", "tables")) {
   inputs <- match.arg(inputs)
   g <- global_dairy_inputs(inputs)
-  cm_hr_model(g$pop, cm_hazard_ratios(g$ids, unname(g$hr[g$ids]), source = g$src))
+  cm_hr_model(g$pop, cm_hazard_ratios(g$ids, unname(g$hr[g$ids]), source = g$src, estimand = "snapshot_crude"))
 }
 
 #' UK dairy example from Rasmussen et al. (2022)
 #'
 #' Thirteen endemic diseases and conditions of UK dairy cattle, with cow-level
 #' prevalence (Table 2), inter-disease odds ratios (Table 3, all other pairs
-#' independent), and three analyses: milk yield (Table 4, % decrease),
-#' calving interval (Table 5, % increase) and culling (Table 6). Use
-#' [uk_dairy_2022_economics()] for the observed means and unit values
-#' (Table 1), and [reproduce_rasmussen_2022()] for the published tables.
+#' independent), and two analyses: milk yield (Table 4, % decrease) and
+#' calving interval (Table 5, % increase). Use [uk_dairy_2022_economics()]
+#' for the observed means and unit values (Table 1), and
+#' [reproduce_rasmussen_2022()] for the published tables.
 #'
-#' The culling analysis reproduces the paper's approach, which converted
-#' hazard ratios to excess annual culling risks by treating them as odds
-#' ratios. That conversion is not supported for new analyses (use
-#' [deconflate_hr()]); the hazard ratios are attached as attribute
-#' `"hazard_ratios"` for that purpose.
+#' The culling hazard ratios of Table 6 are attached as attribute
+#' `"hazard_ratios"` (with estimand `"snapshot_crude"`, an assumption) for
+#' [deconflate_hr()]. The paper converted them to excess annual culling risks
+#' by treating them as odds ratios; that historical calculation is only
+#' available inside [reproduce_rasmussen_2022()].
 #'
 #' Disease ids: CO cystic ovary, DA displaced abomasum, DYS dystocia, FAS
 #' fasciolosis, GIN gastrointestinal nematodes, LAM lameness, MAS mastitis,
@@ -164,13 +168,20 @@ example_global_dairy_hr <- function(inputs = c("analysis", "tables")) {
 #'
 #' @param yield_sck Raw yield impact of subclinical ketosis, in percent (the
 #'   printed 3.05, or 100 * 340 / 8737 = 3.89 from note i of Table 4).
-#' @return A [cm_analyses()] object with analyses `yield`, `fertility` and
-#'   `culling`, and attribute `"hazard_ratios"` (a [cm_hazard_ratios()]).
+#' @return A [cm_analyses()] object with analyses `yield` and `fertility`, and
+#'   attribute `"hazard_ratios"` (a [cm_hazard_ratios()]).
 #' @export
 #' @examples
 #' uk <- example_uk_dairy_2022()
 #' deconflate(uk, method = "published")
 example_uk_dairy_2022 <- function(yield_sck = 3.05) {
+  uk_dairy_2022_analyses(yield_sck, culling = FALSE)
+}
+
+# The UK 2022 analyses; `culling = TRUE` adds the historical culling analysis
+# (hazard ratios treated as odds ratios), used only by
+# reproduce_rasmussen_2022().
+uk_dairy_2022_analyses <- function(yield_sck, culling = FALSE) {
   ids <- c("CO", "DA", "DYS", "FAS", "GIN", "LAM", "MAS", "MET", "MF", "NEO", "PTB", "RP", "SCK")
   prev <- c(CO = 0.09, DA = 0.03, DYS = 0.02, FAS = 0.10, GIN = 0.21, LAM = 0.30, MAS = 0.30,
             MET = 0.10, MF = 0.08, NEO = 0.15, PTB = 0.07, RP = 0.05, SCK = 0.22)
@@ -194,20 +205,21 @@ example_uk_dairy_2022 <- function(yield_sck = 3.05) {
           SCK = 2.10, DYS = 1.90, NEO = 1.60)
   hr_all <- stats::setNames(rep(1, length(ids)), ids)
   hr_all[names(hr)] <- hr
-  excess <- legacy_hr_as_or_excess(unname(hr_all), unname(prev[ids]), 0.27)
-  out <- cm_analyses(
-    pop,
+  imps <- list(
     yield = cm_impacts(ids, unname(yield[ids]), label = "milk yield loss", units = "% decrease",
                        source = "Rasmussen et al. 2022, Table 4"),
     fertility = cm_impacts(ids, unname(fert[ids]), label = "calving interval increase",
-                           units = "% increase", source = "Rasmussen et al. 2022, Table 5"),
-    culling = cm_impacts(ids, excess,
-                         label = "excess annual culling risk (hazard ratio treated as an odds ratio; legacy)",
-                         units = "proportional increase in the culling rate",
-                         source = "Rasmussen et al. 2022, Table 6 (legacy conversion)")
-  )
+                           units = "% increase", source = "Rasmussen et al. 2022, Table 5"))
+  if (culling) {
+    excess <- legacy_hr_as_or_excess(unname(hr_all), unname(prev[ids]), 0.27)
+    imps$culling <- cm_impacts(ids, excess,
+                               label = "excess annual culling risk (hazard ratio treated as an odds ratio; historical)",
+                               units = "proportional increase in the culling rate",
+                               source = "Rasmussen et al. 2022, Table 6 (historical conversion)")
+  }
+  out <- do.call(cm_analyses, c(list(population = pop), imps))
   attr(out, "hazard_ratios") <- cm_hazard_ratios(ids, unname(hr_all[ids]),
-                                                 source = "Rasmussen et al. 2022, Table 6")
+                                                 source = "Rasmussen et al. 2022, Table 6", estimand = "snapshot_crude")
   out
 }
 
@@ -217,23 +229,32 @@ example_uk_dairy_2022 <- function(yield_sck = 3.05) {
 #' [productivity_gap()] and [value_losses()] (or the `valuation` argument of
 #' [summary.cm_result()] and [compare_methods()]): milk yield 8737 kg/cow/year
 #' valued at GBP 0.3022/kg; calving interval 401 days, each day valued at
-#' lifetime daily yield (13 kg) times the milk price; culling rate 27% per
-#' year (impacts as proportional increases, as in the paper) valued at the
-#' replacement price per percentage point (GBP 13.3536). Veterinary
-#' expenditure of GBP 71.09 per cow per year is a separate lump sum.
+#' lifetime daily yield (13 kg) times the milk price. Veterinary expenditure
+#' of GBP 71.09 per cow per year is a separate lump sum.
 #'
-#' @return A list with `valuation` (one valuation list per analysis) and
-#'   `additional` (lump-sum costs).
+#' Culling (an annual rate of 27%, and a replacement price of GBP 1335.36)
+#' is not an additive analysis: use the attached hazard ratios with
+#' [attributable_risk()]. The paper's culling valuation belongs to its
+#' historical conversion and is used only inside [reproduce_rasmussen_2022()].
+#'
+#' @return A list with `valuation` (one valuation list per analysis of
+#'   [example_uk_dairy_2022()]) and `additional` (lump-sum costs).
 #' @export
 uk_dairy_2022_economics <- function() {
   price <- 30.22 / 100
   list(valuation = list(
     yield = list(observed = 8737, direction = "decrease", effect = "percent", unit_value = price),
     fertility = list(observed = 401, direction = "increase", effect = "percent",
-                     unit_value = 13 * price),
-    culling = list(observed = 27, direction = "increase", effect = "proportion",
-                   unit_value = 1335.36 / 100)),
+                     unit_value = 13 * price)),
     additional = c(veterinary = 71.09))
+}
+
+# Valuation of the historical culling analysis (uk_dairy_2022_analyses(culling
+# = TRUE)), used only by reproduce_rasmussen_2022(): excess culling risks are
+# proportional increases of the 27% annual culling rate, valued at the
+# replacement price per percentage point (GBP 13.3536).
+uk_dairy_2022_culling_valuation <- function() {
+  list(observed = 27, direction = "increase", effect = "proportion", unit_value = 1335.36 / 100)
 }
 
 #' Monte Carlo sampler for the global dairy inputs (Rasmussen et al. 2024)
@@ -246,16 +267,15 @@ uk_dairy_2022_economics <- function() {
 #'
 #' With `inputs = "analysis"` the disease probabilities are fixed and the
 #' impact distributions use the unrounded parameters of the analysis code.
-#' For `culling_hr_minus_1`, the analysis entered HR - 1 and scaled the
-#' standard deviations of normal distributions by (HR - 1) / HR; this is kept
-#' for reproduction. With `inputs = "tables"`, incidences are drawn from the
-#' global distributions of Table 2 and Tables 3-4 are used as printed.
+#' With `inputs = "tables"`, incidences are drawn from the global
+#' distributions of Table 2 and Tables 3-4 are used as printed. (The 2024
+#' culling analysis, HR - 1 adjusted as an additive impact, is sampled only
+#' inside [reproduce_rasmussen_2024()].)
 #'
 #' With `method = "published"`, Monte Carlo means reproduce Table 5 (see
 #' [reproduce_rasmussen_2024()] and `vignette("reproducing-published")`).
 #'
 #' @param inputs `"analysis"` or `"tables"`.
-#' @param culling Include the legacy `culling_hr_minus_1` analysis?
 #' @return A [cm_batch_sampler()].
 #' @export
 #' @examples
@@ -264,8 +284,13 @@ uk_dairy_2022_economics <- function() {
 #' s <- summary(mc, diagnose = FALSE)
 #' s[s$analysis == "yield", c("disease", "mean")]
 #' }
-sampler_global_dairy <- function(inputs = c("analysis", "tables"), culling = FALSE) {
-  inputs <- match.arg(inputs)
+sampler_global_dairy <- function(inputs = c("analysis", "tables")) {
+  global_dairy_sampler(match.arg(inputs), culling = FALSE)
+}
+
+# Batch sampler of the 2024 inputs; `culling = TRUE` adds the historical
+# HR - 1 analysis (reproduce_rasmussen_2024() only).
+global_dairy_sampler <- function(inputs, culling = FALSE) {
   n0 <- function(m, s) dist_normal(m, s, lower = 0)
   pe <- function(mode, mn, mx) dist_pert(mn, mode, mx)
   nn <- function(m, s) dist_normal(m, s)
@@ -330,6 +355,6 @@ sampler_global_dairy <- function(inputs = c("analysis", "tables"), culling = FAL
   }
   imp <- list(yield = yield, fertility = fert)
   if (culling) imp$culling_hr_minus_1 <- cull
-  cm_batch_sampler(example_global_dairy(inputs = inputs, culling = culling),
+  cm_batch_sampler(global_dairy_analyses(inputs, culling = culling),
                    diseases = diseases, associations = associations, impacts = imp)
 }

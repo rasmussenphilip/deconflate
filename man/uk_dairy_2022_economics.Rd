@@ -7,16 +7,20 @@
 uk_dairy_2022_economics()
 }
 \value{
-A list with \code{valuation} (one valuation list per analysis) and
-\code{additional} (lump-sum costs).
+A list with \code{valuation} (one valuation list per analysis of
+\code{\link[=example_uk_dairy_2022]{example_uk_dairy_2022()}}) and \code{additional} (lump-sum costs).
 }
 \description{
 Valuation inputs for each analysis of \code{\link[=example_uk_dairy_2022]{example_uk_dairy_2022()}}, for
 \code{\link[=productivity_gap]{productivity_gap()}} and \code{\link[=value_losses]{value_losses()}} (or the \code{valuation} argument of
 \code{\link[=summary.cm_result]{summary.cm_result()}} and \code{\link[=compare_methods]{compare_methods()}}): milk yield 8737 kg/cow/year
 valued at GBP 0.3022/kg; calving interval 401 days, each day valued at
-lifetime daily yield (13 kg) times the milk price; culling rate 27\% per
-year (impacts as proportional increases, as in the paper) valued at the
-replacement price per percentage point (GBP 13.3536). Veterinary
-expenditure of GBP 71.09 per cow per year is a separate lump sum.
+lifetime daily yield (13 kg) times the milk price. Veterinary expenditure
+of GBP 71.09 per cow per year is a separate lump sum.
+}
+\details{
+Culling (an annual rate of 27\%, and a replacement price of GBP 1335.36)
+is not an additive analysis: use the attached hazard ratios with
+\code{\link[=attributable_risk]{attributable_risk()}}. The paper's culling valuation belongs to its
+historical conversion and is used only inside \code{\link[=reproduce_rasmussen_2022]{reproduce_rasmussen_2022()}}.
 }

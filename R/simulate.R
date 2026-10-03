@@ -22,7 +22,9 @@
 #' @param adjusted_for For `"adjusted_linear"`: adjustment sets (ids
 #'   separated by `";"`, or `"all"`), one per disease or recycled.
 #' @param n Optional number of animals to sample.
-#' @param joint Optional pre-computed [fit_joint()] result.
+#' @param joint Optional pre-computed [fit_joint()] result. It must match the
+#'   model and have converged; a joint fitted here that does not converge
+#'   stops with class `deconflate_nonconvergence`.
 #' @param units Optional units label for the returned impacts.
 #'
 #' @return A [cm_impacts()] object with the simulated raw impacts.
@@ -42,7 +44,13 @@ simulate_raw_impacts <- function(model, true_impacts, interactions = NULL,
   k <- length(ids)
   estimand <- recycle_arg(estimand, k, "estimand")
   adjusted_for <- recycle_arg(adjusted_for, k, "adjusted_for")
-  if (is.null(joint)) joint <- fit_joint(model) else validate_joint(joint, model)
+  # A fitted joint that did not converge does not satisfy the inputs, so it
+  # cannot produce known-truth data: stop in both cases.
+  if (is.null(joint)) {
+    joint <- withCallingHandlers(fit_joint(model),
+                                 deconflate_nonconvergence = function(w) invokeRestart("muffleWarning"))
+  }
+  validate_joint(joint, model)
   cells <- joint$cells
   y <- as.vector(cells %*% true_impacts[ids])
   if (!is.null(interactions)) {

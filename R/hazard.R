@@ -1,22 +1,43 @@
 #' Describe raw culling (or mortality) hazard ratios
 #'
 #' Hazard ratios are not additive impacts, so they are adjusted by a
-#' separate adapter, [deconflate_hr()], outside the additive engine.
+#' separate model, [deconflate_hr()] (the snapshot hazard-multiplier model),
+#' outside the additive engine. Its estimands are named explicitly, because a
+#' published hazard ratio is not automatically one of them.
+#'
+#' @section Estimands:
+#' * `"snapshot_crude"`: the ratio of the average hazard among animals with
+#'   the disease to that among animals without it, at the start of follow-up,
+#'   in the population described by the probabilities and associations
+#'   (unadjusted for other diseases).
+#' * `"snapshot_stratified"`: the same ratio within strata of the diseases
+#'   in `adjusted_for`, combined across strata with Mantel-Haenszel-type
+#'   weights; with `adjusted_for = "all"` it is the disease's own hazard
+#'   multiplier.
+#'
+#' A Cox hazard ratio estimated over follow-up is a different quantity
+#' (see [deconflate_hr()], "What the snapshot model is not"). Entering one as
+#' a snapshot estimand is an approximation, which is better when follow-up is
+#' short relative to the hazards; it is the user's assumption, not a
+#' conversion the package makes. A Cox model adjusted for other diseases
+#' estimates a conditional coefficient, which matches `"snapshot_stratified"`
+#' with the same adjustment set only under the snapshot model's assumptions.
 #'
 #' @param disease Character vector of disease ids (one row per disease; use
 #'   1 for a disease with no effect).
 #' @param value Positive hazard ratios.
-#' @param estimand `"crude"` (unadjusted for other diseases) or `"adjusted"`
-#'   (from a model that included the diseases in `adjusted_for`), one per row
-#'   or recycled.
-#' @param adjusted_for For `"adjusted"`: the diseases the estimate was
-#'   adjusted for, separated by `";"`, or `"all"` (every other disease).
+#' @param estimand Required: `"snapshot_crude"` or `"snapshot_stratified"`
+#'   (see Estimands), one per row or recycled. There is no default, so that
+#'   the assumption is stated.
+#' @param adjusted_for For `"snapshot_stratified"`: the diseases the estimate
+#'   was stratified (adjusted) for, separated by `";"`, or `"all"` (every
+#'   other disease).
 #' @param source Optional citation.
 #' @return A `cm_hazard_ratios` data frame.
 #' @export
 #' @examples
-#' cm_hazard_ratios(c("d1", "d2", "d3"), c(1.5, 2.0, 1.3))
-cm_hazard_ratios <- function(disease, value, estimand = "crude", adjusted_for = NA_character_,
+#' cm_hazard_ratios(c("d1", "d2", "d3"), c(1.5, 2.0, 1.3), estimand = "snapshot_crude")
+cm_hazard_ratios <- function(disease, value, estimand, adjusted_for = NA_character_,
                              source = NA_character_) {
   disease <- as.character(disease)
   n <- length(disease)
@@ -24,16 +45,23 @@ cm_hazard_ratios <- function(disease, value, estimand = "crude", adjusted_for = 
   check_numeric(value, "value")
   if (any(value <= 0)) cm_abort("Hazard ratios must be positive.")
   if (anyDuplicated(disease)) cm_abort("Each disease may have only one hazard ratio.")
+  if (missing(estimand)) {
+    cm_abort("State the estimand of the hazard ratios: estimand = \"snapshot_crude\" or \"snapshot_stratified\" (see ?cm_hazard_ratios).")
+  }
   estimand <- as.character(recycle_arg(estimand, n, "estimand"))
-  check_choices(estimand, c("crude", "adjusted"), "estimand")
-  adjusted_for <- as.character(recycle_arg(adjusted_for, n, "adjusted_for"))
-  has_adj <- vapply(adjusted_for, function(x) length(split_ids(x)) > 0, logical(1))
-  if (any(estimand == "crude" & has_adj)) {
-    cm_abort("`adjusted_for` is given for crude hazard ratios; set estimand = 'adjusted'.",
+  if (any(estimand %in% c("crude", "adjusted"))) {
+    cm_abort("Hazard-ratio estimands are now named \"snapshot_crude\" and \"snapshot_stratified\" (deconflate 0.3.0); see ?cm_hazard_ratios for what they mean.",
              class = "deconflate_unsupported")
   }
-  if (any(estimand == "adjusted" & !has_adj)) {
-    cm_abort("estimand = 'adjusted' needs `adjusted_for` (disease ids or 'all').")
+  check_choices(estimand, c("snapshot_crude", "snapshot_stratified"), "estimand")
+  adjusted_for <- as.character(recycle_arg(adjusted_for, n, "adjusted_for"))
+  has_adj <- vapply(adjusted_for, function(x) length(split_ids(x)) > 0, logical(1))
+  if (any(estimand == "snapshot_crude" & has_adj)) {
+    cm_abort("`adjusted_for` is given for snapshot_crude hazard ratios; set estimand = 'snapshot_stratified'.",
+             class = "deconflate_unsupported")
+  }
+  if (any(estimand == "snapshot_stratified" & !has_adj)) {
+    cm_abort("estimand = 'snapshot_stratified' needs `adjusted_for` (disease ids or 'all').")
   }
   out <- data.frame(disease = disease, value = value, estimand = estimand,
                     adjusted_for = adjusted_for,
@@ -98,7 +126,8 @@ cm_hr_model <- function(population, hazard_ratios) {
 #'   `log(HR_raw) = A beta`, with `A` as in [deconflate()] (pairwise tables
 #'   only).
 #' * `"published"`: Rasmussen et al. (2024): `HR - 1` adjusted with eq. 16
-#'   (crude estimates only). For reproduction and comparison.
+#'   (`"snapshot_crude"` hazard ratios only). For reproduction and
+#'   comparison.
 #'
 #' @section What the snapshot model is not:
 #' A Cox hazard ratio estimated over follow-up is not, in general, the
@@ -123,7 +152,9 @@ cm_hr_model <- function(population, hazard_ratios) {
 #'   `diagnostics`, `joint`, `model` and `method`.
 #' @export
 #' @examples
-#' hr <- cm_hr_model(example_supplement(), cm_hazard_ratios(c("d1", "d2", "d3"), c(1.5, 2.0, 1.3)))
+#' hr <- cm_hr_model(example_supplement(),
+#'                   cm_hazard_ratios(c("d1", "d2", "d3"), c(1.5, 2.0, 1.3),
+#'                                    estimand = "snapshot_crude"))
 #' deconflate_hr(hr)$adjusted
 #' deconflate_hr(hr, method = "first_order")$adjusted
 deconflate_hr <- function(model, method = c("snapshot", "first_order", "published"),
@@ -135,9 +166,9 @@ deconflate_hr <- function(model, method = c("snapshot", "first_order", "publishe
   ids <- pop$diseases$id
   n <- length(ids)
   P <- stats::setNames(pop$diseases$prob, ids)
-  as_imp <- data.frame(estimand = ifelse(hr$estimand == "adjusted", "adjusted_linear", "crude"),
+  as_imp <- data.frame(estimand = ifelse(hr$estimand == "snapshot_stratified", "adjusted_linear", "crude"),
                        adjusted_for = hr$adjusted_for, stringsAsFactors = FALSE)
-  if (method == "published" && any(hr$estimand != "crude")) {
+  if (method == "published" && any(hr$estimand != "snapshot_crude")) {
     cm_abort("The published (2024) approach is defined for crude hazard ratios only.",
              class = "deconflate_unsupported")
   }
@@ -323,7 +354,10 @@ solve_snapshot <- function(b_raw, cells, prob, estimands, ids, start, tol = 1e-1
 #' @param unit_value Optional value per animal removed (e.g. replacement
 #'   cost less salvage value); adds `value` columns.
 #' @param joint Optional [fit_joint()] result; by default the result's own
-#'   joint distribution or a new fit. It is checked against the population.
+#'   joint distribution or a new (exact) fit. It is checked against the
+#'   population. For more than about 20 diseases, fit it with
+#'   `fit_joint(..., backend = "sampled")` and pass it here or to
+#'   [deconflate_hr()].
 #' @param allocate Logical: allocate the attributable risk to diseases?
 #' @param max_present Passed to [shapley_by_cell()] (default: no skipping).
 #' @return A `cm_attributable` list with `summary` (overall, disease-free and
@@ -331,7 +365,9 @@ solve_snapshot <- function(b_raw, cells, prob, estimands, ids, start, tol = 1e-1
 #'   part), `by_disease` and `baseline_hazard`.
 #' @export
 #' @examples
-#' hr <- cm_hr_model(example_supplement(), cm_hazard_ratios(c("d1", "d2", "d3"), c(1.5, 2.0, 1.3)))
+#' hr <- cm_hr_model(example_supplement(),
+#'                   cm_hazard_ratios(c("d1", "d2", "d3"), c(1.5, 2.0, 1.3),
+#'                                    estimand = "snapshot_crude"))
 #' attributable_risk(deconflate_hr(hr), overall_risk = 0.25, unit_value = 1300)
 attributable_risk <- function(result, overall_risk, unit_value = NULL, joint = NULL,
                               allocate = TRUE, max_present = Inf) {
@@ -404,8 +440,8 @@ print.cm_attributable <- function(x, ...) {
 print.cm_hr_model <- function(x, ...) {
   cat("<cm_hr_model>\n")
   print(x$population)
-  cat(sprintf("  Hazard ratios: %d (%d adjusted)\n", nrow(x$hazard_ratios),
-              sum(x$hazard_ratios$estimand == "adjusted")))
+  cat(sprintf("  Hazard ratios: %d (%d snapshot_stratified)\n", nrow(x$hazard_ratios),
+              sum(x$hazard_ratios$estimand == "snapshot_stratified")))
   invisible(x)
 }
 

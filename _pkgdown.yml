@@ -7,6 +7,7 @@ articles:
   contents:
   - deconflate
   - own-data
+  - thresholds-and-scaling
   - culling-hazard-ratios
   - reproducing-published
   - interactions
@@ -72,8 +73,9 @@ reference:
   - cm_scenario
   - cm_diagnose
   - cm_suggest_proposal
-- title: Sensitivity
+- title: Sensitivity and thresholds
   contents:
+  - cm_threshold
   - sensitivity_oat
   - screen_associations
   - screen_interactions

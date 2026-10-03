@@ -21,7 +21,7 @@ mc_group <- function(mc, disease, method) {
   d
 }
 
-stability_levels <- c("ok", "imprecise", "heavy_tail", "possible_pole")
+stability_levels <- c("ok", "imprecise", "insufficient_info", "heavy_tail", "possible_pole")
 
 # ---- cm_sampler -------------------------------------------------------------
 
@@ -114,6 +114,40 @@ test_that("impossible sampled inputs raise deconflate_infeasible", {
                class = "deconflate_infeasible")
   expect_error(s(1, values = bad("impact:d1", Inf)), "not finite",
                class = "deconflate_infeasible")
+})
+
+test_that("three-way ratios can be sampled, in any order of the diseases", {
+  pop <- supp_population(three_way = cm_three_way("d2", "d1", "d3", 2))
+  m <- cm_model(pop, cm_impacts(ids3, c(2.5, 5, 7.5)), cm_interactions("d1", "d2", 0.5))
+  s <- cm_sampler(m, three_way = list("d3:d1:d2" = dist_lognormal_ci(2, 1.2, 3.5)))
+  expect_equal(names(attr(s, "specs")), "three:d2:d1:d3")
+  expect_equal(s(1, values = c("three:d2:d1:d3" = 1.7))$three_way$ratio, 1.7)
+  expect_error(s(1, values = c("three:d2:d1:d3" = 0)), "positive", class = "deconflate_infeasible")
+  expect_error(s(1, values = c("three:d2:d1:d3" = -1)), class = "deconflate_infeasible")
+  expect_error(cm_sampler(m, three_way = list("d1:d2" = dist_fixed(2))), "does not match")
+  expect_error(cm_sampler(m, three_way = list("d1:d2:d4" = dist_fixed(2))), "does not match")
+  expect_error(cm_sampler(m, three_way = list("d1:d2:d3" = dist_fixed(2), "d3:d2:d1" = dist_fixed(3))),
+               "given twice")
+  expect_error(cm_sampler(supp_model(c(2.5, 5, 7.5)), three_way = list("d1:d2:d3" = dist_fixed(2))),
+               "no three-way terms")
+  mc <- cm_monte_carlo(s, 20, method = "global", seed = 1)
+  expect_equal(mc$n_rejected, 0)
+  expect_gt(length(unique(mc$params[["three:d2:d1:d3"]])), 1)
+  # The ratio changes the global result when interactions are present.
+  lo <- deconflate(set_three_way(m, "d1", "d2", "d3", 0.5), method = "global")$totals$adjusted_total
+  hi <- deconflate(set_three_way(m, "d1", "d2", "d3", 4), method = "global")$totals$adjusted_total
+  expect_false(isTRUE(all.equal(lo, hi)))
+
+  # In a batch, the three-way ratio is a shared population input.
+  an <- cm_analyses(pop, a = cm_impacts(ids3, c(2.5, 5, 7.5)), b = cm_impacts(ids3, c(1, 2, 3)),
+                    interactions = list(a = cm_interactions("d1", "d2", 0.5)))
+  bs <- cm_batch_sampler(an, three_way = list("d1:d2:d3" = dist_uniform(1, 3)),
+                         impacts = list(b = list(d1 = dist_normal(1, 0.2))))
+  expect_equal(bs$population_keys, "three:d2:d1:d3")
+  mcb <- cm_monte_carlo(bs, 15, method = "global", seed = 2)
+  pa <- mcb$analyses$a$params
+  pb <- mcb$analyses$b$params
+  expect_equal(pa[["three:d2:d1:d3"]], pb[["three:d2:d1:d3"]][match(pa$draw, pb$draw)])
 })
 
 # ---- Rejections -------------------------------------------------------------
@@ -421,7 +455,8 @@ test_that("stability statuses follow the documented rules", {
     expect_true(all(sm$stability %in% stability_levels))
     np <- sm$stability != "possible_pole"
     expected <- ifelse(n >= 50 & sm$tail_share > 0.6, "heavy_tail",
-                       ifelse(!is.na(sm$rel_mcse) & sm$rel_mcse > 0.05, "imprecise", "ok"))
+                ifelse(is.na(sm$mcse) | (is.na(sm$rel_mcse) & sm$mcse > 0), "insufficient_info",
+                       ifelse(!is.na(sm$rel_mcse) & sm$rel_mcse > 0.05, "imprecise", "ok")))
     expect_equal(sm$stability[np], expected[np])
   }
   # ok: a smooth, precise estimate.
@@ -720,7 +755,7 @@ test_that("cm_scenario reweights draws to scenario distributions", {
   expect_error(cm_scenario(mc, list("impact:d1" = dist_fixed(2.5))), class = "deconflate_unsupported")
   su <- cm_sampler(supp_model(c(2.5, 5, 7.5)), impacts = list(d1 = dist_uniform(2, 3)))
   mu <- cm_monte_carlo(su, 30, seed = 16)
-  expect_error(cm_scenario(mu, list("impact:d1" = dist_normal(2.5, 0.1))), "beyond the range",
+  expect_error(cm_scenario(mu, list("impact:d1" = dist_normal(2.5, 0.1))), "is not covered",
                class = "deconflate_unsupported")
   expect_s3_class(cm_scenario(mu, list("impact:d1" = dist_uniform(2.2, 2.8))), "cm_mc")
   mc_fn <- cm_monte_carlo(function(i) supp_model(c(2.5, 5, 7.5)), 5)

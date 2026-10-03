@@ -57,8 +57,11 @@ interval for \code{dist_lognormal_ci()}.}
 }
 \value{
 A \code{cm_dist} object, with the quantile function \code{q}, distribution
-function \code{p}, log-density \code{logd}, sampler \code{r}, \code{mean}, and its support
-(\code{lower}, \code{upper}; \code{discrete = TRUE} for point masses).
+function \code{p}, log-density \code{logd}, sampler \code{r}, \code{mean}, and its support:
+\code{support} (a two-column matrix of disjoint intervals on which the density
+is positive), its range \code{lower} and \code{upper}, and \code{discrete = TRUE} for
+point masses. The support of a mixture is the union of the supports of
+its components with positive weight, so it can have gaps.
 }
 \description{
 Constructors for the distributions used by \code{\link[=cm_sampler]{cm_sampler()}}. Each returns a

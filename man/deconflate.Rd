@@ -43,6 +43,8 @@ denominator is zero.
 (\code{\link[=fit_joint]{fit_joint()}}; the "iterative" model) and solves the equations
 including any interactions. Unknown pairs are left unconstrained.
 Without interactions and unknown pairs, it equals \code{"simultaneous"}.
+For more than about 20 diseases, pass \code{backend = "sampled"} (through
+\code{...}, or fit the joint with \code{\link[=fit_joint]{fit_joint()}} and pass it as \code{joint}).
 }}
 
 \item{joint}{Optional \code{\link[=fit_joint]{fit_joint()}} result for \code{method = "global"}. It is
@@ -110,6 +112,17 @@ The expected aggregate impact per animal is
 contribution is its own term plus half of each interaction term it is
 involved in (the closed-form Shapley value); contributions add up to the
 aggregate. Shares are \code{NA} when the aggregate is zero.
+}
+
+\section{Number of diseases}{
+
+The \code{"simultaneous"} and \code{"published"} methods use the pairwise tables
+only, so they work for any number of diseases (the triple screen checks
+n(n-1)(n-2)/6 triples). The \code{"global"} method needs the joint
+distribution: the exact backend of \code{\link[=fit_joint]{fit_joint()}} enumerates 2^n
+combinations (about 20 diseases at most); the sampled backend fits the
+same model by Monte Carlo for more. The exact LP feasibility check is
+limited to 14 diseases.
 }
 
 \section{Feasibility}{

@@ -32,6 +32,9 @@ method can also be heavy-tailed when sampled inputs make the conflation
 matrix nearly singular.
 \item \code{"imprecise"}: the Monte Carlo standard error is large relative to the
 mean. Use more draws, or Latin hypercube sampling.
+\item \code{"insufficient_info"}: precision cannot be assessed (too few usable
+Latin hypercube blocks, or a mean of zero); judge the absolute standard
+error instead.
 \item \code{"non_finite"}: draws gave non-finite results and were rejected.
 }
 }

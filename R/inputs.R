@@ -147,7 +147,7 @@ cm_associations <- function(disease1, disease2, value = NA_real_,
   if (anyNA(value[needs_value])) cm_abort("Association `value` is missing for some rows.")
   if (any(!is.finite(value[needs_value]))) cm_abort("Association values must be finite.")
   if (any(value[measure %in% c("OR", "RR", "table")] <= 0)) {
-    cm_abort("Odds ratios and risk ratios must be positive.")
+    cm_abort("Odds ratios and risk ratios must be positive.", class = "deconflate_infeasible")
   }
   key <- pair_key(disease1, disease2)
   if (anyDuplicated(key)) {
@@ -182,10 +182,14 @@ cm_associations <- function(disease1, disease2, value = NA_real_,
 #' maximum-entropy assumption. Pairwise evidence cannot identify `ratio`, so
 #' three-way terms are sensitivity scenarios unless there is direct evidence.
 #'
-#' Three-way terms affect only results that depend on the joint
-#' distribution: the global method with interactions, the hazard-ratio
-#' snapshot model and [attributable_risk()]. Additive results without
-#' interactions depend on the pairs alone.
+#' When every pair in the triple is constrained (an association is given, or
+#' the pair is independent by default), a three-way term leaves the pairwise
+#' tables unchanged, so additive results without interactions do not change;
+#' it affects only results that depend on the joint distribution: the global
+#' method with interactions, the hazard-ratio snapshot model and
+#' [attributable_risk()]. When a pair is unknown (`missing_associations =
+#' "unknown"`), the global fit determines its table, and a three-way term can
+#' change it, and with it the additive results.
 #'
 #' @param disease1,disease2,disease3 Character vectors of disease ids.
 #' @param ratio Positive ratio of conditional odds ratios (see Details).
@@ -199,7 +203,7 @@ cm_three_way <- function(disease1, disease2, disease3, ratio, source = NA_charac
   n <- nrow(d)
   ratio <- as.numeric(recycle_arg(ratio, n, "ratio"))
   check_numeric(ratio, "ratio")
-  if (any(ratio <= 0)) cm_abort("Three-way ratios must be positive.")
+  if (any(ratio <= 0)) cm_abort("Three-way ratios must be positive.", class = "deconflate_infeasible")
   if (any(apply(d, 1, function(x) anyDuplicated(x) > 0))) {
     cm_abort("A three-way term needs three different diseases.")
   }

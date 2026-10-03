@@ -37,7 +37,8 @@
 #'    [cm_monte_carlo()] (check stability with [cm_diagnose()]), and explore
 #'    scenarios with [cm_scenario()], [sensitivity_oat()],
 #'    [screen_associations()], [screen_interactions()], [screen_three_way()]
-#'    and [compare_scenarios()].
+#'    and [compare_scenarios()]. Find where a conclusion (a ranking, a sign
+#'    or the aggregate) changes as one input varies with [cm_threshold()].
 #'
 #' [reproduce_rasmussen_2022()] and [reproduce_rasmussen_2024()] recompute
 #' the published tables. See `vignette("deconflate")` to get started.

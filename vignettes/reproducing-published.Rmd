@@ -40,17 +40,23 @@ and 137.9 units per disease).
 
 ## UK dairy example (2022, Tables 8-10)
 
-`example_uk_dairy_2022()` contains the 13 diseases, the 19 odds ratios and the
-yield, fertility and culling inputs of Tables 2-6, as three analyses.
-Following the paper, the culling hazard ratios are converted to excess annual
-culling risks by treating them as odds ratios, and adjusted hazard ratios are
-recovered by rescaling (eq. 23). `uk_dairy_2022_economics()` holds the
-observed means and unit values of Table 1 and the veterinary expenditure.
-`reproduce_rasmussen_2022()` runs the whole calculation:
+`example_uk_dairy_2022()` contains the 13 diseases and the 19 odds ratios of
+Tables 2-3, and the yield and fertility inputs of Tables 4-5 as two analyses.
+The culling hazard ratios of Table 6 are attached as the attribute
+`"hazard_ratios"`, for the hazard-ratio adapter. The paper's culling
+analysis, which converted the hazard ratios to excess annual culling risks
+by treating them as odds ratios and recovered adjusted hazard ratios by
+rescaling (eq. 23), exists only inside `reproduce_rasmussen_2022()`.
+`uk_dairy_2022_economics()` holds the observed means and unit values of
+Table 1 for yield and fertility, and the veterinary expenditure (the
+paper's culling valuation belongs to its historical conversion and is used
+only inside the reproduction). `reproduce_rasmussen_2022()` runs the whole
+calculation:
 
 ```{r}
 r22 <- reproduce_rasmussen_2022()
 r22
+r22$total
 ```
 
 ### Comparison with Table 9
@@ -107,18 +113,26 @@ data.frame(disease = r22$adjusted$disease,
 ### What the package offers instead
 
 **Exact solution.** `method = "simultaneous"` solves the additive equations
-instead of approximating them. With the same inputs and valuation (the
-culling analysis keeps the paper's conversion), the total including
-veterinary costs falls from GBP 402.25 to 393.13 per cow per year:
+instead of approximating them. The example has the yield and fertility
+analyses, valued with `uk_dairy_2022_economics()`:
 
 ```{r}
 uk <- example_uk_dairy_2022()
+uk
 eco <- uk_dairy_2022_economics()
 cmp <- compare_methods(uk, methods = c("published", "simultaneous"),
                        valuation = eco$valuation)
 cmp$totals
-tapply(cmp$totals$value, cmp$totals$method, sum) + sum(eco$additional)
+tapply(cmp$totals$value, cmp$totals$method, sum)
 ```
+
+The published rows reproduce the yield and fertility values of the
+reproduction above (GBP 169.90 and 101.78 per cow per year). The
+simultaneous method gives GBP 168.00 for yield and 95.43 for fertility. The
+published total from `reproduce_rasmussen_2022()$total` (GBP 402.25) also
+includes culling, valued with the paper's conversion, and veterinary costs.
+That culling conversion is not available for new analyses, so no
+simultaneous total including culling is given here.
 
 **Hazard ratios.** For new analyses, the culling hazard ratios are adjusted
 with the hazard-ratio adapter, and the culling attributable to disease is
@@ -151,13 +165,15 @@ analysis code rather than the printed tables:
 * **Culling** was adjusted on the hazard ratio scale: HR - 1 was adjusted,
   and 1 was added back. Normal standard deviations were scaled by
   (HR - 1) / HR, and metritis used a PERT distribution (mode 1.12) rather
-  than the normal distribution in Table 4 (mean 1.05). This is the analysis
-  `culling_hr_minus_1` of `example_global_dairy(culling = TRUE)`, kept for
-  reproduction only.
+  than the normal distribution in Table 4 (mean 1.05). This analysis
+  (`culling_hr_minus_1`) exists only inside `reproduce_rasmussen_2024()`,
+  for reproduction; `example_global_dairy()` and `sampler_global_dairy()`
+  have the yield and fertility analyses only.
 
 `sampler_global_dairy(inputs = "tables")` uses Tables 2-4 as printed
 instead. `reproduce_rasmussen_2024()` runs the published method on the
-sampler and sets the means beside Table 5 (yield and fertility in percent,
+sampler, with the historical culling analysis added, and sets the means
+beside Table 5 (yield and fertility in percent,
 culling as hazard ratios). Run it with many more draws for stable estimates;
 200 are used here to keep the vignette fast.
 
@@ -227,8 +243,9 @@ rbind(published = vapply(pub24, function(r) r$totals$adjusted_total, numeric(1))
 ```
 
 **Culling losses.** The adjusted culling impacts of the 2024 analysis are
-adjusted HR - 1; adding 1 gives the adjusted hazard ratios. They equal the
-`"published"` method of `deconflate_hr()` at the central values:
+adjusted HR - 1; adding 1 gives the adjusted hazard ratios. The central
+values are in `r24$central$culling_hr_minus_1`, and they equal the
+`"published"` method of `deconflate_hr()`:
 
 ```{r}
 cu <- r24$central$culling_hr_minus_1$adjusted

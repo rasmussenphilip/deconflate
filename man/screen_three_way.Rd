@@ -27,8 +27,11 @@ refits the joint distribution (all pairwise associations are still
 matched) and reports the change in the aggregate and rankings.
 }
 \details{
-Three-way terms change additive results only through interactions: for a
-model without interactions the global result depends on the pairs alone,
-and every scenario reproduces the baseline. They matter for interactions,
-and for hazard ratios (\code{\link[=deconflate_hr]{deconflate_hr()}}) and \code{\link[=attributable_risk]{attributable_risk()}}.
+When the pairs of a triple are all constrained, a three-way term keeps
+their tables fixed, so it changes additive results only through
+interactions: without interactions such a scenario reproduces the
+baseline. When a pair is unknown (unconstrained), the fitted pairwise
+table changes with the three-way term, and additive results can change
+even without interactions. Three-way terms also matter for hazard ratios
+(\code{\link[=deconflate_hr]{deconflate_hr()}}) and \code{\link[=attributable_risk]{attributable_risk()}}.
 }

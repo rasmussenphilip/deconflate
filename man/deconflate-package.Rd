@@ -46,7 +46,8 @@ default).
 \code{\link[=cm_monte_carlo]{cm_monte_carlo()}} (check stability with \code{\link[=cm_diagnose]{cm_diagnose()}}), and explore
 scenarios with \code{\link[=cm_scenario]{cm_scenario()}}, \code{\link[=sensitivity_oat]{sensitivity_oat()}},
 \code{\link[=screen_associations]{screen_associations()}}, \code{\link[=screen_interactions]{screen_interactions()}}, \code{\link[=screen_three_way]{screen_three_way()}}
-and \code{\link[=compare_scenarios]{compare_scenarios()}}.
+and \code{\link[=compare_scenarios]{compare_scenarios()}}. Find where a conclusion (a ranking, a sign
+or the aggregate) changes as one input varies with \code{\link[=cm_threshold]{cm_threshold()}}.
 }
 
 \code{\link[=reproduce_rasmussen_2022]{reproduce_rasmussen_2022()}} and \code{\link[=reproduce_rasmussen_2024]{reproduce_rasmussen_2024()}} recompute

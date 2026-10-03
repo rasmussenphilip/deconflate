@@ -11,23 +11,23 @@ example_uk_dairy_2022(yield_sck = 3.05)
 printed 3.05, or 100 * 340 / 8737 = 3.89 from note i of Table 4).}
 }
 \value{
-A \code{\link[=cm_analyses]{cm_analyses()}} object with analyses \code{yield}, \code{fertility} and
-\code{culling}, and attribute \code{"hazard_ratios"} (a \code{\link[=cm_hazard_ratios]{cm_hazard_ratios()}}).
+A \code{\link[=cm_analyses]{cm_analyses()}} object with analyses \code{yield} and \code{fertility}, and
+attribute \code{"hazard_ratios"} (a \code{\link[=cm_hazard_ratios]{cm_hazard_ratios()}}).
 }
 \description{
 Thirteen endemic diseases and conditions of UK dairy cattle, with cow-level
 prevalence (Table 2), inter-disease odds ratios (Table 3, all other pairs
-independent), and three analyses: milk yield (Table 4, \% decrease),
-calving interval (Table 5, \% increase) and culling (Table 6). Use
-\code{\link[=uk_dairy_2022_economics]{uk_dairy_2022_economics()}} for the observed means and unit values
-(Table 1), and \code{\link[=reproduce_rasmussen_2022]{reproduce_rasmussen_2022()}} for the published tables.
+independent), and two analyses: milk yield (Table 4, \% decrease) and
+calving interval (Table 5, \% increase). Use \code{\link[=uk_dairy_2022_economics]{uk_dairy_2022_economics()}}
+for the observed means and unit values (Table 1), and
+\code{\link[=reproduce_rasmussen_2022]{reproduce_rasmussen_2022()}} for the published tables.
 }
 \details{
-The culling analysis reproduces the paper's approach, which converted
-hazard ratios to excess annual culling risks by treating them as odds
-ratios. That conversion is not supported for new analyses (use
-\code{\link[=deconflate_hr]{deconflate_hr()}}); the hazard ratios are attached as attribute
-\code{"hazard_ratios"} for that purpose.
+The culling hazard ratios of Table 6 are attached as attribute
+\code{"hazard_ratios"} (with estimand \code{"snapshot_crude"}, an assumption) for
+\code{\link[=deconflate_hr]{deconflate_hr()}}. The paper converted them to excess annual culling risks
+by treating them as odds ratios; that historical calculation is only
+available inside \code{\link[=reproduce_rasmussen_2022]{reproduce_rasmussen_2022()}}.
 
 Disease ids: CO cystic ovary, DA displaced abomasum, DYS dystocia, FAS
 fasciolosis, GIN gastrointestinal nematodes, LAM lameness, MAS mastitis,

@@ -9,6 +9,8 @@
 #' * diseases: the `value` given to [cm_diseases()] (e.g. an incidence rate,
 #'   converted to a probability as specified by its `type`);
 #' * associations: the association measure (e.g. odds ratio);
+#' * three-way terms: the ratio of conditional odds ratios (see
+#'   [cm_three_way()]);
 #' * impacts and interactions: their own units.
 #'
 #' A draw that produces an impossible input (a probability outside (0, 1), a
@@ -16,7 +18,8 @@
 #' rejected by [cm_monte_carlo()] and counted.
 #'
 #' Keys (as in `params` of [cm_monte_carlo()]): `prob:<disease>`,
-#' `assoc:<d1>:<d2>`, `impact:<disease>` and `inter:<d1>:<d2>`.
+#' `assoc:<d1>:<d2>`, `three:<d1>:<d2>:<d3>`, `impact:<disease>` and
+#' `inter:<d1>:<d2>`.
 #'
 #' @param model A [cm_model()].
 #' @param diseases Named list of `cm_dist`, names = disease ids.
@@ -25,6 +28,9 @@
 #' @param impacts Named list of `cm_dist`, names = disease ids.
 #' @param interactions Named list of `cm_dist`, names `"d1:d2"` (either order)
 #'   matching rows of the model's interactions.
+#' @param three_way Named list of `cm_dist`, names `"d1:d2:d3"` (any order)
+#'   matching rows of the model's three-way terms. Three-way terms affect the
+#'   global method only.
 #'
 #' @return A function of the draw index returning a [cm_model()], with
 #'   attribute `specs` (the distributions, keyed as in `params`). It also
@@ -38,7 +44,7 @@
 #'                 impacts = list(d1 = dist_normal(2.5, 0.5)))
 #' s(1)$associations
 cm_sampler <- function(model, diseases = list(), associations = list(),
-                       impacts = list(), interactions = list()) {
+                       impacts = list(), interactions = list(), three_way = list()) {
   check_model(model)
   check_dists <- function(x, what) {
     if (length(x) && (is.null(names(x)) || !all(vapply(x, inherits, logical(1), "cm_dist")))) {
@@ -53,6 +59,7 @@ cm_sampler <- function(model, diseases = list(), associations = list(),
   check_dists(associations, "associations")
   check_dists(impacts, "impacts")
   check_dists(interactions, "interactions")
+  check_dists(three_way, "three_way")
   specs <- list()
   rows <- list()
 
@@ -108,6 +115,22 @@ cm_sampler <- function(model, diseases = list(), associations = list(),
     }
   }
 
+  if (length(three_way)) {
+    tw <- model$three_way
+    if (is.null(tw) || !nrow(tw)) cm_abort("The model has no three-way terms to vary.")
+    tkey <- apply(tw[, c("disease1", "disease2", "disease3")], 1,
+                  function(x) paste(sort(x), collapse = "|"))
+    for (nm in names(three_way)) {
+      abc <- strsplit(nm, ":", fixed = TRUE)[[1]]
+      r <- if (length(abc) == 3L) match(paste(sort(abc), collapse = "|"), tkey) else NA_integer_
+      if (is.na(r)) cm_abort(sprintf("'%s' does not match a three-way term (use 'd1:d2:d3').", nm))
+      key <- paste0("three:", tw$disease1[r], ":", tw$disease2[r], ":", tw$disease3[r])
+      if (!is.null(specs[[key]])) cm_abort(sprintf("Three-way term '%s' is given twice.", nm))
+      specs[[key]] <- three_way[[nm]]
+      rows[[key]] <- list(table = "three_way", row = r)
+    }
+  }
+
   draw_values <- function(u_in = NULL, fixed = NULL) {
     vapply(names(specs), function(k) {
       if (!is.null(fixed) && k %in% names(fixed)) return(as.numeric(fixed[[k]]))
@@ -149,6 +172,13 @@ cm_sampler <- function(model, diseases = list(), associations = list(),
         },
         interactions = {
           m$interactions$value[info$row] <- x
+        },
+        three_way = {
+          if (x <= 0) {
+            cm_abort(sprintf("Draw %s = %g is not a valid ratio (it must be positive).", k, x),
+                     class = "deconflate_infeasible")
+          }
+          m$three_way$ratio[info$row] <- x
         }
       )
     }
@@ -167,25 +197,26 @@ cm_sampler <- function(model, diseases = list(), associations = list(),
 #' interactions. Draw identifiers are the same across analyses.
 #'
 #' @param analyses A [cm_analyses()] object.
-#' @param diseases,associations Named lists of `cm_dist` for the shared
-#'   population inputs (as in [cm_sampler()]).
+#' @param diseases,associations,three_way Named lists of `cm_dist` for the
+#'   shared population inputs (as in [cm_sampler()]).
 #' @param impacts,interactions Named lists, one element per analysis, each a
 #'   named list of `cm_dist` as in [cm_sampler()].
 #' @return A `cm_batch_sampler` object.
 #' @export
 cm_batch_sampler <- function(analyses, diseases = list(), associations = list(),
-                             impacts = list(), interactions = list()) {
+                             impacts = list(), interactions = list(), three_way = list()) {
   if (!inherits(analyses, "cm_analyses")) cm_abort("`analyses` must come from cm_analyses().")
   nms <- names(analyses$models)
   unk <- setdiff(c(names(impacts), names(interactions)), nms)
   if (length(unk)) cm_abort(sprintf("Unknown analyses: %s.", paste(unk, collapse = ", ")))
   samplers <- lapply(nms, function(nm) {
     cm_sampler(analyses$models[[nm]], diseases = diseases, associations = associations,
-               impacts = impacts[[nm]] %||% list(), interactions = interactions[[nm]] %||% list())
+               impacts = impacts[[nm]] %||% list(), interactions = interactions[[nm]] %||% list(),
+               three_way = three_way)
   })
   names(samplers) <- nms
   pop_keys <- names(attr(samplers[[1]], "specs"))
-  pop_keys <- pop_keys[grepl("^(prob|assoc):", pop_keys)]
+  pop_keys <- pop_keys[grepl("^(prob|assoc|three):", pop_keys)]
   structure(list(samplers = samplers, population_keys = pop_keys,
                  population_specs = attr(samplers[[1]], "specs")[pop_keys]),
             class = "cm_batch_sampler")

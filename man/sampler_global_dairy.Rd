@@ -4,12 +4,10 @@
 \alias{sampler_global_dairy}
 \title{Monte Carlo sampler for the global dairy inputs (Rasmussen et al. 2024)}
 \usage{
-sampler_global_dairy(inputs = c("analysis", "tables"), culling = FALSE)
+sampler_global_dairy(inputs = c("analysis", "tables"))
 }
 \arguments{
 \item{inputs}{\code{"analysis"} or \code{"tables"}.}
-
-\item{culling}{Include the legacy \code{culling_hr_minus_1} analysis?}
 }
 \value{
 A \code{\link[=cm_batch_sampler]{cm_batch_sampler()}}.
@@ -24,10 +22,10 @@ ratios are truncated at zero.
 \details{
 With \code{inputs = "analysis"} the disease probabilities are fixed and the
 impact distributions use the unrounded parameters of the analysis code.
-For \code{culling_hr_minus_1}, the analysis entered HR - 1 and scaled the
-standard deviations of normal distributions by (HR - 1) / HR; this is kept
-for reproduction. With \code{inputs = "tables"}, incidences are drawn from the
-global distributions of Table 2 and Tables 3-4 are used as printed.
+With \code{inputs = "tables"}, incidences are drawn from the global
+distributions of Table 2 and Tables 3-4 are used as printed. (The 2024
+culling analysis, HR - 1 adjusted as an additive impact, is sampled only
+inside \code{\link[=reproduce_rasmussen_2024]{reproduce_rasmussen_2024()}}.)
 
 With \code{method = "published"}, Monte Carlo means reproduce Table 5 (see
 \code{\link[=reproduce_rasmussen_2024]{reproduce_rasmussen_2024()}} and \code{vignette("reproducing-published")}).

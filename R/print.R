@@ -84,13 +84,24 @@ print.cm_result <- function(x, ...) {
 
 #' @export
 print.cm_joint <- function(x, ...) {
-  cat(sprintf("<cm_joint> %d diseases, %d combinations\n", length(x$diseases),
-              length(x$prob)))
-  cat(sprintf("  Converged: %s after %d sweeps (max residual %.2e)\n",
-              x$converged, x$iterations, x$max_residual))
+  cat(sprintf("<cm_joint> %d diseases, %d combinations (%s backend)\n", length(x$diseases),
+              length(x$prob), x$backend %||% "exact"))
+  cat(sprintf("  Converged: %s after %d %s (max residual %.2e)\n",
+              x$converged, x$iterations,
+              if (identical(x$backend, "sampled")) "calibration iterations" else "sweeps",
+              x$max_residual))
   cat(sprintf("  Constrained pairs: %d\n", nrow(x$constrained_pairs)))
-  if (!is.null(x$targets$three_way)) {
+  if (!is.null(x$targets$three_way) && nrow(x$targets$three_way)) {
     cat(sprintf("  Three-way terms: %d\n", nrow(x$targets$three_way)))
+  }
+  if (identical(x$backend, "sampled")) {
+    d <- x$diagnostics$summary
+    cat(sprintf("  Sample: %d draws from %d chains, %d distinct combinations\n",
+                d$n_samples, d$n_chains, d$n_unique))
+    cat(sprintf("  Constraint residual: %.2e in the sample%s; max R-hat %.3f; min ESS %.0f\n",
+                d$residual_sample,
+                if (is.na(d$residual_calibrated)) "" else sprintf(", %.2e after raking", d$residual_calibrated),
+                d$max_rhat, d$min_ess))
   }
   invisible(x)
 }
@@ -104,7 +115,7 @@ print.cm_mc <- function(x, ...) {
               x$n_rejected, 100 * x$n_rejected / x$n_draws))
   smp <- x$sampling %||% "random"
   if (identical(smp, "lhs") && !is.null(x$block)) {
-    smp <- sprintf("Latin hypercube, %d replicate blocks", length(unique(x$block)))
+    smp <- sprintf("Latin hypercube, %d replicate blocks", x$n_blocks %||% length(unique(x$block)))
   }
   if (!is.null(x$proposal)) smp <- paste0(smp, ", importance sampling of ",
                                          paste(names(x$proposal), collapse = ", "))

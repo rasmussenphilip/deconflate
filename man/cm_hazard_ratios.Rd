@@ -7,7 +7,7 @@
 cm_hazard_ratios(
   disease,
   value,
-  estimand = "crude",
+  estimand,
   adjusted_for = NA_character_,
   source = NA_character_
 )
@@ -18,12 +18,13 @@ cm_hazard_ratios(
 
 \item{value}{Positive hazard ratios.}
 
-\item{estimand}{\code{"crude"} (unadjusted for other diseases) or \code{"adjusted"}
-(from a model that included the diseases in \code{adjusted_for}), one per row
-or recycled.}
+\item{estimand}{Required: \code{"snapshot_crude"} or \code{"snapshot_stratified"}
+(see Estimands), one per row or recycled. There is no default, so that
+the assumption is stated.}
 
-\item{adjusted_for}{For \code{"adjusted"}: the diseases the estimate was
-adjusted for, separated by \code{";"}, or \code{"all"} (every other disease).}
+\item{adjusted_for}{For \code{"snapshot_stratified"}: the diseases the estimate
+was stratified (adjusted) for, separated by \code{";"}, or \code{"all"} (every
+other disease).}
 
 \item{source}{Optional citation.}
 }
@@ -32,8 +33,32 @@ A \code{cm_hazard_ratios} data frame.
 }
 \description{
 Hazard ratios are not additive impacts, so they are adjusted by a
-separate adapter, \code{\link[=deconflate_hr]{deconflate_hr()}}, outside the additive engine.
+separate model, \code{\link[=deconflate_hr]{deconflate_hr()}} (the snapshot hazard-multiplier model),
+outside the additive engine. Its estimands are named explicitly, because a
+published hazard ratio is not automatically one of them.
 }
+\section{Estimands}{
+
+\itemize{
+\item \code{"snapshot_crude"}: the ratio of the average hazard among animals with
+the disease to that among animals without it, at the start of follow-up,
+in the population described by the probabilities and associations
+(unadjusted for other diseases).
+\item \code{"snapshot_stratified"}: the same ratio within strata of the diseases
+in \code{adjusted_for}, combined across strata with Mantel-Haenszel-type
+weights; with \code{adjusted_for = "all"} it is the disease's own hazard
+multiplier.
+}
+
+A Cox hazard ratio estimated over follow-up is a different quantity
+(see \code{\link[=deconflate_hr]{deconflate_hr()}}, "What the snapshot model is not"). Entering one as
+a snapshot estimand is an approximation, which is better when follow-up is
+short relative to the hazards; it is the user's assumption, not a
+conversion the package makes. A Cox model adjusted for other diseases
+estimates a conditional coefficient, which matches \code{"snapshot_stratified"}
+with the same adjustment set only under the snapshot model's assumptions.
+}
+
 \examples{
-cm_hazard_ratios(c("d1", "d2", "d3"), c(1.5, 2.0, 1.3))
+cm_hazard_ratios(c("d1", "d2", "d3"), c(1.5, 2.0, 1.3), estimand = "snapshot_crude")
 }

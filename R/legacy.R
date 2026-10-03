@@ -1,11 +1,12 @@
 # Legacy conversions used only to reproduce published results ----------------
 #
 # They are not supported for new analyses (see deconflate_hr() and
-# attributable_risk()) and are not exported. example_uk_dairy_2022() and
-# reproduce_rasmussen_2022() use the hazard ratio as an odds ratio and eq. 23;
-# the 2024 reproduction adjusts HR - 1 additively (example_global_dairy(culling
-# = TRUE)). The overall-odds excess risk of the 2024 losses is kept for
-# reference and tested, but not used by the reproduction functions.
+# attributable_risk()) and are not exported. reproduce_rasmussen_2022() uses
+# the hazard ratio as an odds ratio (uk_dairy_2022_analyses(culling = TRUE))
+# and eq. 23; reproduce_rasmussen_2024() adjusts HR - 1 additively
+# (global_dairy_analyses(inputs, culling = TRUE)). The overall-odds excess
+# risk of the 2024 losses is kept for reference and tested, but not used by
+# the reproduction functions.
 
 # Rasmussen et al. (2022), section 2.4.4: the hazard ratio is used as the odds
 # ratio of a 2x2 table of disease (prevalence P) by culling (overall risk r).

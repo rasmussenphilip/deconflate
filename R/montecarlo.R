@@ -57,7 +57,9 @@
 #'   * `totals`: naive and adjusted aggregate by draw and method;
 #'   * `params`: one row per accepted draw with the sampled inputs;
 #'   * `weights` (normalised), `log_weights`, `ess` (Kish effective sample
-#'     size), `block` (LHS block of each accepted draw);
+#'     size), `block` (LHS block of each accepted draw) and `n_blocks` (the
+#'     number of LHS blocks sampled, including blocks with no accepted
+#'     draw);
 #'   * `n_draws`, `n_rejected`, `rejections` (draw, type, reason),
 #'     `sign_changes`, `method`, `sampling`, `proposal`, `specs`, `label`
 #'     and `units`.
@@ -143,11 +145,11 @@ check_proposal <- function(proposal, specs) {
       cm_abort(sprintf("Importance sampling of '%s' is not supported: point masses (fixed values) cannot be reweighted against densities.", k),
                class = "deconflate_unsupported")
     }
-    tl <- tg$lower %||% -Inf; tu <- tg$upper %||% Inf
-    pl <- pr$lower %||% -Inf; pu <- pr$upper %||% Inf
-    if (pl > tl || pu < tu) {
-      cm_abort(sprintf("The proposal for '%s' has support [%g, %g], which does not cover the input's support [%g, %g]; use a defensive mixture that includes the input's own distribution (see cm_suggest_proposal()).",
-                       k, pl, pu, tl, tu), class = "deconflate_unsupported")
+    # The whole support must be covered, not just its end points: a mixture
+    # can span the range and still leave a gap that is never sampled.
+    if (!support_covers(pr, tg)) {
+      cm_abort(sprintf("The proposal for '%s' has support %s, which does not cover the input's support %s; use a defensive mixture that includes the input's own distribution (see cm_suggest_proposal()).",
+                       k, format_support(pr), format_support(tg)), class = "deconflate_unsupported")
     }
   }
   invisible(TRUE)
@@ -160,8 +162,7 @@ run_draw <- function(make_model, method, ...) {
     withCallingHandlers({
       model <- make_model()
       rs <- lapply(method, function(m) deconflate(model, method = m, warn = FALSE, ...))
-      bad <- vapply(rs, function(r) any(!is.finite(r$adjusted$adjusted)) ||
-                      !is.finite(r$totals$adjusted_total), logical(1))
+      bad <- !vapply(rs, result_is_finite, logical(1))
       if (any(bad)) {
         cm_abort(sprintf("Non-finite adjusted impacts (method %s).", paste(method[bad], collapse = ", ")),
                  class = "deconflate_nonfinite")
@@ -227,6 +228,9 @@ finish_mc <- function(acc, n_draws, logw, block, method, sampling, proposal, spe
     log_weights = lw,
     ess = if (length(w)) 1 / sum(w^2) else 0,
     block = if (is.null(block)) NULL else block[keep],
+    # The number of replicate blocks as sampled, including blocks whose
+    # draws were all rejected (they are replicates with zero weight).
+    n_blocks = if (is.null(block)) NULL else length(unique(block)),
     n_draws = n_draws, n_rejected = length(acc$rej_draw),
     rejections = data.frame(draw = acc$rej_draw, type = acc$rej_type, reason = acc$rej_reason,
                             stringsAsFactors = FALSE),
@@ -272,6 +276,10 @@ flatten_model <- function(model) {
   x <- model$interactions
   if (!is.null(x) && nrow(x)) {
     v <- c(v, stats::setNames(x$value, paste0("inter:", x$disease1, ":", x$disease2)))
+  }
+  tw <- model$three_way
+  if (!is.null(tw) && nrow(tw)) {
+    v <- c(v, stats::setNames(tw$ratio, paste0("three:", tw$disease1, ":", tw$disease2, ":", tw$disease3)))
   }
   as.data.frame(as.list(v), check.names = FALSE)
 }
@@ -352,8 +360,9 @@ cm_scenario <- function(mc, changes) {
       cm_abort(sprintf("Cannot reweight '%s': point masses (fixed values) cannot be reweighted against densities.", k),
                class = "deconflate_unsupported")
     }
-    if ((g$lower %||% -Inf) < (s$lower %||% -Inf) || (g$upper %||% Inf) > (s$upper %||% Inf)) {
-      cm_abort(sprintf("The scenario for '%s' extends beyond the range it was sampled from; widen the sampling distribution (e.g. with dist_mixture()).", k),
+    if (!support_covers(s, g)) {
+      cm_abort(sprintf("The scenario for '%s' (support %s) is not covered by the distribution it was sampled from (support %s); widen the sampling distribution (e.g. with dist_mixture()).",
+                       k, format_support(g), format_support(s)),
                class = "deconflate_unsupported")
     }
   }
@@ -388,20 +397,26 @@ cm_scenario <- function(mc, changes) {
 #'   diagnostics:
 #'   * `mcse`: for independent draws, the self-normalised importance-sampling
 #'     estimate `sqrt(sum(w^2 (x - mean)^2))` (with equal weights,
-#'     `sd / sqrt(n)`); for Latin hypercube runs, estimated from the spread
-#'     of the R block means `m_b` around the pooled mean, weighted by each
-#'     block's share of the weight `W_b`:
-#'     `sqrt(R / (R - 1) * sum(W_b^2 (m_b - mean)^2))` (with equal block
-#'     weights, the standard deviation of the block means over `sqrt(R)`);
+#'     `sd / sqrt(n)`); for Latin hypercube runs, the standard error of the
+#'     pooled mean as a ratio estimator over the R replicate blocks, with
+#'     `S_b` the weighted sum and `W_b` the weight of block b:
+#'     `sqrt(sum((S_b - mean * W_b)^2) / (R (R - 1))) / mean(W_b)`. Blocks whose
+#'     draws were all rejected, or have zero weight, count in R with
+#'     `S_b = W_b = 0`. With equal weights and every block present, this is
+#'     the standard deviation of the block means over `sqrt(R)`;
 #'   * `rel_mcse`: `mcse` relative to the absolute mean;
 #'   * `tail_share`: the share of the variance contributed by the most
 #'     extreme 1% of draws;
 #'   * `stability`: `"ok"`, `"imprecise"` (`rel_mcse` above 5%),
-#'     `"heavy_tail"` (`tail_share` above 60%) or `"possible_pole"` (the
-#'     published approximation's denominator changes sign within the
-#'     sampled inputs in a way the raw impact does not explain, so the
-#'     estimate has a pole inside the input distribution and its mean may not
-#'     exist).
+#'     `"insufficient_info"` (precision cannot be assessed: fewer than two
+#'     Latin hypercube blocks with positive weight, or a mean of zero with a
+#'     positive standard error; `mcse` gives the absolute precision where
+#'     available), `"heavy_tail"` (`tail_share` above 60%) or
+#'     `"possible_pole"` (the published approximation's denominator changes
+#'     sign within the sampled inputs in a way the raw impact does not
+#'     explain, so the estimate has a pole inside the input distribution and
+#'     its mean may not exist). A missing precision is never reported as
+#'     `"ok"`.
 #' @export
 summary.cm_mc <- function(object, what = c("adjusted", "contribution", "total", "rejections"),
                           probs = c(0.025, 0.5, 0.975), trim = 0.05, diagnose = TRUE, ...) {
@@ -432,7 +447,8 @@ summary.cm_mc <- function(object, what = c("adjusted", "contribution", "total", 
   grp <- list(factor(d$disease, levels = unique(d$disease)),
               factor(d$method, levels = unique(d$method)))
   groups <- split(d, grp, drop = TRUE)
-  rows <- lapply(groups, function(g) mc_stats(g, probs, trim, check_pole = what != "total"))
+  rows <- lapply(groups, function(g) mc_stats(g, probs, trim, check_pole = what != "total",
+                                               n_blocks = object$n_blocks))
   out <- do.call(rbind, lapply(rows, `[[`, "row"))
   info <- do.call(rbind, lapply(rows, `[[`, "info"))
   rownames(out) <- NULL
@@ -447,7 +463,7 @@ summary.cm_mc <- function(object, what = c("adjusted", "contribution", "total", 
 }
 
 # Weighted summary and stability statistics for one group of draws.
-mc_stats <- function(g, probs, trim, check_pole = TRUE) {
+mc_stats <- function(g, probs, trim, check_pole = TRUE, n_blocks = NULL) {
   w <- g$w / sum(g$w)
   x <- g$x
   mu <- sum(w * x)
@@ -457,17 +473,20 @@ mc_stats <- function(g, probs, trim, check_pole = TRUE) {
   inside <- x >= lim[1] & x <= lim[2]
   tmean <- if (any(inside)) sum(w[inside] * x[inside]) / sum(w[inside]) else NA_real_
   if (all(!is.na(g$block))) {
-    # The pooled mean is sum_b W_b * m_b (W_b: block share of the weight),
-    # so its standard error is estimated from the spread of the block means
-    # around it. With equal block weights this is sd(m_b) / sqrt(R).
+    # The pooled mean is a ratio estimator, mu = sum_b S_b / sum_b W_b, over
+    # the R replicate blocks (S_b: weighted sum, W_b: weight of block b).
+    # Its standard error is sqrt(sum_b (S_b - mu W_b)^2 / (R (R - 1))) / mean(W_b).
+    # Blocks whose draws were all rejected or have zero weight are replicates
+    # with S_b = W_b = 0: they count in R. With equal block weights this is
+    # sd(block means) / sqrt(R). Fewer than two blocks with positive weight
+    # give no precision information.
     ix_b <- split(seq_along(x), g$block)
     Wb <- vapply(ix_b, function(ix) sum(w[ix]), numeric(1))
-    # A block with zero importance weight adds nothing to the mean.
-    ix_b <- ix_b[Wb > 0]
-    Wb <- Wb[Wb > 0]
-    bm <- vapply(ix_b, function(ix) sum(w[ix] * x[ix]) / sum(w[ix]), numeric(1))
-    R <- length(bm)
-    mcse <- if (R > 1L) sqrt(R / (R - 1) * sum(Wb^2 * (bm - mu)^2)) else NA_real_
+    Sb <- vapply(ix_b, function(ix) sum(w[ix] * x[ix]), numeric(1))
+    R <- max(n_blocks %||% 0L, length(ix_b))
+    mcse <- if (sum(Wb > 0) >= 2L && R >= 2L) {
+      sqrt(sum((Sb - mu * Wb)^2) / (R * (R - 1))) / (sum(Wb) / R)
+    } else NA_real_
   } else {
     mcse <- sqrt(sum(w^2 * (x - mu)^2))
   }
@@ -495,6 +514,10 @@ mc_stats <- function(g, probs, trim, check_pole = TRUE) {
     "possible_pole"
   } else if (length(x) >= 50 && tail_share > 0.6) {
     "heavy_tail"
+  } else if (is.na(mcse) || (is.na(rel) && mcse > 0)) {
+    # Precision cannot be judged: too few usable replicate blocks, or a mean
+    # of (nearly) zero with a positive standard error.
+    "insufficient_info"
   } else if (!is.na(rel) && rel > 0.05) {
     "imprecise"
   } else {
@@ -522,6 +545,14 @@ diagnosis_table <- function(out, info, object) {
       detail <- sprintf("the most extreme 1%% of draws contribute %.0f%% of the variance", 100 * out$tail_share[r])
       sugg <- sprintf("check which inputs produce the extreme draws; importance sampling may reduce the error if they come from one input region: prop <- cm_suggest_proposal(mc, \"%s\", method = \"%s\"), then cm_monte_carlo(sampler, n_draws, method = \"%s\", proposal = prop), and compare the standard errors. Report quantiles as well.",
                       key[r], out$method[r], out$method[r])
+    } else if (st == "insufficient_info") {
+      detail <- if (is.na(out$mcse[r])) {
+        "precision cannot be assessed: fewer than two Latin hypercube blocks have draws with positive weight"
+      } else {
+        sprintf("the mean is (nearly) zero, so relative precision is undefined; the absolute Monte Carlo standard error is %.3g",
+                out$mcse[r])
+      }
+      sugg <- "judge the absolute standard error against the size of effect that matters, increase n_draws or lhs_replicates, or check why draws are rejected or have zero weight (summary(mc, what = \"rejections\"))."
     } else {
       need <- ceiling(info$n[r] * (out$rel_mcse[r] / 0.02)^2)
       detail <- sprintf("the Monte Carlo standard error is %.1f%% of the mean", 100 * out$rel_mcse[r])
@@ -572,6 +603,9 @@ format_diagnosis <- function(diag) {
 #'   matrix nearly singular.
 #' * `"imprecise"`: the Monte Carlo standard error is large relative to the
 #'   mean. Use more draws, or Latin hypercube sampling.
+#' * `"insufficient_info"`: precision cannot be assessed (too few usable
+#'   Latin hypercube blocks, or a mean of zero); judge the absolute standard
+#'   error instead.
 #' * `"non_finite"`: draws gave non-finite results and were rejected.
 #'
 #' @param mc A `cm_mc` object.

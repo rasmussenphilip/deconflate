@@ -32,8 +32,11 @@
 #' @param weights Mixture weights (normalised internally).
 #'
 #' @return A `cm_dist` object, with the quantile function `q`, distribution
-#'   function `p`, log-density `logd`, sampler `r`, `mean`, and its support
-#'   (`lower`, `upper`; `discrete = TRUE` for point masses).
+#'   function `p`, log-density `logd`, sampler `r`, `mean`, and its support:
+#'   `support` (a two-column matrix of disjoint intervals on which the density
+#'   is positive), its range `lower` and `upper`, and `discrete = TRUE` for
+#'   point masses. The support of a mixture is the union of the supports of
+#'   its components with positive weight, so it can have gaps.
 #' @name distributions
 #' @examples
 #' d <- dist_pert(1.19, 3.30, 10.71)
@@ -45,11 +48,50 @@ NULL
 # `lower`/`upper` give the support; `discrete` marks point masses (fixed
 # values), whose `logd` is a probability mass rather than a density.
 new_dist <- function(type, params, q, p, logd, mean, lower = -Inf, upper = Inf,
-                     discrete = FALSE) {
+                     discrete = FALSE, support = NULL) {
+  support <- support %||% matrix(c(lower, upper), ncol = 2)
   structure(list(type = type, params = params, q = q, p = p, logd = logd,
                  mean = mean, r = function(n) q(stats::runif(n)),
-                 lower = lower, upper = upper, discrete = discrete),
+                 lower = min(support[, 1]), upper = max(support[, 2]),
+                 discrete = discrete, support = support),
             class = "cm_dist")
+}
+
+# Support of a distribution as a matrix of disjoint, sorted intervals.
+dist_support <- function(d) {
+  d$support %||% matrix(c(d$lower %||% -Inf, d$upper %||% Inf), ncol = 2)
+}
+
+# Union of intervals (rows of a two-column matrix), merging overlapping or
+# touching ones.
+interval_union <- function(m) {
+  m <- m[order(m[, 1], m[, 2]), , drop = FALSE]
+  out <- m[1, , drop = FALSE]
+  for (r in seq_len(nrow(m))[-1]) {
+    last <- nrow(out)
+    if (m[r, 1] <= out[last, 2]) {
+      out[last, 2] <- max(out[last, 2], m[r, 2])
+    } else {
+      out <- rbind(out, m[r, ])
+    }
+  }
+  unname(out)
+}
+
+# Does the support of `cover` contain the support of `target`? Each target
+# interval must lie inside one interval of the (merged) cover; a gap of
+# positive length anywhere in the target's support fails.
+support_covers <- function(cover, target) {
+  cs <- interval_union(dist_support(cover))
+  ts <- interval_union(dist_support(target))
+  all(vapply(seq_len(nrow(ts)), function(r) {
+    any(cs[, 1] <= ts[r, 1] & cs[, 2] >= ts[r, 2])
+  }, logical(1)))
+}
+
+format_support <- function(d) {
+  s <- interval_union(dist_support(d))
+  paste(sprintf("[%g, %g]", s[, 1], s[, 2]), collapse = " u ")
 }
 
 #' @rdname distributions
@@ -174,13 +216,14 @@ dist_mixture <- function(..., weights = NULL) {
   w <- weights %||% rep(1 / k, k)
   if (length(w) != k || any(w < 0) || sum(w) <= 0) cm_abort("Invalid mixture weights.")
   w <- w / sum(w)
+  pos <- which(w > 0)
   pfun <- function(x) {
     out <- 0
     for (j in seq_len(k)) out <- out + w[j] * comps[[j]]$p(x)
     out
   }
-  lo <- min(vapply(comps, function(cmp) cmp$q(1e-10), numeric(1)))
-  hi <- max(vapply(comps, function(cmp) cmp$q(1 - 1e-10), numeric(1)))
+  lo <- min(vapply(comps[pos], function(cmp) cmp$q(1e-10), numeric(1)))
+  hi <- max(vapply(comps[pos], function(cmp) cmp$q(1 - 1e-10), numeric(1)))
   d <- new_dist(
     "mixture", list(components = comps, weights = w),
     q = function(u) vapply(u, function(ui) {
@@ -194,9 +237,9 @@ dist_mixture <- function(..., weights = NULL) {
       log(dens)
     },
     mean = sum(w * vapply(comps, function(cmp) cmp$mean, numeric(1))),
-    lower = min(vapply(comps, function(cmp) cmp$lower %||% -Inf, numeric(1))),
-    upper = max(vapply(comps, function(cmp) cmp$upper %||% Inf, numeric(1))),
-    discrete = any(vapply(comps, function(cmp) isTRUE(cmp$discrete), logical(1)))
+    # Only components with positive weight give support.
+    support = interval_union(do.call(rbind, lapply(comps[pos], dist_support))),
+    discrete = any(vapply(comps[pos], function(cmp) isTRUE(cmp$discrete), logical(1)))
   )
   # Direct sampling is faster than inverting the mixture distribution function.
   d$r <- function(n) {

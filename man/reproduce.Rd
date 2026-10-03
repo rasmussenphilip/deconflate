@@ -50,10 +50,12 @@ For new analyses of hazard ratios use \code{\link[=deconflate_hr]{deconflate_hr(
 }
 \section{2022 (Tables 8-10)}{
 
-\code{reproduce_rasmussen_2022()} adjusts yield, calving interval and culling
-for the UK example (\code{\link[=example_uk_dairy_2022]{example_uk_dairy_2022()}}), computes the productivity
-gaps and their values with \code{\link[=uk_dairy_2022_economics]{uk_dairy_2022_economics()}}, adds veterinary
-expenditure, and back-converts the culling impacts to hazard ratios.
+\code{reproduce_rasmussen_2022()} adjusts yield and calving interval for the UK
+example (\code{\link[=example_uk_dairy_2022]{example_uk_dairy_2022()}}) and the historical culling analysis,
+computes the productivity gaps and their values with
+\code{\link[=uk_dairy_2022_economics]{uk_dairy_2022_economics()}} (and the paper's culling valuation), adds
+veterinary expenditure, and back-converts the culling impacts to hazard
+ratios.
 Fertility and the culling hazard ratios reproduce the paper; yield does not
 reproduce exactly from the printed Table 4 (see
 \code{vignette("reproducing-published")}).
@@ -61,8 +63,9 @@ reproduce exactly from the printed Table 4 (see
 
 \section{2024 (Table 5)}{
 
-\code{reproduce_rasmussen_2024()} runs \code{\link[=cm_monte_carlo]{cm_monte_carlo()}} with
-\code{\link[=sampler_global_dairy]{sampler_global_dairy()}} (\code{culling = TRUE}) and the published method, and
+\code{reproduce_rasmussen_2024()} runs \code{\link[=cm_monte_carlo]{cm_monte_carlo()}} with the samplers of
+\code{\link[=sampler_global_dairy]{sampler_global_dairy()}} plus the historical culling analysis (HR - 1,
+named \code{culling_hr_minus_1}) and the published method, and
 reports the means beside Table 5. Culling is reported on the hazard-ratio
 scale (1 + adjusted HR - 1). Table 5 used 50,000 draws; use at least
 several thousand for stable means. Some fertility means are unstable for

@@ -51,7 +51,8 @@ weights; with \code{adjusted_for = "all"} the hazard ratio is used as it is.
 \verb{log(HR_raw) = A beta}, with \code{A} as in \code{\link[=deconflate]{deconflate()}} (pairwise tables
 only).
 \item \code{"published"}: Rasmussen et al. (2024): \code{HR - 1} adjusted with eq. 16
-(crude estimates only). For reproduction and comparison.
+(\code{"snapshot_crude"} hazard ratios only). For reproduction and
+comparison.
 }
 }
 
@@ -69,7 +70,9 @@ attributable to disease with \code{\link[=attributable_risk]{attributable_risk()
 }
 
 \examples{
-hr <- cm_hr_model(example_supplement(), cm_hazard_ratios(c("d1", "d2", "d3"), c(1.5, 2.0, 1.3)))
+hr <- cm_hr_model(example_supplement(),
+                  cm_hazard_ratios(c("d1", "d2", "d3"), c(1.5, 2.0, 1.3),
+                                   estimand = "snapshot_crude"))
 deconflate_hr(hr)$adjusted
 deconflate_hr(hr, method = "first_order")$adjusted
 }

@@ -32,7 +32,9 @@ separated by \code{";"}, or \code{"all"}), one per disease or recycled.}
 
 \item{n}{Optional number of animals to sample.}
 
-\item{joint}{Optional pre-computed \code{\link[=fit_joint]{fit_joint()}} result.}
+\item{joint}{Optional pre-computed \code{\link[=fit_joint]{fit_joint()}} result. It must match the
+model and have converged; a joint fitted here that does not converge
+stops with class \code{deconflate_nonconvergence}.}
 
 \item{units}{Optional units label for the returned impacts.}
 }

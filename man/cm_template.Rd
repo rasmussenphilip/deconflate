@@ -4,10 +4,12 @@
 \alias{cm_template}
 \title{Write a template set of input files}
 \usage{
-cm_template(dir, overwrite = FALSE)
+cm_template(dir, type = c("single", "analyses"), overwrite = FALSE)
 }
 \arguments{
 \item{dir}{Folder to write to (created if needed).}
+
+\item{type}{\code{"single"} or \code{"analyses"}.}
 
 \item{overwrite}{Overwrite existing files?}
 }
@@ -16,12 +18,42 @@ The file paths, invisibly.
 }
 \description{
 Writes an example set of input files to a folder, to edit and read back
-with \code{\link[=cm_read_inputs]{cm_read_inputs()}}: three dairy diseases with their associations,
-two analyses (\code{impacts_yield.csv} in percent of yield and
-\code{impacts_calving_interval.csv} in days), culling hazard ratios, an empty
-interactions file for the yield analysis, an empty three-way file and an
-uncertainty file. The values are illustrative.
+with \code{\link[=cm_read_inputs]{cm_read_inputs()}}. The values are illustrative. Some values have a
+distribution in their row (columns \code{dist} and \code{p1}-\code{p4}); the others are
+point values.
+}
+\details{
+\itemize{
+\item \code{type = "single"} (default): one analysis, the standard workflow. Three
+dairy diseases (\code{diseases.csv}) and their associations
+(\code{associations.csv}), one impact vector (\code{impacts.csv}, in percent of
+yield; any units can be used), an empty \code{interactions.csv} (pairwise
+interactions in the same units) and an empty \code{three_way.csv}. Read
+back, it gives a \code{\link[=cm_model]{cm_model()}} and a \code{\link[=cm_sampler]{cm_sampler()}}, which supports Latin
+hypercube and importance sampling.
+\item \code{type = "analyses"}: two analyses on one population
+(\code{impacts_yield.csv} in percent of yield and
+\code{impacts_calving_interval.csv} in days), with \code{interactions_yield.csv}.
+Read back, it gives a \code{\link[=cm_analyses]{cm_analyses()}} object and a \code{\link[=cm_batch_sampler]{cm_batch_sampler()}}
+(shared population draws; simple random sampling only).
+}
+
+Hazard ratios are a separate model (\code{\link[=deconflate_hr]{deconflate_hr()}}) and are not part of
+either template; see \code{\link[=cm_read_inputs]{cm_read_inputs()}} for the \code{hazard_ratios.csv}
+columns. The folder \code{system.file("extdata", "five_diseases", package = "deconflate")} has a fuller example that uses every feature.
 }
 \examples{
-cm_template(file.path(tempdir(), "my-inputs"), overwrite = TRUE)
+dir <- file.path(tempdir(), "my-inputs")
+cm_template(dir, overwrite = TRUE)
+inp <- cm_read_inputs(dir = dir)
+deconflate(inp$model)
+\donttest{
+# Importance sampling of the lameness yield impact, with a defensive
+# mixture that covers its whole support
+specs <- attr(inp$sampler, "specs")
+prop <- list("impact:LAM" = dist_mixture(specs[["impact:LAM"]], dist_normal(6, 1.5),
+                                         weights = c(0.5, 0.5)))
+mc <- cm_monte_carlo(inp$sampler, 200, proposal = prop, seed = 1)
+summary(mc, diagnose = FALSE)
+}
 }

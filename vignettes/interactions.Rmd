@@ -29,6 +29,14 @@ j
 head(combination_probs(j))
 ```
 
+Enumerating 2^n combinations limits this exact fit to about 20 diseases.
+For more, `fit_joint(backend = "sampled")` fits the same model by Monte
+Carlo (Gibbs sampling with calibrated parameters, followed by raking to
+the pairwise tables); the functions below that use the joint distribution
+accept a fit from either backend. See
+`vignette("thresholds-and-scaling")` for how it works, its diagnostics and
+a 24-disease example.
+
 ## What maximum entropy assumes
 
 With three or more diseases, the probabilities and pairwise associations do
@@ -162,9 +170,12 @@ c(maximum_entropy = sum(j$prob[rowSums(j$cells) == 3]),
   ratio_2 = sum(j3$prob[rowSums(j3$cells) == 3]))
 ```
 
-Three-way terms are sensitivity scenarios. They change additive results
+Three-way terms are sensitivity scenarios. When all pairs of a triple are
+constrained, they keep the pairwise tables fixed and change additive results
 only through interactions: without interactions every scenario reproduces
-the baseline, and with an interaction they change the offset.
+the baseline, and with an interaction they change the offset. When a pair is
+unknown, its fitted table moves with the three-way term, so additive results
+can change even without interactions.
 `screen_three_way()` sets each triple in turn:
 
 ```{r}
@@ -175,7 +186,7 @@ screen_three_way(mi, ratios = c(0.5, 2))
 They also change the joint-based results, such as snapshot hazard ratios:
 
 ```{r}
-hr <- cm_hazard_ratios(c("d1", "d2", "d3"), c(1.5, 2.0, 1.3))
+hr <- cm_hazard_ratios(c("d1", "d2", "d3"), c(1.5, 2.0, 1.3), estimand = "snapshot_crude")
 rbind(maximum_entropy = deconflate_hr(cm_hr_model(m, hr))$adjusted$adjusted,
       ratio_2 = deconflate_hr(cm_hr_model(m3, hr))$adjusted$adjusted)
 ```

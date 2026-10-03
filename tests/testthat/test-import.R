@@ -33,71 +33,68 @@ input_dir <- function(name, tables = list()) {
   dir
 }
 
-test_that("the template round-trips through cm_read_inputs()", {
+test_that("the default template is one analysis, read into a model and a sampler", {
   dir <- input_dir("template")
-  expect_message(paths <- cm_template(dir), "Wrote 8 files")
-  expect_true(all(file.exists(paths)))
+  expect_message(paths <- cm_template(dir), "Wrote 5 files")
   expect_setequal(basename(paths),
-                  c("diseases.csv", "associations.csv", "three_way.csv", "impacts_yield.csv",
-                    "impacts_calving_interval.csv", "interactions_yield.csv",
-                    "hazard_ratios.csv", "uncertainty.csv"))
+                  c("diseases.csv", "associations.csv", "three_way.csv", "impacts.csv",
+                    "interactions.csv"))
   expect_error(cm_template(dir), "already exist")
-  expect_message(cm_template(dir, overwrite = TRUE), "Wrote 8 files")
+  expect_message(cm_template(dir, overwrite = TRUE), "Wrote 5 files")
 
   inp <- cm_read_inputs(dir = dir)
-  expect_s3_class(inp, "cm_inputs")
   expect_equal(nrow(inp$problems), 0)
-  expect_s3_class(inp$population, "cm_population")
   expect_equal(inp$population$diseases$id, c("LAM", "SCK", "MET"))
   expect_equal(inp$population$diseases$prob[2], 1 - exp(-0.48))
-  # The empty three-way and interaction files are ignored.
   expect_null(inp$population$three_way)
+  expect_null(inp$hr_model)
+  expect_s3_class(inp$model, "cm_model")
+  expect_equal(names(inp$analyses$models), "impacts")
+  expect_null(inp$model$interactions)
+  expect_equal(inp$model$impacts$value, c(4.81, 8.40, 5.61))
+  expect_equal(attr(inp$model$impacts, "units"), "% of yield")
 
-  # Two analyses (in file-name order) on one population.
+  # A single-model sampler: Latin hypercube and importance sampling work.
+  s <- inp$sampler
+  expect_s3_class(s, "cm_sampler")
+  expect_equal(names(attr(s, "specs")), c("prob:LAM", "assoc:LAM:SCK", "impact:LAM", "impact:SCK"))
+  specs <- attr(s, "specs")
+  prop <- list("impact:LAM" = dist_mixture(specs[["impact:LAM"]], dist_normal(6, 1.5),
+                                           weights = c(0.5, 0.5)))
+  mc <- cm_monte_carlo(s, 40, proposal = prop, seed = 1)
+  expect_s3_class(mc, "cm_mc")
+  expect_lt(mc$ess, 40)
+  mc_lhs <- cm_monte_carlo(s, 40, sampling = "lhs", lhs_replicates = 4, seed = 1)
+  expect_equal(mc_lhs$n_blocks, 4)
+  expect_output(print(inp), "Analyses: impacts")
+  unlink(dir, recursive = TRUE)
+})
+
+test_that("the analyses template gives two analyses and a batch sampler", {
+  dir <- input_dir("template-analyses")
+  expect_message(paths <- cm_template(dir, type = "analyses"), "Wrote 6 files")
+  expect_setequal(basename(paths),
+                  c("diseases.csv", "associations.csv", "three_way.csv", "impacts_yield.csv",
+                    "impacts_calving_interval.csv", "interactions_yield.csv"))
+  inp <- cm_read_inputs(dir = dir)
+  expect_equal(nrow(inp$problems), 0)
   expect_s3_class(inp$analyses, "cm_analyses")
   expect_equal(names(inp$analyses$models), c("calving_interval", "yield"))
   expect_null(inp$model)
+  expect_null(inp$hr_model)
   expect_identical(inp$analyses$population, inp$population)
   for (m in inp$analyses$models) {
-    expect_s3_class(m, "cm_model")
     expect_identical(m$diseases, inp$population$diseases)
     expect_identical(m$associations, inp$population$associations)
-    expect_null(m$interactions)
   }
-  y <- inp$analyses$models$yield$impacts
-  expect_equal(y$value, c(4.81, 8.40, 5.61))
-  expect_equal(attr(y, "label"), "milk yield loss")
-  expect_equal(attr(y, "units"), "% of yield")
-  ci <- inp$analyses$models$calving_interval$impacts
-  expect_equal(ci$value, c(12, 4, 18))
-  expect_equal(attr(ci, "units"), "days")
-
-  # Hazard ratios on the same population.
-  expect_s3_class(inp$hr_model, "cm_hr_model")
-  expect_equal(inp$hr_model$hazard_ratios$disease, c("LAM", "SCK", "MET"))
-  expect_equal(inp$hr_model$hazard_ratios$value, c(1.74, 1.92, 1.50))
-  expect_identical(inp$hr_model$population, inp$population)
-
-  # A batch sampler sharing the population draws.
+  expect_equal(inp$analyses$models$calving_interval$impacts$value, c(12, 4, 18))
   s <- inp$sampler
   expect_s3_class(s, "cm_batch_sampler")
-  expect_equal(names(s$samplers), c("calving_interval", "yield"))
   expect_equal(s$population_keys, c("prob:LAM", "assoc:LAM:SCK"))
-  expect_equal(names(attr(s$samplers$yield, "specs")),
-               c("prob:LAM", "assoc:LAM:SCK", "impact:LAM", "impact:SCK"))
   expect_equal(names(attr(s$samplers$calving_interval, "specs")),
                c("prob:LAM", "assoc:LAM:SCK", "impact:MET"))
-  expect_equal(attr(s$samplers$calving_interval, "specs")[["impact:MET"]]$params$mode, 18)
-  expect_equal(attr(s$samplers$yield, "specs")[["assoc:LAM:SCK"]]$params$lower, 0)
-  expect_s3_class(s$samplers$yield(1), "cm_model")
-
-  expect_output(print(inp), "Analyses: calving_interval, yield")
-  expect_output(print(inp), "Hazard ratios: yes")
   expect_output(print(inp), "batch sampler over 2 analyses")
-
   res <- deconflate(inp$analyses)
-  expect_s3_class(res, "cm_results")
-  expect_equal(res$yield$units, "% of yield")
   expect_equal(res$calving_interval$units, "days")
   unlink(dir, recursive = TRUE)
 })
@@ -234,7 +231,7 @@ test_that("the shipped global dairy files reproduce example_global_dairy()", {
                deconflate_hr(ref_hr, method = "published", warn = FALSE)$adjusted$adjusted,
                tolerance = 1e-10)
 
-  # The uncertainty table matches sampler_global_dairy().
+  # The distributions in the tables match sampler_global_dairy().
   ref_s <- sampler_global_dairy()
   s <- inp$sampler
   expect_s3_class(s, "cm_batch_sampler")
@@ -256,21 +253,17 @@ test_that("the shipped example with errors reports each deliberate error", {
   pr <- cm_check_inputs(dir = dir)
   expect_s3_class(pr, "cm_problems")
   expected <- data.frame(
-    table = c("diseases", "diseases",
-              "associations", "associations", "associations", "associations",
-              "impacts_yield", "impacts_yield", "impacts_yield",
-              "impacts_fertility", "hazard_ratios", "interactions_culling",
-              rep("uncertainty", 9), "uncertainty_fertility", "uncertainty_fertility"),
-    row = c(3, 5,
-            3, 4, 5, 6,
-            2, 3, NA,
-            NA, 3, NA,
-            2, 3, 4, 5, 6, 7, 9, 10, 11, 2, 3),
-    column = c("value", "id",
-               "disease2", NA, "value", "adjusted",
-               "value", "adjusted_for", NA,
-               "units", "value", NA,
-               "dist", "key", "key", "key", "key", "dist", "key", "key", "dist", "key", "key"),
+    table = c(rep("diseases", 4), rep("associations", 6), rep("impacts_yield", 4),
+              "impacts_fertility", "impacts_fertility", "hazard_ratios", "interactions_culling",
+              "uncertainty"),
+    row = c(2, 3, 4, 5,
+            2, 3, 4, 5, 6, 7,
+            2, 3, 3, NA,
+            NA, 3, 3, NA, NA),
+    column = c("dist", "value", "dist", "id",
+               "dist", "disease2", NA, "value", "adjusted", "dist",
+               "value", "adjusted_for", "dist", NA,
+               "units", "p2", "value", NA, NA),
     stringsAsFactors = FALSE
   )
   for (i in seq_len(nrow(expected))) {
@@ -279,22 +272,32 @@ test_that("the shipped example with errors reports each deliberate error", {
   }
   expect_equal(sum(pr$severity == "error"), nrow(expected))
   expect_true(any(grepl("MET", pr$problem[pr$table == "impacts_yield" & is.na(pr$row)])))
+  expect_true(any(grepl("no longer read", pr$problem[pr$table == "uncertainty"])))
+  # A decimal comma in a parameter is reported once, not again as a
+  # distribution with a missing parameter.
+  expect_false(has_problem(pr, "impacts_fertility", 3, "dist"))
+  # Notes: a point value outside its distribution, and distributions given
+  # for hazard ratios (ignored).
+  expect_true(has_problem(pr, "impacts_fertility", 2, "dist", severity = "note"))
+  expect_true(has_problem(pr, "hazard_ratios", NA, "dist", severity = "note"))
 
-  # Every row documented as an error (source or note column) is reported, and
-  # no other row is.
+  # Every row documented as an error (or note) in the note column is
+  # reported, and no other row is.
   for (f in list.files(dir, pattern = "\\.csv$")) {
     tab <- utils::read.csv(file.path(dir, f), stringsAsFactors = FALSE)
-    doc <- if ("note" %in% names(tab)) tab$note else tab$source
-    flagged <- which(grepl("^Error", doc))
     lab <- sub("\\.csv$", "", f)
-    for (r in flagged) {
-      expect_true(any(pr$table == lab & pr$row %in% c(r, NA)), info = paste(f, "row", r))
+    for (sev in c("error", "note")) {
+      flagged <- which(grepl(if (sev == "error") "^Error" else "^Note", tab$note))
+      for (r in flagged) {
+        expect_true(any(pr$table == lab & pr$row %in% c(r, NA) & pr$severity == sev),
+                    info = paste(f, "row", r))
+      }
+      reported <- unique(stats::na.omit(pr$row[pr$table == lab & pr$severity == sev]))
+      expect_true(all(reported %in% flagged), info = paste(f, sev))
     }
-    reported <- unique(stats::na.omit(pr$row[pr$table == lab]))
-    expect_true(all(reported %in% flagged), info = f)
   }
 
-  expect_output(print(pr), "Found 23 problem")
+  expect_output(print(pr), "Found 19 problem")
   expect_error(cm_read_inputs(dir = dir), class = "deconflate_input_problems")
 })
 
@@ -302,9 +305,8 @@ test_that("all problems in tables typed in R are reported at once", {
   pr <- cm_check_inputs(
     diseases = data.frame(id = c("a", "b", "b", "c"), value = c(0.1, 1.5, 0.2, 0.3)),
     associations = data.frame(disease1 = "a", disease2 = "z", value = -1),
-    impacts = data.frame(disease = c("a", "b"), value = c("2", "x"), extra = 1),
-    uncertainty = data.frame(key = c("impact:a", "prob:z", "foo"),
-                             dist = c("normal", "beta", "pert"), p1 = c(2, 1, 1))
+    impacts = data.frame(disease = c("a", "b"), value = c("2", "x"), extra = 1,
+                         dist = c("normal", NA), p1 = c(2, 1))
   )
   expect_s3_class(pr, "cm_problems")
   expect_true(has_problem(pr, "diseases", 2, "value"))
@@ -314,11 +316,8 @@ test_that("all problems in tables typed in R are reported at once", {
   expect_true(has_problem(pr, "impacts", 2, "value"))
   expect_true(has_problem(pr, "impacts", NA, NA))              # no impact for c
   expect_true(has_problem(pr, "impacts", NA, "extra", severity = "note"))
-  expect_true(has_problem(pr, "uncertainty", 1, "dist"))       # normal without sd
-  expect_false(has_problem(pr, "uncertainty", 1, "key"))       # one analysis: key may omit it
-  expect_true(has_problem(pr, "uncertainty", 2, "key"))
-  expect_true(has_problem(pr, "uncertainty", 3, "key"))
-  expect_true(has_problem(pr, "uncertainty", 3, "dist"))
+  expect_true(has_problem(pr, "impacts", 1, "dist"))           # normal without sd
+  expect_true(has_problem(pr, "impacts", 2, "dist"))           # p1 without a distribution
   expect_error(cm_read_inputs(diseases = data.frame(id = "a", value = 2)), "Found 1 problem",
                class = "deconflate_input_problems")
 })
@@ -338,6 +337,7 @@ test_that("missing tables, files and folders are reported", {
   expect_true(has_problem(pr, "impacts"))                      # space in an analysis name
   pr <- cm_check_inputs(diseases = tabs$diseases,
                         hazard_ratios = data.frame(disease = c("d1", "d2"), value = c(1.5, 2),
+                                                   estimand = "snapshot_crude",
                                                    adjusted_for = c("d2", NA)))
   expect_true(has_problem(pr, "hazard_ratios", 1, "adjusted_for"))
   expect_true(has_problem(pr, "hazard_ratios", NA, NA))        # no hazard ratio for d3
@@ -358,98 +358,12 @@ test_that("an impact table with an outcome column gives the migration error", {
   expect_false(any(pr$severity == "error"))
 })
 
-test_that("uncertainty keys name the analysis in uncertainty.csv and may omit it in uncertainty_<analysis>.csv", {
-  tabs <- supp_tables()
-  imps <- two_impacts()
-  dir <- input_dir("uncertainty", list(
-    diseases = tabs$diseases, associations = tabs$associations,
-    impacts_yield = imps$yield, impacts_fertility = imps$fertility,
-    uncertainty = data.frame(
-      key = c("prob:d1", "assoc:d1:d2", "impact:yield:d1", "impact:fertility:d3"),
-      dist = c("beta", "lognormal_ci", "normal", "normal"),
-      p1 = c(10, 2, 2.5, 0), p2 = c(90, 1.4, 0.5, 0.2), p3 = c(NA, 2.9, NA, NA)),
-    uncertainty_yield = data.frame(key = c("impact:d2", "impact:yield:d3"), dist = "normal",
-                                   p1 = c(5, 7.5), p2 = 1)
-  ))
-  inp <- cm_read_inputs(dir = dir)
-  s <- inp$sampler
-  expect_s3_class(s, "cm_batch_sampler")
-  expect_equal(s$population_keys, c("prob:d1", "assoc:d1:d2"))
-  expect_setequal(names(attr(s$samplers$yield, "specs")),
-                  c("prob:d1", "assoc:d1:d2", "impact:d1", "impact:d2", "impact:d3"))
-  expect_setequal(names(attr(s$samplers$fertility, "specs")),
-                  c("prob:d1", "assoc:d1:d2", "impact:d3"))
-  expect_equal(attr(s$samplers$yield, "specs")[["impact:d2"]]$mean, 5)
-  expect_equal(attr(s$samplers$fertility, "specs")[["impact:d3"]]$mean, 0)
-  expect_equal(attr(s$samplers$yield, "specs")[["prob:d1"]]$type, "beta")
-
-  # The same input in uncertainty.csv and uncertainty_yield.csv.
-  utils::write.csv(data.frame(key = c("impact:d2", "impact:d1"), dist = "normal", p1 = c(5, 2.5), p2 = 1),
-                   file.path(dir, "uncertainty_yield.csv"), row.names = FALSE, na = "")
-  pr <- cm_check_inputs(dir = dir)
-  expect_true(has_problem(pr, "uncertainty_yield", 2, "key"))
-  expect_equal(sum(pr$severity == "error"), 1)
-  expect_error(cm_read_inputs(dir = dir), class = "deconflate_input_problems")
-
-  # Population inputs belong in uncertainty.csv, and an analysis's own file
-  # cannot name another analysis.
-  utils::write.csv(data.frame(key = c("impact:d2", "prob:d2", "assoc:d1:d2", "impact:fertility:d1"),
-                              dist = "normal", p1 = c(5, 0.15, 2, 1), p2 = c(1, 0.01, 0.2, 0.1)),
-                   file.path(dir, "uncertainty_yield.csv"), row.names = FALSE, na = "")
-  pr <- cm_check_inputs(dir = dir)
-  expect_false(has_problem(pr, "uncertainty_yield", 1, "key"))
-  expect_true(has_problem(pr, "uncertainty_yield", 2, "key"))
-  expect_true(has_problem(pr, "uncertainty_yield", 3, "key"))
-  expect_true(has_problem(pr, "uncertainty_yield", 4, "key"))
-  unlink(dir, recursive = TRUE)
-})
-
-test_that("unqualified impact keys need a single analysis", {
-  tabs <- supp_tables()
-  imps <- two_impacts()
-  unc <- data.frame(key = c("impact:yield:d1", "impact:d2"), dist = "normal", p1 = c(2.5, 5), p2 = 1)
-  pr <- cm_check_inputs(diseases = tabs$diseases, associations = tabs$associations,
-                        impacts = imps, uncertainty = unc)
-  expect_false(has_problem(pr, "uncertainty", 1, "key"))
-  expect_true(has_problem(pr, "uncertainty", 2, "key"))
-  expect_error(cm_read_inputs(diseases = tabs$diseases, associations = tabs$associations,
-                              impacts = imps, uncertainty = unc),
-               class = "deconflate_input_problems")
-
-  # With one analysis, keys with and without the analysis both work.
-  inp <- cm_read_inputs(diseases = tabs$diseases, associations = tabs$associations,
-                        impacts = imps["yield"],
-                        uncertainty = data.frame(key = c("impact:d1", "impact:yield:d2"),
-                                                 dist = "normal", p1 = c(2.5, 5), p2 = 1))
-  expect_s3_class(inp$sampler, "cm_sampler")
-  expect_equal(names(attr(inp$sampler, "specs")), c("impact:d1", "impact:d2"))
-  expect_s3_class(inp$sampler(1), "cm_model")
-  expect_output(print(inp), "Uncertain inputs: 2")
-
-  # The shared table can also be given as list element `shared`.
-  inp <- cm_read_inputs(diseases = tabs$diseases, associations = tabs$associations,
-                        impacts = imps,
-                        uncertainty = list(
-                          shared = data.frame(key = c("assoc:d2:d3", "impact:yield:d1"),
-                                              dist = "normal", p1 = c(3, 2.5), p2 = c(0.3, 0.5)),
-                          fertility = data.frame(key = "impact:d2", dist = "normal", p1 = 2, p2 = 0.5)))
-  expect_equal(inp$sampler$population_keys, "assoc:d2:d3")
-  expect_equal(names(attr(inp$sampler$samplers$fertility, "specs")), c("assoc:d2:d3", "impact:d2"))
-
-  # An analysis-specific table for an analysis that does not exist.
-  pr <- cm_check_inputs(diseases = tabs$diseases, associations = tabs$associations, impacts = imps,
-                        uncertainty = list(culling = data.frame(key = "impact:d1", dist = "fixed", p1 = 1)))
-  expect_true(has_problem(pr, "uncertainty_culling"))
-})
-
 test_that("interaction tables are matched to their analyses", {
   tabs <- supp_tables()
   imps <- two_impacts()
   int <- data.frame(disease1 = "d1", disease2 = "d2", value = 0.5)
   inp <- cm_read_inputs(diseases = tabs$diseases, associations = tabs$associations, impacts = imps,
-                        interactions = list(yield = int),
-                        uncertainty = data.frame(key = "inter:yield:d2:d1", dist = "normal",
-                                                 p1 = 0.5, p2 = 0.1))
+                        interactions = list(yield = cbind(int, dist = "normal", p1 = 0.5, p2 = 0.1)))
   expect_equal(nrow(inp$analyses$models$yield$interactions), 1)
   expect_null(inp$analyses$models$fertility$interactions)
   expect_equal(names(attr(inp$sampler$samplers$yield, "specs")), "inter:d1:d2")
@@ -547,7 +461,8 @@ test_that("a zero cell in a contingency table gets a note", {
 test_that("hazard ratios can be read without impacts", {
   tabs <- supp_tables()
   inp <- cm_read_inputs(diseases = tabs$diseases, associations = tabs$associations,
-                        hazard_ratios = data.frame(disease = ids3, value = c(1.5, 2.0, 1.3)))
+                        hazard_ratios = data.frame(disease = ids3, value = c(1.5, 2.0, 1.3),
+                                                   estimand = "snapshot_crude"))
   expect_null(inp$analyses)
   expect_null(inp$model)
   expect_null(inp$sampler)
@@ -601,22 +516,6 @@ test_that("CSV columns are read as text, and empty files are empty tables", {
   unlink(dir, recursive = TRUE)
 })
 
-test_that("the same input given twice is reported, in one table or in either pair order", {
-  tabs <- supp_tables()
-  un <- data.frame(key = c("impact:yield:d1", "impact:yield:d1", "assoc:d1:d2", "assoc:d2:d1"),
-                   dist = "normal", p1 = c(2.5, 2.5, 2, 2), p2 = c(0.5, 0.5, 0.2, 0.2))
-  pr <- cm_check_inputs(diseases = tabs$diseases, associations = tabs$associations,
-                        impacts = list(yield = two_impacts()$yield), uncertainty = un)
-  expect_true(has_problem(pr, "uncertainty", 2, "key"))
-  expect_true(has_problem(pr, "uncertainty", 4, "key"))
-  expect_false(has_problem(pr, "uncertainty", 3, "key"))
-  # A key in reverse order is matched to the association row.
-  inp <- cm_read_inputs(diseases = tabs$diseases, associations = tabs$associations,
-                        impacts = list(yield = two_impacts()$yield),
-                        uncertainty = un[c(1, 4), ])
-  expect_true("assoc:d1:d2" %in% names(attr(inp$sampler, "specs")))
-})
-
 test_that("two interaction tables for one analysis are reported", {
   tabs <- supp_tables()
   it <- data.frame(disease1 = "d1", disease2 = "d2", value = 0.5)
@@ -639,4 +538,196 @@ test_that("mixed time horizons give a note", {
   d <- data.frame(id = c("a", "b"), value = c(0.1, 0.2), time_horizon = c("year", "lactation"))
   pr <- cm_check_inputs(diseases = d)
   expect_true(has_problem(pr, "diseases", NA, "time_horizon", severity = "note"))
+})
+
+# ---- Uncertainty in the tables (deconflate 0.3.0) -----------------------------
+
+test_that("distributions are given in the rows of the values they describe", {
+  tabs <- supp_tables()
+  dir <- input_dir("dists", list(
+    diseases = cbind(tabs$diseases, dist = c("beta", NA, NA), p1 = c(10, NA, NA),
+                     p2 = c(90, NA, NA)),
+    associations = cbind(tabs$associations, dist = c("lognormal_ci", NA, "pert"),
+                         p1 = c(2, NA, 2), p2 = c(1.4, NA, 3), p3 = c(2.9, NA, 4.5)),
+    three_way = data.frame(disease1 = "d3", disease2 = "d1", disease3 = "d2", ratio = 1.5,
+                           dist = "lognormal_ci", p1 = 1.5, p2 = 0.8, p3 = 2.8),
+    impacts_yield = cbind(two_impacts()$yield, dist = c("normal", "pert", NA),
+                          p1 = c(2.5, 3, NA), p2 = c(0.5, 5, NA), p3 = c(NA, 8, NA)),
+    impacts_fertility = cbind(two_impacts()$fertility, dist = c(NA, NA, "fixed"),
+                              p1 = c(NA, NA, 0)),
+    interactions_yield = data.frame(disease1 = "d2", disease2 = "d1", value = 0.5,
+                                    dist = "normal", p1 = 0.5, p2 = 0.1)
+  ))
+  pr <- cm_check_inputs(dir = dir)
+  expect_equal(nrow(pr), 0)
+  inp <- cm_read_inputs(dir = dir)
+  # Point values are used by the deterministic methods.
+  expect_equal(inp$population$diseases$value, c(0.10, 0.15, 0.20))
+  expect_equal(inp$population$three_way$ratio, 1.5)
+  s <- inp$sampler
+  expect_s3_class(s, "cm_batch_sampler")
+  expect_setequal(s$population_keys, c("prob:d1", "assoc:d1:d2", "assoc:d2:d3", "three:d3:d1:d2"))
+  expect_setequal(names(attr(s$samplers$yield, "specs")),
+                  c(s$population_keys, "impact:d1", "impact:d2", "inter:d2:d1"))
+  expect_setequal(names(attr(s$samplers$fertility, "specs")), c(s$population_keys, "impact:d3"))
+  sp <- attr(s$samplers$yield, "specs")
+  expect_equal(sp[["prob:d1"]]$type, "beta")
+  expect_equal(sp[["assoc:d1:d2"]]$type, "lognormal")
+  expect_equal(sp[["assoc:d1:d2"]]$params$meanlog, log(2))
+  expect_equal(sp[["three:d3:d1:d2"]]$params$meanlog, log(1.5))
+  expect_equal(sp[["impact:d2"]]$type, "pert")
+  expect_equal(attr(s$samplers$fertility, "specs")[["impact:d3"]]$type, "fixed")
+  # The three-way ratio is drawn with the population inputs.
+  m <- s$samplers$yield(1, values = c("three:d3:d1:d2" = 2.5))
+  expect_equal(m$three_way$ratio, 2.5)
+  mc <- cm_monte_carlo(s, 10, method = "global", seed = 1)
+  p <- mc$analyses$yield$params
+  expect_true("three:d3:d1:d2" %in% names(p))
+  expect_equal(p[["three:d3:d1:d2"]], mc$analyses$fertility$params[["three:d3:d1:d2"]][
+    match(p$draw, mc$analyses$fertility$params$draw)])
+  expect_true(all(mc$analyses$fertility$params[["impact:d3"]] == 0))
+
+  # One analysis typed in R: a single sampler.
+  inp1 <- cm_read_inputs(diseases = tabs$diseases, associations = tabs$associations,
+                         impacts = data.frame(disease = ids3, value = c(2.5, 5, 7.5),
+                                              dist = c("normal", NA, NA), p1 = c(2.5, NA, NA),
+                                              p2 = c(0.5, NA, NA)))
+  expect_s3_class(inp1$sampler, "cm_sampler")
+  expect_equal(names(attr(inp1$sampler, "specs")), "impact:d1")
+  expect_output(print(inp1), "Uncertain inputs: 1")
+  unlink(dir, recursive = TRUE)
+})
+
+test_that("uncertainty files from deconflate 0.2 give a migration error", {
+  tabs <- supp_tables()
+  dir <- input_dir("old-uncertainty", list(
+    diseases = tabs$diseases,
+    impacts_yield = two_impacts()$yield,
+    uncertainty = data.frame(key = "impact:yield:d1", dist = "normal", p1 = 2.5, p2 = 0.5),
+    uncertainty_yield = data.frame(key = "impact:d2", dist = "normal", p1 = 5, p2 = 1)
+  ))
+  pr <- cm_check_inputs(dir = dir)
+  expect_true(has_problem(pr, "uncertainty"))
+  expect_true(has_problem(pr, "uncertainty_yield"))
+  expect_match(pr$problem[pr$table == "uncertainty"], "no longer read")
+  expect_error(cm_read_inputs(dir = dir), "no longer read", class = "deconflate_input_problems")
+  expect_false("uncertainty" %in% names(formals(cm_read_inputs)))
+  unlink(dir, recursive = TRUE)
+})
+
+test_that("problems with distributions are reported per row", {
+  dis <- data.frame(id = c("a", "b", "c"), value = c(0.1, 0.2, 0.3),
+                    dist = c(NA, "uniform", NA), p1 = c(0.05, 0.25, NA), p2 = c(NA, 0.4, NA))
+  assoc <- data.frame(disease1 = c("a", "a", "b"), disease2 = c("b", "c", "c"),
+                      value = c(NA, NA, 2), measure = c("table", "independent", "OR"),
+                      n11 = c(10, NA, NA), n10 = c(20, NA, NA), n01 = c(30, NA, NA),
+                      n00 = c(40, NA, NA), dist = c("normal", "normal", "lognormal"),
+                      p1 = c(1, 1, 0.7), p2 = c(0.1, 0.1, 0.2))
+  imp <- data.frame(disease = c("a", "b", "c"), value = c(1, 2, 3),
+                    dist = c("gamma", "normal", "pert"), p1 = c(1, 2, 1), p2 = c(1, "0,5", 5),
+                    p3 = c(NA, NA, 2))
+  hr <- data.frame(disease = c("a", "b", "c"), value = c(1.5, 1.2, 1), estimand = "snapshot_crude",
+                   dist = c("lognormal_ci", NA, NA), p1 = c(1.5, NA, NA), p2 = c(1.2, NA, NA),
+                   p3 = c(1.9, NA, NA))
+  pr <- cm_check_inputs(diseases = dis, associations = assoc, impacts = imp, hazard_ratios = hr)
+  expect_true(has_problem(pr, "diseases", 1, "dist"))                     # p1 without dist
+  expect_true(has_problem(pr, "diseases", 2, "dist", severity = "note"))  # 0.2 outside (0.25, 0.4)
+  expect_true(has_problem(pr, "associations", 1, "dist"))                 # a table of counts
+  expect_true(has_problem(pr, "associations", 2, "dist"))                 # independent
+  expect_false(has_problem(pr, "associations", 3, "dist"))
+  expect_true(has_problem(pr, "impacts", 1, "dist"))                      # unknown distribution
+  expect_true(has_problem(pr, "impacts", 2, "p2"))                        # decimal comma
+  expect_false(has_problem(pr, "impacts", 2, "dist"))                     # reported once
+  expect_true(has_problem(pr, "impacts", 3, "dist"))                      # pert with max < mode
+  expect_true(has_problem(pr, "hazard_ratios", NA, "dist", severity = "note"))
+  expect_equal(sum(pr$severity == "error"), 6)
+
+  # Without impact tables, distributions are noted (Monte Carlo adjusts impacts).
+  pr <- cm_check_inputs(diseases = dis[2:3, ])
+  expect_true(has_problem(pr, "inputs", NA, "dist", severity = "note"))
+})
+
+test_that("the five-disease example reads without problems and matches the reference", {
+  # Reference values: inst/validation/reference_five_diseases.py
+  dir <- system.file("extdata", "five_diseases", package = "deconflate")
+  expect_true(nzchar(dir))
+  expect_equal(nrow(cm_check_inputs(dir = dir)), 0)
+  inp <- cm_read_inputs(dir = dir)
+  ids <- c("LAM", "MAS", "MET", "SCK", "RP")
+  expect_equal(inp$population$diseases$id, ids)
+  expect_equal(inp$population$diseases$prob, c(0.25, 1 - exp(-0.3), 0.10, 0.35, 0.06),
+               tolerance = 1e-12)
+  expect_equal(nrow(pair_tables(inp$population)), 10)
+  expect_equal(nrow(inp$population$three_way), 1)
+  expect_equal(names(inp$analyses$models), c("calving_interval", "welfare", "yield"))
+  expect_equal(attr(inp$analyses$models$yield$impacts, "units"), "% of yield")
+  expect_s3_class(inp$hr_model, "cm_hr_model")
+  expect_equal(inp$hr_model$hazard_ratios$estimand,
+               c("snapshot_crude", "snapshot_stratified", "snapshot_crude", "snapshot_crude",
+                 "snapshot_stratified"))
+
+  # Distributions from every table, mixed with point values.
+  s <- inp$sampler
+  expect_s3_class(s, "cm_batch_sampler")
+  expect_setequal(s$population_keys,
+                  c("prob:LAM", "prob:MAS", "prob:MET", "prob:SCK",
+                    "assoc:LAM:MAS", "assoc:LAM:SCK", "assoc:MET:RP", "assoc:MET:SCK",
+                    "assoc:MAS:SCK", "assoc:MAS:MET", "assoc:LAM:MET", "three:LAM:MAS:SCK"))
+  own <- function(nm) setdiff(names(attr(s$samplers[[nm]], "specs")), s$population_keys)
+  expect_setequal(own("yield"), c("impact:LAM", "impact:MAS", "impact:MET", "impact:SCK"))
+  expect_setequal(own("calving_interval"), c("impact:LAM", "impact:MAS", "impact:MET", "impact:RP"))
+  expect_setequal(own("welfare"), c("impact:LAM", "impact:MAS", "impact:SCK", "impact:RP",
+                                    "inter:LAM:MAS", "inter:MET:RP"))
+  types <- vapply(attr(s$samplers$yield, "specs"), function(d) d$type, character(1))
+  expect_true(all(c("beta", "pert", "uniform", "lognormal", "normal", "fixed") %in% types))
+
+  # Deterministic results.
+  m <- inp$analyses$models
+  r <- deconflate(m$yield)
+  expect_equal(r$adjusted$adjusted,
+               c(4.13927424, 2.35580211, 4.5140575, 1.36629496, 2.66542027), tolerance = 1e-7)
+  expect_equal(r$totals$adjusted_total, 2.7349337441102657, tolerance = 1e-9)
+  rp <- deconflate(m$yield, method = "published")
+  expect_equal(rp$adjusted$adjusted,
+               c(3.97507962, 2.37379544, 4.36087399, 1.58917725, 2.84352728), tolerance = 1e-7)
+  expect_equal(deconflate(m$yield, method = "global")$adjusted$adjusted, r$adjusted$adjusted,
+               tolerance = 1e-7)
+  rc <- deconflate(m$calving_interval)
+  expect_equal(rc$adjusted$adjusted, c(10.27962506, 4.40963526, 15.61622693, 4, 5.06713035),
+               tolerance = 1e-7)
+  expect_error(deconflate(m$calving_interval, method = "published"), class = "deconflate_unsupported")
+  rw <- deconflate(m$welfare, method = "global")
+  expect_equal(rw$adjusted$adjusted, c(8.77541245, 4.00171284, 3.18388605, 1.02183469, 2.14413033),
+               tolerance = 1e-7)
+  expect_equal(rw$totals$adjusted_total, 4.182930749703578, tolerance = 1e-8)
+  expect_error(deconflate(m$welfare), class = "deconflate_unsupported")
+  expect_error(deconflate_hr(inp$hr_model, method = "published"), class = "deconflate_unsupported")
+  expect_s3_class(deconflate_hr(inp$hr_model), "cm_hr_result")
+
+  # Thresholds used in run_all_features.R.
+  th <- cm_threshold(m$yield, "impact:SCK", c(0, 2.5), conclusion = "sign", method = "simultaneous")
+  t1 <- th$thresholds[th$thresholds$status == "threshold", ]
+  expect_equal(nrow(t1), 1)
+  expect_equal(t1$threshold, 1.1935832731450715, tolerance = 1e-6)
+  th <- cm_threshold(m$yield, "impact:MET", c(0, 15), conclusion = "total", target = 3,
+                     method = "simultaneous")
+  expect_equal(th$thresholds$threshold[th$thresholds$status == "threshold"], 9.730627246165994,
+               tolerance = 1e-6)
+  th <- cm_threshold(m$yield, "prob:SCK", c(0.1, 0.6), conclusion = "rank",
+                     diseases = c("MET", "SCK"), method = "simultaneous")
+  expect_equal(th$thresholds$threshold[th$thresholds$status == "threshold"], 0.33002218486278845,
+               tolerance = 1e-6)
+  th <- cm_threshold(m$yield, "impact:SCK", c(-4, 2.5), conclusion = "sign", diseases = "SCK",
+                     method = "published")
+  expect_equal(th$thresholds$status, "discontinuity")
+  expect_lt(th$thresholds$lower, -1.4328526785573266)
+  expect_gt(th$thresholds$upper, -1.4328526785573266)
+  skip_on_cran()
+  th <- cm_threshold(m$welfare, "inter:LAM:MAS", c(-5, 20), conclusion = "change", target = -0.1)
+  expect_equal(th$thresholds$threshold[th$thresholds$status == "threshold"], 7.607122195588001,
+               tolerance = 1e-6)
+  # Monte Carlo over all analyses: almost every draw is usable.
+  mc <- cm_monte_carlo(s, 30, method = "global", seed = 1)
+  expect_s3_class(mc, "cm_mc_batch")
+  expect_lte(max(vapply(mc$analyses, function(a) a$n_rejected, numeric(1))), 3)
 })

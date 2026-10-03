@@ -1,5 +1,137 @@
 # deconflate (development version)
 
+Work towards 0.3.0: a second external review of 0.2.0, threshold searches,
+and a sampled backend for the global model beyond about 20 diseases.
+
+## Breaking changes
+
+* **No separate uncertainty files.** An uncertain value now gets its
+  distribution in its own row, in the columns `dist` and `p1`-`p4` of
+  `diseases`, `associations`, `three_way`, `impacts_<analysis>` and
+  `interactions_<analysis>` tables; rows with an empty `dist` are point
+  values, so point values and uncertain values can be mixed in one table.
+  `cm_read_inputs()` and `cm_check_inputs()` lose their `uncertainty`
+  argument, and files named `uncertainty.csv` or
+  `uncertainty_<analysis>.csv` are reported as an error explaining the
+  change. The checks report a distribution with missing or invalid
+  parameters, parameters without a `dist`, a distribution on a non-numeric
+  association measure (`table`, `independent`, `unknown`) and parameters that
+  are not numbers (once); a point value outside its distribution's range is
+  a note. Distributions given for hazard ratios are ignored with a note.
+  The shipped `global_dairy_2024` and `example_with_errors` folders and
+  `cm_template()` use the new layout. Every table can also have a free-text
+  `note` column.
+* **Hazard-ratio estimands are named for the snapshot model and must be
+  stated.** `cm_hazard_ratios()` has no default estimand; use
+  `estimand = "snapshot_crude"` or `"snapshot_stratified"` (the old `"crude"`
+  and `"adjusted"` give an error explaining the change). The documentation
+  explains how these differ from Cox hazard ratios estimated over follow-up.
+  `hazard_ratios.csv` needs an `estimand` column.
+* **Historical conversions are confined to the reproduction functions.**
+  `example_uk_dairy_2022()` has the yield and fertility analyses only (the
+  2022 culling analysis, hazard ratios treated as odds ratios, is built
+  inside `reproduce_rasmussen_2022()`); `example_global_dairy()` and
+  `sampler_global_dairy()` lose `culling` (the 2024 HR - 1 analysis is built
+  inside `reproduce_rasmussen_2024()`).
+* `uk_dairy_2022_economics()` returns the yield and fertility valuations
+  (and `additional`); the paper's culling valuation is used inside
+  `reproduce_rasmussen_2022()` only.
+* Non-positive odds ratios, risk ratios and three-way ratios now raise
+  `deconflate_infeasible` (still a `deconflate_error`).
+* **`cm_template()` writes one analysis by default** (`impacts.csv`,
+  `interactions.csv` and the population files, with distributions in the
+  rows of four values),
+  which reads into a model and a single sampler with Latin hypercube and
+  importance sampling. `cm_template(dir, type = "analyses")` writes the
+  multi-analysis example. Hazard ratios are no longer in the template.
+
+## New features
+
+* **A five-disease example that uses every feature:**
+  `system.file("extdata", "five_diseases", package = "deconflate")` has all
+  probability types and association measures, a three-way term, crude and
+  adjusted impacts, interactions, snapshot hazard ratios, and every
+  distribution type mixed with point values, in three analyses (yield,
+  calving interval, welfare). Its `run_all_features.R` runs every part of
+  the package on it; `README.md` describes the files. Reference values are
+  in `inst/validation/reference_five_diseases.py`.
+* **Three-way ratios can be uncertain:** `cm_sampler()` and
+  `cm_batch_sampler()` take `three_way` distributions (keys
+  `three:<d1>:<d2>:<d3>`, diseases in any order); in batch runs they are
+  shared population inputs.
+
+* **Threshold searches:** `cm_threshold()` varies one input (an association,
+  including unknown or unlisted pairs, an interaction, a disease probability,
+  a raw impact or a three-way ratio) over a range and finds where a
+  conclusion changes: two diseases swap rank (by contribution or adjusted
+  impact), an adjusted impact changes sign (a model-implied sign change), the
+  aggregate crosses a target, or the aggregate departs from its baseline by
+  a given relative amount. The range is scanned before crossings are refined
+  by bisection, every crossing is reported, unusable parts of the range
+  (infeasible, singular, undefined, unresolved) are listed separately, and a
+  jump across a pole or a nearly singular system is reported as a
+  discontinuity, never as a threshold. Results just below and above each
+  threshold are returned; `plot()` shows the scan. For the global method,
+  inputs that do not change the population (impacts and interactions) reuse
+  one fitted joint distribution; `inter:` and `three:` inputs need the
+  global method. No random numbers are drawn.
+* `screen_interactions()` passes `...` to `fit_joint()` (e.g.
+  `backend = "sampled"`), and `compare_methods()` for hazard-ratio models
+  passes `fit_joint()` arguments through `...`.
+* **Sampled backend for the joint distribution:**
+  `fit_joint(backend = "sampled")` fits the maximum-entropy model without
+  enumerating 2^n combinations: Monte Carlo moment matching with parallel
+  Gibbs chains (the conditional interaction parameters are calibrated, not
+  set to the marginal log odds ratios), sampling, and by default raking of
+  the sample weights to match the marginals and pairwise tables exactly. It
+  reports constraint residuals before and after raking, R-hat, effective
+  sample sizes and Monte Carlo errors; a fit that does not converge is
+  reported as unresolved, not as infeasible. The global method, interaction
+  offsets, Shapley allocation, the snapshot hazard model and
+  `attributable_risk()` use it unchanged. Pass `backend = "sampled"` through
+  `deconflate(..., method = "global")`, or pass the fitted joint.
+* The pairwise methods (`"simultaneous"`, `"published"`) never enumerate
+  combinations and work for any number of diseases (documented in
+  `?deconflate`).
+
+## Corrections (second review)
+
+* **Importance-sampling support:** distributions now record their support as
+  a set of intervals; a mixture's support is the union of the supports of
+  its components with positive weight. A proposal must cover the input's
+  whole support, so a mixture that spans the range but leaves a gap is
+  rejected (it previously converged to a biased estimate with a high
+  effective sample size). The same check applies to `cm_scenario()`.
+* **Undefined results:** one finiteness check is shared by Monte Carlo,
+  `compare_methods()`, the sensitivity screens, `compare_scenarios()` and
+  `cm_threshold()`. A published result with a non-finite value is reported
+  as failed ("undefined"); `compare_methods()` keeps it in `undefined` for
+  inspection but not among the estimates. Screens stop if their baseline is
+  undefined; `compare_scenarios()` gains a `failed` column.
+* **Precision status:** a new stability status, `"insufficient_info"`, is
+  used when precision cannot be assessed (fewer than two Latin hypercube
+  blocks with positive weight, or a mean of zero with a positive standard
+  error); a missing standard error is never reported as `"ok"`. The Latin
+  hypercube standard error is the ratio-estimator error over all replicate
+  blocks, counting blocks whose draws were all rejected or have zero weight
+  (`n_blocks` is kept in the run).
+* **Three-way terms:** the documentation now says that they leave additive
+  results unchanged only when the pairs are constrained; with unknown pairs
+  they can change them.
+* `simulate_raw_impacts()` stops when its joint distribution (supplied or
+  fitted) has not converged.
+* `shapley_by_cell()` caches the loss of each combination by code, which
+  makes `attributable_risk()` much faster for 10 or more diseases and works
+  with sampled joints.
+
+## Validation
+
+* `inst/validation/reference_v030.py`: thresholds, the support counterexample
+  and the reviewer's three-way counterexample.
+* New tests: `test-threshold.R`, `test-joint-sampled.R` (against exact
+  enumeration for 3 and 12 diseases, and a 24-disease population) and
+  `test-review-v03.R` (each item of the second review).
+
 # deconflate 0.2.0
 
 Work towards 0.2.0. This version implements an external review of 0.1.0 and

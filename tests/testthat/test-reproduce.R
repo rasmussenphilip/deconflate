@@ -5,7 +5,7 @@
 ids <- c("CO", "DA", "DYS", "FAS", "GIN", "LAM", "MAS", "MET", "MF", "NEO", "PTB", "RP", "SCK")
 
 test_that("hazard ratios treated as odds ratios give the 2022 excess culling risks", {
-  uk <- example_uk_dairy_2022()
+  uk <- uk_dairy_2022_analyses(3.05, culling = TRUE)
   cu <- uk$models$culling$impacts
   expect_equal(cu$disease, ids)
   expect_equal(cu$value,
@@ -52,8 +52,9 @@ test_that("SCK yield of 340 kg / 8737 kg reproduces Table 8 adjusted values", {
 })
 
 test_that("the simultaneous method on the 2022 inputs matches the reference", {
-  uk <- example_uk_dairy_2022()
+  uk <- uk_dairy_2022_analyses(3.05, culling = TRUE)
   eco <- uk_dairy_2022_economics()
+  eco$valuation$culling <- uk_dairy_2022_culling_valuation()
   res <- suppressWarnings(deconflate(uk))
   df <- vapply(names(res), function(nm) {
     v <- eco$valuation[[nm]]
@@ -75,6 +76,6 @@ test_that("reproduce_rasmussen_2024() runs the published Monte Carlo", {
   expect_equal(unique(cmp$analysis), c("yield", "fertility", "culling_hr"))
   expect_equal(nrow(cmp), 36)
   expect_true(all(is.finite(cmp$mean)))
-  expect_true(all(cmp$stability %in% c("ok", "imprecise", "heavy_tail", "possible_pole")))
+  expect_true(all(cmp$stability %in% c("ok", "imprecise", "insufficient_info", "heavy_tail", "possible_pole")))
   expect_output(print(r), "Table 5")
 })

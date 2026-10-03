@@ -4,7 +4,7 @@
 \alias{screen_interactions}
 \title{Screen disease pairs for influential impact interactions}
 \usage{
-screen_interactions(model, values, pairs = NULL, valuation = NULL)
+screen_interactions(model, values, pairs = NULL, valuation = NULL, ...)
 }
 \arguments{
 \item{model}{A \code{\link[=cm_model]{cm_model()}}.}
@@ -16,6 +16,9 @@ synergistic, negative antagonistic).}
 
 \item{valuation}{Optional valuation list; otherwise the adjusted aggregate
 is the metric.}
+
+\item{...}{Passed to \code{\link[=fit_joint]{fit_joint()}} (e.g. \code{backend = "sampled"} for many
+diseases).}
 }
 \value{
 A \code{cm_screen} data frame as in \code{\link[=screen_associations]{screen_associations()}}.

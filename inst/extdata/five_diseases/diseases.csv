@@ -1,0 +1,6 @@
+id,value,type,time_horizon,reference_population,source,dist,p1,p2,p3,p4,note
+LAM,0.25,prevalence,lactation,Illustrative dairy herd,Illustrative,beta,78.29,227.42,,,"beta(shape1, shape2): mean 0.256"
+MAS,0.30,incidence_rate,lactation,Illustrative dairy herd,Illustrative,pert,0.20,0.30,0.45,,"incidence rate (converted with 1 - exp(-rate)); pert(min, mode, max)"
+MET,0.10,prevalence,lactation,Illustrative dairy herd,Illustrative,uniform,0.07,0.13,,,"uniform(min, max)"
+SCK,0.35,probability,lactation,Illustrative dairy herd,Illustrative,pert_mean,0.20,0.35,0.50,,"pert_mean(min, mean, max)"
+RP,0.06,prevalence,lactation,Illustrative dairy herd,Illustrative,,,,,,"point value (no uncertainty)"

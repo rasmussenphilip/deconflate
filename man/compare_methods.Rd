@@ -58,9 +58,11 @@ A \code{cm_comparison} object with \code{impacts} (raw and adjusted values,
 one column per method), \code{change} (relative change from raw), \code{long}
 (long format with sign-change flags, or the Monte Carlo summaries),
 \code{totals} (aggregate per method, with gap and value if requested),
-\code{diagnostics}, \code{failed} (methods that could not be run, or whose
-valuation or attributable risk could not be computed, with reasons; their
-\code{totals} are \code{NA}) and \code{methods}.
+\code{diagnostics}, \code{failed} (methods that could not be run, gave an undefined
+(non-finite) result, or whose valuation or attributable risk could not be
+computed, with reasons; their \code{totals} are \code{NA}) and \code{methods}. For a
+model, \code{undefined} keeps the results with non-finite values for
+inspection; they are not among the estimates.
 }
 \description{
 Runs several adjustment methods on the same inputs and tabulates the

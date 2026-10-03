@@ -4,12 +4,10 @@
 \alias{example_global_dairy}
 \title{Global dairy inputs from Rasmussen et al. (2024)}
 \usage{
-example_global_dairy(inputs = c("analysis", "tables"), culling = FALSE)
+example_global_dairy(inputs = c("analysis", "tables"))
 }
 \arguments{
 \item{inputs}{\code{"analysis"} or \code{"tables"}.}
-
-\item{culling}{Include the legacy \code{culling_hr_minus_1} analysis?}
 }
 \value{
 A \code{\link[=cm_analyses]{cm_analyses()}} object.
@@ -38,10 +36,10 @@ for every disease except PTB.
 \section{Culling}{
 
 The culling hazard ratios are available as a hazard-ratio model from
-\code{\link[=example_global_dairy_hr]{example_global_dairy_hr()}} (see \code{\link[=deconflate_hr]{deconflate_hr()}}). With \code{culling = TRUE}
-the analyses also include \code{culling_hr_minus_1}: hazard ratios minus 1
-treated as additive impacts, which is how the 2024 analysis adjusted them
-(with the published method). It is included only to reproduce Table 5.
+\code{\link[=example_global_dairy_hr]{example_global_dairy_hr()}} (see \code{\link[=deconflate_hr]{deconflate_hr()}}). The 2024 analysis
+adjusted hazard ratios minus 1 as if they were additive impacts; that
+historical calculation is only available inside
+\code{\link[=reproduce_rasmussen_2024]{reproduce_rasmussen_2024()}}.
 }
 
 \examples{

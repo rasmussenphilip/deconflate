@@ -1,0 +1,4 @@
+disease1,disease2,value,source,dist,p1,p2,p3,p4,note
+LAM,MAS,2.0,Illustrative,normal,2.0,0.5,,,"synergistic: extra impact when both are present; normal(mean, sd)"
+MET,RP,1.5,Illustrative,uniform,0.5,2.5,,,"synergistic; uniform(min, max)"
+LAM,SCK,-0.5,Illustrative,,,,,,"antagonistic (less than the sum); point value"

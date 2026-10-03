@@ -1,0 +1,6 @@
+disease,value,estimand,adjusted_for,label,units,source,dist,p1,p2,p3,p4,note
+LAM,12,crude,,calving interval increase,days,Illustrative,normal,12,3,,,"normal(mean, sd)"
+MAS,6,adjusted_linear,SCK,calving interval increase,days,Illustrative,normal,6,2,,,"coefficient from a linear regression adjusted for SCK"
+MET,18,crude,,calving interval increase,days,Illustrative,pert,8,18,30,,"pert(min, mode, max)"
+SCK,4,adjusted_linear,all,calving interval increase,days,Illustrative,,,,,,"coefficient adjusted for all other diseases; point value"
+RP,10,crude,,calving interval increase,days,Illustrative,lognormal,2.302585,0.25,,,"lognormal(meanlog = log(10), sdlog)"

@@ -2,7 +2,7 @@
 #'
 #' Builds a population ([cm_population()]), one analysis per impact table
 #' ([cm_analyses()]), optionally a hazard-ratio model ([cm_hr_model()]) and,
-#' if uncertainty tables are given, a Monte Carlo sampler. Each table can be
+#' if any value has a distribution, a Monte Carlo sampler. Each table can be
 #' a path to a CSV file or a data frame typed in R; alternatively, `dir`
 #' names a folder of CSV files (see Files). [cm_template()] writes an example
 #' set to start from.
@@ -21,15 +21,15 @@
 #'   associations;
 #' * optional interactions per analysis: `interactions_<analysis>.csv` (or
 #'   `interactions.csv` when there is one analysis);
-#' * optional uncertainty: `uncertainty.csv` (shared: disease probabilities,
-#'   associations, and impacts keyed by analysis) and/or
-#'   `uncertainty_<analysis>.csv` (that analysis's impacts and interactions);
 #' * optional `hazard_ratios.csv` (culling or mortality hazard ratios, for
 #'   [deconflate_hr()]).
 #'
-#' In R, `impacts`, `interactions` and `uncertainty` can be one table or a
-#' named list of tables, named after the analyses (`uncertainty` may also
-#' have an element named `shared`).
+#' There is no separate uncertainty file: the uncertainty of a value is
+#' given in its own row (see Uncertainty). Files named `uncertainty*.csv`,
+#' used by deconflate 0.2, are reported as an error.
+#'
+#' In R, `impacts` and `interactions` can be one table or a named list of
+#' tables, named after the analyses.
 #'
 #' @section Columns:
 #' Column names are not case-sensitive. Optional columns can be left out or
@@ -61,18 +61,26 @@
 #'
 #' **interactions**: `disease1`, `disease2`, `value` (required); `source`.
 #'
-#' **hazard_ratios**: `disease`, `value` (required); `estimand` (`crude`
-#' (default) or `adjusted`), `adjusted_for`, `source`. Every disease needs a
-#' row (use 1 for no effect).
+#' **hazard_ratios**: `disease`, `value`, `estimand` (required;
+#' `snapshot_crude` or `snapshot_stratified`, see [cm_hazard_ratios()]);
+#' `adjusted_for`, `source`. Every disease needs a row (use 1 for no
+#' effect).
 #'
-#' **uncertainty**: `key`, `dist` (required); `p1`-`p4` (parameters),
-#' `note`. Keys name the input: `prob:<disease>`, `assoc:<d1>:<d2>`,
-#' `impact:<analysis>:<disease>` and `inter:<analysis>:<d1>:<d2>`. In an
-#' analysis's own file (`uncertainty_<analysis>.csv`), or when there is only
-#' one analysis, the analysis can be left out: `impact:<disease>`,
-#' `inter:<d1>:<d2>`. Values are drawn on the scale the input was entered on
-#' (e.g. an incidence rate, or a percent impact). Distributions and their
-#' parameters:
+#' Every table can also have a free-text `note` column.
+#'
+#' @section Uncertainty:
+#' The tables `diseases`, `associations`, `three_way`, `impacts` and
+#' `interactions` can have the columns `dist` and `p1`-`p4`. A row with a
+#' `dist` has an uncertain value: its distribution is used by Monte Carlo
+#' runs ([cm_monte_carlo()] with `$sampler`), while the point value (`value`,
+#' or `ratio` for three-way terms) is used by the deterministic methods. A
+#' row with an empty `dist` is a fixed point value, so point values and
+#' uncertain values can be mixed freely. Values are drawn on the scale they
+#' were entered on (e.g. an incidence rate, an odds ratio or a percent
+#' impact). An association needs a numeric measure (`OR`, `RR`, `RD`,
+#' `cond_prob` or `phi`) to have a distribution. A point value outside the
+#' support of its distribution is noted. Hazard ratios cannot have
+#' distributions. Distributions and their parameters:
 #'
 #' | `dist` | `p1` | `p2` | `p3` | `p4` |
 #' |---|---|---|---|---|
@@ -87,8 +95,8 @@
 #'
 #' @param diseases,associations,three_way,hazard_ratios Paths to CSV files or
 #'   data frames.
-#' @param impacts,interactions,uncertainty A path or data frame, or a named
-#'   list of them (one per analysis; see Files).
+#' @param impacts,interactions A path or data frame, or a named list of them
+#'   (one per analysis; see Files).
 #' @param dir Optional folder with CSV files named as in Files. Arguments
 #'   given explicitly take precedence over files.
 #' @param missing_associations,adjusted_associations Passed to
@@ -97,7 +105,8 @@
 #'   [cm_analyses()] object, or `NULL` without impact tables), `model` (the
 #'   [cm_model()] when there is exactly one analysis), `hr_model` (or
 #'   `NULL`), `sampler` (a [cm_sampler()] for one analysis, a
-#'   [cm_batch_sampler()] for several, or `NULL`), `tables` (as read; columns
+#'   [cm_batch_sampler()] for several, or `NULL` when no value has a
+#'   distribution), `tables` (as read; columns
 #'   of CSV files are read as text and converted by the checks) and
 #'   `problems` (notes only, since errors stop).
 #' @export
@@ -109,9 +118,12 @@
 #' deconflate(inp$analyses)
 #'
 #' # Example files shipped with the package: the 2024 global dairy inputs,
-#' # and a set with deliberate errors
+#' # a five-disease set that uses every feature, and a set with deliberate
+#' # errors
 #' gd <- cm_read_inputs(dir = system.file("extdata", "global_dairy_2024", package = "deconflate"))
 #' gd$analyses
+#' five <- cm_read_inputs(dir = system.file("extdata", "five_diseases", package = "deconflate"))
+#' five
 #' cm_check_inputs(dir = system.file("extdata", "example_with_errors", package = "deconflate"))
 #'
 #' # The same kind of tables typed in R
@@ -123,14 +135,14 @@
 #' )
 #' deconflate(inp2$model)
 cm_read_inputs <- function(diseases = NULL, associations = NULL, three_way = NULL,
-                           impacts = NULL, interactions = NULL, uncertainty = NULL,
+                           impacts = NULL, interactions = NULL,
                            hazard_ratios = NULL, dir = NULL,
                            missing_associations = c("independent", "unknown"),
                            adjusted_associations = c("error", "use_as_marginal")) {
   missing_associations <- match.arg(missing_associations)
   adjusted_associations <- match.arg(adjusted_associations)
   chk <- run_input_checks(diseases, associations, three_way, impacts, interactions,
-                          uncertainty, hazard_ratios, dir, missing_associations,
+                          hazard_ratios, dir, missing_associations,
                           adjusted_associations)
   pr <- chk$problems
   if (any(pr$severity == "error")) {
@@ -158,21 +170,22 @@ cm_read_inputs <- function(diseases = NULL, associations = NULL, three_way = NUL
 #'   impacts = data.frame(disease = c("d1", "d3"), value = c(2, "x"))
 #' )
 cm_check_inputs <- function(diseases = NULL, associations = NULL, three_way = NULL,
-                            impacts = NULL, interactions = NULL, uncertainty = NULL,
+                            impacts = NULL, interactions = NULL,
                             hazard_ratios = NULL, dir = NULL,
                             missing_associations = c("independent", "unknown"),
                             adjusted_associations = c("error", "use_as_marginal")) {
   missing_associations <- match.arg(missing_associations)
   adjusted_associations <- match.arg(adjusted_associations)
-  run_input_checks(diseases, associations, three_way, impacts, interactions, uncertainty,
+  run_input_checks(diseases, associations, three_way, impacts, interactions,
                    hazard_ratios, dir, missing_associations, adjusted_associations)$problems
 }
 
-#' Build distributions from an uncertainty table
+#' Build distributions from a table
 #'
-#' Converts a table with columns `key`, `dist` and `p1`-`p4` (see the
-#' Columns section of [cm_read_inputs()]) into a named list of `cm_dist`
-#' objects. Keys are kept as given.
+#' Converts a table with columns `key`, `dist` and `p1`-`p4` (distributions
+#' as in the Uncertainty section of [cm_read_inputs()]) into a named list of
+#' `cm_dist` objects, e.g. to build the arguments of [cm_sampler()] in R.
+#' Keys are kept as given.
 #'
 #' @param x A path to a CSV file or a data frame.
 #' @return A named list of `cm_dist` objects (names = keys).
@@ -213,57 +226,91 @@ cm_dist_table <- function(x) {
 #' Write a template set of input files
 #'
 #' Writes an example set of input files to a folder, to edit and read back
-#' with [cm_read_inputs()]: three dairy diseases with their associations,
-#' two analyses (`impacts_yield.csv` in percent of yield and
-#' `impacts_calving_interval.csv` in days), culling hazard ratios, an empty
-#' interactions file for the yield analysis, an empty three-way file and an
-#' uncertainty file. The values are illustrative.
+#' with [cm_read_inputs()]. The values are illustrative. Some values have a
+#' distribution in their row (columns `dist` and `p1`-`p4`); the others are
+#' point values.
+#'
+#' * `type = "single"` (default): one analysis, the standard workflow. Three
+#'   dairy diseases (`diseases.csv`) and their associations
+#'   (`associations.csv`), one impact vector (`impacts.csv`, in percent of
+#'   yield; any units can be used), an empty `interactions.csv` (pairwise
+#'   interactions in the same units) and an empty `three_way.csv`. Read
+#'   back, it gives a [cm_model()] and a [cm_sampler()], which supports Latin
+#'   hypercube and importance sampling.
+#' * `type = "analyses"`: two analyses on one population
+#'   (`impacts_yield.csv` in percent of yield and
+#'   `impacts_calving_interval.csv` in days), with `interactions_yield.csv`.
+#'   Read back, it gives a [cm_analyses()] object and a [cm_batch_sampler()]
+#'   (shared population draws; simple random sampling only).
+#'
+#' Hazard ratios are a separate model ([deconflate_hr()]) and are not part of
+#' either template; see [cm_read_inputs()] for the `hazard_ratios.csv`
+#' columns. The folder `system.file("extdata", "five_diseases", package =
+#' "deconflate")` has a fuller example that uses every feature.
 #'
 #' @param dir Folder to write to (created if needed).
+#' @param type `"single"` or `"analyses"`.
 #' @param overwrite Overwrite existing files?
 #' @return The file paths, invisibly.
 #' @export
 #' @examples
-#' cm_template(file.path(tempdir(), "my-inputs"), overwrite = TRUE)
-cm_template <- function(dir, overwrite = FALSE) {
+#' dir <- file.path(tempdir(), "my-inputs")
+#' cm_template(dir, overwrite = TRUE)
+#' inp <- cm_read_inputs(dir = dir)
+#' deconflate(inp$model)
+#' \donttest{
+#' # Importance sampling of the lameness yield impact, with a defensive
+#' # mixture that covers its whole support
+#' specs <- attr(inp$sampler, "specs")
+#' prop <- list("impact:LAM" = dist_mixture(specs[["impact:LAM"]], dist_normal(6, 1.5),
+#'                                          weights = c(0.5, 0.5)))
+#' mc <- cm_monte_carlo(inp$sampler, 200, proposal = prop, seed = 1)
+#' summary(mc, diagnose = FALSE)
+#' }
+cm_template <- function(dir, type = c("single", "analyses"), overwrite = FALSE) {
+  type <- match.arg(type)
   if (!dir.exists(dir)) dir.create(dir, recursive = TRUE)
   src <- "Illustrative values"
-  tabs <- list(
+  population <- list(
     diseases = data.frame(
       id = c("LAM", "SCK", "MET"), value = c(0.25, 0.48, 0.10),
       type = c("prevalence", "incidence_rate", "prevalence"),
-      time_horizon = "lactation", source = src, stringsAsFactors = FALSE),
+      time_horizon = "lactation", source = src,
+      dist = c("beta", NA, NA), p1 = c(78.29, NA, NA), p2 = c(227.42, NA, NA),
+      p3 = NA, p4 = NA, note = c("beta(shape1, shape2)", NA, NA), stringsAsFactors = FALSE),
     associations = data.frame(
       disease1 = c("LAM", "MET", "MET"), disease2 = c("SCK", "SCK", "LAM"),
-      value = c(2.01, 1.94, 6.10), measure = "OR", source = src, stringsAsFactors = FALSE),
+      value = c(2.01, 1.94, 6.10), measure = "OR", source = src,
+      dist = c("normal", NA, NA), p1 = c(2.01, NA, NA), p2 = c(0.20, NA, NA),
+      p3 = c(0, NA, NA), p4 = NA, note = c("normal(mean, sd) truncated at 0", NA, NA),
+      stringsAsFactors = FALSE),
     three_way = data.frame(
       disease1 = character(0), disease2 = character(0), disease3 = character(0),
-      ratio = numeric(0), source = character(0), stringsAsFactors = FALSE),
-    impacts_yield = data.frame(
-      disease = c("LAM", "SCK", "MET"), value = c(4.81, 8.40, 5.61), estimand = "crude",
-      adjusted_for = NA, label = "milk yield loss", units = "% of yield", source = src,
-      stringsAsFactors = FALSE),
-    impacts_calving_interval = data.frame(
-      disease = c("LAM", "SCK", "MET"), value = c(12, 4, 18), estimand = "crude",
-      adjusted_for = NA, label = "calving interval increase", units = "days", source = src,
-      stringsAsFactors = FALSE),
-    interactions_yield = data.frame(
-      disease1 = character(0), disease2 = character(0), value = numeric(0),
-      source = character(0), stringsAsFactors = FALSE),
-    hazard_ratios = data.frame(
-      disease = c("LAM", "SCK", "MET"), value = c(1.74, 1.92, 1.50), estimand = "crude",
-      adjusted_for = NA, source = src, stringsAsFactors = FALSE),
-    uncertainty = data.frame(
-      key = c("prob:LAM", "assoc:LAM:SCK", "impact:yield:LAM", "impact:yield:SCK",
-              "impact:calving_interval:MET"),
-      dist = c("beta", "normal", "normal", "normal", "pert"),
-      p1 = c(78.29, 2.01, 4.81, 8.40, 6), p2 = c(227.42, 0.20, 0.87, 1.19, 18),
-      p3 = c(NA, 0, NA, NA, 30), p4 = NA,
-      note = c("beta(shape1, shape2)", "normal(mean, sd) truncated at 0",
-               "normal(mean, sd), percent", "normal(mean, sd), percent",
-               "pert(min, mode, max), days"),
-      stringsAsFactors = FALSE)
+      ratio = numeric(0), source = character(0), dist = character(0), p1 = numeric(0),
+      p2 = numeric(0), p3 = numeric(0), p4 = numeric(0), stringsAsFactors = FALSE)
   )
+  empty_interactions <- data.frame(disease1 = character(0), disease2 = character(0),
+                                   value = numeric(0), source = character(0),
+                                   dist = character(0), p1 = numeric(0), p2 = numeric(0),
+                                   p3 = numeric(0), p4 = numeric(0), stringsAsFactors = FALSE)
+  yield <- data.frame(
+    disease = c("LAM", "SCK", "MET"), value = c(4.81, 8.40, 5.61), estimand = "crude",
+    adjusted_for = NA, label = "milk yield loss", units = "% of yield", source = src,
+    dist = c("normal", "normal", NA), p1 = c(4.81, 8.40, NA), p2 = c(0.87, 1.19, NA),
+    p3 = NA, p4 = NA, note = c("normal(mean, sd)", "normal(mean, sd)", NA),
+    stringsAsFactors = FALSE)
+  tabs <- if (type == "single") {
+    c(population, list(impacts = yield, interactions = empty_interactions))
+  } else {
+    c(population, list(
+      impacts_yield = yield,
+      impacts_calving_interval = data.frame(
+        disease = c("LAM", "SCK", "MET"), value = c(12, 4, 18), estimand = "crude",
+        adjusted_for = NA, label = "calving interval increase", units = "days", source = src,
+        dist = c(NA, NA, "pert"), p1 = c(NA, NA, 6), p2 = c(NA, NA, 18), p3 = c(NA, NA, 30),
+        p4 = NA, note = c(NA, NA, "pert(min, mode, max), days"), stringsAsFactors = FALSE),
+      interactions_yield = empty_interactions))
+  }
   paths <- file.path(dir, paste0(names(tabs), ".csv"))
   exists <- file.exists(paths)
   if (any(exists) && !overwrite) {
@@ -307,21 +354,25 @@ print.cm_problems <- function(x, ...) {
 
 # Internals -------------------------------------------------------------------
 
+# Columns that describe the uncertainty of a row's value.
+dist_columns <- c("dist", "p1", "p2", "p3", "p4")
+
 input_table_specs <- list(
   diseases = list(required = c("id", "value"),
-                  optional = c("type", "time_horizon", "reference_population", "source")),
+                  optional = c("type", "time_horizon", "reference_population", "source", "note",
+                               dist_columns)),
   associations = list(required = c("disease1", "disease2"),
                       optional = c("value", "measure", "n11", "n10", "n01", "n00",
-                                   "adjusted", "adjusted_for", "source")),
+                                   "adjusted", "adjusted_for", "source", "note", dist_columns)),
   three_way = list(required = c("disease1", "disease2", "disease3", "ratio"),
-                   optional = "source"),
+                   optional = c("source", "note", dist_columns)),
   impacts = list(required = c("disease", "value"),
-                 optional = c("estimand", "adjusted_for", "source", "label", "units")),
-  interactions = list(required = c("disease1", "disease2", "value"), optional = "source"),
-  hazard_ratios = list(required = c("disease", "value"),
-                       optional = c("estimand", "adjusted_for", "source")),
-  uncertainty = list(required = c("key", "dist"),
-                     optional = c("p1", "p2", "p3", "p4", "note"))
+                 optional = c("estimand", "adjusted_for", "source", "label", "units", "note",
+                              dist_columns)),
+  interactions = list(required = c("disease1", "disease2", "value"),
+                      optional = c("source", "note", dist_columns)),
+  hazard_ratios = list(required = c("disease", "value", "estimand"),
+                       optional = c("adjusted_for", "source", "note"))
 )
 
 # Read one table from a path or a data frame, with normalised column names.
@@ -445,6 +496,7 @@ collect_sources <- function(arg, dir, stem) {
   if (!is.null(arg)) {
     if (is.data.frame(arg) || (is.character(arg) && length(arg) == 1L)) return(stats::setNames(list(arg), ""))
     if (is.list(arg)) {
+      if (!length(arg)) return(list())
       nms <- names(arg)
       if (is.null(nms) || any(!nzchar(nms))) {
         cm_abort(sprintf("`%s` must be a table or a list of tables named after the analyses.", stem))
@@ -492,8 +544,58 @@ has_columns <- function(tab, spec, label, pc) {
            "note")
     extra <- setdiff(extra, c("scale", "direction"))
   }
+  if (spec == "hazard_ratios" && any(dist_columns %in% extra)) {
+    pc$add(label, NA, "dist",
+           "Uncertainty is not used for hazard ratios (Monte Carlo runs adjust additive impacts); the dist and p1-p4 columns are ignored.",
+           "note")
+    extra <- setdiff(extra, dist_columns)
+  }
   for (col in extra) pc$add(label, NA, col, "Unrecognised column (ignored).", "note")
   !length(miss)
+}
+
+# Distributions given in a table's dist and p1-p4 columns: a named list
+# (names = `keys`) for the rows with a `dist`. Rows without one are point
+# values. `values` are the point values, checked against each distribution's
+# support; `allowed` marks rows that may have a distribution.
+row_dists <- function(tab, label, pc, keys, values, allowed = NULL, allowed_msg = NULL) {
+  if (!any(c("dist", paste0("p", 1:4)) %in% names(tab))) return(list())
+  dist <- tolower(chr_col(tab, "dist"))
+  P <- vapply(paste0("p", 1:4), function(col) num_col(tab, col, label, pc, FALSE), numeric(nrow(tab)))
+  P <- matrix(P, nrow = nrow(tab))
+  # Parameters that are not numbers are reported by num_col(); do not report
+  # the same row again as a distribution with missing parameters.
+  given <- vapply(paste0("p", 1:4), function(col) !is.na(chr_col(tab, col)), logical(nrow(tab)))
+  given <- matrix(given, nrow = nrow(tab))
+  bad_p <- rowSums(given & is.na(P)) > 0
+  out <- list()
+  for (r in seq_len(nrow(tab))) {
+    if (bad_p[r]) next
+    if (is.na(dist[r])) {
+      if (any(!is.na(P[r, ]))) {
+        pc$add(label, r, "dist", "Parameters p1-p4 are given without a distribution (dist).")
+      }
+      next
+    }
+    if (!is.null(allowed) && !isTRUE(allowed[r])) {
+      pc$add(label, r, "dist", allowed_msg)
+      next
+    }
+    dd <- tryCatch(input_dist(dist[r], P[r, ]), error = function(e) e)
+    if (inherits(dd, "condition")) {
+      pc$add(label, r, "dist", conditionMessage(dd))
+      next
+    }
+    if (is.na(keys[r])) next
+    v <- values[r]
+    if (is.finite(v) && !any(dist_support(dd)[, 1] <= v & dist_support(dd)[, 2] >= v)) {
+      pc$add(label, r, "dist",
+             sprintf("The point value %g lies outside the distribution's support %s.", v, format_support(dd)),
+             "note")
+    }
+    out[[keys[r]]] <- dd
+  }
+  out
 }
 
 num_col <- function(tab, col, label, pc, required = TRUE) {
@@ -503,6 +605,8 @@ num_col <- function(tab, col, label, pc, required = TRUE) {
   bad <- rep(FALSE, n)
   if (is.numeric(v)) {
     x <- as.numeric(v)
+    bad <- is.nan(x)
+    for (r in which(bad)) pc$add(label, r, col, "NaN is not a number.")
   } else {
     vv <- trimws(as.character(v))
     x <- suppressWarnings(as.numeric(vv))
@@ -567,7 +671,8 @@ check_disease_table <- function(d, pc) {
   }
   list(id = id, value = value, type = type, time_horizon = chr_col(d, "time_horizon"),
        reference_population = chr_col(d, "reference_population"), source = chr_col(d, "source"),
-       ids = unique(id[!is.na(id)]))
+       ids = unique(id[!is.na(id)]),
+       dists = row_dists(d, "diseases", pc, keys = id, values = value))
 }
 
 check_association_table <- function(a, ids, adjusted_associations, pc) {
@@ -632,7 +737,9 @@ check_association_table <- function(a, ids, adjusted_associations, pc) {
   }
   list(a1 = a1, a2 = a2, value = value, measure = measure, cnt = cnt, adjusted = adj_l,
        adjusted_for = chr_col(a, "adjusted_for"), source = chr_col(a, "source"),
-       numeric_keys = stats::setNames(paste(a1, a2, sep = ":"), key)[needs & !is.na(key)])
+       dists = row_dists(a, lab, pc, keys = ifelse(is.na(key), NA, paste(a1, a2, sep = ":")),
+                         values = value, allowed = needs | !(measure %in% valid_m),
+                         allowed_msg = "A distribution needs a numeric measure (OR, RR, RD, cond_prob or phi); give the measure and its point value."))
 }
 
 check_three_way_table <- function(t3, ids, pc) {
@@ -648,12 +755,16 @@ check_three_way_table <- function(t3, ids, pc) {
     if (!anyNA(x) && anyDuplicated(x)) pc$add(lab, r, NA, "A three-way term needs three different diseases.")
   }
   key <- vapply(seq_len(nrow(t3)), function(r) {
-    paste(sort(c(d[[1]][r], d[[2]][r], d[[3]][r])), collapse = "|")
+    x <- c(d[[1]][r], d[[2]][r], d[[3]][r])
+    if (anyNA(x)) NA_character_ else paste(sort(x), collapse = "|")
   }, character(1))
-  for (r in which(duplicated(key))) pc$add(lab, r, NA, "Duplicate three-way term.")
+  for (r in which(duplicated(key) & !is.na(key))) pc$add(lab, r, NA, "Duplicate three-way term.")
   ratio <- num_col(t3, "ratio", lab, pc)
   for (r in which(!is.na(ratio) & ratio <= 0)) pc$add(lab, r, "ratio", "Must be positive.")
-  list(d1 = d[[1]], d2 = d[[2]], d3 = d[[3]], ratio = ratio, source = chr_col(t3, "source"))
+  tkeys <- ifelse(is.na(d[[1]]) | is.na(d[[2]]) | is.na(d[[3]]), NA,
+                  paste(d[[1]], d[[2]], d[[3]], sep = ":"))
+  list(d1 = d[[1]], d2 = d[[2]], d3 = d[[3]], ratio = ratio, source = chr_col(t3, "source"),
+       dists = row_dists(t3, lab, pc, keys = tkeys, values = ratio))
 }
 
 check_impact_table <- function(im, label, ids, pc) {
@@ -694,7 +805,8 @@ check_impact_table <- function(im, label, ids, pc) {
     if (length(v)) v[1] else NULL
   }
   list(disease = dis, value = value, estimand = est, adjusted_for = adj,
-       source = chr_col(im, "source"), label = one("label"), units = one("units"))
+       source = chr_col(im, "source"), label = one("label"), units = one("units"),
+       dists = row_dists(im, label, pc, keys = dis, values = value))
 }
 
 check_interaction_table <- function(it, label, ids, pc) {
@@ -710,9 +822,11 @@ check_interaction_table <- function(it, label, ids, pc) {
   for (r in which(duplicated(key) & !is.na(key))) {
     pc$add(label, r, NA, sprintf("Duplicate interaction %s:%s.", x1[r], x2[r]))
   }
-  list(d1 = x1, d2 = x2, value = num_col(it, "value", label, pc),
+  value <- num_col(it, "value", label, pc)
+  list(d1 = x1, d2 = x2, value = value,
        source = chr_col(it, "source"),
-       keys = stats::setNames(paste(x1, x2, sep = ":"), key)[!is.na(key)])
+       dists = row_dists(it, label, pc, keys = ifelse(is.na(key), NA, paste(x1, x2, sep = ":")),
+                         values = value))
 }
 
 check_hr_table <- function(h, ids, pc) {
@@ -725,16 +839,18 @@ check_hr_table <- function(h, ids, pc) {
   }
   value <- num_col(h, "value", lab, pc)
   for (r in which(!is.na(value) & value <= 0)) pc$add(lab, r, "value", "Hazard ratios must be positive.")
-  est <- chr_col(h, "estimand", "crude")
-  for (r in which(!(est %in% c("crude", "adjusted")))) {
-    pc$add(lab, r, "estimand", sprintf("Unknown estimand '%s' (use crude or adjusted).", est[r]))
+  est <- chr_col(h, "estimand")
+  for (r in which(!(est %in% c("snapshot_crude", "snapshot_stratified")))) {
+    pc$add(lab, r, "estimand",
+           if (is.na(est[r])) "Missing estimand (snapshot_crude or snapshot_stratified)." else
+             sprintf("Unknown estimand '%s' (use snapshot_crude or snapshot_stratified; see ?cm_hazard_ratios).", est[r]))
   }
   adj <- chr_col(h, "adjusted_for")
-  for (r in which(est == "crude" & !is.na(adj))) {
-    pc$add(lab, r, "adjusted_for", "adjusted_for is given for a crude hazard ratio; set estimand = adjusted.")
+  for (r in which(est %in% "snapshot_crude" & !is.na(adj))) {
+    pc$add(lab, r, "adjusted_for", "adjusted_for is given for a snapshot_crude hazard ratio; set estimand = snapshot_stratified.")
   }
-  for (r in which(est == "adjusted" & is.na(adj))) {
-    pc$add(lab, r, "adjusted_for", "estimand = adjusted needs adjusted_for (disease ids or all).")
+  for (r in which(est %in% "snapshot_stratified" & is.na(adj))) {
+    pc$add(lab, r, "adjusted_for", "estimand = snapshot_stratified needs adjusted_for (disease ids or all).")
   }
   check_adjusted_for(adj, lab, ids, pc)
   if (!is.null(ids)) {
@@ -748,100 +864,18 @@ check_hr_table <- function(h, ids, pc) {
        source = chr_col(h, "source"))
 }
 
-# Check one uncertainty table. `own` is the analysis the table belongs to
-# (or "" for the shared table). Returns the distributions with normalised
-# keys: population keys as in cm_sampler(), and analysis keys as
-# "<analysis>//impact:<disease>" or "<analysis>//inter:<d1>:<d2>".
-check_uncertainty_table <- function(un, label, own, ids, assoc_keys, analyses, inter_keys, pc) {
-  if (!has_columns(un, "uncertainty", label, pc)) return(list())
-  key <- chr_col(un, "key")
-  dist <- tolower(chr_col(un, "dist"))
-  P <- vapply(paste0("p", 1:4), function(col) num_col(un, col, label, pc, FALSE), numeric(nrow(un)))
-  P <- matrix(P, nrow = nrow(un))
-  single <- if (nzchar(own)) own else if (length(analyses) == 1L) analyses else NA_character_
-  out <- list()
-  for (r in seq_len(nrow(un))) {
-    k <- key[r]
-    if (is.na(k)) {
-      pc$add(label, r, "key", "Missing key.")
-      next
-    }
-    parts <- strsplit(k, ":", fixed = TRUE)[[1]]
-    norm <- NA_character_
-    msg <- NULL
-    type <- parts[1]
-    if (type == "prob") {
-      if (nzchar(own)) {
-        msg <- "Disease probabilities are shared by all analyses; put prob: keys in uncertainty.csv."
-      } else if (length(parts) == 2L && !is.null(ids) && parts[2] %in% ids) {
-        norm <- k
-      } else {
-        msg <- sprintf("Key '%s' does not match a disease (expected prob:<disease>).", k)
-      }
-    } else if (type == "assoc") {
-      if (nzchar(own)) {
-        msg <- "Associations are shared by all analyses; put assoc: keys in uncertainty.csv."
-      } else if (length(parts) == 3L && pair_key(parts[2], parts[3]) %in% names(assoc_keys)) {
-        # Keys use the orientation of the association row, so that "a:b"
-        # and "b:a" are recognised as the same input.
-        norm <- paste0("assoc:", assoc_keys[[pair_key(parts[2], parts[3])]])
-      } else {
-        msg <- sprintf("Key '%s' does not match an association with a numeric measure (expected assoc:<d1>:<d2>).", k)
-      }
-    } else if (type == "impact") {
-      an <- if (length(parts) == 3L) parts[2] else if (length(parts) == 2L) single else NA_character_
-      dis <- parts[length(parts)]
-      if (length(parts) > 3L) {
-        msg <- sprintf("Key '%s' has too many parts (use impact:<analysis>:<disease> or impact:<disease>).", k)
-      } else if (length(parts) == 3L && nzchar(own) && parts[2] != own) {
-        msg <- sprintf("Key '%s' names analysis '%s', but this table belongs to '%s'.", k, parts[2], own)
-      } else if (is.na(an)) {
-        msg <- sprintf("Key '%s': name the analysis (impact:<analysis>:<disease>), since there are several.", k)
-      } else if (!(an %in% analyses)) {
-        msg <- sprintf("Key '%s': unknown analysis '%s'.", k, an)
-      } else if (is.null(ids) || !(dis %in% ids)) {
-        msg <- sprintf("Key '%s': unknown disease '%s'.", k, dis)
-      } else {
-        norm <- paste0(an, "//impact:", dis)
-      }
-    } else if (type == "inter") {
-      an <- if (length(parts) == 4L) parts[2] else if (length(parts) == 3L) single else NA_character_
-      pr <- parts[(length(parts) - 1L):length(parts)]
-      if (length(parts) == 4L && nzchar(own) && parts[2] != own) {
-        msg <- sprintf("Key '%s' names analysis '%s', but this table belongs to '%s'.", k, parts[2], own)
-      } else if (is.na(an) || length(parts) < 3L) {
-        msg <- sprintf("Key '%s': use inter:<analysis>:<d1>:<d2>.", k)
-      } else if (!(an %in% analyses)) {
-        msg <- sprintf("Key '%s': unknown analysis '%s'.", k, an)
-      } else if (!(pair_key(pr[1], pr[2]) %in% names(inter_keys[[an]]))) {
-        msg <- sprintf("Key '%s' does not match an interaction of analysis '%s'.", k, an)
-      } else {
-        norm <- paste0(an, "//inter:", inter_keys[[an]][[pair_key(pr[1], pr[2])]])
-      }
-    } else {
-      msg <- sprintf("Key '%s' must start with prob:, assoc:, impact: or inter:.", k)
-    }
-    if (!is.null(msg)) pc$add(label, r, "key", msg)
-    if (!is.na(norm) && !is.null(out[[norm]])) {
-      pc$add(label, r, "key", sprintf("Key '%s': the same input is given more than once.", k))
-      norm <- NA_character_
-    }
-    dd <- tryCatch(input_dist(dist[r], P[r, ]), error = function(e) e)
-    if (inherits(dd, "condition")) {
-      pc$add(label, r, "dist", conditionMessage(dd))
-    } else if (!is.na(norm)) {
-      attr(dd, "where") <- c(label = label, row = r)
-      out[[norm]] <- dd
-    }
-  }
-  out
-}
-
 run_input_checks <- function(diseases, associations, three_way, impacts, interactions,
-                             uncertainty, hazard_ratios, dir, missing_associations,
+                             hazard_ratios, dir, missing_associations,
                              adjusted_associations) {
   pc <- new_problems()
   if (!is.null(dir) && !dir.exists(dir)) pc$add("inputs", NA, NA, sprintf("Folder not found: %s", dir))
+  if (!is.null(dir) && dir.exists(dir)) {
+    old <- list.files(dir, pattern = "^uncertainty(_.+)?\\.csv$", ignore.case = TRUE)
+    for (f in old) {
+      pc$add(sub("\\.csv$", "", f, ignore.case = TRUE), NA, NA,
+             "Uncertainty files are no longer read: give each uncertain value a distribution in its own table, in the columns dist and p1-p4 (see ?cm_read_inputs).")
+    }
+  }
   single_src <- function(arg, stem) {
     if (!is.null(arg)) return(arg)
     if (!is.null(dir)) {
@@ -864,7 +898,6 @@ run_input_checks <- function(diseases, associations, three_way, impacts, interac
   )
   imp_src <- multi(impacts, "impacts")
   int_src <- multi(interactions, "interactions")
-  unc_src <- multi(uncertainty, "uncertainty")
 
   # Analysis names: the suffix of impacts_<name>, or "impacts".
   an_names <- ifelse(nzchar(names(imp_src)), names(imp_src), "impacts")
@@ -924,35 +957,16 @@ run_input_checks <- function(diseases, associations, three_way, impacts, interac
     check_interaction_table(int_tabs[[nm]], attr(int_tabs[[nm]], "label"), ids, pc)
   })
   names(xx) <- names(int_tabs)
-  inter_keys <- lapply(analyses, function(nm) xx[[nm]]$keys %||% stats::setNames(character(0), character(0)))
-  names(inter_keys) <- analyses
 
-  # Uncertainty tables.
-  dists <- list()
-  for (j in seq_along(unc_src)) {
-    nm <- names(unc_src)[j]
-    own <- if (nm %in% c("", "shared")) "" else nm
-    lab <- table_label("uncertainty", if (nm == "shared") "" else nm)
-    if (nzchar(own) && !(own %in% analyses)) {
-      pc$add(lab, NA, NA, sprintf("There is no impact table for analysis '%s'.", own))
-      next
-    }
-    tab <- read_checked(unc_src[[j]], lab, pc)
-    if (is.null(tab)) next
-    d <- check_uncertainty_table(tab, lab, own, ids,
-                                 aa$numeric_keys %||% stats::setNames(character(0), character(0)),
-                                 analyses, inter_keys, pc)
-    for (k in names(d)) {
-      if (!is.null(dists[[k]])) {
-        w <- attr(d[[k]], "where")
-        pc$add(w[["label"]], as.integer(w[["row"]]), "key", "The same input is given more than once.")
-      } else {
-        dists[[k]] <- d[[k]]
-      }
-    }
-  }
-  if (length(dists) && !length(analyses)) {
-    pc$add("uncertainty", NA, NA, "Uncertainty needs at least one impact table (a Monte Carlo run adjusts impacts).", "note")
+  # Distributions given in the tables (dist and p1-p4 columns).
+  pop_dists <- list(diseases = dd$dists %||% list(), associations = aa$dists %||% list(),
+                    three_way = tt$dists %||% list())
+  imp_dists <- lapply(analyses, function(nm) ii[[nm]]$dists %||% list())
+  int_dists <- lapply(analyses, function(nm) xx[[nm]]$dists %||% list())
+  names(imp_dists) <- names(int_dists) <- analyses
+  n_dists <- sum(lengths(pop_dists)) + sum(lengths(imp_dists)) + sum(lengths(int_dists))
+  if (n_dists && !length(analyses)) {
+    pc$add("inputs", NA, "dist", "Distributions need at least one impact table (a Monte Carlo run adjusts impacts).", "note")
   }
 
   # Build ---------------------------------------------------------------------
@@ -1005,27 +1019,20 @@ run_input_checks <- function(diseases, associations, three_way, impacts, interac
   out$hr_model <- built$hr
   if (!is.null(built$an) && length(built$an$models) == 1L) out$model <- built$an$models[[1]]
 
-  if (length(dists) && !is.null(built$an)) {
-    pick <- function(prefix, an = NULL) {
-      sel <- if (is.null(an)) startsWith(names(dists), prefix) else startsWith(names(dists), paste0(an, "//", prefix))
-      x <- dists[sel]
-      nms <- sub("^.*//", "", names(x))
-      stats::setNames(x, substring(nms, nchar(prefix) + 1L))
-    }
+  if (n_dists && !is.null(built$an)) {
     smp <- tryCatch({
       if (length(analyses) == 1L) {
-        cm_sampler(out$model, diseases = pick("prob:"), associations = pick("assoc:"),
-                   impacts = pick("impact:", analyses), interactions = pick("inter:", analyses))
+        cm_sampler(out$model, diseases = pop_dists$diseases, associations = pop_dists$associations,
+                   three_way = pop_dists$three_way, impacts = imp_dists[[1]],
+                   interactions = int_dists[[1]])
       } else {
-        imp_d <- lapply(analyses, function(nm) pick("impact:", nm))
-        int_d <- lapply(analyses, function(nm) pick("inter:", nm))
-        names(imp_d) <- names(int_d) <- analyses
-        cm_batch_sampler(built$an, diseases = pick("prob:"), associations = pick("assoc:"),
-                         impacts = imp_d, interactions = int_d)
+        cm_batch_sampler(built$an, diseases = pop_dists$diseases,
+                         associations = pop_dists$associations, three_way = pop_dists$three_way,
+                         impacts = imp_dists, interactions = int_dists)
       }
     }, error = function(e) e)
     if (inherits(smp, "condition")) {
-      pc$add("uncertainty", NA, NA, conditionMessage(smp))
+      pc$add("inputs", NA, "dist", conditionMessage(smp))
     } else {
       out$sampler <- smp
     }

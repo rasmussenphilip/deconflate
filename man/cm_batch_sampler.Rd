@@ -9,14 +9,15 @@ cm_batch_sampler(
   diseases = list(),
   associations = list(),
   impacts = list(),
-  interactions = list()
+  interactions = list(),
+  three_way = list()
 )
 }
 \arguments{
 \item{analyses}{A \code{\link[=cm_analyses]{cm_analyses()}} object.}
 
-\item{diseases, associations}{Named lists of \code{cm_dist} for the shared
-population inputs (as in \code{\link[=cm_sampler]{cm_sampler()}}).}
+\item{diseases, associations, three_way}{Named lists of \code{cm_dist} for the
+shared population inputs (as in \code{\link[=cm_sampler]{cm_sampler()}}).}
 
 \item{impacts, interactions}{Named lists, one element per analysis, each a
 named list of \code{cm_dist} as in \code{\link[=cm_sampler]{cm_sampler()}}.}

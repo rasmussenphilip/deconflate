@@ -10,7 +10,6 @@ cm_check_inputs(
   three_way = NULL,
   impacts = NULL,
   interactions = NULL,
-  uncertainty = NULL,
   hazard_ratios = NULL,
   dir = NULL,
   missing_associations = c("independent", "unknown"),
@@ -21,8 +20,8 @@ cm_check_inputs(
 \item{diseases, associations, three_way, hazard_ratios}{Paths to CSV files or
 data frames.}
 
-\item{impacts, interactions, uncertainty}{A path or data frame, or a named
-list of them (one per analysis; see Files).}
+\item{impacts, interactions}{A path or data frame, or a named list of them
+(one per analysis; see Files).}
 
 \item{dir}{Optional folder with CSV files named as in Files. Arguments
 given explicitly take precedence over files.}

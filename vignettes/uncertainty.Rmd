@@ -29,8 +29,11 @@ dist_normal(2.63, 1.44, lower = 0)  # truncated at zero
 ## Monte Carlo analysis
 
 `cm_sampler()` attaches distributions to a model. Keys name the inputs:
-`prob:<disease>`, `assoc:<d1>:<d2>`, `impact:<disease>` and
-`inter:<d1>:<d2>`. Each draw is a complete model, so the uncertainty of
+`prob:<disease>`, `assoc:<d1>:<d2>`, `three:<d1>:<d2>:<d3>`,
+`impact:<disease>` and `inter:<d1>:<d2>`. (When inputs are read from files
+with `cm_read_inputs()`, distributions are given in the rows of the tables,
+in the columns `dist` and `p1`-`p4`, and the sampler is built for you; see
+`vignette("own-data")`.) Each draw is a complete model, so the uncertainty of
 probabilities, associations and impacts is propagated jointly. Here the
 association of d2 and d3 is given a defensive mixture (a wider component
 with weight 0.2), which is used for a scenario below:
@@ -113,11 +116,17 @@ sm <- summary(mc_d2)
 sm[, c("disease", "method", "mean", "q0.5", "trimmed_mean", "mcse", "stability")]
 ```
 
-Each estimate gets one of four statuses (see `?cm_diagnose`):
+Each estimate gets one of five statuses (see `?cm_diagnose`):
 
 * **`ok`**: no problem detected.
 * **`imprecise`**: the Monte Carlo standard error is more than 5% of the
   mean. Use more draws, or Latin hypercube sampling.
+* **`insufficient_info`**: the precision cannot be assessed, because fewer
+  than two Latin hypercube blocks have draws with positive weight, or
+  because the mean is (nearly) zero, so that a relative error is undefined.
+  In the second case `mcse` still gives the absolute error, which can be
+  judged against the size of effect that matters. A missing precision is
+  never reported as `ok`.
 * **`heavy_tail`**: the most extreme 1% of draws contribute more than 60% of
   the variance. Importance sampling can help if they come from one region
   of one input (below).
@@ -145,7 +154,11 @@ cm_diagnose(mc_d2)
 `sampling = "lhs"` stratifies each input's distribution, which usually
 reduces the Monte Carlo error of means. LHS draws are not independent, so the
 draws are split into `lhs_replicates` independent blocks (10 by default),
-and the standard error is estimated from the spread of the block means:
+and the standard error is estimated from the spread of the block means. The
+pooled mean is a ratio estimator over the blocks (each block's weighted sum
+over the total weight), and its standard error uses all blocks as sampled
+(`mc$n_blocks`), including any whose draws were all rejected; with fewer
+than two blocks with positive weight the status is `insufficient_info`:
 
 ```{r}
 mc_lhs <- cm_monte_carlo(s_d2, 400, method = "simultaneous", sampling = "lhs", seed = 2)
@@ -168,14 +181,29 @@ mc_is
 summary(mc_is, diagnose = FALSE)[, c("disease", "mean", "mcse")]
 ```
 
-Each proposal must cover the support of the input's own distribution, and
-point masses (fixed values) cannot be importance-sampled. Both are checked
-before any draw is made:
+Each proposal must cover the whole support of the input's own
+distribution, and point masses (fixed values) cannot be importance-sampled.
+Both are checked before any draw is made. A proposal that is too narrow is
+rejected:
 
 ```{r}
 tryCatch(cm_monte_carlo(s_d2, 10, proposal = list("impact:d2" = dist_uniform(-5, 5))),
          deconflate_unsupported = function(e) conditionMessage(e))
 ```
+
+So is a mixture whose range spans the support but leaves a gap: draws
+would never fall in the gap, and the weighted estimates would converge to
+the mean over the covered part only. Here the raw impact of d3 has a PERT
+distribution on [5, 9], and the proposal has no mass between 6.5 and 7.5:
+
+```{r}
+gap <- dist_mixture(dist_uniform(4, 6.5), dist_uniform(7.5, 10))
+tryCatch(cm_monte_carlo(s, 10, proposal = list("impact:d3" = gap)),
+         deconflate_unsupported = function(e) conditionMessage(e))
+```
+
+Including the input's own distribution as a mixture component, as
+`cm_suggest_proposal()` does, always covers its support.
 
 A defensive mixture guarantees support, but not a finite variance or better
 precision: compare the standard errors. Importance sampling reduces the

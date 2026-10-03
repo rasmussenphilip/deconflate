@@ -55,7 +55,7 @@ test_that("the 12-disease joint distribution is feasible and converges", {
 })
 
 test_that("analysis inputs use the fixed de-conflation probabilities", {
-  gd <- example_global_dairy(culling = TRUE)
+  gd <- global_dairy_analyses("analysis", culling = TRUE)
   d <- gd$population$diseases
   expect_equal(names(gd$models), c("yield", "fertility", "culling_hr_minus_1"))
   expect_equal(d$prob,
@@ -72,7 +72,7 @@ test_that("analysis inputs use the fixed de-conflation probabilities", {
 })
 
 test_that("published method at the analysis central values matches the reference", {
-  res <- deconflate(example_global_dairy(culling = TRUE), method = "published")
+  res <- deconflate(global_dairy_analyses("analysis", culling = TRUE), method = "published")
   expect_equal(res$yield$adjusted$adjusted,
                c(0.024732965, 1.3319499, 0.79378291, 3.568819, 2.5324074,
                  2.8409515, 0.068975316, 2.6385934, 3.2291707, 2.2577111,
@@ -96,7 +96,7 @@ test_that("published method at the analysis central values matches the reference
 })
 
 test_that("simultaneous solution at the analysis central values", {
-  w <- testthat::capture_warnings(res <- deconflate(example_global_dairy(culling = TRUE)))
+  w <- testthat::capture_warnings(res <- deconflate(global_dairy_analyses("analysis", culling = TRUE)))
   expect_length(w, 3)
   expect_equal(vapply(res, function(r) r$diagnostics$sign_changes, character(1)),
                c(yield = "CK, CM, DA, MF", fertility = "CK, DA, LAM, SCK, SCM",

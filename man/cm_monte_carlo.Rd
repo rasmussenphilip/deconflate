@@ -46,7 +46,9 @@ and disease;
 \item \code{totals}: naive and adjusted aggregate by draw and method;
 \item \code{params}: one row per accepted draw with the sampled inputs;
 \item \code{weights} (normalised), \code{log_weights}, \code{ess} (Kish effective sample
-size), \code{block} (LHS block of each accepted draw);
+size), \code{block} (LHS block of each accepted draw) and \code{n_blocks} (the
+number of LHS blocks sampled, including blocks with no accepted
+draw);
 \item \code{n_draws}, \code{n_rejected}, \code{rejections} (draw, type, reason),
 \code{sign_changes}, \code{method}, \code{sampling}, \code{proposal}, \code{specs}, \code{label}
 and \code{units}.

@@ -87,7 +87,10 @@ compare_methods(m)
   for crude estimates only.
 * `"global"` fits the maximum-entropy distribution of disease combinations
   and can include impact interactions (`vignette("interactions")`). Without
-  interactions and unknown pairs, it equals `"simultaneous"`.
+  interactions and unknown pairs, it equals `"simultaneous"`. The pairwise
+  methods work for any number of diseases; the global method enumerates
+  combinations up to about 20 diseases, and beyond that uses the sampled
+  backend of `fit_joint()` (`vignette("thresholds-and-scaling")`).
 
 ```{r}
 res <- deconflate(m)
@@ -122,6 +125,17 @@ res$totals
 `NA` when the aggregate is zero, since a share of zero is not defined.
 `contribution_table()` and `summary()` combine the impacts and
 contributions in one table.
+
+How robust is a ranking or a sign to one uncertain input? `cm_threshold()`
+finds the input values at which the conclusion changes, for example the odds
+ratio of d2 and d3 at which d1 would contribute more than d2:
+
+```{r}
+cm_threshold(m, "assoc:d2:d3", c(0.1, 100), conclusion = "rank")$thresholds[
+  , c("item", "status", "threshold", "description")]
+```
+
+See `vignette("thresholds-and-scaling")`.
 
 ## Estimands
 
@@ -287,3 +301,7 @@ compare_methods(m_sim, methods = c("published", "simultaneous"))
   impact interactions, three-way scenarios and attribution.
 * `vignette("uncertainty")`: Monte Carlo analysis, stability checks,
   scenarios and sensitivity screening.
+* `vignette("thresholds-and-scaling")`: threshold searches with
+  `cm_threshold()` (at what input value does a ranking, a sign or the
+  aggregate change?), and the sampled backend of `fit_joint()` for the
+  global method with more than about 20 diseases.

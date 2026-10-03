@@ -1,7 +1,8 @@
-disease1,disease2,value,measure,adjusted,adjusted_for,source
-LAM,SCK,2.01,OR,FALSE,,Illustrative
-MET,LAM,6.10,OR,FALSE,,Illustrative
-MET,CM,2.30,OR,FALSE,,"Error: CM is not in diseases.csv"
-SCK,LAM,1.50,OR,FALSE,,"Error: the same pair as row 1"
-MET,SCK,,OR,FALSE,,"Error: missing value"
-MET,RP,3.53,OR,TRUE,parity; herd,"Error: a covariate-adjusted odds ratio is not a marginal 2x2 association (use the crude odds ratio, or adjusted_associations = 'use_as_marginal' as an approximation)"
+disease1,disease2,value,measure,n11,n10,n01,n00,adjusted,adjusted_for,source,dist,p1,p2,p3,p4,note
+LAM,SCK,2.01,OR,,,,,FALSE,,Illustrative,normal,2.01,0.20,0,,"normal(mean, sd) truncated at 0"
+MET,LAM,6.10,OR,,,,,FALSE,,Illustrative,pert,9.0,6.10,12.0,,"Error: PERT needs min <= mode <= max"
+MET,CM,2.30,OR,,,,,FALSE,,Illustrative,,,,,,"Error: CM is not in diseases.csv"
+SCK,LAM,1.50,OR,,,,,FALSE,,Illustrative,,,,,,"Error: the same pair as row 1"
+MET,SCK,,OR,,,,,FALSE,,Illustrative,,,,,,"Error: missing value"
+MET,RP,3.53,OR,,,,,TRUE,parity; herd,Illustrative,,,,,,"Error: a covariate-adjusted odds ratio is not a marginal 2x2 association (use the crude odds ratio, or adjusted_associations = 'use_as_marginal' as an approximation)"
+RP,SCK,,table,30,40,320,610,FALSE,,Illustrative,normal,1.4,0.2,,,"Error: a distribution needs a numeric measure (OR, RR, RD, cond_prob or phi), not a table of counts"

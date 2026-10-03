@@ -33,9 +33,11 @@
 #'   one column per method), `change` (relative change from raw), `long`
 #'   (long format with sign-change flags, or the Monte Carlo summaries),
 #'   `totals` (aggregate per method, with gap and value if requested),
-#'   `diagnostics`, `failed` (methods that could not be run, or whose
-#'   valuation or attributable risk could not be computed, with reasons; their
-#'   `totals` are `NA`) and `methods`.
+#'   `diagnostics`, `failed` (methods that could not be run, gave an undefined
+#'   (non-finite) result, or whose valuation or attributable risk could not be
+#'   computed, with reasons; their `totals` are `NA`) and `methods`. For a
+#'   model, `undefined` keeps the results with non-finite values for
+#'   inspection; they are not among the estimates.
 #' @export
 #' @examples
 #' compare_methods(example_supplement())
@@ -47,10 +49,19 @@ compare_methods.cm_model <- function(x, methods = c("published", "simultaneous",
                                      valuation = NULL, ...) {
   methods <- unique(match.arg(methods, c("published", "simultaneous", "global"), several.ok = TRUE))
   res <- list()
+  undefined <- list()
   failed <- character(0)
   for (m in methods) {
     r <- tryCatch(deconflate(x, method = m, warn = FALSE, ...), deconflate_error = function(e) e)
-    if (inherits(r, "condition")) failed[m] <- conditionMessage(r) else res[[m]] <- r
+    if (inherits(r, "condition")) {
+      failed[m] <- conditionMessage(r)
+    } else if (!result_is_finite(r)) {
+      # Kept for inspection in `undefined`, but not presented as an estimate.
+      failed[m] <- sprintf("undefined: non-finite adjusted impacts (%s)", nonfinite_diseases(r))
+      undefined[[m]] <- r
+    } else {
+      res[[m]] <- r
+    }
   }
   if (!length(res)) {
     cm_abort(sprintf("All methods failed: %s", paste(names(failed), failed, sep = ": ", collapse = "; ")))
@@ -101,7 +112,8 @@ compare_methods.cm_model <- function(x, methods = c("published", "simultaneous",
   rownames(diagnostics) <- NULL
   structure(list(impacts = impacts, change = change, long = long, totals = totals,
                  diagnostics = diagnostics, failed = failed, methods = ok, source = "model",
-                 units = res[[1]]$units, label = res[[1]]$label, results = res),
+                 units = res[[1]]$units, label = res[[1]]$label, results = res,
+                 undefined = undefined),
             class = "cm_comparison")
 }
 
@@ -120,7 +132,7 @@ compare_methods.cm_analyses <- function(x, methods = c("published", "simultaneou
   # The global method needs one joint distribution for all analyses.
   dots <- list(...)
   if ("global" %in% methods && is.null(dots$joint)) {
-    fj <- dots[intersect(names(dots), c("tol", "max_iter", "max_diseases"))]
+    fj <- dots[intersect(names(dots), joint_arg_names)]
     j <- tryCatch(withCallingHandlers(do.call(fit_joint, c(list(x$population), fj)),
                                       deconflate_nonconvergence = function(w) invokeRestart("muffleWarning")),
                   deconflate_error = function(e) NULL)
@@ -177,7 +189,13 @@ compare_methods.cm_hr_model <- function(x, methods = c("published", "first_order
   failed <- character(0)
   for (m in methods) {
     r <- tryCatch(deconflate_hr(x, method = m, warn = FALSE, ...), deconflate_error = function(e) e)
-    if (inherits(r, "condition")) failed[m] <- conditionMessage(r) else res[[m]] <- r
+    if (inherits(r, "condition")) {
+      failed[m] <- conditionMessage(r)
+    } else if (!result_is_finite(r)) {
+      failed[m] <- "undefined: non-finite or non-positive adjusted hazard ratios"
+    } else {
+      res[[m]] <- r
+    }
   }
   if (!length(res)) cm_abort("All methods failed.")
   ok <- names(res)
@@ -190,11 +208,16 @@ compare_methods.cm_hr_model <- function(x, methods = c("published", "first_order
   totals <- NULL
   if (!is.null(overall_risk)) {
     joint <- NULL
+    dots <- list(...)
     totals <- do.call(rbind, lapply(ok, function(m) {
       r <- res[[m]]
-      joint <<- joint %||% r$joint %||% res$snapshot$joint %||% fit_joint(x$population)
-      ar <- tryCatch(attributable_risk(r, overall_risk, joint = joint, allocate = FALSE),
-                     deconflate_error = function(e) e)
+      ar <- tryCatch({
+        if (is.null(joint)) {
+          joint <<- r$joint %||% res$snapshot$joint %||%
+            do.call(fit_joint, c(list(x$population), dots[intersect(names(dots), joint_arg_names)]))
+        }
+        attributable_risk(r, overall_risk, joint = joint, allocate = FALSE)
+      }, deconflate_error = function(e) e)
       if (inherits(ar, "condition")) {
         failed[m] <<- paste("attributable risk:", conditionMessage(ar))
         return(data.frame(method = m, overall_risk = overall_risk, disease_free_risk = NA_real_,

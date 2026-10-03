@@ -66,6 +66,25 @@ check_ids <- function(id) {
   invisible(id)
 }
 
+# Is an adjustment result usable as an estimate? The published approximation
+# can return infinite or undefined values (a zero denominator); such a result
+# is kept for inspection but never counts as a successful estimate. Used by
+# Monte Carlo, method comparisons, sensitivity screens and threshold searches.
+result_is_finite <- function(r) {
+  if (inherits(r, "cm_hr_result")) {
+    a <- r$adjusted$adjusted
+    return(length(a) > 0 && all(is.finite(a)) && all(a > 0))
+  }
+  inherits(r, "cm_result") && all(is.finite(r$adjusted$adjusted)) &&
+    all(is.finite(r$contributions$total)) && is.finite(r$totals$adjusted_total)
+}
+
+# Names of the diseases with non-finite adjusted values.
+nonfinite_diseases <- function(r) {
+  a <- r$adjusted
+  paste(a$disease[!is.finite(a$adjusted)], collapse = ", ")
+}
+
 # Recycle an optional per-row argument to length n.
 recycle_arg <- function(x, n, name) {
   if (length(x) == 1L) return(rep(x, n))
