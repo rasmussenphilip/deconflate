@@ -19,12 +19,19 @@ into main and interaction parts).
 }
 \description{
 Generalises Rasmussen et al. (2022), eqs. 17-22. For an outcome with
-observed mean \code{x} and expected proportional loss \code{L} (see
-\code{\link[=attribute_burden]{attribute_burden()}}), the disease-free value is \code{x / (1 - L)} for
-outcomes that disease decreases (e.g. yield), or \code{x / (1 + L)} for
-outcomes that disease increases (e.g. calving interval). The gap is
-attributed to diseases in proportion to their Shapley shares, which
-reduces to eq. 22 when there are no interactions.
+observed mean \code{x} and expected loss \code{L} (see \code{\link[=attribute_burden]{attribute_burden()}}):
+\itemize{
+\item proportion scale: the disease-free value is \code{x / (1 - L)} for outcomes
+that disease decreases (e.g. yield), or \code{x / (1 + L)} for outcomes that
+disease increases (e.g. calving interval);
+\item absolute scale: the disease-free value is \code{x + L} (decrease) or \code{x - L}
+(increase), with \code{x} in the impacts' units (e.g. a culling risk of
+\code{0.27} with excess-risk impacts from \code{\link[=as_impacts]{as_impacts()}}).
+}
+}
+\details{
+The gap is attributed to diseases in proportion to their Shapley shares,
+which reduces to eq. 22 when there are no interactions.
 }
 \examples{
 res <- deconflate(example_supplement(), method = "published")

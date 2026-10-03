@@ -27,11 +27,18 @@ equations, built from pairwise 2x2 tables.
 with \code{\link[=fit_joint]{fit_joint()}}, then solves the impact equations including pairwise
 interactions.
 }
-\item Estimate and attribute productivity gaps with \code{\link[=productivity_gap]{productivity_gap()}} and
-\code{\link[=attribute_burden]{attribute_burden()}}.
-\item Propagate uncertainty with \code{\link[=cm_monte_carlo]{cm_monte_carlo()}} and reweight draws for
-scenarios with \code{\link[=cm_reweight]{cm_reweight()}}.
+\item Estimate, value and attribute productivity gaps with
+\code{\link[=productivity_gap]{productivity_gap()}}, \code{\link[=value_losses]{value_losses()}}, \code{\link[=attribute_burden]{attribute_burden()}} and
+\code{\link[=contribution_table]{contribution_table()}}. Culling hazard ratios go through
+\code{\link[=hr_conversion]{hr_conversion()}}, \code{\link[=as_impacts]{as_impacts()}} and \code{\link[=adjusted_hr]{adjusted_hr()}}.
+\item Check joint feasibility with \code{\link[=check_feasibility]{check_feasibility()}}.
+\item Propagate uncertainty with \code{\link[=cm_sampler]{cm_sampler()}} and \code{\link[=cm_monte_carlo]{cm_monte_carlo()}}, and
+explore scenarios with \code{\link[=cm_scenario]{cm_scenario()}}, \code{\link[=sensitivity_oat]{sensitivity_oat()}},
+\code{\link[=screen_associations]{screen_associations()}}, \code{\link[=screen_interactions]{screen_interactions()}} and
+\code{\link[=compare_scenarios]{compare_scenarios()}}.
 }
+
+See \code{vignette("deconflate")} to get started.
 }
 
 \section{Conventions}{
@@ -55,6 +62,15 @@ Preventive Veterinary Medicine 203:105617.
 Rasmussen P, et al. (2024). Global losses due to dairy cattle diseases: a
 comorbidity-adjusted economic analysis. Journal of Dairy Science
 107:6945-6970.
+}
+\seealso{
+Useful links:
+\itemize{
+  \item \url{https://github.com/rasmussenphilip/deconflate}
+  \item \url{https://rasmussenphilip.github.io/deconflate/}
+  \item Report bugs at \url{https://github.com/rasmussenphilip/deconflate/issues}
+}
+
 }
 \author{
 \strong{Maintainer}: Philip Rasmussen \email{phr@sund.ku.dk}

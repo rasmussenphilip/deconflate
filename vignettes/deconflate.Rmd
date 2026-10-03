@@ -1,0 +1,98 @@
+---
+title: "Getting started with deconflate"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Getting started with deconflate}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+```
+
+```{r setup}
+library(deconflate)
+```
+
+## The problem
+
+Single-disease impact estimates compare animals with and without a disease.
+Animals with one disease are more (or less) likely to have associated
+diseases, so each estimate partly reflects the impacts of those other
+diseases. Adding such estimates double counts. `deconflate` adjusts
+("de-conflates") the estimates so that they can be aggregated.
+
+## Describing a system
+
+A model combines disease probabilities, pairwise associations and raw
+impacts. This is the three-disease example from the Supplementary File of
+Rasmussen et al. (2022):
+
+```{r}
+m <- cm_model(
+  diseases = cm_diseases(c("d1", "d2", "d3"), c(0.10, 0.15, 0.20)),
+  associations = cm_associations(c("d1", "d2"), c("d2", "d3"), c(2, 3), measure = "OR"),
+  impacts = cm_impacts(c("d1", "d2", "d3"), c(2.5, 5, 7.5),
+                       outcome = "yield", scale = "percent")
+)
+m
+```
+
+Pairs without an association are independent by default
+(`missing_associations = "independent"`). Use `"unknown"` to leave them
+unconstrained instead; this is a different assumption (see
+`vignette("interactions")`).
+
+## Adjusting impacts
+
+```{r}
+compare_methods(m)
+```
+
+* `"simultaneous"` (the default) solves the additive impact equations
+  exactly.
+* `"published"` is the proportional approximation of Rasmussen et al.
+  (2022), kept for reproduction and comparison.
+* `"global"` fits the distribution of disease combinations and can include
+  impact interactions.
+
+```{r}
+res <- deconflate(m)
+res
+```
+
+The diagnostics report how well the adjusted impacts reconstruct the raw
+ones, and flag adjusted impacts whose sign differs from the raw impact. A
+sign change means that the raw impact is smaller than the associated
+diseases alone would produce, so the inputs are inconsistent under the
+additive model.
+
+## Productivity gaps and losses
+
+```{r}
+gaps <- productivity_gap(res, c(yield = 10000))
+gaps$summary
+value_losses(gaps, unit_value = c(yield = 0.30))$by_disease
+```
+
+## Checking the method with a simulated herd
+
+`simulate_raw_impacts()` computes the raw impacts that single-disease studies
+would report in a herd with known true impacts. Adjusting them should
+recover the truth:
+
+```{r}
+truth <- c(d1 = 0.02, d2 = 0.04, d3 = 0.06)
+m_sim <- m
+m_sim$impacts <- simulate_raw_impacts(m, truth, outcome = "yield")
+compare_methods(m_sim, methods = c("published", "simultaneous"))
+```
+
+## Where next
+
+* `vignette("reproducing-published")`: the 2022 and 2024 analyses.
+* `vignette("interactions")`: the joint distribution, unknown associations,
+  impact interactions and attribution.
+* `vignette("uncertainty")`: Monte Carlo analysis, correlated outcomes,
+  scenarios and sensitivity screening.

@@ -1,33 +1,27 @@
-# Roadmap to v0.1
+# Roadmap
 
-This list follows the agreed v0.1 scope (October 2026).
+## v0.1 (in progress: version 0.0.0.9001)
 
-## Done in the skeleton
-
-- [x] Input constructors with metadata: probability type and incidence conversion, time horizon, reference population, effect scale, units, direction, and prior adjustment of both impacts and associations.
-- [x] Association measures: OR, RR, RD, conditional probability, phi, contingency tables, independent and unknown. Unknown is kept distinct from independence.
+- [x] Input constructors with metadata.
+- [x] Association measures: OR, RR, RD, conditional probability, phi, contingency table, independent and unknown.
 - [x] Three adjustment methods: published, simultaneous (default) and global (IPF/MaxEnt with pairwise interactions).
-- [x] Diagnostics: reconstruction residuals, sign changes, condition numbers and IPF convergence.
-- [x] Productivity gaps (decrease and increase outcomes) and closed-form Shapley attribution for pairwise interactions.
-- [x] Hazard-ratio conversion: proportional hazards, plus the published OR approximation.
-- [x] Monte Carlo with shared draws across outcomes and counting of rejected draws, plus importance reweighting for scenarios with an ESS.
-- [x] Simulated-population validation helper and tests against Python reference values.
-
-## To do for v0.1
-
-- [ ] Run `devtools::document()`, `devtools::test()` and `devtools::check()`, then fix any issues.
-- [ ] Linear-programming feasibility check of the pairwise tables before IPF (e.g. `lpSolve` in Suggests), with a diagnosis of the most conflicting pairs.
-- [ ] Shapley allocation for higher-order additive terms (equal split among the diseases involved) and, for non-additive effects, per-cell computation over the joint table.
-- [ ] Culling outcomes end to end: HR → excess risk → adjustment → HR (reproducing 2022 Table 8 with `or_approx`, then the corrected conversion).
-- [ ] Full reproduction of 2022 Tables 8–10 and 2024 Table 5 (Monte Carlo means), with a vignette documenting where and why results differ.
-- [ ] Sampler helpers for common input distributions (beta, PERT, normal and lognormal on the OR scale), including defensive mixtures for scenario reweighting.
-- [ ] Optional correlations between outcome impacts within a disease.
-- [ ] Sensitivity tools: pairwise screening of uncertain or missing associations and interaction scenarios, comparing totals and rankings.
-- [ ] Reporting: contribution tables, uncertainty intervals and optional plots (in Suggests only).
-- [ ] Vignettes: getting started, method comparison, interactions and assumptions, uncertainty and scenarios.
-- [ ] GitHub Actions R-CMD-check workflow and a pkgdown site.
+- [x] Diagnostics: reconstruction residuals, sign changes, condition numbers, IPF convergence.
+- [x] Feasibility check: a triple screen, plus an exact LP with `lpSolve`.
+- [x] Productivity gaps on the proportion and absolute scales, monetary valuation, and Shapley attribution (closed form, and cell by cell for general losses).
+- [x] Culling end to end: hazard ratio → excess risk → adjustment → hazard ratio.
+- [x] Reproduction of Rasmussen et al. (2022) Tables 8–10 and (2024) Table 5, with documented differences.
+- [x] Input distributions, samplers with outcome correlation, Monte Carlo with economics and rejection reporting, and scenario reweighting.
+- [x] Sensitivity: one-at-a-time, association screening, interaction screening and scenario comparison.
+- [x] Reporting and base-graphics plots.
+- [x] Vignettes and pkgdown configuration.
+- [ ] Run `devtools::document()`, `test()` and `check()` on 0.0.0.9001 and fix any issues.
+- [ ] GitHub Actions: `usethis::use_github_action("check-standard")` and `usethis::use_pkgdown_github_pages()`.
+- [ ] Review the reproduction vignette against the original spreadsheets (2022 yield inputs; 2024 handling of negative draws).
+- [ ] Tag v0.1.0.
 
 ## After v0.1
 
-- Advanced component accounting, threshold searches, and higher-order or non-linear interaction models.
+- Advanced component accounting.
+- Threshold searches: input values at which conclusions or rankings change.
+- Higher-order and non-linear interaction models in the adjustment itself (a per-cell loss function and a non-linear solve).
 - Scaling beyond about 20 diseases, e.g. a pseudo-likelihood Ising fit or sampling instead of the full 2^n table.

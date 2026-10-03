@@ -4,18 +4,27 @@
 \alias{summary.cm_mc}
 \title{Summarise Monte Carlo results}
 \usage{
-\method{summary}{cm_mc}(object, probs = c(0.025, 0.5, 0.975), ...)
+\method{summary}{cm_mc}(
+  object,
+  what = c("adjusted", "loss", "total", "rejections"),
+  probs = c(0.025, 0.5, 0.975),
+  ...
+)
 }
 \arguments{
 \item{object}{A \code{cm_mc} object.}
+
+\item{what}{\code{"adjusted"} (adjusted impacts by outcome and disease),
+\code{"loss"} (monetary losses by outcome and disease), \code{"total"} (total
+losses per outcome and overall) or \code{"rejections"}.}
 
 \item{probs}{Quantiles to report.}
 
 \item{...}{Unused.}
 }
 \value{
-A data frame of (weighted) means, SDs and quantiles of adjusted
-impacts by outcome and disease.
+A data frame of (weighted) means, SDs, quantiles and the Monte
+Carlo standard error of the mean (based on the effective sample size).
 }
 \description{
 Summarise Monte Carlo results

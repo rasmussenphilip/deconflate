@@ -92,37 +92,39 @@ pair_tables <- function(model) {
                       ep_2_given_1 = numeric(0), ep_1_given_2 = numeric(0)))
   }
   pairs <- t(utils::combn(ids, 2))
+  d1 <- pairs[, 1]
+  d2 <- pairs[, 2]
+  np <- length(d1)
   assoc <- model$associations
   akey <- if (is.null(assoc)) character(0) else pair_key(assoc$disease1, assoc$disease2)
+  hit <- match(pair_key(d1, d2), akey)
 
-  rows <- lapply(seq_len(nrow(pairs)), function(r) {
-    d1 <- pairs[r, 1]
-    d2 <- pairs[r, 2]
-    hit <- match(pair_key(d1, d2), akey)
-    if (is.na(hit)) {
-      measure <- if (model$missing_associations == "independent") "independent" else "unknown"
-      status <- paste0(measure, " (default)")
-      p11 <- if (measure == "independent") p[[d1]] * p[[d2]] else NA_real_
-    } else {
-      a <- assoc[hit, ]
-      measure <- a$measure
-      status <- "specified"
-      # Directional measures are defined with the row's own orientation.
-      p11 <- if (measure == "unknown") NA_real_ else
-        association_to_joint(measure, a$value, p[[a$disease1]], p[[a$disease2]])
-    }
-    p1 <- p[[d1]]
-    p2 <- p[[d2]]
-    data.frame(
-      disease1 = d1, disease2 = d2, measure = measure, status = status,
-      p11 = p11,
-      or = if (is.na(p11)) NA_real_ else joint_to_or(p11, p1, p2),
-      ep_2_given_1 = p11 / p1 - (p2 - p11) / (1 - p1),
-      ep_1_given_2 = p11 / p2 - (p1 - p11) / (1 - p2),
-      stringsAsFactors = FALSE
-    )
-  })
-  do.call(rbind, rows)
+  default <- if (model$missing_associations == "independent") "independent" else "unknown"
+  measure <- rep(default, np)
+  status <- rep(paste0(default, " (default)"), np)
+  p11 <- if (default == "independent") p[d1] * p[d2] else rep(NA_real_, np)
+  spec <- which(!is.na(hit))
+  if (length(spec)) {
+    a <- assoc[hit[spec], , drop = FALSE]
+    measure[spec] <- a$measure
+    status[spec] <- "specified"
+    # Directional measures are defined with the row's own orientation.
+    p11[spec] <- vapply(seq_along(spec), function(j) {
+      if (a$measure[j] == "unknown") return(NA_real_)
+      association_to_joint(a$measure[j], a$value[j], p[[a$disease1[j]]], p[[a$disease2[j]]])
+    }, numeric(1))
+  }
+  p1 <- unname(p[d1])
+  p2 <- unname(p[d2])
+  p11 <- unname(p11)
+  data.frame(
+    disease1 = d1, disease2 = d2, measure = measure, status = status,
+    p11 = p11,
+    or = ifelse(is.na(p11), NA_real_, joint_to_or(p11, p1, p2)),
+    ep_2_given_1 = p11 / p1 - (p2 - p11) / (1 - p1),
+    ep_1_given_2 = p11 / p2 - (p1 - p11) / (1 - p2),
+    stringsAsFactors = FALSE
+  )
 }
 
 #' Excess-probability matrix from pairwise tables

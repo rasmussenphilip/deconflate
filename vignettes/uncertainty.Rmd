@@ -1,0 +1,101 @@
+---
+title: "Uncertainty, scenarios and sensitivity"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Uncertainty, scenarios and sensitivity}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+```
+
+```{r setup}
+library(deconflate)
+```
+
+## Input distributions
+
+`dist_*()` functions describe uncertain inputs. Draws are on the scale the
+inputs were entered on (e.g. percent impacts, odds ratios, incidence rates).
+
+```{r}
+dist_pert(1.19, 3.30, 10.71)        # min, mode, max
+dist_lognormal_ci(2.7, 1.5, 4.9)    # odds ratio and 95% CI
+dist_normal(2.63, 1.44, lower = 0)  # truncated at zero
+```
+
+## Monte Carlo analysis
+
+`cm_sampler()` attaches distributions to a model. Each draw is a complete
+model, so disease probabilities and associations are shared by all
+outcomes within a draw. `outcome_correlation` additionally correlates a
+disease's impacts across outcomes (Gaussian copula):
+
+```{r}
+m <- example_uk_dairy_2022()
+R <- matrix(c(1, 0.5, 0.5, 1), 2,
+            dimnames = list(c("yield", "fertility"), c("yield", "fertility")))
+s <- cm_sampler(
+  m,
+  diseases = list(LAM = dist_beta(30, 70), MAS = dist_beta(30, 70)),
+  associations = list("LAM:PTB" = dist_mixture(dist_lognormal_ci(2.7, 1.5, 4.9),
+                                               dist_lognormal(log(2.7), 0.8),
+                                               weights = c(0.8, 0.2)),
+                      "LAM:SCK" = dist_lognormal_ci(2.01, 1.62, 2.49)),
+  impacts = list("yield:LAM" = dist_normal(5.54, 0.8),
+                 "fertility:LAM" = dist_normal(12.47, 2)),
+  outcome_correlation = R
+)
+s
+mc <- cm_monte_carlo(s, 200, method = "simultaneous",
+                     economics = uk_dairy_2022_economics(), seed = 1)
+mc
+summary(mc, what = "total")
+```
+
+Draws with impossible inputs (e.g. a probability outside (0, 1), or an
+association incompatible with the sampled probabilities) are rejected and
+counted. Report the rejection rate: conditioning on feasibility changes the
+effective input distribution.
+
+## Scenarios by reweighting
+
+`cm_scenario()` replaces input distributions and reweights the existing
+draws (importance sampling), so no re-run is needed. Here the sampler used a
+defensive mixture for the lameness-paratuberculosis odds ratio, so a
+scenario with a stronger association still has support:
+
+```{r}
+sc <- cm_scenario(mc, list("assoc:LAM:PTB" = dist_lognormal_ci(4, 2.5, 6.4)))
+sc$ess
+summary(sc, what = "total")
+```
+
+Check the effective sample size: a small value means the scenario is poorly
+covered by the original draws. Inputs drawn with an outcome correlation
+cannot be reweighted individually.
+
+## Sensitivity
+
+One-at-a-time sensitivity (as in Rasmussen et al. 2024, Fig. 7):
+
+```{r}
+oat <- sensitivity_oat(example_supplement(), variation = 0.2)
+oat
+```
+
+Screening associations, including pairs with no estimate, to find those
+worth estimating:
+
+```{r}
+screen_associations(example_supplement(), or_values = c(0.5, 2))
+```
+
+Comparing complete scenarios:
+
+```{r}
+base <- example_supplement()
+compare_scenarios(base = base, d1_d3_linked = set_association(base, "d1", "d3", 2))$totals
+```

@@ -1,0 +1,79 @@
+url: https://rasmussenphilip.github.io/deconflate/
+template:
+  bootstrap: 5
+articles:
+- title: Articles
+  navbar: ~
+  contents:
+  - deconflate
+  - reproducing-published
+  - interactions
+  - uncertainty
+reference:
+- title: Describing a system
+  contents:
+  - cm_diseases
+  - cm_associations
+  - cm_impacts
+  - cm_interactions
+  - cm_model
+  - combine_impacts
+  - set_association
+  - set_interaction
+- title: Adjustment
+  contents:
+  - deconflate
+  - compare_methods
+  - pair_tables
+  - excess_matrix
+  - or_to_joint
+  - joint_to_or
+  - association_to_joint
+- title: Joint distribution and feasibility
+  contents:
+  - fit_joint
+  - combination_probs
+  - check_feasibility
+- title: Gaps, losses and attribution
+  contents:
+  - productivity_gap
+  - value_losses
+  - attribute_burden
+  - shapley_by_cell
+  - loss_functions
+  - contribution_table
+  - summary.cm_result
+- title: Culling and hazard ratios
+  contents:
+  - hr_to_risk
+  - excess_to_hr
+  - hr_conversion
+  - as_impacts
+  - adjusted_hr
+- title: Uncertainty and scenarios
+  contents:
+  - distributions
+  - cm_sampler
+  - cm_monte_carlo
+  - summary.cm_mc
+  - cm_reweight
+  - cm_scenario
+- title: Sensitivity
+  contents:
+  - sensitivity_oat
+  - screen_associations
+  - screen_interactions
+  - compare_scenarios
+- title: Plots
+  contents: plots
+- title: Examples and validation
+  contents:
+  - example_supplement
+  - example_uk_dairy_2022
+  - uk_dairy_2022_economics
+  - example_global_dairy
+  - sampler_global_dairy
+  - simulate_raw_impacts
+- title: internal
+  contents: deconflate-package
+

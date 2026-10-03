@@ -4,34 +4,59 @@
 \alias{cm_monte_carlo}
 \title{Monte Carlo propagation of input uncertainty}
 \usage{
-cm_monte_carlo(sampler, n_draws, method = "simultaneous", ...)
+cm_monte_carlo(
+  sampler,
+  n_draws,
+  method = "simultaneous",
+  economics = NULL,
+  seed = NULL,
+  progress = FALSE,
+  ...
+)
 }
 \arguments{
 \item{sampler}{A function of one argument (the draw index) returning a
-\code{\link[=cm_model]{cm_model()}}.}
+\code{\link[=cm_model]{cm_model()}}, typically from \code{\link[=cm_sampler]{cm_sampler()}}.}
 
 \item{n_draws}{Number of draws.}
 
 \item{method}{Adjustment method passed to \code{\link[=deconflate]{deconflate()}}.}
 
+\item{economics}{Optional list with named elements \code{observed} and
+\code{unit_value} (and optionally \code{additional}), as in \code{\link[=value_losses]{value_losses()}}.
+Elements may be numbers or \code{cm_dist} objects (drawn per draw). When
+given, productivity gaps and monetary losses are computed for every
+draw.}
+
+\item{seed}{Optional random seed, for reproducibility.}
+
+\item{progress}{Logical: print progress every 10\% of draws?}
+
 \item{...}{Passed to \code{\link[=deconflate]{deconflate()}}.}
 }
 \value{
-A \code{cm_mc} object: \code{draws} (long data frame of raw and adjusted
-impacts by draw), \code{params} (one row per accepted draw with the sampled
-inputs, used by \code{\link[=cm_reweight]{cm_reweight()}}), \code{weights} (initially equal),
-\code{n_draws}, \code{n_rejected}, \code{rejections} (draw and reason) and
-\code{sign_changes} (number of adjusted impacts per draw that changed sign).
+A \code{cm_mc} object with elements:
+\itemize{
+\item \code{draws}: long data frame of raw and adjusted impacts by draw;
+\item \code{losses}: long data frame of gaps and values by draw, outcome and
+disease (if \code{economics} was given);
+\item \code{params}: one row per accepted draw with the sampled inputs, keyed
+\verb{prob:<id>}, \verb{assoc:<d1>:<d2>}, \verb{impact:<outcome>:<disease>},
+\verb{inter:<outcome>:<d1>:<d2>}, \verb{observed:<outcome>}, \verb{unit_value:<outcome>};
+\item \code{weights} (initially equal), \code{n_draws}, \code{n_rejected}, \code{rejections}
+(draw and reason), \code{sign_changes} and \code{method}.
+}
 }
 \description{
-Draws input sets with a user-supplied sampler and adjusts each with
-\code{\link[=deconflate]{deconflate()}}. Because every draw is a complete \code{\link[=cm_model]{cm_model()}}, disease
-probabilities and associations are shared across all outcomes within a
-draw, so the outcomes' uncertainty stays dependent.
+Draws input sets with a sampler (usually from \code{\link[=cm_sampler]{cm_sampler()}}) and adjusts
+each with \code{\link[=deconflate]{deconflate()}}. Because every draw is a complete \code{\link[=cm_model]{cm_model()}},
+disease probabilities and associations are shared across all outcomes
+within a draw, so the outcomes' uncertainty stays dependent.
 }
 \details{
-Draws whose inputs are infeasible (an association incompatible with the
-sampled marginals, or a jointly infeasible set for the global method) are
-rejected and counted. Conditioning on feasibility changes the effective
-input distribution, so the rejection rate is part of the result: report it.
+Draws whose inputs are infeasible (an impossible probability or odds ratio,
+an association incompatible with the sampled marginals, or a jointly
+infeasible set for the global method) are rejected and counted.
+Conditioning on feasibility changes the effective input distribution, so
+the rejection rate is part of the result and should be reported.
 }

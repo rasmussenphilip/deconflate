@@ -61,7 +61,7 @@ deconflate <- function(model, method = c("simultaneous", "published", "global"),
   if (method == "global") {
     joint <- joint %||% fit_joint(model, ...)
     if (!joint$converged) {
-      cm_abort("The joint distribution did not converge; the pairwise associations may be jointly infeasible.",
+      cm_abort("The joint distribution did not converge; the pairwise associations may be jointly infeasible (see check_feasibility()).",
                class = "deconflate_infeasible")
     }
     cells <- joint$cells
@@ -118,7 +118,8 @@ deconflate <- function(model, method = c("simultaneous", "published", "global"),
     )
     m_adj <- as.vector(m_adj)
     recon <- as.vector(A %*% m_adj) + offset
-    sign_change <- is.finite(m_adj) & m_raw != 0 & sign(m_adj) != sign(m_raw)
+    sign_change <- is.finite(m_adj) & abs(m_raw) > 1e-12 & abs(m_adj) > 1e-12 &
+      sign(m_adj) != sign(m_raw)
 
     if (warn && any(sign_change)) {
       cm_warn(sprintf(

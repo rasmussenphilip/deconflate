@@ -1,7 +1,7 @@
 Package: deconflate
 Type: Package
 Title: Comorbidity Adjustment of Disease Impact Estimates
-Version: 0.0.0.9000
+Version: 0.0.0.9001
 Authors@R:
     person("Philip", "Rasmussen", email = "phr@sund.ku.dk",
            role = c("aut", "cre"))
@@ -14,19 +14,27 @@ Description: Adjusts ("de-conflates") single-disease impact estimates for
     disease combinations by iterative proportional fitting and incorporates
     specified pairwise impact interactions. Includes productivity-gap
     estimation, Shapley attribution, hazard-ratio conversion, Monte Carlo
-    propagation of input uncertainty with rejection reporting, and
-    importance reweighting of draws for scenario analysis.
+    propagation of input uncertainty (including correlated outcomes) with
+    rejection reporting, importance reweighting of draws for scenario
+    analysis, feasibility checks, sensitivity screening and reproduction of
+    the published analyses.
 License: MIT + file LICENSE
 Encoding: UTF-8
 Depends:
     R (>= 4.1.0)
 Imports:
+    graphics,
+    grDevices,
     stats,
     utils
 Suggests:
+    knitr,
+    lpSolve,
+    rmarkdown,
     testthat (>= 3.0.0)
+VignetteBuilder: knitr
 Config/testthat/edition: 3
 Roxygen: list(markdown = TRUE)
 Config/roxygen2/version: 8.1.0
-URL: https://github.com/rasmussenphilip/deconflate
+URL: https://github.com/rasmussenphilip/deconflate, https://rasmussenphilip.github.io/deconflate/
 BugReports: https://github.com/rasmussenphilip/deconflate/issues

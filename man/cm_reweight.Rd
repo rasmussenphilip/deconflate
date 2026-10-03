@@ -2,7 +2,7 @@
 % Please edit documentation in R/montecarlo.R
 \name{cm_reweight}
 \alias{cm_reweight}
-\title{Reweight Monte Carlo draws for a scenario (importance sampling)}
+\title{Reweight Monte Carlo draws (importance sampling)}
 \usage{
 cm_reweight(mc, log_ratio)
 }
@@ -13,19 +13,20 @@ cm_reweight(mc, log_ratio)
 and returning \verb{log(target density / proposal density)} for each row.}
 }
 \value{
-\code{mc} with updated \code{weights} and an \code{ess} element (effective sample
-size, \code{1 / sum(w^2)}).
+\code{mc} with updated \code{weights} and \code{ess} (effective sample size,
+\code{1 / sum(w^2)}).
 }
 \description{
-Reweights accepted draws from \code{\link[=cm_monte_carlo]{cm_monte_carlo()}} so that summaries
-reflect a scenario's input distribution instead of the sampling
-(proposal) distribution, without re-running the adjustment. Weights are
-self-normalised, so densities need only be known up to a constant.
+Reweights accepted draws from \code{\link[=cm_monte_carlo]{cm_monte_carlo()}} so that summaries reflect
+a different input distribution, without re-running the adjustment. Weights
+are self-normalised, so densities need only be known up to a constant.
+\code{\link[=cm_scenario]{cm_scenario()}} builds the log-ratio from distributions; use
+\code{cm_reweight()} directly for custom targets.
 }
 \details{
-The proposal must cover the scenario: give the sampler wider spread than
-the base case (e.g. a defensive mixture). Reweighting cannot recover
-rejected draws: if the scenario puts weight on regions where draws were
-infeasible, the result is conditional on feasibility. Check the effective
-sample size.
+The sampling (proposal) distribution must cover the scenario: give the
+sampler wider spread than the base case (e.g. \code{\link[=dist_mixture]{dist_mixture()}}).
+Reweighting cannot recover rejected draws: if the scenario puts weight
+where draws were infeasible, results are conditional on feasibility.
+Always check the effective sample size.
 }

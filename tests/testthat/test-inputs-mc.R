@@ -49,7 +49,7 @@ test_that("Monte Carlo propagates draws, rejects infeasible ones and reweights",
   expect_equal(summary(mc2)$mean, s$mean)
 
   # Shifting the d1:d2 odds ratio upwards lowers d1's adjusted impact.
-  mc3 <- suppressWarnings(cm_reweight(mc, function(p) 3 * log(p$assoc_d1_d2)))
+  mc3 <- suppressWarnings(cm_reweight(mc, function(p) 3 * log(p[["assoc:d1:d2"]])))
   d1 <- function(x) summary(x)$mean[summary(x)$disease == "d1"]
   expect_lt(d1(mc3), d1(mc))
 })

@@ -7,3 +7,5 @@ deconflate.Rcheck/
 .httr-oauth
 .DS_Store
 .quarto
+docs
+inst/doc

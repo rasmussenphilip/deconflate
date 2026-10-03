@@ -72,7 +72,7 @@ fit_joint <- function(model, tol = 1e-10, max_iter = 10000L, max_diseases = 20L)
   }
   if (!converged) {
     cm_warn(sprintf(
-      "IPF did not converge after %d sweeps (max residual %.2e). The pairwise tables may be jointly infeasible.",
+      "IPF did not converge after %d sweeps (max residual %.2e). The pairwise tables may be jointly infeasible; see check_feasibility().",
       iter, resid), class = "deconflate_nonconvergence")
   }
   structure(list(cells = cells, prob = prob, diseases = ids,

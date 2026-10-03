@@ -1,23 +1,14 @@
 # deconflate
 
-Comorbidity adjustment ("de-conflation") of disease impact estimates, so that impacts of multiple associated diseases can be aggregated without double counting. Based on Rasmussen et al. (2022, *Prev. Vet. Med.* 203:105617) and Rasmussen et al. (2024, *J. Dairy Sci.* 107:6945–6970).
+Comorbidity adjustment ("de-conflation") of disease impact estimates, so that the impacts of multiple associated diseases can be aggregated without double counting. Based on Rasmussen et al. (2022, *Prev. Vet. Med.* 203:105617) and Rasmussen et al. (2024, *J. Dairy Sci.* 107:6945–6970).
 
-> **Status:** development skeleton (0.0.0.9000). The core methods have been implemented, and the test reference values have been cross-checked against an independent Python implementation (`inst/validation/python_reference.py`). The R code has not yet been run: see *First run* below.
+> **Status:** development version (0.0.0.9001), working towards v0.1.0. The test reference values were computed independently in Python (`inst/validation/python_reference.py`).
 
 ## Installation
 
 ```r
 # install.packages("remotes")
-remotes::install_github("<user>/deconflate")
-```
-
-## First run (development)
-
-```r
-# install.packages(c("devtools", "roxygen2", "testthat"))
-devtools::document()   # generates man/ and refreshes NAMESPACE
-devtools::test()       # runs the test suite
-devtools::check()      # full R CMD check
+remotes::install_github("rasmussenphilip/deconflate", build_vignettes = TRUE)
 ```
 
 ## Three adjustment methods
@@ -35,30 +26,38 @@ devtools::check()      # full R CMD check
 ```r
 library(deconflate)
 
-m <- example_supplement()          # Supplementary File, Rasmussen et al. (2022)
+# UK dairy example, Rasmussen et al. (2022)
+m <- example_uk_dairy_2022()
+eco <- uk_dairy_2022_economics()
+res <- deconflate(m, method = "published")
+summary(res, economics = eco)
+plot_burden(res, eco)
+
+# Exact solution, with diagnostics for inconsistent inputs
 compare_methods(m)
 
-res <- deconflate(m)               # simultaneous (default)
-productivity_gap(res, c(yield = 10000))
-
-# Validation: simulate raw impacts from known truth and recover it
-m$impacts <- simulate_raw_impacts(m, c(d1 = 0.02, d2 = 0.04, d3 = 0.06), outcome = "yield")
-deconflate(m)$adjusted
-
-# Global inputs from Rasmussen et al. (2024): the exact solution flags
-# incompatible inputs that the published approximation hides
-deconflate(example_global_dairy())$diagnostics
+# Uncertainty: Monte Carlo of the global inputs, Rasmussen et al. (2024)
+mc <- cm_monte_carlo(sampler_global_dairy(), 1000, method = "published", seed = 1)
+summary(mc)
 ```
 
-## Main functions
+## Features
 
-- **Inputs:** `cm_diseases()`, `cm_associations()` (OR, RR, RD, conditional probability, phi, contingency table, independent, unknown), `cm_impacts()`, `cm_interactions()` and `cm_model()`. Metadata covers the probability type, time horizon, effect scale, reference population and prior adjustment.
-- **Pairwise algebra:** `or_to_joint()`, `association_to_joint()`, `pair_tables()` and `excess_matrix()`.
-- **Joint distribution:** `fit_joint()` and `combination_probs()`.
-- **Adjustment:** `deconflate()` and `compare_methods()`.
-- **Aggregation:** `attribute_burden()` (closed-form Shapley) and `productivity_gap()`.
-- **Conversions:** `hr_to_risk()` (proportional hazards, or the published OR approximation) and `excess_to_hr()`.
-- **Uncertainty:** `cm_monte_carlo()` (shared draws across outcomes, with rejection reporting) and `cm_reweight()` (importance reweighting for scenarios).
-- **Validation:** `simulate_raw_impacts()`.
+- **Inputs** with metadata (probability type and time horizon, effect scale, reference population, prior adjustment). Association measures: OR, RR, RD, conditional probability, phi, contingency tables, independent and unknown.
+- **Adjustment:** `deconflate()` and `compare_methods()`. Interactions between diseases are supported with the global method.
+- **Joint distribution and feasibility:** `fit_joint()`, `combination_probs()` and `check_feasibility()`.
+- **Gaps, losses and attribution:** `productivity_gap()`, `value_losses()`, `attribute_burden()`, `shapley_by_cell()` and `contribution_table()`.
+- **Culling:** `hr_conversion()`, `as_impacts()` and `adjusted_hr()` (proportional hazards or the published approach).
+- **Uncertainty:** `dist_*()` distributions, `cm_sampler()` (with optional correlation across outcomes), `cm_monte_carlo()` (with rejection reporting) and `cm_scenario()` (importance reweighting).
+- **Sensitivity:** `sensitivity_oat()`, `screen_associations()`, `screen_interactions()` and `compare_scenarios()`.
+- **Plots** (base graphics) and four vignettes. Start with `vignette("deconflate")`.
 
-See `ROADMAP.md` for the v0.1 features still to be built.
+## Development
+
+```r
+devtools::document()
+devtools::test()
+devtools::check()
+```
+
+See `ROADMAP.md` for planned work and `NEWS.md` for changes.

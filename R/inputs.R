@@ -191,6 +191,7 @@ cm_impacts <- function(disease, value, outcome = "impact",
   if (any(scale == "absolute" & is.na(units))) {
     cm_abort("`units` is required for impacts on the absolute scale.")
   }
+  input_scale <- scale
   value <- ifelse(scale == "percent", value / 100, value)
   scale[scale == "percent"] <- "proportion"
 
@@ -199,20 +200,50 @@ cm_impacts <- function(disease, value, outcome = "impact",
     units = units, direction = direction,
     adjusted_for = as.character(recycle_arg(adjusted_for, n, "adjusted_for")),
     source = as.character(recycle_arg(source, n, "source")),
+    input_scale = input_scale,
     stringsAsFactors = FALSE
   )
+  validate_impacts(out)
+}
+
+validate_impacts <- function(out) {
   if (anyDuplicated(paste(out$outcome, out$disease, sep = "|"))) {
     cm_abort("Each disease may have only one impact per outcome.")
   }
-  for (o in unique(outcome)) {
-    rows <- out[out$outcome == o, ]
+  for (o in unique(out$outcome)) {
+    rows <- out[out$outcome == o, , drop = FALSE]
     if (length(unique(rows$scale)) > 1L || length(unique(rows$direction)) > 1L ||
         length(unique(rows$units)) > 1L) {
       cm_abort(sprintf("Outcome '%s' mixes scales, units or directions.", o))
     }
   }
+  rownames(out) <- NULL
   class(out) <- c("cm_impacts", "data.frame")
   out
+}
+
+#' Combine impact tables
+#'
+#' Stacks several [cm_impacts()] objects (e.g. yield and fertility impacts
+#' built separately, or culling impacts from [as_impacts()]) into one, and
+#' re-validates the result.
+#'
+#' @param ... `cm_impacts` objects.
+#' @return A `cm_impacts` data frame.
+#' @export
+combine_impacts <- function(...) {
+  parts <- list(...)
+  if (!length(parts) || !all(vapply(parts, inherits, logical(1), "cm_impacts"))) {
+    cm_abort("All arguments must be cm_impacts objects.")
+  }
+  cols <- c("disease", "outcome", "value", "scale", "units", "direction",
+            "adjusted_for", "source", "input_scale")
+  out <- do.call(rbind, lapply(parts, function(p) {
+    p <- as.data.frame(unclass(p), stringsAsFactors = FALSE)
+    if (is.null(p$input_scale)) p$input_scale <- p$scale
+    p[, cols]
+  }))
+  validate_impacts(out)
 }
 
 #' Describe pairwise impact interactions
@@ -244,6 +275,7 @@ cm_interactions <- function(disease1, disease2, value, outcome = "impact",
   check_numeric(value, "value")
   scale <- as.character(recycle_arg(scale, n, "scale"))
   check_choices(scale, c("proportion", "percent"), "scale")
+  input_scale <- scale
   value <- ifelse(scale == "percent", value / 100, value)
   outcome <- as.character(recycle_arg(outcome, n, "outcome"))
   key <- paste(outcome, pair_key(disease1, disease2))
@@ -251,6 +283,7 @@ cm_interactions <- function(disease1, disease2, value, outcome = "impact",
   out <- data.frame(disease1 = disease1, disease2 = disease2, outcome = outcome,
                     value = value, scale = "proportion",
                     source = as.character(recycle_arg(source, n, "source")),
+                    input_scale = input_scale,
                     stringsAsFactors = FALSE)
   class(out) <- c("cm_interactions", "data.frame")
   out

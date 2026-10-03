@@ -18,10 +18,17 @@
 #'    * `"global"`: fits a maximum-entropy distribution of disease combinations
 #'      with [fit_joint()], then solves the impact equations including pairwise
 #'      interactions.
-#' 3. Estimate and attribute productivity gaps with [productivity_gap()] and
-#'    [attribute_burden()].
-#' 4. Propagate uncertainty with [cm_monte_carlo()] and reweight draws for
-#'    scenarios with [cm_reweight()].
+#' 3. Estimate, value and attribute productivity gaps with
+#'    [productivity_gap()], [value_losses()], [attribute_burden()] and
+#'    [contribution_table()]. Culling hazard ratios go through
+#'    [hr_conversion()], [as_impacts()] and [adjusted_hr()].
+#' 4. Check joint feasibility with [check_feasibility()].
+#' 5. Propagate uncertainty with [cm_sampler()] and [cm_monte_carlo()], and
+#'    explore scenarios with [cm_scenario()], [sensitivity_oat()],
+#'    [screen_associations()], [screen_interactions()] and
+#'    [compare_scenarios()].
+#'
+#' See `vignette("deconflate")` to get started.
 #'
 #' @section Conventions:
 #' * Impacts on the `"proportion"` scale are proportional changes relative to
