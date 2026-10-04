@@ -47,7 +47,7 @@ corrigendum checked).
 
 Tag v0.1.0.
 
-## v0.2 (in progress)
+## v0.2 (released as 0.2.0)
 
 Culling hazard ratios: a separate multiplicative adapter
 ([`deconflate_hr()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate_hr.md):

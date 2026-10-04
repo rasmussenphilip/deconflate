@@ -65,7 +65,7 @@ fuller example that uses every feature.
 ``` r
 dir <- file.path(tempdir(), "my-inputs")
 cm_template(dir, overwrite = TRUE)
-#> Wrote 5 files to /tmp/RtmpnfmZA6/my-inputs
+#> Wrote 5 files to /tmp/Rtmp2KD6hf/my-inputs
 inp <- cm_read_inputs(dir = dir)
 deconflate(inp$model)
 #> <cm_result> method: simultaneous; milk yield loss [% of yield]
