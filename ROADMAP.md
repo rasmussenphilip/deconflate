@@ -19,7 +19,7 @@
 - [x] Review the reproduction vignette against the original analysis files (2024: 1st-revision code and inputs; 2022: original files unavailable, corrigendum checked).
 - [x] Tag v0.1.0.
 
-## v0.2 (in progress)
+## v0.2 (released as 0.2.0)
 
 - [x] Culling hazard ratios: a separate multiplicative adapter (`deconflate_hr()`: snapshot, first-order and published) with stratified adjustment sets.
 - [x] `attributable_risk()`: culling attributable to disease without double counting, with Shapley allocation.
