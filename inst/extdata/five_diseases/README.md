@@ -9,6 +9,10 @@ package on it.
 dir <- system.file("extdata", "five_diseases", package = "deconflate")
 inp <- cm_read_inputs(dir = dir)
 source(file.path(dir, "run_all_features.R"), echo = TRUE, max.deparse.length = Inf)
+
+# To keep the printed output and the plots, set a folder first:
+out_dir <- "C:/Users/me/Desktop/five_diseases_output"
+source(file.path(dir, "run_all_features.R"), echo = TRUE, max.deparse.length = Inf)
 ```
 
 Diseases: LAM (lameness), MAS (mastitis), MET (metritis), SCK (subclinical

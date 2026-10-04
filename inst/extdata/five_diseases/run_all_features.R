@@ -14,17 +14,32 @@
 # (plain source() runs it silently). Monte Carlo sections use small numbers
 # of draws so that the script runs in a few minutes; use more draws for real
 # analyses.
+#
+# To keep the results, set a folder before running the script:
+#   out_dir <- "C:/Users/me/Desktop/five_diseases_output"
+#   source(..., echo = TRUE, max.deparse.length = Inf)
+# The printed output is then written to run_all_features_output.txt (and
+# still shown in the console) and all plots to run_all_features_plots.pdf in
+# that folder. Messages and warnings appear in the console only. If the
+# script stops with an error, run sink() to close the output file.
 
 library(deconflate)
 
 five <- system.file("extdata", "five_diseases", package = "deconflate")
 if (!nzchar(five)) five <- "."  # running from a copy of this folder
 
-# Draw plots to a PDF file instead of the screen? (Set TRUE when sourcing
-# the script non-interactively.)
-save_plots <- !interactive()
+# Output folder: set `out_dir` before running the script to save the results
+# (see above). Without it, plots go to the screen, or to a PDF in tempdir()
+# when the script runs non-interactively.
+if (!exists("out_dir")) out_dir <- NULL
+if (!is.null(out_dir)) {
+  dir.create(out_dir, showWarnings = FALSE, recursive = TRUE)
+  text_file <- file.path(out_dir, "run_all_features_output.txt")
+  sink(text_file, split = TRUE)
+}
+save_plots <- !is.null(out_dir) || !interactive()
 if (save_plots) {
-  plot_file <- file.path(tempdir(), "deconflate_five_diseases.pdf")
+  plot_file <- file.path(if (is.null(out_dir)) tempdir() else out_dir, "run_all_features_plots.pdf")
   grDevices::pdf(plot_file, width = 9, height = 6)
 }
 
@@ -131,7 +146,7 @@ gap <- productivity_gap(res_yield$simultaneous, observed = 10000, direction = "d
                         effect = "percent")
 gap$summary
 gap$attribution
-value_losses(gap, unit_value = 0.35, additional = 2500)
+value_losses(gap, unit_value = 0.35, additional = 25)   # additional: a cost per average cow not tied to yield
 
 gap_ci <- productivity_gap(res_ci, observed = 400, direction = "increase", effect = "absolute")
 value_losses(gap_ci, unit_value = 3)
@@ -355,4 +370,8 @@ try_plot(plot(th_change))
 if (save_plots) {
   grDevices::dev.off()
   cat("\nPlots written to", plot_file, "\n")
+}
+if (!is.null(out_dir)) {
+  cat("Printed output written to", text_file, "\n")
+  sink()
 }
