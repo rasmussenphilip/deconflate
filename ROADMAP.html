@@ -88,25 +88,66 @@
 <h2 id="v04-planned">v0.4 (planned)<a class="anchor" aria-label="anchor" href="#v04-planned"></a></h2>
 <p>In this order:</p>
 <ol style="list-style-type: decimal"><li>
-<strong>Test 0.3.0 in use.</strong>
+<p><strong>Test 0.3.0 in use.</strong></p>
 <ul class="task-list"><li><label><input type="checkbox">Run <code>run_all_features.R</code> end to end and review every printed result as a new user would.</label></li>
 <li><label><input type="checkbox">Have someone else work through the CSV workflow with their own data, without help.</label></li>
 <li><label><input type="checkbox">Optional: a short third review of the 0.3 additions (in-table uncertainty, <code><a href="reference/cm_threshold.html">cm_threshold()</a></code>, the sampled backend).</label></li>
+<li><label><input type="checkbox" checked><code>run_all_features.R</code>: optional <code>out_dir</code> that saves the printed output and a PDF of all plots.</label></li>
+<li><label><input type="checkbox">Update <code>run_all_features.R</code> after items 2-3 (no valuation section; the published method only where it remains; the new features).</label></li>
 </ul></li>
 <li>
-<strong>Probabilistic thresholds</strong> (the one new feature): combine <code><a href="reference/cm_threshold.html">cm_threshold()</a></code> with Monte Carlo runs, e.g. the input value at which a disease ranks first (or the aggregate exceeds a target) in a given share of draws, with Monte Carlo error.</li>
+<p><strong>Slim the interface to de-conflation itself.</strong></p>
+<p>Demote the published method (eq. 16 of Rasmussen et al. 2022, and HR - 1 for hazard ratios):</p>
+<ul class="task-list"><li><label><input type="checkbox">Keep it in <code><a href="reference/compare_methods.html">compare_methods()</a></code>, <code><a href="reference/cm_monte_carlo.html">cm_monte_carlo()</a></code> (to reproduce the 2024 Monte Carlo) and the <code>reproduce_*()</code> functions only.</label></li>
+<li><label><input type="checkbox">Remove it from the method choices of <code><a href="reference/deconflate.html">deconflate()</a></code> and <code><a href="reference/deconflate_hr.html">deconflate_hr()</a></code>, from <code><a href="reference/cm_threshold.html">cm_threshold()</a></code> and from the screens; simplify the pole handling that exists mainly for it.</label></li>
+<li><label><input type="checkbox">Documentation: use the simultaneous method when every pair has an association estimate or a defensible independence assumption and impacts are additive; otherwise the global method; the snapshot model for hazards.</label></li>
+</ul><p>Remove valuation; users compute gaps and values from the adjusted impacts themselves:</p>
+<ul class="task-list"><li><label><input type="checkbox">Remove <code><a href="reference/productivity_gap.html">productivity_gap()</a></code>, <code><a href="reference/value_losses.html">value_losses()</a></code>, <code><a href="reference/cm_mc_gap.html">cm_mc_gap()</a></code> and the exported <code><a href="reference/uk_dairy_2022_economics.html">uk_dairy_2022_economics()</a></code>.</label></li>
+<li><label><input type="checkbox">Remove every <code>valuation</code> argument (<code><a href="reference/contribution_table.html">contribution_table()</a></code>, <code><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary()</a></code>, <code><a href="reference/compare_methods.html">compare_methods()</a></code>, <code><a href="reference/sensitivity_oat.html">sensitivity_oat()</a></code>, the screens, <code><a href="reference/compare_scenarios.html">compare_scenarios()</a></code>, <code><a href="reference/plots.html">plot_burden()</a></code>); sensitivity tools use the adjusted aggregate in the impacts’ own units.</label></li>
+<li><label><input type="checkbox">Remove <code>unit_value</code> from <code><a href="reference/attributable_risk.html">attributable_risk()</a></code> (keep the attributable risk itself: it needs the joint distribution).</label></li>
+<li><label><input type="checkbox">Keep the adjusted aggregate and each disease’s contribution, including the Shapley split of interaction effects.</label></li>
+<li><label><input type="checkbox">Move the gap and valuation code inside <code><a href="reference/reproduce.html">reproduce_rasmussen_2022()</a></code> and <code><a href="reference/reproduce.html">reproduce_rasmussen_2024()</a></code> as internal helpers, so the published economic tables are still reproduced.</label></li>
+<li><label><input type="checkbox">A short vignette section showing the gap and value calculation in base R (for percentage impacts, the loss is relative to the disease-free level: observed / (1 - aggregate)).</label></li>
+</ul></li>
 <li>
-<strong>Simpler, more intuitive input tables.</strong>
+<p><strong>Several estimates per disease and per pair</strong>, each with its own <code>estimand</code>/<code>adjusted_for</code> and its own uncertainty.</p>
+<ul class="task-list"><li><label><input type="checkbox">Impact tables: several rows per disease (e.g. a crude and an adjusted estimate from different studies).</label></li>
+<li><label><input type="checkbox">Association tables: several rows per pair, converted to a common scale and pooled (random effects, heterogeneity reported); adjusted odds ratios enter as conditional associations (exactly in the global method, approximately in the simultaneous method).</label></li>
+<li><label><input type="checkbox">Mortality and culling tables: a <code>measure</code> column (<code>HR</code>, <code>rate_ratio</code>, <code>RR</code>, <code>OR</code>, <code>RD</code>), crude or stratified, all mapped onto the snapshot hazard model; the overall period risk is required when risk-based measures are used (with hazard and rate ratios only, it is needed only for the attributable risk), and risk-based measures must refer to the same period.</label></li>
+<li><label><input type="checkbox">Uncertainty for the mortality model: distributions for mortality estimates (and optionally the overall risk); <code><a href="reference/cm_monte_carlo.html">cm_monte_carlo()</a></code> runs the snapshot de-conflation and the attributable risk in every draw, with intervals, rejections and stability checks as for additive analyses.</label></li>
+</ul></li>
+<li>
+<p><strong>A shared estimator with an informativeness toggle</strong>, used by the simultaneous and global methods and the hazard model.</p>
+<ul class="task-list"><li><label><input type="checkbox">Fits all estimates jointly, each weighted by its uncertainty; the toggle fixes the associations (<code>"associations"</code>, the default and current behaviour), weights both kinds of evidence (<code>"balanced"</code>), or fixes the impacts (<code>"impacts"</code>).</label></li>
+<li><label><input type="checkbox">Diagnostics: a standardised residual for each estimate, and how far each association moved in SD units, so that estimates that do not fit the others stand out.</label></li>
+<li><label><input type="checkbox">Optional constraints on adjusted impacts (e.g. non-negative) applied probabilistically, reporting posterior means and intervals and how often each constraint was violated without it; the best-fit version (binding impacts exactly at the bound) only as a fast diagnostic of which inputs conflict.</label></li>
+</ul></li>
+<li>
+<p><strong>Probabilistic machinery</strong> (MCMC or directed importance sampling, shared by the constraints in item 4).</p>
+<ul class="task-list"><li><label><input type="checkbox">Probabilistic thresholds: combine <code><a href="reference/cm_threshold.html">cm_threshold()</a></code> with Monte Carlo runs, e.g. the input value at which a disease ranks first (or the aggregate exceeds a target) in a given share of draws, with Monte Carlo error.</label></li>
+</ul></li>
+<li>
+<p><strong>Revised 2024 inputs</strong>, separate from <code><a href="reference/reproduce.html">reproduce_rasmussen_2024()</a></code>, which stays a faithful reproduction.</p>
+<ul class="task-list"><li><label><input type="checkbox"><code>example_global_dairy(inputs = "revised")</code>, using the features of items 3-4.</label></li>
+<li><label><input type="checkbox">A vignette section documenting each correction: the SCK conversion from kg to percent, the milk fever and ketosis estimates of Bareille et al. (2003) as direct effects, the adjusted SCK estimates and odds ratios of Raboisson et al. (2014), the clinical mastitis sources by estimand, and the displaced abomasum sources. Unit and measurement-window corrections are made here only, not in the main pipeline.</label></li>
+</ul></li>
+<li>
+<p><strong>Simpler, more intuitive input tables.</strong></p>
 <ul class="task-list"><li><label><input type="checkbox">Accept missing optional columns everywhere with sensible defaults, and fewer required columns.</label></li>
 <li><label><input type="checkbox">Disease labels (full names) next to the short ids, used in printed tables and plots.</label></li>
-<li><label><input type="checkbox">Clearer column names and messages; review the template and the example folders accordingly.</label></li>
+<li><label><input type="checkbox">Clearer column names and messages; review the template and the example folders accordingly (more important now that tables hold several estimates).</label></li>
+<li><label><input type="checkbox">Make uncertainty visible: <code><a href="reference/deconflate.html">deconflate()</a></code> notes when the inputs have distributions, and an argument (e.g. <code>n_draws</code>) runs the Monte Carlo analysis in the same call, returning point estimates with intervals.</label></li>
 </ul></li>
 <li>
-<strong>Clearer output and summary tables.</strong> Consistent column names and order across <code><a href="reference/deconflate.html">deconflate()</a></code>, <code><a href="reference/compare_methods.html">compare_methods()</a></code>, <code><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary()</a></code>, <code><a href="reference/contribution_table.html">contribution_table()</a></code> and the Monte Carlo summaries; readable rounding and units; labels.</li>
+<p><strong>Clearer output and summary tables.</strong> The package assumes no species, outcome or unit: tables show the user’s own labels and units, and the reference population and time horizon from the diseases table when given (otherwise “per average individual in the population”).</p>
+<ul class="task-list"><li><label><input type="checkbox">Consistent column names, order, rounding and layout across <code><a href="reference/deconflate.html">deconflate()</a></code>, <code><a href="reference/compare_methods.html">compare_methods()</a></code>, <code><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary()</a></code>, <code><a href="reference/contribution_table.html">contribution_table()</a></code> and the Monte Carlo summaries; wide tables do not wrap into several blocks.</label></li>
+<li><label><input type="checkbox">Raw vs adjusted attributable risk for the mortality model (the same calculation with the raw estimates), so that the double counting removed is visible, as with the raw and adjusted aggregates of additive analyses.</label></li>
+</ul></li>
 <li>
-<strong>Better plots.</strong> A consistent look across plot methods, labels and units on axes, and plots for uncertainty and thresholds.</li>
-<li>
-<strong>Dependencies.</strong> Keep the package on base R (see the Dependencies section of the README); list any new dependency there with its reason.</li>
+<p><strong>Better plots.</strong> The same rule as for tables (the user’s labels and units only); a consistent look across plot methods, and plots for uncertainty, thresholds and estimator diagnostics.</p>
+<ul class="task-list"><li><label><input type="checkbox">Documentation examples from more than dairy cattle (e.g. another livestock system and a human-health example), so that the generality is visible.</label></li>
+</ul></li>
+<li><p><strong>Dependencies.</strong> Keep the package on base R (see the Dependencies section of the README); list any new dependency there with its reason (the MCMC in item 5 is the most likely candidate).</p></li>
 </ol><p>Afterwards: a Zenodo DOI for each release, and possibly a CRAN submission and a short software paper.</p>
 </div>
 <div class="section level2">

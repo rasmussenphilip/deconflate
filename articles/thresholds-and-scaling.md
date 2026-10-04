@@ -509,7 +509,7 @@ global result equals the simultaneous one up to the raking tolerance:
 r_sim <- deconflate(m24)
 r_glob <- deconflate(m24, method = "global", joint = j24)
 max(abs(r_glob$adjusted$adjusted - r_sim$adjusted$adjusted))
-#> [1] 1.021933e-09
+#> [1] 1.021939e-09
 c(simultaneous = r_sim$totals$adjusted_total, global = r_glob$totals$adjusted_total)
 #> simultaneous       global 
 #>      11.9101      11.9101
