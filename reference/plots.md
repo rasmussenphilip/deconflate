@@ -2,14 +2,15 @@
 
 Base-graphics plots for the main result types:
 
-- `plot(<cm_result>)`: raw and adjusted impacts by disease;
-  `plot(<cm_results>)` one panel per analysis.
+- `plot(<cm_result>)`: raw and adjusted impacts by disease, with 95%
+  intervals of the adjusted impacts when the result has draws.
+
+- `plot(<cm_event_result>)`: adjusted hazard ratios by disease (with
+  intervals when the result has draws), and the raw hazard and rate
+  ratios.
 
 - `plot_burden()`: each disease's share of the aggregate (including its
-  share of interaction effects); for several analyses, one bar per
-  analysis.
-
-- `plot(<cm_mc>)`: Monte Carlo means and intervals of adjusted impacts.
+  share of interaction effects), or of the risk attributable to disease.
 
 - `plot(<cm_screen>)`: the most influential scenarios from
   [`screen_associations()`](https://rasmussenphilip.github.io/deconflate/reference/screen_associations.md),
@@ -26,13 +27,10 @@ Base-graphics plots for the main result types:
 # S3 method for class 'cm_result'
 plot(x, ...)
 
-# S3 method for class 'cm_results'
+# S3 method for class 'cm_event_result'
 plot(x, ...)
 
 plot_burden(result, ...)
-
-# S3 method for class 'cm_mc'
-plot(x, probs = c(0.025, 0.975), method = NULL, ...)
 
 # S3 method for class 'cm_screen'
 plot(x, top = 15, ...)
@@ -54,15 +52,6 @@ plot(x, items = NULL, ...)
 
   Passed to the underlying graphics function.
 
-- probs:
-
-  Interval bounds for Monte Carlo plots.
-
-- method:
-
-  For Monte Carlo runs with several methods: the method to show (default
-  the first).
-
 - top:
 
   Number of rows to show.
@@ -78,10 +67,8 @@ The input, invisibly.
 ## Examples
 
 ``` r
-res <- deconflate(example_uk_dairy_2022())
-#> Warning: Adjusted impacts change sign for MF. The raw impacts are smaller than the associated diseases alone would produce under the additive model; check the estimands, and whether the estimates come from populations with different comorbidity patterns.
-#> Warning: Adjusted impacts change sign for SCK. The raw impacts are smaller than the associated diseases alone would produce under the additive model; check the estimands, and whether the estimates come from populations with different comorbidity patterns.
-plot(res$yield)
+res <- deconflate(example_supplement())
+plot(res)
 
 plot_burden(res)
 ```

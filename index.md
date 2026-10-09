@@ -43,27 +43,40 @@ package.
 
 ## How it works
 
-A **population** holds the disease probabilities and their associations.
-Each **analysis** adds one vector of additive impact estimates, in any
-units (kg of milk, percent of yield, days, euros, welfare scores);
-results come back in the same units. Each estimate declares its
-estimand: a crude comparison (`"crude"`) or the coefficient of an
-additive regression adjusted for named diseases (`"adjusted_linear"`).
+A model has the disease probabilities, their pairwise associations and
+**one** table of impact estimates. You give each table as a CSV file
+(with any name) or a data frame, and adjust one impact table per call;
+for several outcomes, repeat the call. The package assumes no species,
+outcome or unit.
 
-| Method | What it does |
-|----|----|
-| `"simultaneous"` (default) | Exact solution of the additive impact equations `raw = A b`, using pairwise 2×2 tables. Reports sign changes, reconstruction residuals and the conditioning of `A`, and screens the pairs for joint feasibility. |
-| `"global"` | Maximum-entropy distribution of disease combinations fitted by iterative proportional fitting, then the full equations including specified pairwise interactions (and optional three-way scenarios). |
+- **Additive impacts** (the default) are in any units (kg of milk,
+  percent of yield, days, euros, welfare scores), the same for every
+  row; results come back in those units. Each estimate declares its
+  estimand: a crude comparison (`"crude"`) or the coefficient of an
+  additive regression adjusted for named diseases (`"adjusted_linear"`).
+  Pairwise interactions can be added.
+- **Event impacts** (`event_model = TRUE`, with `overall_risk`) are
+  hazard ratios, rate ratios, risk ratios, odds ratios or risk
+  differences of an event such as culling or death, which can be mixed.
+  They are adjusted with the snapshot hazard model, and the result
+  includes the risk attributable to disease, split by disease.
 
-Use `"simultaneous"` when impacts are additive and every pair of
-diseases has an association estimate or a defensible independence
-assumption; use `"global"` otherwise (impact interactions, unknown
-pairs). The proportional approximation of Rasmussen et al. (2022, eq.
-16) is not a method of
+`method = "auto"` (the default) uses the simultaneous method (the exact
+solution of `raw = A b` from the pairwise 2×2 tables) when every pair
+has an association and there are no interactions or three-way terms;
+otherwise it uses the global method (the maximum-entropy distribution of
+disease combinations), with a note saying why. Pairs without an
+association are unknown and are filled in by the global fit; an odds
+ratio of 1 states that two diseases are unrelated.
+
+Inputs can carry distributions;
+[`deconflate()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate.md)
+then runs 1000 draws by default (`n_draws`) and reports intervals. The
+proportional approximation of Rasmussen et al. (2022, eq. 16) is not a
+method of
 [`deconflate()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate.md):
 it is kept as `"published"` in
-[`compare_methods()`](https://rasmussenphilip.github.io/deconflate/reference/compare_methods.md),
-[`cm_monte_carlo()`](https://rasmussenphilip.github.io/deconflate/reference/cm_monte_carlo.md)
+[`compare_methods()`](https://rasmussenphilip.github.io/deconflate/reference/compare_methods.md)
 and the `reproduce_*()` functions, for comparison and reproduction only.
 
 The package reports adjusted impacts and contributions in the units of
@@ -71,47 +84,34 @@ the impacts. Converting them into a productivity gap or a monetary value
 is a few lines of base R (see
 [`vignette("deconflate")`](https://rasmussenphilip.github.io/deconflate/articles/deconflate.md)).
 
-Hazard ratios (e.g. of culling) combine multiplicatively and have their
-own model, the snapshot hazard-multiplier model
-([`deconflate_hr()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate_hr.md),
-with explicitly named estimands; the default and recommended method),
-with
-[`attributable_risk()`](https://rasmussenphilip.github.io/deconflate/reference/attributable_risk.md).
-
-The simultaneous method works for any number of diseases. The global
-method enumerates disease combinations up to about 20 diseases; beyond
-that, `fit_joint(backend = "sampled")` fits the same model by Monte
-Carlo.
-
 ## Example
 
 ``` r
 
 library(deconflate)
 
-# Global dairy inputs, Rasmussen et al. (2024): yield and fertility analyses
-# on one population
-gd <- example_global_dairy()
-res <- deconflate(gd)
-res$yield$contributions
+# Your own data: one call per impact table, file names of your choice
+dir <- file.path(tempdir(), "my-inputs")
+cm_template(dir)
+m <- cm_read_inputs(diseases = file.path(dir, "diseases.csv"),
+                    associations = file.path(dir, "associations.csv"),
+                    impacts = file.path(dir, "yield.csv"))
+res <- deconflate(m)          # intervals from 1000 draws of the uncertain inputs
+res$contributions
+
+# Event impacts (culling): hazard ratios and a risk ratio
+cull <- cm_read_inputs(diseases = file.path(dir, "diseases.csv"),
+                       associations = file.path(dir, "associations.csv"),
+                       impacts = file.path(dir, "culling.csv"))
+deconflate(cull, event_model = TRUE, overall_risk = 0.25)
+
+# Global dairy inputs, Rasmussen et al. (2024); unlisted pairs are unknown
+gd <- example_global_dairy("yield")
+deconflate(gd, n_draws = 0)
 compare_methods(gd)   # includes the published approximation, for comparison
 
 # At what odds ratio between d2 and d3 does the ranking of d1 and d2 change?
 cm_threshold(example_supplement(), "assoc:d2:d3", c(0.1, 100), conclusion = "rank")
-
-# Culling hazard ratios (snapshot model)
-hr <- deconflate_hr(example_global_dairy_hr())
-attributable_risk(hr, overall_risk = 0.2366)
-
-# Your own data
-dir <- file.path(tempdir(), "my-inputs")
-cm_template(dir)
-inp <- cm_read_inputs(dir = dir)
-deconflate(inp$model)
-
-# Uncertainty, with shared population draws across analyses
-mc <- cm_monte_carlo(sampler_global_dairy(), 1000, seed = 1)
-summary(mc)
 
 # The published tables
 reproduce_rasmussen_2022()
@@ -120,36 +120,36 @@ reproduce_rasmussen_2022()
 ## Features
 
 - **Inputs:**
-  [`cm_diseases()`](https://rasmussenphilip.github.io/deconflate/reference/cm_diseases.md),
-  [`cm_associations()`](https://rasmussenphilip.github.io/deconflate/reference/cm_associations.md)
-  (OR, RR, RD, conditional probability, phi, contingency tables,
-  independent, unknown),
-  [`cm_three_way()`](https://rasmussenphilip.github.io/deconflate/reference/cm_three_way.md),
-  [`cm_population()`](https://rasmussenphilip.github.io/deconflate/reference/cm_population.md),
-  [`cm_impacts()`](https://rasmussenphilip.github.io/deconflate/reference/cm_impacts.md),
-  [`cm_interactions()`](https://rasmussenphilip.github.io/deconflate/reference/cm_interactions.md),
-  [`cm_model()`](https://rasmussenphilip.github.io/deconflate/reference/cm_model.md)
-  and
-  [`cm_analyses()`](https://rasmussenphilip.github.io/deconflate/reference/cm_analyses.md).
-- **Your own data:**
   [`cm_read_inputs()`](https://rasmussenphilip.github.io/deconflate/reference/cm_read_inputs.md)
-  reads CSV files or data frames and reports every problem at once;
+  reads CSV files or data frames (each table a named argument) and
+  reports every problem at once
+  ([`cm_check_inputs()`](https://rasmussenphilip.github.io/deconflate/reference/cm_check_inputs.md));
   uncertain values carry their distribution in their own row (`dist`,
   `p1`-`p4`), mixed freely with point values.
   [`cm_template()`](https://rasmussenphilip.github.io/deconflate/reference/cm_template.md)
   writes example files, and
   `system.file("extdata", "five_diseases", package = "deconflate")`
   holds a five-disease example that uses every feature, with a script
-  (`run_all_features.R`) that runs them all.
+  (`run_all_features.R`) that runs them all. In R:
+  [`cm_diseases()`](https://rasmussenphilip.github.io/deconflate/reference/cm_diseases.md),
+  [`cm_associations()`](https://rasmussenphilip.github.io/deconflate/reference/cm_associations.md)
+  (OR, RR, RD, conditional probability, phi),
+  [`cm_three_way()`](https://rasmussenphilip.github.io/deconflate/reference/cm_three_way.md),
+  [`cm_population()`](https://rasmussenphilip.github.io/deconflate/reference/cm_population.md),
+  [`cm_impacts()`](https://rasmussenphilip.github.io/deconflate/reference/cm_impacts.md),
+  [`cm_interactions()`](https://rasmussenphilip.github.io/deconflate/reference/cm_interactions.md)
+  and
+  [`cm_model()`](https://rasmussenphilip.github.io/deconflate/reference/cm_model.md).
 - **Adjustment:**
   [`deconflate()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate.md)
-  and
+  for additive and event impacts, with intervals (`n_draws`);
   [`compare_methods()`](https://rasmussenphilip.github.io/deconflate/reference/compare_methods.md)
   (which also shows the published approximation, for comparison);
   contributions of each disease (closed-form Shapley values) in
   [`attribute_burden()`](https://rasmussenphilip.github.io/deconflate/reference/attribute_burden.md)
   and
-  [`contribution_table()`](https://rasmussenphilip.github.io/deconflate/reference/contribution_table.md).
+  [`contribution_table()`](https://rasmussenphilip.github.io/deconflate/reference/contribution_table.md);
+  the attributable risk of event impacts.
 - **Joint distribution and feasibility:**
   [`fit_joint()`](https://rasmussenphilip.github.io/deconflate/reference/fit_joint.md)
   (exact, or sampled for many diseases),
@@ -158,34 +158,17 @@ reproduce_rasmussen_2022()
   [`check_feasibility()`](https://rasmussenphilip.github.io/deconflate/reference/check_feasibility.md).
 - **Attribution of non-additive losses:**
   [`shapley_by_cell()`](https://rasmussenphilip.github.io/deconflate/reference/shapley_by_cell.md).
-- **Hazard ratios:**
-  [`cm_hazard_ratios()`](https://rasmussenphilip.github.io/deconflate/reference/cm_hazard_ratios.md),
-  [`cm_hr_model()`](https://rasmussenphilip.github.io/deconflate/reference/cm_hr_model.md),
-  [`deconflate_hr()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate_hr.md)
-  and
-  [`attributable_risk()`](https://rasmussenphilip.github.io/deconflate/reference/attributable_risk.md).
-- **Uncertainty:** `dist_*()` distributions,
-  [`cm_sampler()`](https://rasmussenphilip.github.io/deconflate/reference/cm_sampler.md)
-  and
-  [`cm_batch_sampler()`](https://rasmussenphilip.github.io/deconflate/reference/cm_batch_sampler.md),
-  [`cm_monte_carlo()`](https://rasmussenphilip.github.io/deconflate/reference/cm_monte_carlo.md)
-  (several methods on the same draws, rejection reporting, Latin
-  hypercube and importance sampling), stability checks with suggestions
-  ([`cm_diagnose()`](https://rasmussenphilip.github.io/deconflate/reference/cm_diagnose.md),
-  [`cm_suggest_proposal()`](https://rasmussenphilip.github.io/deconflate/reference/cm_suggest_proposal.md)),
-  and reweighting
-  ([`cm_scenario()`](https://rasmussenphilip.github.io/deconflate/reference/cm_scenario.md),
-  [`cm_reweight()`](https://rasmussenphilip.github.io/deconflate/reference/cm_reweight.md)).
 - **Sensitivity and thresholds:**
   [`cm_threshold()`](https://rasmussenphilip.github.io/deconflate/reference/cm_threshold.md)
   (where a ranking, a sign or the aggregate changes as one input
   varies),
   [`sensitivity_oat()`](https://rasmussenphilip.github.io/deconflate/reference/sensitivity_oat.md),
   [`screen_associations()`](https://rasmussenphilip.github.io/deconflate/reference/screen_associations.md),
-  [`screen_interactions()`](https://rasmussenphilip.github.io/deconflate/reference/screen_interactions.md),
-  [`screen_three_way()`](https://rasmussenphilip.github.io/deconflate/reference/screen_three_way.md)
+  [`screen_interactions()`](https://rasmussenphilip.github.io/deconflate/reference/screen_interactions.md)
   and
-  [`compare_scenarios()`](https://rasmussenphilip.github.io/deconflate/reference/compare_scenarios.md).
+  [`screen_three_way()`](https://rasmussenphilip.github.io/deconflate/reference/screen_three_way.md);
+  they also run without any association estimates, to show which
+  associations would matter.
 - **Reproduction:**
   [`reproduce_rasmussen_2022()`](https://rasmussenphilip.github.io/deconflate/reference/reproduce.md)
   and

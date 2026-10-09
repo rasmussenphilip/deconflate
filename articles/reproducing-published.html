@@ -36,10 +36,10 @@
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
 <li><a class="dropdown-item" href="../articles/own-data.html">Using your own data</a></li>
     <li><a class="dropdown-item" href="../articles/thresholds-and-scaling.html">Threshold searches and many diseases</a></li>
-    <li><a class="dropdown-item" href="../articles/culling-hazard-ratios.html">Culling and hazard ratios</a></li>
+    <li><a class="dropdown-item" href="../articles/event-impacts.html">Event impacts (culling and mortality)</a></li>
     <li><a class="dropdown-item" href="../articles/reproducing-published.html">Reproducing the published analyses</a></li>
     <li><a class="dropdown-item" href="../articles/interactions.html">Disease combinations, interactions and attribution</a></li>
-    <li><a class="dropdown-item" href="../articles/uncertainty.html">Uncertainty, scenarios and sensitivity</a></li>
+    <li><a class="dropdown-item" href="../articles/uncertainty.html">Uncertainty and sensitivity</a></li>
   </ul>
 </li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
@@ -82,19 +82,34 @@ differ from the published tables.
 (eq. 16 of the 2022 paper) and the hazard-ratio conversions and economic
 valuations of the papers. None of these is offered for new analyses: the
 approximation is not a method of <code><a href="../reference/deconflate.html">deconflate()</a></code> and appears
-elsewhere only in <code><a href="../reference/compare_methods.html">compare_methods()</a></code> and
-<code><a href="../reference/cm_monte_carlo.html">cm_monte_carlo()</a></code>, for comparison (see
+elsewhere only in <code><a href="../reference/compare_methods.html">compare_methods()</a></code>, for comparison (see
 <code><a href="../articles/deconflate.html">vignette("deconflate")</a></code> and
-<code><a href="../articles/culling-hazard-ratios.html">vignette("culling-hazard-ratios")</a></code>).</p>
+<code><a href="../articles/event-impacts.html">vignette("event-impacts")</a></code>).</p>
+<p>The papers also treated every pair of diseases without a published
+odds ratio as independent. The reproduction functions do the same. The
+package default is different: a pair without an association is unknown,
+and <code><a href="../reference/deconflate.html">deconflate()</a></code> fills it in with the global method (see
+<code><a href="../articles/interactions.html">vignette("interactions")</a></code>). To compare the published
+approximation with the exact solution under the papers’ assumption, the
+sections below give the unlisted pairs an odds ratio of 1 with this
+helper:</p>
+<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">independent_pairs</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">m</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="va">pt</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/pair_tables.html">pair_tables</a></span><span class="op">(</span><span class="va">m</span><span class="op">)</span></span>
+<span>  <span class="va">u</span> <span class="op">&lt;-</span> <span class="va">pt</span><span class="op">[</span><span class="va">pt</span><span class="op">$</span><span class="va">status</span> <span class="op">==</span> <span class="st">"unknown"</span>, , drop <span class="op">=</span> <span class="cn">FALSE</span><span class="op">]</span></span>
+<span>  <span class="va">a</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/cbind.html" class="external-link">rbind</a></span><span class="op">(</span><span class="va">m</span><span class="op">$</span><span class="va">associations</span>, <span class="fu"><a href="../reference/cm_associations.html">cm_associations</a></span><span class="op">(</span><span class="va">u</span><span class="op">$</span><span class="va">disease1</span>, <span class="va">u</span><span class="op">$</span><span class="va">disease2</span>, <span class="fl">1</span><span class="op">)</span><span class="op">)</span></span>
+<span>  <span class="fu"><a href="../reference/cm_model.html">cm_model</a></span><span class="op">(</span><span class="va">m</span><span class="op">$</span><span class="va">diseases</span>, <span class="va">m</span><span class="op">$</span><span class="va">impacts</span>, associations <span class="op">=</span> <span class="va">a</span><span class="op">)</span></span>
+<span><span class="op">}</span></span></code></pre></div>
 <div class="section level2">
 <h2 id="supplementary-file-example-2022">Supplementary File example (2022)<a class="anchor" aria-label="anchor" href="#supplementary-file-example-2022"></a>
 </h2>
 <p>The impacts are entered in percent, so the adjusted impacts are in
-percent. <code><a href="../reference/compare_methods.html">compare_methods()</a></code> gives the published
-approximation beside the exact solution; the gap is computed from the
-published result in base R, as in <code><a href="../articles/deconflate.html">vignette("deconflate")</a></code>,
-for an observed level of 10,000 units:</p>
-<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+percent. Every pair has an odds ratio (d1 and d3 have an odds ratio of
+1). <code><a href="../reference/compare_methods.html">compare_methods()</a></code> gives the published approximation
+beside the exact solution; the gap is computed from the published result
+in base R, as in <code><a href="../articles/deconflate.html">vignette("deconflate")</a></code>, for an observed
+level of 10,000 units:</p>
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">cmp_sup</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/compare_methods.html">compare_methods</a></span><span class="op">(</span><span class="fu"><a href="../reference/example_supplement.html">example_supplement</a></span><span class="op">(</span><span class="op">)</span>, methods <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"published"</span>, <span class="st">"simultaneous"</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="va">cmp_sup</span><span class="op">$</span><span class="va">impacts</span></span>
 <span><span class="co">#&gt;   disease raw published simultaneous</span></span>
@@ -119,11 +134,11 @@ disease).</p>
 <div class="section level2">
 <h2 id="uk-dairy-example-2022-tables-8-10">UK dairy example (2022, Tables 8-10)<a class="anchor" aria-label="anchor" href="#uk-dairy-example-2022-tables-8-10"></a>
 </h2>
-<p><code><a href="../reference/example_uk_dairy_2022.html">example_uk_dairy_2022()</a></code> contains the 13 diseases and the
-19 odds ratios of Tables 2-3, and the yield and fertility inputs of
-Tables 4-5 as two analyses. The culling hazard ratios of Table 6 are
-attached as the attribute <code>"hazard_ratios"</code>, for the
-hazard-ratio adapter. The paper’s culling analysis, which converted the
+<p><code>example_uk_dairy_2022(outcome)</code> contains the 13 diseases
+and the 19 odds ratios of Tables 2-3, and the raw impacts of one
+outcome: milk yield (Table 4), calving interval
+(<code>"fertility"</code>, Table 5) or culling (Table 6, hazard ratios
+as event impacts). The paper’s culling analysis, which converted the
 hazard ratios to excess annual culling risks by treating them as odds
 ratios and recovered adjusted hazard ratios by rescaling (eq. 23),
 exists only inside <code><a href="../reference/reproduce.html">reproduce_rasmussen_2022()</a></code>. The observed
@@ -131,7 +146,7 @@ means and unit values of Table 1, the veterinary expenditure and the
 paper’s culling valuation are used only inside the reproduction, which
 computes the productivity gaps and their values as in the paper.
 <code><a href="../reference/reproduce.html">reproduce_rasmussen_2022()</a></code> runs the whole calculation:</p>
-<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">r22</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/reproduce.html">reproduce_rasmussen_2022</a></span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="va">r22</span></span>
 <span><span class="co">#&gt; &lt;cm_reproduction&gt; Rasmussen et al. (2022)</span></span>
@@ -251,7 +266,7 @@ and the directly aggregated total, now GBP 660.26), which is not an
 input to the comorbidity adjustment.</p>
 <p>Adjusted yield impacts (percent) with the printed value of 3.05% and
 with 3.89% for subclinical ketosis:</p>
-<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">r389</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/reproduce.html">reproduce_rasmussen_2022</a></span><span class="op">(</span>yield_sck <span class="op">=</span> <span class="fl">100</span> <span class="op">*</span> <span class="fl">340</span> <span class="op">/</span> <span class="fl">8737</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span>disease <span class="op">=</span> <span class="va">r22</span><span class="op">$</span><span class="va">adjusted</span><span class="op">$</span><span class="va">disease</span>,</span>
 <span>           sck_3.05 <span class="op">=</span> <span class="va">r22</span><span class="op">$</span><span class="va">adjusted</span><span class="op">$</span><span class="va">yield</span>,</span>
@@ -274,35 +289,34 @@ with 3.89% for subclinical ketosis:</p>
 <div class="section level3">
 <h3 id="what-the-package-offers-instead">What the package offers instead<a class="anchor" aria-label="anchor" href="#what-the-package-offers-instead"></a>
 </h3>
-<p><strong>Exact solution.</strong> <code>method = "simultaneous"</code>
-solves the additive equations instead of approximating them. The example
-has the yield and fertility analyses. The gaps and values below use
-Table 1 in base R: milk yield of 8737 kg/cow/year (impacts are percent
-decreases) valued at GBP 0.3022/kg, and a calving interval of 401 days
-(impacts are percent increases), each day valued at 13 kg of milk:</p>
-<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">uk</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/example_uk_dairy_2022.html">example_uk_dairy_2022</a></span><span class="op">(</span><span class="op">)</span></span>
-<span><span class="va">uk</span></span>
-<span><span class="co">#&gt; &lt;cm_analyses&gt; 2 analyses on one population</span></span>
+<p><strong>Exact solution.</strong> The simultaneous method solves the
+additive equations instead of approximating them. With the unlisted
+pairs independent, as in the paper, every pair has an odds ratio and
+both methods can run. The gaps and values below use Table 1 in base R:
+milk yield of 8737 kg/cow/year (impacts are percent decreases) valued at
+GBP 0.3022/kg, and a calving interval of 401 days (impacts are percent
+increases), each day valued at 13 kg of milk:</p>
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">uk_yield</span> <span class="op">&lt;-</span> <span class="fu">independent_pairs</span><span class="op">(</span><span class="fu"><a href="../reference/example_uk_dairy_2022.html">example_uk_dairy_2022</a></span><span class="op">(</span><span class="st">"yield"</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="va">uk_fert</span> <span class="op">&lt;-</span> <span class="fu">independent_pairs</span><span class="op">(</span><span class="fu"><a href="../reference/example_uk_dairy_2022.html">example_uk_dairy_2022</a></span><span class="op">(</span><span class="st">"fertility"</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="va">uk_yield</span></span>
+<span><span class="co">#&gt; &lt;cm_model&gt;</span></span>
 <span><span class="co">#&gt;   Diseases: 13 (CO, DA, DYS, FAS, GIN, LAM, MAS, MET, MF, NEO, PTB, RP, SCK)</span></span>
-<span><span class="co">#&gt;   Disease pairs: 78 [independent (default): 59; specified: 19]</span></span>
-<span><span class="co">#&gt;   - yield [% decrease]</span></span>
-<span><span class="co">#&gt;   - fertility [% increase]</span></span>
-<span><span class="va">cmp</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/compare_methods.html">compare_methods</a></span><span class="op">(</span><span class="va">uk</span>, methods <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"published"</span>, <span class="st">"simultaneous"</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="va">tt</span> <span class="op">&lt;-</span> <span class="va">cmp</span><span class="op">$</span><span class="va">totals</span></span>
-<span><span class="va">yield</span> <span class="op">&lt;-</span> <span class="va">tt</span><span class="op">$</span><span class="va">analysis</span> <span class="op">==</span> <span class="st">"yield"</span></span>
-<span><span class="va">L</span> <span class="op">&lt;-</span> <span class="va">tt</span><span class="op">$</span><span class="va">adjusted_total</span> <span class="op">/</span> <span class="fl">100</span></span>
-<span><span class="va">tt</span><span class="op">$</span><span class="va">gap</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/ifelse.html" class="external-link">ifelse</a></span><span class="op">(</span><span class="va">yield</span>, <span class="fl">8737</span> <span class="op">/</span> <span class="op">(</span><span class="fl">1</span> <span class="op">-</span> <span class="va">L</span><span class="op">)</span> <span class="op">-</span> <span class="fl">8737</span>, <span class="fl">401</span> <span class="op">-</span> <span class="fl">401</span> <span class="op">/</span> <span class="op">(</span><span class="fl">1</span> <span class="op">+</span> <span class="va">L</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="va">tt</span><span class="op">$</span><span class="va">value</span> <span class="op">&lt;-</span> <span class="va">tt</span><span class="op">$</span><span class="va">gap</span> <span class="op">*</span> <span class="fu"><a href="https://rdrr.io/r/base/ifelse.html" class="external-link">ifelse</a></span><span class="op">(</span><span class="va">yield</span>, <span class="fl">0.3022</span>, <span class="fl">13</span> <span class="op">*</span> <span class="fl">0.3022</span><span class="op">)</span></span>
-<span><span class="va">tt</span></span>
-<span><span class="co">#&gt;    analysis       method raw_sum adjusted_total       gap     value</span></span>
+<span><span class="co">#&gt;   Disease pairs: 78 (78 with an association, 0 unknown)</span></span>
+<span><span class="co">#&gt;   Impacts: milk yield loss [% decrease] (additive)</span></span>
+<span><span class="co">#&gt;   Estimands: crude: 13</span></span>
+<span><span class="va">tt_y</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/compare_methods.html">compare_methods</a></span><span class="op">(</span><span class="va">uk_yield</span>, methods <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"published"</span>, <span class="st">"simultaneous"</span><span class="op">)</span><span class="op">)</span><span class="op">$</span><span class="va">totals</span></span>
+<span><span class="va">tt_f</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/compare_methods.html">compare_methods</a></span><span class="op">(</span><span class="va">uk_fert</span>, methods <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"published"</span>, <span class="st">"simultaneous"</span><span class="op">)</span><span class="op">)</span><span class="op">$</span><span class="va">totals</span></span>
+<span><span class="va">tt_y</span><span class="op">$</span><span class="va">gap</span> <span class="op">&lt;-</span> <span class="fl">8737</span> <span class="op">/</span> <span class="op">(</span><span class="fl">1</span> <span class="op">-</span> <span class="va">tt_y</span><span class="op">$</span><span class="va">adjusted_total</span> <span class="op">/</span> <span class="fl">100</span><span class="op">)</span> <span class="op">-</span> <span class="fl">8737</span></span>
+<span><span class="va">tt_y</span><span class="op">$</span><span class="va">value</span> <span class="op">&lt;-</span> <span class="va">tt_y</span><span class="op">$</span><span class="va">gap</span> <span class="op">*</span> <span class="fl">0.3022</span></span>
+<span><span class="va">tt_f</span><span class="op">$</span><span class="va">gap</span> <span class="op">&lt;-</span> <span class="fl">401</span> <span class="op">-</span> <span class="fl">401</span> <span class="op">/</span> <span class="op">(</span><span class="fl">1</span> <span class="op">+</span> <span class="va">tt_f</span><span class="op">$</span><span class="va">adjusted_total</span> <span class="op">/</span> <span class="fl">100</span><span class="op">)</span></span>
+<span><span class="va">tt_f</span><span class="op">$</span><span class="va">value</span> <span class="op">&lt;-</span> <span class="va">tt_f</span><span class="op">$</span><span class="va">gap</span> <span class="op">*</span> <span class="fl">13</span> <span class="op">*</span> <span class="fl">0.3022</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/cbind.html" class="external-link">rbind</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/cbind.html" class="external-link">cbind</a></span><span class="op">(</span>outcome <span class="op">=</span> <span class="st">"yield"</span>, <span class="va">tt_y</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/cbind.html" class="external-link">cbind</a></span><span class="op">(</span>outcome <span class="op">=</span> <span class="st">"fertility"</span>, <span class="va">tt_f</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="co">#&gt;     outcome       method raw_sum adjusted_total       gap     value</span></span>
 <span><span class="co">#&gt; 1     yield    published  7.1678       6.045754 562.20724 169.89903</span></span>
 <span><span class="co">#&gt; 2     yield simultaneous  7.1678       5.982142 555.91542 167.99764</span></span>
 <span><span class="co">#&gt; 3 fertility    published  7.5734       6.906756  25.90677 101.77735</span></span>
-<span><span class="co">#&gt; 4 fertility simultaneous  7.5734       6.448457  24.29186  95.43301</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/tapply.html" class="external-link">tapply</a></span><span class="op">(</span><span class="va">tt</span><span class="op">$</span><span class="va">value</span>, <span class="va">tt</span><span class="op">$</span><span class="va">method</span>, <span class="va">sum</span><span class="op">)</span></span>
-<span><span class="co">#&gt;    published simultaneous </span></span>
-<span><span class="co">#&gt;     271.6764     263.4306</span></span></code></pre></div>
+<span><span class="co">#&gt; 4 fertility simultaneous  7.5734       6.448457  24.29186  95.43301</span></span></code></pre></div>
 <p>The published rows reproduce the yield and fertility values of the
 reproduction above (GBP 169.90 and 101.78 per cow per year). The
 simultaneous method gives GBP 168.00 for yield and 95.43 for fertility.
@@ -310,39 +324,42 @@ The published total from <code>reproduce_rasmussen_2022()$total</code>
 (GBP 402.25) also includes culling, valued with the paper’s conversion,
 and veterinary costs. That culling conversion is not available for new
 analyses, so no simultaneous total including culling is given here.</p>
-<p><strong>Hazard ratios.</strong> For new analyses, the culling hazard
-ratios are adjusted with the hazard-ratio adapter, and the culling
-attributable to disease is computed without counting a cow twice. The
-hazard ratios of Table 6 are attached to the example:</p>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">hr_uk</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cm_hr_model.html">cm_hr_model</a></span><span class="op">(</span><span class="va">uk</span><span class="op">$</span><span class="va">population</span>, <span class="fu"><a href="https://rdrr.io/r/base/attr.html" class="external-link">attr</a></span><span class="op">(</span><span class="va">uk</span>, <span class="st">"hazard_ratios"</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="fu"><a href="../reference/compare_methods.html">compare_methods</a></span><span class="op">(</span><span class="va">hr_uk</span>, overall_risk <span class="op">=</span> <span class="fl">0.27</span>, joint <span class="op">=</span> <span class="fu"><a href="../reference/fit_joint.html">fit_joint</a></span><span class="op">(</span><span class="va">uk</span><span class="op">$</span><span class="va">population</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="co">#&gt; &lt;cm_comparison&gt; methods: published, first_order, snapshot</span></span>
-<span><span class="co">#&gt; Units: hazard ratio</span></span>
+<p><strong>Culling as event impacts.</strong> For new analyses, the
+culling hazard ratios are event impacts, adjusted with the snapshot
+hazard model (<code>deconflate(..., event_model = TRUE)</code>), and the
+culling attributable to disease is computed without counting a cow
+twice. <code><a href="../reference/compare_methods.html">compare_methods()</a></code> sets the 2024 approach (published)
+beside the snapshot model, again with the unlisted pairs independent and
+the paper’s annual culling rate of 27%:</p>
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">uk_cull</span> <span class="op">&lt;-</span> <span class="fu">independent_pairs</span><span class="op">(</span><span class="fu"><a href="../reference/example_uk_dairy_2022.html">example_uk_dairy_2022</a></span><span class="op">(</span><span class="st">"culling"</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="fu"><a href="../reference/compare_methods.html">compare_methods</a></span><span class="op">(</span><span class="va">uk_cull</span>, methods <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"published"</span>, <span class="st">"snapshot"</span><span class="op">)</span>,</span>
+<span>                event_model <span class="op">=</span> <span class="cn">TRUE</span>, overall_risk <span class="op">=</span> <span class="fl">0.27</span><span class="op">)</span></span>
+<span><span class="co">#&gt; &lt;cm_comparison&gt; methods: published, snapshot</span></span>
+<span><span class="co">#&gt; Impacts: culling</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Adjusted values:</span></span>
-<span><span class="co">#&gt;  disease  raw published first_order snapshot</span></span>
-<span><span class="co">#&gt;       CO 1.00      1.00       0.878    0.878</span></span>
-<span><span class="co">#&gt;       DA 3.83      3.09       2.530    2.490</span></span>
-<span><span class="co">#&gt;      DYS 1.90      1.74       1.790    1.780</span></span>
-<span><span class="co">#&gt;      FAS 1.00      1.00       1.000    1.000</span></span>
-<span><span class="co">#&gt;      GIN 1.00      1.00       1.000    1.000</span></span>
-<span><span class="co">#&gt;      LAM 3.40      3.18       3.130    3.110</span></span>
-<span><span class="co">#&gt;      MAS 2.78      2.45       2.390    2.270</span></span>
-<span><span class="co">#&gt;      MET 2.20      1.80       1.760    1.690</span></span>
-<span><span class="co">#&gt;       MF 2.50      2.11       2.010    1.960</span></span>
-<span><span class="co">#&gt;      NEO 1.60      1.60       1.600    1.600</span></span>
-<span><span class="co">#&gt;      PTB 2.40      1.88       1.620    1.620</span></span>
-<span><span class="co">#&gt;       RP 1.00      1.00       0.795    0.734</span></span>
-<span><span class="co">#&gt;      SCK 2.10      1.62       1.440    1.340</span></span>
+<span><span class="co">#&gt; Adjusted hazard ratios:</span></span>
+<span><span class="co">#&gt;  disease measure  raw published snapshot</span></span>
+<span><span class="co">#&gt;       CO      HR 1.00      1.00    0.878</span></span>
+<span><span class="co">#&gt;       DA      HR 3.83      3.09    2.490</span></span>
+<span><span class="co">#&gt;      DYS      HR 1.90      1.74    1.780</span></span>
+<span><span class="co">#&gt;      FAS      HR 1.00      1.00    1.000</span></span>
+<span><span class="co">#&gt;      GIN      HR 1.00      1.00    1.000</span></span>
+<span><span class="co">#&gt;      LAM      HR 3.40      3.18    3.110</span></span>
+<span><span class="co">#&gt;      MAS      HR 2.78      2.45    2.270</span></span>
+<span><span class="co">#&gt;      MET      HR 2.20      1.80    1.690</span></span>
+<span><span class="co">#&gt;       MF      HR 2.50      2.11    1.960</span></span>
+<span><span class="co">#&gt;      NEO      HR 1.60      1.60    1.600</span></span>
+<span><span class="co">#&gt;      PTB      HR 2.40      1.88    1.620</span></span>
+<span><span class="co">#&gt;       RP      HR 1.00      1.00    0.734</span></span>
+<span><span class="co">#&gt;      SCK      HR 2.10      1.62    1.340</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Totals:</span></span>
-<span><span class="co">#&gt;       method overall_risk disease_free_risk attributable</span></span>
-<span><span class="co">#&gt;    published         0.27           0.08776       0.1822</span></span>
-<span><span class="co">#&gt;  first_order         0.27           0.09699       0.1730</span></span>
-<span><span class="co">#&gt;     snapshot         0.27           0.10230       0.1677</span></span></code></pre></div>
+<span><span class="co">#&gt;     method overall_risk disease_free_risk attributable</span></span>
+<span><span class="co">#&gt;  published         0.27           0.08776       0.1822</span></span>
+<span><span class="co">#&gt;   snapshot         0.27           0.10230       0.1677</span></span></code></pre></div>
 <p>The attributable risk times the replacement price (GBP 1335.36) gives
-its value per cow and year; as for the other analyses, that conversion
+its value per cow and year; as for the other outcomes, that conversion
 is left to the user.</p>
 </div>
 </div>
@@ -350,8 +367,10 @@ is left to the user.</p>
 <h2 id="global-dairy-analysis-2024-table-5">Global dairy analysis (2024, Table 5)<a class="anchor" aria-label="anchor" href="#global-dairy-analysis-2024-table-5"></a>
 </h2>
 <p>Table 5 reports the means of comorbidity-adjusted impacts over 50,000
-Monte Carlo draws per analysis. <code><a href="../reference/sampler_global_dairy.html">sampler_global_dairy()</a></code>
-encodes the input distributions. By default
+Monte Carlo draws per analysis.
+<code>example_global_dairy(outcome)</code> holds the inputs and their
+distributions, one outcome at a time (<code>"yield"</code>,
+<code>"fertility"</code> or <code>"culling"</code>). By default
 (<code>inputs = "analysis"</code>) it follows the published analysis
 code rather than the printed tables:</p>
 <ul>
@@ -374,17 +393,18 @@ scaled by (HR - 1) / HR, and metritis used a PERT distribution (mode
 1.12) rather than the normal distribution in Table 4 (mean 1.05). This
 analysis (<code>culling_hr_minus_1</code>) exists only inside
 <code><a href="../reference/reproduce.html">reproduce_rasmussen_2024()</a></code>, for reproduction;
-<code><a href="../reference/example_global_dairy.html">example_global_dairy()</a></code> and
-<code><a href="../reference/sampler_global_dairy.html">sampler_global_dairy()</a></code> have the yield and fertility
-analyses only.</li>
+<code>example_global_dairy("culling")</code> gives the hazard ratios as
+event impacts instead.</li>
 </ul>
-<p><code>sampler_global_dairy(inputs = "tables")</code> uses Tables 2-4
-as printed instead. <code><a href="../reference/reproduce.html">reproduce_rasmussen_2024()</a></code> runs the
-published method on the sampler, with the historical culling analysis
-added, and sets the means beside Table 5 (yield and fertility in
-percent, culling as hazard ratios). Run it with many more draws for
-stable estimates; 200 are used here to keep the vignette fast.</p>
-<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<p><code>example_global_dairy(inputs = "tables")</code> uses Tables 2-4
+as printed instead. <code><a href="../reference/reproduce.html">reproduce_rasmussen_2024()</a></code> draws these
+inputs (with the unlisted pairs independent, and the same draws of the
+disease and association inputs for every outcome), adds the historical
+culling analysis, runs the published method on every draw and sets the
+means beside Table 5 (yield and fertility in percent, culling as hazard
+ratios). Run it with many more draws for stable estimates; 200 are used
+here to keep the vignette fast.</p>
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">r24</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/reproduce.html">reproduce_rasmussen_2024</a></span><span class="op">(</span>n_draws <span class="op">=</span> <span class="fl">200</span><span class="op">)</span></span>
 <span><span class="va">cmp24</span> <span class="op">&lt;-</span> <span class="va">r24</span><span class="op">$</span><span class="va">comparison</span></span>
 <span><span class="va">cmp24</span><span class="op">[</span><span class="va">cmp24</span><span class="op">$</span><span class="va">analysis</span> <span class="op">==</span> <span class="st">"yield"</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"disease"</span>, <span class="st">"table5"</span>, <span class="st">"mean"</span>, <span class="st">"median"</span>, <span class="st">"stability"</span><span class="op">)</span><span class="op">]</span></span>
@@ -545,7 +565,7 @@ archived inputs give 0.52% rather than the 0.04% in Table 5. Medians, or
 the exact (simultaneous) solution, are more robust summaries. The
 <code>stability</code> column flags estimates whose means are unreliable
 (see <code><a href="../articles/uncertainty.html">vignette("uncertainty")</a></code>):</p>
-<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">cmp24</span><span class="op">[</span><span class="va">cmp24</span><span class="op">$</span><span class="va">analysis</span> <span class="op">==</span> <span class="st">"fertility"</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"disease"</span>, <span class="st">"table5"</span>, <span class="st">"mean"</span>, <span class="st">"median"</span>, <span class="st">"stability"</span><span class="op">)</span><span class="op">]</span></span>
 <span><span class="co">#&gt;    disease table5       mean     median     stability</span></span>
 <span><span class="co">#&gt; 13      CK   0.34  0.3111188  0.2747364            ok</span></span>
@@ -560,29 +580,68 @@ the exact (simultaneous) solution, are more robust summaries. The
 <span><span class="co">#&gt; 22      RP   3.74  3.6555091  3.5283150            ok</span></span>
 <span><span class="co">#&gt; 23     SCK   0.39  0.2131768  0.5177367 possible_pole</span></span>
 <span><span class="co">#&gt; 24     SCM   0.04  0.4843150  0.2616170     imprecise</span></span></code></pre></div>
-<p>The simultaneous solution at the central values shows the
-inconsistency directly. Several adjusted impacts change sign, while the
-aggregates move less (about 3% for yield and 18% for fertility):</p>
-<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">res24</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/deconflate.html">deconflate</a></span><span class="op">(</span><span class="fu"><a href="../reference/example_global_dairy.html">example_global_dairy</a></span><span class="op">(</span><span class="op">)</span>, warn <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">vapply</a></span><span class="op">(</span><span class="va">res24</span>, <span class="kw">function</span><span class="op">(</span><span class="va">r</span><span class="op">)</span> <span class="va">r</span><span class="op">$</span><span class="va">diagnostics</span><span class="op">$</span><span class="va">sign_changes</span>, <span class="fu"><a href="https://rdrr.io/r/base/character.html" class="external-link">character</a></span><span class="op">(</span><span class="fl">1</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="co">#&gt;                   yield               fertility </span></span>
-<span><span class="co">#&gt;        "CK, CM, DA, MF" "CK, DA, LAM, SCK, SCM"</span></span>
-<span><span class="fu"><a href="../reference/compare_methods.html">compare_methods</a></span><span class="op">(</span><span class="fu"><a href="../reference/example_global_dairy.html">example_global_dairy</a></span><span class="op">(</span><span class="op">)</span>, methods <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"published"</span>, <span class="st">"simultaneous"</span><span class="op">)</span><span class="op">)</span><span class="op">$</span><span class="va">totals</span></span>
-<span><span class="co">#&gt;    analysis       method  raw_sum adjusted_total</span></span>
-<span><span class="co">#&gt; 1     yield    published 9.931174       7.280553</span></span>
-<span><span class="co">#&gt; 2     yield simultaneous 9.931174       7.494192</span></span>
-<span><span class="co">#&gt; 3 fertility    published 7.471713       4.794033</span></span>
-<span><span class="co">#&gt; 4 fertility simultaneous 7.471713       3.933738</span></span></code></pre></div>
+<p>The simultaneous solution at the central values, with the unlisted
+pairs independent as in the paper, shows the inconsistency directly.
+Several adjusted impacts change sign, while the aggregates move less
+(about 3% for yield and 18% for fertility):</p>
+<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">gd_yield</span> <span class="op">&lt;-</span> <span class="fu">independent_pairs</span><span class="op">(</span><span class="fu"><a href="../reference/example_global_dairy.html">example_global_dairy</a></span><span class="op">(</span><span class="st">"yield"</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="va">gd_fert</span> <span class="op">&lt;-</span> <span class="fu">independent_pairs</span><span class="op">(</span><span class="fu"><a href="../reference/example_global_dairy.html">example_global_dairy</a></span><span class="op">(</span><span class="st">"fertility"</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="va">cmp_y</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/compare_methods.html">compare_methods</a></span><span class="op">(</span><span class="va">gd_yield</span>, methods <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"published"</span>, <span class="st">"simultaneous"</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="va">cmp_f</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/compare_methods.html">compare_methods</a></span><span class="op">(</span><span class="va">gd_fert</span>, methods <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"published"</span>, <span class="st">"simultaneous"</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="va">cmp_y</span><span class="op">$</span><span class="va">diagnostics</span><span class="op">[</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"method"</span>, <span class="st">"sign_changes"</span><span class="op">)</span><span class="op">]</span></span>
+<span><span class="co">#&gt;         method   sign_changes</span></span>
+<span><span class="co">#&gt; 1    published               </span></span>
+<span><span class="co">#&gt; 2 simultaneous CK, CM, DA, MF</span></span>
+<span><span class="va">cmp_f</span><span class="op">$</span><span class="va">diagnostics</span><span class="op">[</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"method"</span>, <span class="st">"sign_changes"</span><span class="op">)</span><span class="op">]</span></span>
+<span><span class="co">#&gt;         method          sign_changes</span></span>
+<span><span class="co">#&gt; 1    published                      </span></span>
+<span><span class="co">#&gt; 2 simultaneous CK, DA, LAM, SCK, SCM</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span>method <span class="op">=</span> <span class="va">cmp_y</span><span class="op">$</span><span class="va">totals</span><span class="op">$</span><span class="va">method</span>, yield <span class="op">=</span> <span class="va">cmp_y</span><span class="op">$</span><span class="va">totals</span><span class="op">$</span><span class="va">adjusted_total</span>,</span>
+<span>           fertility <span class="op">=</span> <span class="va">cmp_f</span><span class="op">$</span><span class="va">totals</span><span class="op">$</span><span class="va">adjusted_total</span><span class="op">)</span></span>
+<span><span class="co">#&gt;         method    yield fertility</span></span>
+<span><span class="co">#&gt; 1    published 7.280553  4.794033</span></span>
+<span><span class="co">#&gt; 2 simultaneous 7.494192  3.933738</span></span></code></pre></div>
+<p><strong>The package default: unknown pairs.</strong>
+<code><a href="../reference/example_global_dairy.html">example_global_dairy()</a></code> itself leaves the 28 pairs that are
+not in Table 3 unknown, as for any input in this package, so
+<code><a href="../reference/deconflate.html">deconflate()</a></code> uses the global method: the maximum-entropy
+fit gives each unknown pair the association implied by the associations
+both diseases have with other diseases, instead of an odds ratio of 1.
+For the yield impacts at the central values (no draws):</p>
+<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">gd_default</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/deconflate.html">deconflate</a></span><span class="op">(</span><span class="fu"><a href="../reference/example_global_dairy.html">example_global_dairy</a></span><span class="op">(</span><span class="st">"yield"</span><span class="op">)</span>, n_draws <span class="op">=</span> <span class="fl">0</span>, warn <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
+<span><span class="va">gd_default</span><span class="op">$</span><span class="va">notes</span></span>
+<span><span class="co">#&gt; [1] "The global method was used because of 28 pairs without an association (unknown)."</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/range.html" class="external-link">range</a></span><span class="op">(</span><span class="va">gd_default</span><span class="op">$</span><span class="va">unknown_pairs</span><span class="op">$</span><span class="va">fitted_or</span><span class="op">)</span></span>
+<span><span class="co">#&gt; [1] 1.084282 2.370312</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>independent <span class="op">=</span> <span class="va">cmp_y</span><span class="op">$</span><span class="va">totals</span><span class="op">$</span><span class="va">adjusted_total</span><span class="op">[</span><span class="va">cmp_y</span><span class="op">$</span><span class="va">totals</span><span class="op">$</span><span class="va">method</span> <span class="op">==</span> <span class="st">"simultaneous"</span><span class="op">]</span>,</span>
+<span>  unknown <span class="op">=</span> <span class="va">gd_default</span><span class="op">$</span><span class="va">totals</span><span class="op">$</span><span class="va">adjusted_total</span><span class="op">)</span></span>
+<span><span class="co">#&gt; independent     unknown </span></span>
+<span><span class="co">#&gt;    7.494192    6.915066</span></span>
+<span><span class="va">gd_default</span><span class="op">$</span><span class="va">diagnostics</span><span class="op">$</span><span class="va">sign_changes</span></span>
+<span><span class="co">#&gt; [1] "CK, CM, DA, MF"</span></span></code></pre></div>
+<p>The fit gives the 28 unknown pairs odds ratios between 1.08 and 2.37,
+all above 1, so animals with one disease are expected to have more of
+the others than under independence. More of each raw impact is then
+attributed to associated diseases, and the aggregate yield loss falls
+from 7.49% (unknown pairs independent, simultaneous method) to 6.92%
+(unknown pairs filled in, global method). The same four diseases change
+sign (CK, CM, DA, MF). Neither assumption is identified by the published
+odds ratios; <code><a href="../reference/screen_associations.html">screen_associations()</a></code> shows which unknown
+pairs matter most (<code><a href="../articles/uncertainty.html">vignette("uncertainty")</a></code>).</p>
 <p><strong>Culling losses.</strong> The adjusted culling impacts of the
 2024 analysis are adjusted HR - 1; adding 1 gives the adjusted hazard
 ratios. The central values are in
 <code>r24$central$culling_hr_minus_1</code>, and they equal the
 <code>"published"</code> column of <code><a href="../reference/compare_methods.html">compare_methods()</a></code> for
-the hazard-ratio model:</p>
-<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
+the culling hazard ratios as event impacts (with the unlisted pairs
+independent):</p>
+<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">cu</span> <span class="op">&lt;-</span> <span class="va">r24</span><span class="op">$</span><span class="va">central</span><span class="op">$</span><span class="va">culling_hr_minus_1</span><span class="op">$</span><span class="va">adjusted</span></span>
-<span><span class="va">hr_pub</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/compare_methods.html">compare_methods</a></span><span class="op">(</span><span class="fu"><a href="../reference/example_global_dairy_hr.html">example_global_dairy_hr</a></span><span class="op">(</span><span class="op">)</span>, methods <span class="op">=</span> <span class="st">"published"</span><span class="op">)</span></span>
+<span><span class="va">gd_cull</span> <span class="op">&lt;-</span> <span class="fu">independent_pairs</span><span class="op">(</span><span class="fu"><a href="../reference/example_global_dairy.html">example_global_dairy</a></span><span class="op">(</span><span class="st">"culling"</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="va">hr_pub</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/compare_methods.html">compare_methods</a></span><span class="op">(</span><span class="va">gd_cull</span>, methods <span class="op">=</span> <span class="st">"published"</span>, event_model <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>                          overall_risk <span class="op">=</span> <span class="fl">0.2366</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span>disease <span class="op">=</span> <span class="va">cu</span><span class="op">$</span><span class="va">disease</span>, hr <span class="op">=</span> <span class="fl">1</span> <span class="op">+</span> <span class="va">cu</span><span class="op">$</span><span class="va">raw</span>, adjusted_hr <span class="op">=</span> <span class="fl">1</span> <span class="op">+</span> <span class="va">cu</span><span class="op">$</span><span class="va">adjusted</span>,</span>
 <span>           compare_methods <span class="op">=</span> <span class="va">hr_pub</span><span class="op">$</span><span class="va">impacts</span><span class="op">$</span><span class="va">published</span><span class="op">)</span></span>
 <span><span class="co">#&gt;    disease       hr adjusted_hr compare_methods</span></span>
@@ -602,8 +661,11 @@ the hazard-ratio model:</p>
 excess culling risk relative to the overall culling rate <code>r</code>,
 <code>HR * r / (HR * r + 1 - r) - r</code>, which treats the hazard
 ratio as an odds ratio and counts cows with several diseases more than
-once. For new analyses use <code><a href="../reference/attributable_risk.html">attributable_risk()</a></code> (see
-<code><a href="../articles/culling-hazard-ratios.html">vignette("culling-hazard-ratios")</a></code>).</p>
+once. For new analyses use
+<code>deconflate(..., event_model = TRUE, overall_risk = )</code>, whose
+<code>$attributable</code> gives the culling risk attributable to
+disease and its allocation to diseases (see
+<code><a href="../articles/event-impacts.html">vignette("event-impacts")</a></code>).</p>
 </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside>

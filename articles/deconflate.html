@@ -36,10 +36,10 @@
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
 <li><a class="dropdown-item" href="../articles/own-data.html">Using your own data</a></li>
     <li><a class="dropdown-item" href="../articles/thresholds-and-scaling.html">Threshold searches and many diseases</a></li>
-    <li><a class="dropdown-item" href="../articles/culling-hazard-ratios.html">Culling and hazard ratios</a></li>
+    <li><a class="dropdown-item" href="../articles/event-impacts.html">Event impacts (culling and mortality)</a></li>
     <li><a class="dropdown-item" href="../articles/reproducing-published.html">Reproducing the published analyses</a></li>
     <li><a class="dropdown-item" href="../articles/interactions.html">Disease combinations, interactions and attribution</a></li>
-    <li><a class="dropdown-item" href="../articles/uncertainty.html">Uncertainty, scenarios and sensitivity</a></li>
+    <li><a class="dropdown-item" href="../articles/uncertainty.html">Uncertainty and sensitivity</a></li>
   </ul>
 </li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
@@ -82,30 +82,35 @@ associated diseases, so each estimate partly reflects the impacts of
 those other diseases. Adding such estimates double counts.
 <code>deconflate</code> adjusts (“de-conflates”) the estimates so that
 they can be aggregated.</p>
+<p>The package assumes no species, outcome or unit. The examples use
+dairy cattle and milk yield, but any population of animals (or people)
+and any additive outcome works the same way.</p>
 </div>
 <div class="section level2">
-<h2 id="a-population-and-an-impact-vector">A population and an impact vector<a class="anchor" aria-label="anchor" href="#a-population-and-an-impact-vector"></a>
+<h2 id="a-population-and-an-impact-table">A population and an impact table<a class="anchor" aria-label="anchor" href="#a-population-and-an-impact-table"></a>
 </h2>
-<p>The population holds what all analyses share: the disease
+<p>The population holds what every outcome shares: the disease
 probabilities and the pairwise associations. This is the three-disease
 example from the Supplementary File of Rasmussen et al. (2022):</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">pop</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cm_population.html">cm_population</a></span><span class="op">(</span></span>
 <span>  <span class="fu"><a href="../reference/cm_diseases.html">cm_diseases</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"d1"</span>, <span class="st">"d2"</span>, <span class="st">"d3"</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0.10</span>, <span class="fl">0.15</span>, <span class="fl">0.20</span><span class="op">)</span>, type <span class="op">=</span> <span class="st">"prevalence"</span><span class="op">)</span>,</span>
-<span>  <span class="fu"><a href="../reference/cm_associations.html">cm_associations</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"d1"</span>, <span class="st">"d2"</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"d2"</span>, <span class="st">"d3"</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">2</span>, <span class="fl">3</span><span class="op">)</span>, measure <span class="op">=</span> <span class="st">"OR"</span><span class="op">)</span></span>
+<span>  <span class="fu"><a href="../reference/cm_associations.html">cm_associations</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"d1"</span>, <span class="st">"d1"</span>, <span class="st">"d2"</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"d2"</span>, <span class="st">"d3"</span>, <span class="st">"d3"</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">2</span>, <span class="fl">1</span>, <span class="fl">3</span><span class="op">)</span>, measure <span class="op">=</span> <span class="st">"OR"</span><span class="op">)</span></span>
 <span><span class="op">)</span></span>
 <span><span class="va">pop</span></span>
 <span><span class="co">#&gt; &lt;cm_population&gt;</span></span>
 <span><span class="co">#&gt;   Diseases: 3 (d1, d2, d3)</span></span>
-<span><span class="co">#&gt;   Disease pairs: 3 [independent (default): 1; specified: 2]</span></span></code></pre></div>
-<p>Pairs without an association are independent by default
-(<code>missing_associations = "independent"</code>). Use
-<code>"unknown"</code> to leave them unconstrained instead; this is a
-different assumption (see <code><a href="../articles/interactions.html">vignette("interactions")</a></code>).</p>
-<p>An analysis adds one impact vector: one value per disease, all in the
-same units. The units can be anything additive (percent of yield, kg of
-milk, days, euros, a welfare score); the engine does not convert them,
-and the results come back in the units supplied.</p>
+<span><span class="co">#&gt;   Disease pairs: 3 (3 with an association, 0 unknown)</span></span></code></pre></div>
+<p>Associations are odds ratios by default (risk ratios, risk
+differences, conditional probabilities and phi coefficients are also
+accepted; see <code><a href="../reference/cm_associations.html">?cm_associations</a></code>). An odds ratio of 1, as for
+d1 and d3, states that two diseases are unrelated. A pair with no
+association at all is <em>unknown</em>: <code><a href="../reference/deconflate.html">deconflate()</a></code> then
+fills it in from the other associations (below).</p>
+<p>A model adds one impact table: one raw estimate per disease, all in
+the same units. The units can be anything additive (percent of yield, kg
+of milk, days, euros, a welfare score); the engine does not convert
+them, and the results come back in the units supplied.</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">yield</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cm_impacts.html">cm_impacts</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"d1"</span>, <span class="st">"d2"</span>, <span class="st">"d3"</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">2.5</span>, <span class="fl">5</span>, <span class="fl">7.5</span><span class="op">)</span>,</span>
 <span>                    label <span class="op">=</span> <span class="st">"milk yield loss"</span>, units <span class="op">=</span> <span class="st">"% of yield"</span><span class="op">)</span></span>
@@ -113,39 +118,107 @@ and the results come back in the units supplied.</p>
 <span><span class="va">m</span></span>
 <span><span class="co">#&gt; &lt;cm_model&gt;</span></span>
 <span><span class="co">#&gt;   Diseases: 3 (d1, d2, d3)</span></span>
-<span><span class="co">#&gt;   Disease pairs: 3 [independent (default): 1; specified: 2]</span></span>
-<span><span class="co">#&gt;   Impacts: milk yield loss [% of yield]</span></span>
+<span><span class="co">#&gt;   Disease pairs: 3 (3 with an association, 0 unknown)</span></span>
+<span><span class="co">#&gt;   Impacts: milk yield loss [% of yield] (additive)</span></span>
 <span><span class="co">#&gt;   Estimands: crude: 3</span></span></code></pre></div>
 <p>The same impacts in kg give the same adjustment, in kg:</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">kg</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cm_model.html">cm_model</a></span><span class="op">(</span><span class="va">pop</span>, <span class="fu"><a href="../reference/cm_impacts.html">cm_impacts</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"d1"</span>, <span class="st">"d2"</span>, <span class="st">"d3"</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">250</span>, <span class="fl">500</span>, <span class="fl">750</span><span class="op">)</span>,</span>
-<span>                               units <span class="op">=</span> <span class="st">"kg/cow/year"</span><span class="op">)</span><span class="op">)</span></span>
+<span>                               units <span class="op">=</span> <span class="st">"kg/animal/year"</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="fu"><a href="../reference/deconflate.html">deconflate</a></span><span class="op">(</span><span class="va">kg</span><span class="op">)</span><span class="op">$</span><span class="va">adjusted</span></span>
 <span><span class="co">#&gt;   disease raw adjusted      change estimand adjusted_for</span></span>
 <span><span class="co">#&gt; 1      d1 250 214.3250 -0.14269981    crude         &lt;NA&gt;</span></span>
 <span><span class="co">#&gt; 2      d2 500 338.7080 -0.32258408    crude         &lt;NA&gt;</span></span>
 <span><span class="co">#&gt; 3      d3 750 693.4209 -0.07543874    crude         &lt;NA&gt;</span></span></code></pre></div>
-<p>Several types of impact are separate analyses on one population:</p>
+<p>Each <code><a href="../reference/deconflate.html">deconflate()</a></code> call adjusts one impact table. For
+another outcome, make another model on the same population and call
+<code><a href="../reference/deconflate.html">deconflate()</a></code> again:</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">a</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cm_analyses.html">cm_analyses</a></span><span class="op">(</span><span class="va">pop</span>,</span>
-<span>  yield <span class="op">=</span> <span class="va">yield</span>,</span>
-<span>  calving_interval <span class="op">=</span> <span class="fu"><a href="../reference/cm_impacts.html">cm_impacts</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"d1"</span>, <span class="st">"d2"</span>, <span class="st">"d3"</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">4</span>, <span class="fl">10</span>, <span class="fl">2</span><span class="op">)</span>, units <span class="op">=</span> <span class="st">"days"</span><span class="op">)</span></span>
-<span><span class="op">)</span></span>
-<span><span class="va">a</span></span>
-<span><span class="co">#&gt; &lt;cm_analyses&gt; 2 analyses on one population</span></span>
-<span><span class="co">#&gt;   Diseases: 3 (d1, d2, d3)</span></span>
-<span><span class="co">#&gt;   Disease pairs: 3 [independent (default): 1; specified: 2]</span></span>
-<span><span class="co">#&gt;   - yield [% of yield]</span></span>
-<span><span class="co">#&gt;   - calving_interval [days]</span></span></code></pre></div>
-<p><code>deconflate(a)</code> adjusts each analysis and returns a named
-list of results.</p>
+<code class="sourceCode R"><span><span class="va">ci</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cm_model.html">cm_model</a></span><span class="op">(</span><span class="va">pop</span>, <span class="fu"><a href="../reference/cm_impacts.html">cm_impacts</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"d1"</span>, <span class="st">"d2"</span>, <span class="st">"d3"</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">4</span>, <span class="fl">10</span>, <span class="fl">2</span><span class="op">)</span>,</span>
+<span>                               label <span class="op">=</span> <span class="st">"calving interval increase"</span>, units <span class="op">=</span> <span class="st">"days"</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="fu"><a href="../reference/deconflate.html">deconflate</a></span><span class="op">(</span><span class="va">ci</span><span class="op">)</span><span class="op">$</span><span class="va">adjusted</span></span>
+<span><span class="co">#&gt;   disease raw  adjusted      change estimand adjusted_for</span></span>
+<span><span class="co">#&gt; 1      d1   4 2.9784447 -0.25538884    crude         &lt;NA&gt;</span></span>
+<span><span class="co">#&gt; 2      d2  10 9.6989318 -0.03010682    crude         &lt;NA&gt;</span></span>
+<span><span class="co">#&gt; 3      d3   2 0.3798539 -0.81007307    crude         &lt;NA&gt;</span></span></code></pre></div>
+<p>The tables can also be read from CSV files (with any names) or data
+frames with <code><a href="../reference/cm_read_inputs.html">cm_read_inputs()</a></code>, which checks them and reports
+every problem at once (see <code><a href="../articles/own-data.html">vignette("own-data")</a></code>):</p>
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">ex</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/system.file.html" class="external-link">system.file</a></span><span class="op">(</span><span class="st">"extdata"</span>, <span class="st">"five_diseases"</span>, package <span class="op">=</span> <span class="st">"deconflate"</span><span class="op">)</span></span>
+<span><span class="va">five</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cm_read_inputs.html">cm_read_inputs</a></span><span class="op">(</span>diseases <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/file.path.html" class="external-link">file.path</a></span><span class="op">(</span><span class="va">ex</span>, <span class="st">"diseases.csv"</span><span class="op">)</span>,</span>
+<span>                       associations <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/file.path.html" class="external-link">file.path</a></span><span class="op">(</span><span class="va">ex</span>, <span class="st">"associations.csv"</span><span class="op">)</span>,</span>
+<span>                       impacts <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/file.path.html" class="external-link">file.path</a></span><span class="op">(</span><span class="va">ex</span>, <span class="st">"impacts_yield.csv"</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="va">five</span></span>
+<span><span class="co">#&gt; &lt;cm_model&gt;</span></span>
+<span><span class="co">#&gt;   Diseases: 5 (LAM, MAS, MET, SCK, RP)</span></span>
+<span><span class="co">#&gt;   Disease pairs: 10 (10 with an association, 0 unknown)</span></span>
+<span><span class="co">#&gt;   Impacts: milk yield loss [% of yield] (additive)</span></span>
+<span><span class="co">#&gt;   Estimands: crude: 5</span></span>
+<span><span class="co">#&gt;   Uncertain inputs (with a distribution): 15</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="adjusting-impacts">Adjusting impacts<a class="anchor" aria-label="anchor" href="#adjusting-impacts"></a>
 </h2>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">res</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/deconflate.html">deconflate</a></span><span class="op">(</span><span class="va">m</span><span class="op">)</span></span>
+<span><span class="va">res</span></span>
+<span><span class="co">#&gt; &lt;cm_result&gt; method: simultaneous; milk yield loss [% of yield]</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt;  disease raw adjusted   change</span></span>
+<span><span class="co">#&gt;       d1 2.5    2.143 -0.14270</span></span>
+<span><span class="co">#&gt;       d2 5.0    3.387 -0.32258</span></span>
+<span><span class="co">#&gt;       d3 7.5    6.934 -0.07544</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Raw sum: 2.5; adjusted total: 2.109</span></span>
+<span><span class="co">#&gt; Diagnostics: residual 8.88e-16, condition number 1.53, sign changes 0</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Notes:</span></span>
+<span><span class="co">#&gt; * No input has a distribution, so no draws were run: the results are point</span></span>
+<span><span class="co">#&gt;   estimates.</span></span></code></pre></div>
+<p><code><a href="../reference/deconflate.html">deconflate()</a></code> has two exact methods, chosen automatically
+(<code>method = "auto"</code>, the default):</p>
+<ul>
+<li>the <strong>simultaneous</strong> method solves the system of impact
+equations from the pairwise 2x2 tables. It works for any number of
+diseases;</li>
+<li>the <strong>global</strong> method fits the maximum-entropy
+distribution of disease combinations and solves the same equations from
+it. It also handles unknown pairs, impact interactions and three-way
+terms (<code><a href="../articles/interactions.html">vignette("interactions")</a></code>). Up to 20 diseases it
+enumerates all combinations; beyond that it uses the sampled backend of
+<code><a href="../reference/fit_joint.html">fit_joint()</a></code>
+(<code><a href="../articles/thresholds-and-scaling.html">vignette("thresholds-and-scaling")</a></code>).</li>
+</ul>
+<p>When every pair has an association and there are no interactions or
+three-way terms, the two give the same answer and the simultaneous
+method is used. Otherwise the global method is used, and a note says
+why. Leaving out the d1:d3 odds ratio makes that pair unknown:</p>
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">pop_unknown</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cm_population.html">cm_population</a></span><span class="op">(</span><span class="va">pop</span><span class="op">$</span><span class="va">diseases</span>,</span>
+<span>                             <span class="fu"><a href="../reference/cm_associations.html">cm_associations</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"d1"</span>, <span class="st">"d2"</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"d2"</span>, <span class="st">"d3"</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">2</span>, <span class="fl">3</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="va">res_unknown</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/deconflate.html">deconflate</a></span><span class="op">(</span><span class="fu"><a href="../reference/cm_model.html">cm_model</a></span><span class="op">(</span><span class="va">pop_unknown</span>, <span class="va">yield</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="va">res_unknown</span><span class="op">$</span><span class="va">notes</span></span>
+<span><span class="co">#&gt; [1] "The global method was used because of 1 pair without an association (unknown)."     </span></span>
+<span><span class="co">#&gt; [2] "No input has a distribution, so no draws were run: the results are point estimates."</span></span>
+<span><span class="va">res_unknown</span><span class="op">$</span><span class="va">unknown_pairs</span></span>
+<span><span class="co">#&gt;   disease1 disease2 fitted_or</span></span>
+<span><span class="co">#&gt; 1       d1       d3  1.143088</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/cbind.html" class="external-link">rbind</a></span><span class="op">(</span>odds_ratio_1 <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/setNames.html" class="external-link">setNames</a></span><span class="op">(</span><span class="va">res</span><span class="op">$</span><span class="va">adjusted</span><span class="op">$</span><span class="va">adjusted</span>, <span class="va">res</span><span class="op">$</span><span class="va">adjusted</span><span class="op">$</span><span class="va">disease</span><span class="op">)</span>,</span>
+<span>      unknown <span class="op">=</span> <span class="va">res_unknown</span><span class="op">$</span><span class="va">adjusted</span><span class="op">$</span><span class="va">adjusted</span><span class="op">)</span></span>
+<span><span class="co">#&gt;                    d1       d2       d3</span></span>
+<span><span class="co">#&gt; odds_ratio_1 2.143250 3.387080 6.934209</span></span>
+<span><span class="co">#&gt; unknown      1.988942 3.404334 6.906626</span></span></code></pre></div>
+<p>The global fit gives d1 and d3 a positive association (an odds ratio
+of about 1.14), implied by their associations with d2, so the adjusted
+impacts differ from those with an odds ratio of 1. Unknown is not the
+same as independent; see <code><a href="../articles/interactions.html">vignette("interactions")</a></code>.</p>
+<p><code><a href="../reference/compare_methods.html">compare_methods()</a></code> sets the methods side by side, without
+switching:</p>
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/compare_methods.html">compare_methods</a></span><span class="op">(</span><span class="va">m</span><span class="op">)</span></span>
 <span><span class="co">#&gt; &lt;cm_comparison&gt; methods: published, simultaneous, global</span></span>
+<span><span class="co">#&gt; Impacts: milk yield loss</span></span>
 <span><span class="co">#&gt; Units: % of yield</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Adjusted values:</span></span>
@@ -159,52 +232,19 @@ list of results.</p>
 <span><span class="co">#&gt;     published     2.5          2.111</span></span>
 <span><span class="co">#&gt;  simultaneous     2.5          2.109</span></span>
 <span><span class="co">#&gt;        global     2.5          2.109</span></span></code></pre></div>
-<p><code><a href="../reference/deconflate.html">deconflate()</a></code> has two methods:</p>
-<ul>
-<li>
-<code>"simultaneous"</code> (the default) solves the system of
-impact equations exactly, using the pairwise 2x2 tables. Use it when
-impacts are additive and every pair of diseases has an association
-estimate or a defensible independence assumption.</li>
-<li>
-<code>"global"</code> fits the maximum-entropy distribution of
-disease combinations and can include impact interactions
-(<code><a href="../articles/interactions.html">vignette("interactions")</a></code>). Use it otherwise: when impacts
-interact, or when some pairs are unknown. Without interactions and
-unknown pairs, it equals <code>"simultaneous"</code>. The simultaneous
-method works for any number of diseases; the global method enumerates
-combinations up to about 20 diseases, and beyond that uses the sampled
-backend of <code><a href="../reference/fit_joint.html">fit_joint()</a></code>
-(<code><a href="../articles/thresholds-and-scaling.html">vignette("thresholds-and-scaling")</a></code>).</li>
-</ul>
-<p>The <code>"published"</code> row above is the proportional
-approximation of Rasmussen et al. (2022, 2024), eq. 16. It is not a
-method of <code><a href="../reference/deconflate.html">deconflate()</a></code>: it is kept for comparison
-(<code><a href="../reference/compare_methods.html">compare_methods()</a></code>, <code><a href="../reference/cm_monte_carlo.html">cm_monte_carlo()</a></code>) and for
-reproducing the published analyses
-(<code><a href="../articles/reproducing-published.html">vignette("reproducing-published")</a></code>) only. It is defined for
-crude estimates only. (Hazard ratios have their own adapter, with the
-snapshot model as the default; see
-<code><a href="../articles/culling-hazard-ratios.html">vignette("culling-hazard-ratios")</a></code>.)</p>
-<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">res</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/deconflate.html">deconflate</a></span><span class="op">(</span><span class="va">m</span><span class="op">)</span></span>
-<span><span class="va">res</span></span>
-<span><span class="co">#&gt; &lt;cm_result&gt; method: simultaneous; milk yield loss [% of yield]</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt;  disease raw adjusted   change</span></span>
-<span><span class="co">#&gt;       d1 2.5    2.143 -0.14270</span></span>
-<span><span class="co">#&gt;       d2 5.0    3.387 -0.32258</span></span>
-<span><span class="co">#&gt;       d3 7.5    6.934 -0.07544</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Raw sum: 2.5; adjusted total: 2.109</span></span>
-<span><span class="co">#&gt; Diagnostics: residual 8.88e-16, condition number 1.53, sign changes 0</span></span></code></pre></div>
+<p>The <code>"published"</code> column is the proportional approximation
+of Rasmussen et al. (2022, 2024), eq. 16. It is not a method of
+<code><a href="../reference/deconflate.html">deconflate()</a></code>: it is kept for comparison
+(<code><a href="../reference/compare_methods.html">compare_methods()</a></code>) and for reproducing the published
+analyses (<code><a href="../articles/reproducing-published.html">vignette("reproducing-published")</a></code>) only. It is
+defined for crude estimates only.</p>
 <p>The diagnostics report how well the adjusted impacts reconstruct the
 raw ones, the condition number of the conflation matrix, and adjusted
 impacts whose sign differs from the raw impact. A sign change means that
 the raw impact is smaller than the associated diseases alone would
 produce, so the inputs are inconsistent under the additive model (or the
 estimands are not what they were assumed to be):</p>
-<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">low_d2</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cm_model.html">cm_model</a></span><span class="op">(</span><span class="va">pop</span>, <span class="fu"><a href="../reference/cm_impacts.html">cm_impacts</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"d1"</span>, <span class="st">"d2"</span>, <span class="st">"d3"</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">2.5</span>, <span class="fl">0.2</span>, <span class="fl">7.5</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/conditions.html" class="external-link">tryCatch</a></span><span class="op">(</span><span class="fu"><a href="../reference/deconflate.html">deconflate</a></span><span class="op">(</span><span class="va">low_d2</span><span class="op">)</span>, deconflate_sign_change <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">w</span><span class="op">)</span> <span class="fu"><a href="https://rdrr.io/r/base/conditions.html" class="external-link">conditionMessage</a></span><span class="op">(</span><span class="va">w</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [1] "Adjusted impacts change sign for d2. The raw impacts are smaller than the associated diseases alone would produce under the additive model; check the estimands, and whether the estimates come from populations with different comorbidity patterns."</span></span></code></pre></div>
@@ -217,7 +257,7 @@ estimands are not what they were assumed to be):</p>
 contribution is its own term plus half of each interaction term it is
 involved in, which is its Shapley value in closed form. Contributions
 add up to the aggregate:</p>
-<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">res</span><span class="op">$</span><span class="va">contributions</span></span>
 <span><span class="co">#&gt;   disease      main interaction     total     share</span></span>
 <span><span class="co">#&gt; 1      d1 0.2143250           0 0.2143250 0.1016130</span></span>
@@ -235,7 +275,7 @@ table.</p>
 <code><a href="../reference/cm_threshold.html">cm_threshold()</a></code> finds the input values at which the
 conclusion changes, for example the odds ratio of d2 and d3 at which d1
 would contribute more than d2:</p>
-<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/cm_threshold.html">cm_threshold</a></span><span class="op">(</span><span class="va">m</span>, <span class="st">"assoc:d2:d3"</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0.1</span>, <span class="fl">100</span><span class="op">)</span>, conclusion <span class="op">=</span> <span class="st">"rank"</span><span class="op">)</span><span class="op">$</span><span class="va">thresholds</span><span class="op">[</span></span>
 <span>  , <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"item"</span>, <span class="st">"status"</span>, <span class="st">"threshold"</span>, <span class="st">"description"</span><span class="op">)</span><span class="op">]</span></span>
 <span><span class="co">#&gt;       item    status threshold                         description</span></span>
@@ -260,10 +300,10 @@ diseases listed in <code>adjusted_for</code> (ids separated by
 </ul>
 <p><code>adjusted_for</code> is never used to infer the estimand. Giving
 it for a crude estimate is an error:</p>
-<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/conditions.html" class="external-link">tryCatch</a></span><span class="op">(</span><span class="fu"><a href="../reference/cm_impacts.html">cm_impacts</a></span><span class="op">(</span><span class="st">"d1"</span>, <span class="fl">2</span>, adjusted_for <span class="op">=</span> <span class="st">"d2"</span><span class="op">)</span>,</span>
 <span>         deconflate_unsupported <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">e</span><span class="op">)</span> <span class="fu"><a href="https://rdrr.io/r/base/conditions.html" class="external-link">conditionMessage</a></span><span class="op">(</span><span class="va">e</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="co">#&gt; [1] "`adjusted_for` is given for crude estimates (d1). Set estimand = 'adjusted_linear' if these are coefficients from an additive regression adjusted for those diseases; other adjusted estimands are not supported."</span></span></code></pre></div>
+<span><span class="co">#&gt; [1] "`adjusted_for` is given for crude estimates (d1). Set estimand = 'adjusted_linear' if these estimates are adjusted for those diseases; other adjusted estimands are not supported."</span></span></code></pre></div>
 <p>Other adjusted estimands (matched or propensity-score estimates, for
 example) are not supported. For an adjusted estimate, the package uses
 the population linear projection of the omitted diseases, which depends
@@ -272,18 +312,16 @@ associations describe the source population of the estimates.</p>
 <p>A worked example: in the population above, the true additive impacts
 are 0.02, 0.04 and 0.06. A study of d1 that adjusted for d2, and crude
 studies of d2 and d3, would report:</p>
-<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">truth</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>d1 <span class="op">=</span> <span class="fl">0.02</span>, d2 <span class="op">=</span> <span class="fl">0.04</span>, d3 <span class="op">=</span> <span class="fl">0.06</span><span class="op">)</span></span>
 <span><span class="va">raw</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/simulate_raw_impacts.html">simulate_raw_impacts</a></span><span class="op">(</span><span class="va">pop</span>, <span class="va">truth</span>,</span>
 <span>                            estimand <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"adjusted_linear"</span>, <span class="st">"crude"</span>, <span class="st">"crude"</span><span class="op">)</span>,</span>
 <span>                            adjusted_for <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"d2"</span>, <span class="cn">NA</span>, <span class="cn">NA</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="va">raw</span><span class="op">$</span><span class="va">value</span></span>
-<span><span class="co">#&gt; [1] 0.01866481 0.05406438 0.06668175</span></span></code></pre></div>
-<p>that is, 0.018664808346, 0.054064376914 and 0.066681750858. With the
-estimands recorded, the simultaneous method recovers the truth:</p>
-<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">imp_adj</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cm_impacts.html">cm_impacts</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"d1"</span>, <span class="st">"d2"</span>, <span class="st">"d3"</span><span class="op">)</span>,</span>
-<span>                      <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0.018664808346</span>, <span class="fl">0.054064376914</span>, <span class="fl">0.066681750858</span><span class="op">)</span>,</span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="va">raw</span><span class="op">$</span><span class="va">value</span>, <span class="fl">4</span><span class="op">)</span></span>
+<span><span class="co">#&gt; [1] 0.0187 0.0541 0.0667</span></span></code></pre></div>
+<p>With the estimands recorded, the adjustment recovers the truth:</p>
+<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">imp_adj</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cm_impacts.html">cm_impacts</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"d1"</span>, <span class="st">"d2"</span>, <span class="st">"d3"</span><span class="op">)</span>, <span class="va">raw</span><span class="op">$</span><span class="va">value</span>,</span>
 <span>                      estimand <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"adjusted_linear"</span>, <span class="st">"crude"</span>, <span class="st">"crude"</span><span class="op">)</span>,</span>
 <span>                      adjusted_for <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"d2"</span>, <span class="cn">NA</span>, <span class="cn">NA</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="va">m_adj</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cm_model.html">cm_model</a></span><span class="op">(</span><span class="va">pop</span>, <span class="va">imp_adj</span><span class="op">)</span></span>
@@ -294,16 +332,72 @@ estimands recorded, the simultaneous method recovers the truth:</p>
 <span><span class="co">#&gt; 3      d3 0.06668175     0.06 -0.10020359           crude         &lt;NA&gt;</span></span></code></pre></div>
 <p>Treating the d1 estimate as crude adjusts it a second time for d2 and
 gives the wrong answer:</p>
-<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">m_wrong</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cm_model.html">cm_model</a></span><span class="op">(</span><span class="va">pop</span>, <span class="fu"><a href="../reference/cm_impacts.html">cm_impacts</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"d1"</span>, <span class="st">"d2"</span>, <span class="st">"d3"</span><span class="op">)</span>, <span class="va">imp_adj</span><span class="op">$</span><span class="va">value</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="fu"><a href="../reference/deconflate.html">deconflate</a></span><span class="op">(</span><span class="va">m_wrong</span><span class="op">)</span><span class="op">$</span><span class="va">adjusted</span><span class="op">$</span><span class="va">adjusted</span></span>
 <span><span class="co">#&gt; [1] 0.01440635 0.04043097 0.05992801</span></span></code></pre></div>
 <p>The published approximation is not defined for adjusted estimands;
 <code><a href="../reference/compare_methods.html">compare_methods()</a></code> records the reason:</p>
-<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/compare_methods.html">compare_methods</a></span><span class="op">(</span><span class="va">m_adj</span><span class="op">)</span><span class="op">$</span><span class="va">failed</span></span>
 <span><span class="co">#&gt;                                                                                                                          published </span></span>
 <span><span class="co">#&gt; "The published approximation is defined for crude estimates only; use method = 'simultaneous' or 'global' for adjusted estimands."</span></span></code></pre></div>
+</div>
+<div class="section level2">
+<h2 id="uncertainty">Uncertainty<a class="anchor" aria-label="anchor" href="#uncertainty"></a>
+</h2>
+<p>When inputs have distributions (the <code>dist</code> columns of the
+input tables, or <code>distributions</code> in <code><a href="../reference/cm_model.html">cm_model()</a></code>),
+<code><a href="../reference/deconflate.html">deconflate()</a></code> also draws them (<code>n_draws = 1000</code>
+by default) and adds 95% intervals. The central estimate always uses the
+point values. Without distributions no draws are run, and a note says so
+(as in the results above). The five-disease example has distributions
+for most inputs; 200 draws keep this example fast:</p>
+<div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">res_five</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/deconflate.html">deconflate</a></span><span class="op">(</span><span class="va">five</span>, n_draws <span class="op">=</span> <span class="fl">200</span>, seed <span class="op">=</span> <span class="fl">1</span><span class="op">)</span></span>
+<span><span class="va">res_five</span></span>
+<span><span class="co">#&gt; &lt;cm_result&gt; method: simultaneous; milk yield loss [% of yield]</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt;  disease raw adjusted  lower upper  change</span></span>
+<span><span class="co">#&gt;      LAM 4.8    4.139 2.1878 5.863 -0.1377</span></span>
+<span><span class="co">#&gt;      MAS 3.3    2.356 0.8542 4.515 -0.2861</span></span>
+<span><span class="co">#&gt;      MET 5.6    4.514 2.6746 6.125 -0.1939</span></span>
+<span><span class="co">#&gt;      SCK 2.5    1.366 0.6589 1.930 -0.4535</span></span>
+<span><span class="co">#&gt;       RP 4.2    2.665 1.6610 3.299 -0.3654</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Raw sum: 3.742; adjusted total: 2.735 (95% interval 2.208 to 3.592)</span></span>
+<span><span class="co">#&gt; Diagnostics: residual 0.00e+00, condition number 1.78, sign changes 0</span></span>
+<span><span class="co">#&gt; Uncertainty: 95% intervals from 200 draws (0 rejected; random sampling; seed 1).</span></span></code></pre></div>
+<p>Pass <code>n_draws = 0</code> for point estimates only. See
+<code><a href="../articles/uncertainty.html">vignette("uncertainty")</a></code> for the draws, their stability
+checks and the sensitivity tools.</p>
+</div>
+<div class="section level2">
+<h2 id="event-impacts">Event impacts<a class="anchor" aria-label="anchor" href="#event-impacts"></a>
+</h2>
+<p>Impacts on the risk of an event, such as culling or death, are hazard
+ratios, rate ratios, risk ratios, odds ratios or risk differences rather
+than additive amounts. They are given with a <code>measure</code> (one
+per disease; measures can be mixed) and a snapshot estimand, and
+adjusted with <code>event_model = TRUE</code> and the overall risk of
+the event over the period:</p>
+<div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">cull</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cm_model.html">cm_model</a></span><span class="op">(</span><span class="va">pop</span>, <span class="fu"><a href="../reference/cm_impacts.html">cm_impacts</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"d1"</span>, <span class="st">"d2"</span>, <span class="st">"d3"</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1.5</span>, <span class="fl">2.0</span>, <span class="fl">1.2</span><span class="op">)</span>,</span>
+<span>                                 measure <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"HR"</span>, <span class="st">"HR"</span>, <span class="st">"RR"</span><span class="op">)</span>,</span>
+<span>                                 estimand <span class="op">=</span> <span class="st">"snapshot_crude"</span>, label <span class="op">=</span> <span class="st">"culling"</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="va">res_cull</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/deconflate.html">deconflate</a></span><span class="op">(</span><span class="va">cull</span>, event_model <span class="op">=</span> <span class="cn">TRUE</span>, overall_risk <span class="op">=</span> <span class="fl">0.25</span><span class="op">)</span></span>
+<span><span class="va">res_cull</span><span class="op">$</span><span class="va">adjusted</span></span>
+<span><span class="co">#&gt;   disease measure raw adjusted      change       estimand adjusted_for</span></span>
+<span><span class="co">#&gt; 1      d1      HR 1.5 1.381707 -0.07886199 snapshot_crude         &lt;NA&gt;</span></span>
+<span><span class="co">#&gt; 2      d2      HR 2.0 1.908294 -0.04585287 snapshot_crude         &lt;NA&gt;</span></span>
+<span><span class="co">#&gt; 3      d3      RR 1.2 1.097741          NA snapshot_crude         &lt;NA&gt;</span></span>
+<span><span class="va">res_cull</span><span class="op">$</span><span class="va">attributable</span><span class="op">$</span><span class="va">summary</span></span>
+<span><span class="co">#&gt;   overall_risk disease_free_risk attributable attributable_fraction unallocated</span></span>
+<span><span class="co">#&gt; 1         0.25         0.2147648   0.03523521             0.1409408           0</span></span></code></pre></div>
+<p>The adjusted values are each disease’s own hazard ratio, and
+<code>$attributable</code> gives the risk attributable to disease and
+its allocation to diseases. See
+<code><a href="../articles/event-impacts.html">vignette("event-impacts")</a></code>.</p>
 </div>
 <div class="section level2">
 <h2 id="from-adjusted-impacts-to-gaps-and-values">From adjusted impacts to gaps and values<a class="anchor" aria-label="anchor" href="#from-adjusted-impacts-to-gaps-and-values"></a>
@@ -318,7 +412,7 @@ level (as in <code>m</code>, with an observed mean of 10,000 units), the
 disease-free level is <code>observed / (1 - aggregate / 100)</code>, the
 gap is the disease-free level minus the observed level, and each
 disease’s part of the gap is its share of the aggregate:</p>
-<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb20"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">observed</span> <span class="op">&lt;-</span> <span class="fl">10000</span></span>
 <span><span class="va">aggregate</span> <span class="op">&lt;-</span> <span class="va">res</span><span class="op">$</span><span class="va">totals</span><span class="op">$</span><span class="va">adjusted_total</span>            <span class="co"># in percent</span></span>
 <span><span class="va">disease_free</span> <span class="op">&lt;-</span> <span class="va">observed</span> <span class="op">/</span> <span class="op">(</span><span class="fl">1</span> <span class="op">-</span> <span class="va">aggregate</span> <span class="op">/</span> <span class="fl">100</span><span class="op">)</span></span>
@@ -335,7 +429,7 @@ disease’s part of the gap is its share of the aggregate:</p>
 <span><span class="co">#&gt;   10215.4676     215.4676</span></span></code></pre></div>
 <p>A value per unit of outcome turns the gaps into values; any costs
 that are not part of the adjustment are added separately:</p>
-<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb21"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">unit_value</span> <span class="op">&lt;-</span> <span class="fl">0.30</span></span>
 <span><span class="va">by_disease</span><span class="op">$</span><span class="va">value</span> <span class="op">&lt;-</span> <span class="va">by_disease</span><span class="op">$</span><span class="va">gap</span> <span class="op">*</span> <span class="va">unit_value</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">by_disease</span><span class="op">$</span><span class="va">value</span><span class="op">)</span></span>
@@ -346,9 +440,13 @@ defined. For an outcome that disease increases, the disease-free level
 is <code>observed / (1 + aggregate / 100)</code> and the gap is
 <code>observed - disease_free</code>. When the impacts are absolute
 effects (in the outcome’s own units, such as the days of the
-calving-interval analysis above), no conversion is needed: each
-disease’s contribution (<code>ct$total</code>) is its part of the gap,
-and the aggregate is the gap.</p>
+calving-interval model <code>ci</code> above), no conversion is needed:
+each disease’s contribution (<code>ct$total</code>) is its part of the
+gap, and the aggregate is the gap. With draws, the gap increases with
+the aggregate, so the same formula applied to the interval bounds of the
+aggregate (<code>adjusted_total_lower</code> and
+<code>adjusted_total_upper</code> in <code>$totals</code>) gives an
+interval for the total gap.</p>
 </div>
 <div class="section level2">
 <h2 id="feasibility">Feasibility<a class="anchor" aria-label="anchor" href="#feasibility"></a>
@@ -357,12 +455,12 @@ and the aggregate is the gap.</p>
 all of them. By default the simultaneous method screens every triple of
 diseases (a necessary condition), and <code>feasibility = "lp"</code>
 runs an exact check (it needs the <code>lpSolve</code> package):</p>
-<div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb22"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">res</span><span class="op">$</span><span class="va">diagnostics</span><span class="op">$</span><span class="va">feasibility</span></span>
 <span><span class="co">#&gt; [1] "triple screen passed (necessary condition only)"</span></span></code></pre></div>
 <p>Three diseases with probability 0.5, two strong positive associations
 and one strong negative one cannot coexist:</p>
-<div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb23"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">bad</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cm_model.html">cm_model</a></span><span class="op">(</span></span>
 <span>  <span class="fu"><a href="../reference/cm_diseases.html">cm_diseases</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"a"</span>, <span class="st">"b"</span>, <span class="st">"c"</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0.5</span>, <span class="fl">0.5</span>, <span class="fl">0.5</span><span class="op">)</span><span class="op">)</span>,</span>
 <span>  <span class="fu"><a href="../reference/cm_impacts.html">cm_impacts</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"a"</span>, <span class="st">"b"</span>, <span class="st">"c"</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">2</span>, <span class="fl">3</span><span class="op">)</span><span class="op">)</span>,</span>
@@ -378,8 +476,8 @@ and one strong negative one cannot coexist:</p>
 <div class="section level2">
 <h2 id="conditions">Conditions<a class="anchor" aria-label="anchor" href="#conditions"></a>
 </h2>
-<p>Errors and warnings have classes, so that callers (and the Monte
-Carlo and screening functions) can handle them separately:</p>
+<p>Errors and warnings have classes, so that callers (and the draws and
+sensitivity tools of the package) can handle them separately:</p>
 <table class="table">
 <colgroup>
 <col width="50%">
@@ -421,11 +519,21 @@ above)</td>
 <p>All errors also have class <code>deconflate_error</code>, and
 warnings <code>deconflate_warning</code>
 (e.g. <code>deconflate_sign_change</code>).</p>
-<div class="sourceCode" id="cb20"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb24"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">e</span> <span class="op">&lt;-</span> <span class="kw"><a href="https://rdrr.io/r/base/conditions.html" class="external-link">tryCatch</a></span><span class="op">(</span><span class="fu"><a href="../reference/deconflate.html">deconflate</a></span><span class="op">(</span><span class="va">bad</span><span class="op">)</span>, deconflate_error <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">e</span><span class="op">)</span> <span class="va">e</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/class.html" class="external-link">class</a></span><span class="op">(</span><span class="va">e</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [1] "deconflate_infeasible" "deconflate_error"      "error"                </span></span>
-<span><span class="co">#&gt; [4] "condition"</span></span></code></pre></div>
+<span><span class="co">#&gt; [4] "condition"</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/conditions.html" class="external-link">conditionMessage</a></span><span class="op">(</span><span class="va">e</span><span class="op">)</span></span>
+<span><span class="co">#&gt; [1] "The pairwise associations are jointly infeasible: no population has all of them (conflicting triples: a-b-c). See check_feasibility()."</span></span></code></pre></div>
+<p><code><a href="../reference/deconflate.html">deconflate()</a></code> also needs at least one association;
+without any, there is nothing to de-conflate (the diseases would be
+treated as independent), and it points to the tools that show how much
+associations could matter:</p>
+<div class="sourceCode" id="cb25"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">no_assoc</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cm_model.html">cm_model</a></span><span class="op">(</span><span class="va">pop</span><span class="op">$</span><span class="va">diseases</span>, <span class="va">yield</span><span class="op">)</span></span>
+<span><span class="kw"><a href="https://rdrr.io/r/base/conditions.html" class="external-link">tryCatch</a></span><span class="op">(</span><span class="fu"><a href="../reference/deconflate.html">deconflate</a></span><span class="op">(</span><span class="va">no_assoc</span><span class="op">)</span>, deconflate_error <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">e</span><span class="op">)</span> <span class="fu"><a href="https://rdrr.io/r/base/conditions.html" class="external-link">conditionMessage</a></span><span class="op">(</span><span class="va">e</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="co">#&gt; [1] "No association estimates were given, so there is nothing to de-conflate (the diseases would be treated as independent). To see how much associations could change the results, use screen_associations() or cm_threshold()."</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="checking-the-method-with-a-simulated-herd">Checking the method with a simulated herd<a class="anchor" aria-label="anchor" href="#checking-the-method-with-a-simulated-herd"></a>
@@ -434,7 +542,7 @@ warnings <code>deconflate_warning</code>
 single-disease studies would report in a herd with known true impacts.
 Adjusting them should recover the truth; the published approximation
 (shown for comparison) does so only approximately:</p>
-<div class="sourceCode" id="cb21"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb26"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">m_sim</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cm_model.html">cm_model</a></span><span class="op">(</span><span class="va">pop</span>, <span class="fu"><a href="../reference/simulate_raw_impacts.html">simulate_raw_impacts</a></span><span class="op">(</span><span class="va">pop</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>d1 <span class="op">=</span> <span class="fl">2</span>, d2 <span class="op">=</span> <span class="fl">4</span>, d3 <span class="op">=</span> <span class="fl">6</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="fu"><a href="../reference/compare_methods.html">compare_methods</a></span><span class="op">(</span><span class="va">m_sim</span>, methods <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"published"</span>, <span class="st">"simultaneous"</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt; &lt;cm_comparison&gt; methods: published, simultaneous</span></span>
@@ -456,10 +564,10 @@ Adjusting them should recover the truth; the published approximation
 <ul>
 <li>
 <code><a href="../articles/own-data.html">vignette("own-data")</a></code>: reading your own inputs from CSV
-files.</li>
+files or data frames.</li>
 <li>
-<code><a href="../articles/culling-hazard-ratios.html">vignette("culling-hazard-ratios")</a></code>: culling hazard
-ratios and the culling attributable to disease.</li>
+<code><a href="../articles/event-impacts.html">vignette("event-impacts")</a></code>: culling and other event
+impacts, and the risk attributable to disease.</li>
 <li>
 <code><a href="../articles/reproducing-published.html">vignette("reproducing-published")</a></code>: the 2022 and 2024
 analyses.</li>
@@ -468,8 +576,8 @@ analyses.</li>
 unknown associations, impact interactions, three-way scenarios and
 attribution.</li>
 <li>
-<code><a href="../articles/uncertainty.html">vignette("uncertainty")</a></code>: Monte Carlo analysis,
-stability checks, scenarios and sensitivity screening.</li>
+<code><a href="../articles/uncertainty.html">vignette("uncertainty")</a></code>: draws and intervals, stability
+checks and sensitivity screening.</li>
 <li>
 <code><a href="../articles/thresholds-and-scaling.html">vignette("thresholds-and-scaling")</a></code>: threshold searches
 with <code><a href="../reference/cm_threshold.html">cm_threshold()</a></code> (at what input value does a ranking, a

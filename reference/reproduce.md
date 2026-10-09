@@ -40,12 +40,16 @@ reproduce_rasmussen_2024(
 
 A `cm_reproduction` object: a list with `adjusted` (adjusted values per
 disease), `comparison` (package beside the published values), and for
-2022 `gaps`, `values` and `total`, or for 2024 the Monte Carlo run `mc`.
+2022 `gaps`, `values` and `total`, or for 2024 the summary of the draws
+(`summary`) and the number of draws.
 
 ## Details
 
-These functions exist to document and check the published numbers. Two
-of the conversions they use are not offered for new analyses:
+These functions exist to document and check the published numbers. They
+use the assumptions of the papers, which are not the package defaults:
+
+- pairs without a published odds ratio are independent (the package
+  treats them as unknown);
 
 - 2022: culling hazard ratios were converted to excess annual culling
   risks by treating them as odds ratios, and adjusted hazard ratios were
@@ -53,10 +57,8 @@ of the conversions they use are not offered for new analyses:
 
 - 2024: hazard ratios minus 1 were adjusted as additive impacts.
 
-For new analyses of hazard ratios use
-[`deconflate_hr()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate_hr.md)
-and
-[`attributable_risk()`](https://rasmussenphilip.github.io/deconflate/reference/attributable_risk.md).
+For new analyses of hazard ratios use event impacts
+(`deconflate(..., event_model = TRUE)`).
 
 ## 2022 (Tables 8-10)
 
@@ -74,12 +76,12 @@ the printed Table 4 (see
 
 ## 2024 (Table 5)
 
-`reproduce_rasmussen_2024()` runs
-[`cm_monte_carlo()`](https://rasmussenphilip.github.io/deconflate/reference/cm_monte_carlo.md)
-with the samplers of
-[`sampler_global_dairy()`](https://rasmussenphilip.github.io/deconflate/reference/sampler_global_dairy.md)
-plus the historical culling analysis (HR - 1, named
-`culling_hr_minus_1`) and the published method, and reports the means
+`reproduce_rasmussen_2024()` draws the input distributions of the 2024
+analysis (those of
+[`example_global_dairy()`](https://rasmussenphilip.github.io/deconflate/reference/example_global_dairy.md),
+with shared draws of the odds ratios for every outcome), adds the
+historical culling analysis (HR - 1, named `culling_hr_minus_1`),
+adjusts every draw with the published method and reports the means
 beside Table 5. Culling is reported on the hazard-ratio scale (1 +
 adjusted HR - 1). Table 5 used 50,000 draws; use at least several
 thousand for stable means. Some fertility means are unstable for the

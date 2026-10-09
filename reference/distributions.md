@@ -1,11 +1,15 @@
-# Input distributions for Monte Carlo analysis
+# Input distributions
 
-Constructors for the distributions used by
-[`cm_sampler()`](https://rasmussenphilip.github.io/deconflate/reference/cm_sampler.md).
+Constructors for the distributions of uncertain inputs, drawn by
+[`deconflate()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate.md)
+(`n_draws`): for the `distributions` of
+[`cm_model()`](https://rasmussenphilip.github.io/deconflate/reference/cm_model.md)
+and for `overall_risk`. (The input tables give the same distributions in
+their `dist` and `p1`-`p4` columns; see
+[`cm_read_inputs()`](https://rasmussenphilip.github.io/deconflate/reference/cm_read_inputs.md).)
 Each returns a `cm_dist` object with a quantile function (used for
-sampling and for correlated draws), a distribution function and a
-log-density (used for importance reweighting in
-[`cm_scenario()`](https://rasmussenphilip.github.io/deconflate/reference/cm_scenario.md)).
+sampling, including Latin hypercube sampling), a distribution function
+and a log-density.
 
 ## Usage
 
@@ -106,9 +110,8 @@ have gaps.
 
 - `dist_uniform()`: uniform.
 
-- `dist_mixture()`: a finite mixture, e.g. a defensive mixture of a base
-  distribution and a wider one, so that scenario reweighting has
-  support.
+- `dist_mixture()`: a finite mixture of distributions (e.g. two pooled
+  sources of evidence).
 
 ## Examples
 
@@ -117,7 +120,7 @@ d <- dist_pert(1.19, 3.30, 10.71)
 d$mean
 #> [1] 4.183333
 d$r(5)
-#> [1] 4.120086 4.907104 3.455479 7.351211 2.236750
+#> [1] 4.763111 2.570940 7.339168 6.517981 7.144411
 dist_lognormal_ci(2.7, 1.5, 4.9)
 #> <cm_dist> lognormal(meanlog = 0.9933, sdlog = 0.302), mean 2.826
 ```

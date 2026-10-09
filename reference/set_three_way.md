@@ -28,4 +28,5 @@ set_three_way(model, disease1, disease2, disease3, ratio)
 
 ## Value
 
-The modified object.
+The modified object. A distribution of the triple's ratio in the model's
+`distributions` is dropped (the scenario value is fixed).

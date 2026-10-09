@@ -3,9 +3,10 @@
 Converts a table with columns `key`, `dist` and `p1`-`p4` (distributions
 as in the Uncertainty section of
 [`cm_read_inputs()`](https://rasmussenphilip.github.io/deconflate/reference/cm_read_inputs.md))
-into a named list of `cm_dist` objects, e.g. to build the arguments of
-[`cm_sampler()`](https://rasmussenphilip.github.io/deconflate/reference/cm_sampler.md)
-in R. Keys are kept as given.
+into a named list of `cm_dist` objects, e.g. for the `distributions`
+argument of
+[`cm_model()`](https://rasmussenphilip.github.io/deconflate/reference/cm_model.md).
+Keys are kept as given.
 
 ## Usage
 

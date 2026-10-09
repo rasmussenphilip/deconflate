@@ -50,12 +50,11 @@ Tag v0.1.0.
 ## v0.2 (released as 0.2.0)
 
 Culling hazard ratios: a separate multiplicative adapter
-([`deconflate_hr()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate_hr.md):
-snapshot, first-order and published) with stratified adjustment sets.
+(`deconflate_hr()`: snapshot, first-order and published) with stratified
+adjustment sets.
 
-[`attributable_risk()`](https://rasmussenphilip.github.io/deconflate/reference/attributable_risk.md):
-culling attributable to disease without double counting, with Shapley
-allocation.
+`attributable_risk()`: culling attributable to disease without double
+counting, with Shapley allocation.
 
 Reading inputs from CSV files or data frames, with all problems reported
 at once; template files; one impact file per analysis.
@@ -107,7 +106,7 @@ Tag v0.3.0.
 
 Items 3-6 follow a separate design document (October 2026); its
 reference values come from `inst/validation/prototype_v04_part1.py` to
-`part3.py`.
+`part3.py` and `reference_v040.py`.
 
 In this order:
 
@@ -127,12 +126,14 @@ the sampled backend).
 `run_all_features.R`: optional `out_dir` that saves the printed output
 and a PDF of all plots.
 
-Rewrite `run_all_features.R` after items 3-6 (one
+Rewrite `run_all_features.R` for item 3 (one
 [`deconflate()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate.md)
-call per outcome file; no valuation section; the published method only
-in
-[`compare_methods()`](https://rasmussenphilip.github.io/deconflate/reference/compare_methods.md);
-the new features).
+call per impact table; event impacts; draws inside
+[`deconflate()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate.md);
+no valuation section; the published method only in
+[`compare_methods()`](https://rasmussenphilip.github.io/deconflate/reference/compare_methods.md)).
+
+Update `run_all_features.R` again after items 4-6.
 
 **Slim the interface to de-conflation itself.**
 
@@ -141,15 +142,12 @@ for hazard ratios):
 
 Keep it in
 [`compare_methods()`](https://rasmussenphilip.github.io/deconflate/reference/compare_methods.md),
-[`cm_monte_carlo()`](https://rasmussenphilip.github.io/deconflate/reference/cm_monte_carlo.md)
-(to reproduce the 2024 Monte Carlo) and the `reproduce_*()` functions
-only.
+`cm_monte_carlo()` (to reproduce the 2024 Monte Carlo) and the
+`reproduce_*()` functions only.
 
 Remove it from the method choices of
 [`deconflate()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate.md)
-and
-[`deconflate_hr()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate_hr.md),
-from
+and `deconflate_hr()`, from
 [`cm_threshold()`](https://rasmussenphilip.github.io/deconflate/reference/cm_threshold.md)
 and from the screens; simplify the pole handling that exists mainly for
 it.
@@ -170,14 +168,12 @@ Remove every `valuation` argument
 [`summary()`](https://rdrr.io/r/base/summary.html),
 [`compare_methods()`](https://rasmussenphilip.github.io/deconflate/reference/compare_methods.md),
 [`sensitivity_oat()`](https://rasmussenphilip.github.io/deconflate/reference/sensitivity_oat.md),
-the screens,
-[`compare_scenarios()`](https://rasmussenphilip.github.io/deconflate/reference/compare_scenarios.md),
+the screens, `compare_scenarios()`,
 [`plot_burden()`](https://rasmussenphilip.github.io/deconflate/reference/plots.md));
 sensitivity tools use the adjusted aggregate in the impacts’ own units.
 
-Remove `unit_value` from
-[`attributable_risk()`](https://rasmussenphilip.github.io/deconflate/reference/attributable_risk.md)
-(keep the attributable risk itself: it needs the joint distribution).
+Remove `unit_value` from `attributable_risk()` (keep the attributable
+risk itself: it needs the joint distribution).
 
 Keep the adjusted aggregate and each disease’s contribution, including
 the Shapley split of interaction effects.
@@ -193,65 +189,71 @@ A short vignette section showing the gap and value calculation in base R
 (for percentage impacts, the loss is relative to the disease-free level:
 observed / (1 - aggregate)).
 
-**One function, one outcome file.** Everything runs through
+**One function, one impact table.** Everything runs through
 [`deconflate()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate.md).
 
-Each run uses the population files (diseases, associations, three-way)
-and **one outcome file**, plus that outcome’s interactions file if any:
-`cm_read_inputs(folder, outcome = "impacts_yield.csv")`. Users repeat
-the call for other outcomes;
-[`cm_analyses()`](https://rasmussenphilip.github.io/deconflate/reference/cm_analyses.md)
-and multi-analysis reading go.
-
-`mortality.csv` is an ordinary outcome file (it replaces
-`hazard_ratios.csv`, no alias):
+Every input table is a named argument of
+[`cm_read_inputs()`](https://rasmussenphilip.github.io/deconflate/reference/cm_read_inputs.md)
+with any file name (`diseases`, `associations`, `impacts`; optionally
+`interactions` and `three_way`). One impact table per
 [`deconflate()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate.md)
-recognises it and runs the snapshot hazard model (whatever `method`
-says; the first-order approximation stays only in
-[`compare_methods()`](https://rasmussenphilip.github.io/deconflate/reference/compare_methods.md)).
-When the file has an overall-risk row, the result includes the
-attributable risk, raw and adjusted, with its Shapley split.
+call; users repeat the call for other outcomes. `cm_analyses()`,
+multi-analysis reading, `dir` and the fixed file names are removed.
 
-`n_draws` (default 0 = point estimates): `n_draws > 0` runs the Monte
-Carlo analysis from the distributions in the tables, for either method
-and either kind of outcome file, returning point estimates with
-intervals and the stability checks. Latin hypercube sampling becomes an
-argument.
+Associations:
+[`deconflate()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate.md)
+needs at least one (the sensitivity tools also run without any). Pairs
+without a row are unknown by default (filled in by the global fit and
+listed in `$unknown_pairs`); an odds ratio of 1 means unrelated.
+`missing_associations` and the measures `independent`, `unknown` and
+`table` are removed, with messages for old files. Associations keep
+their uncertainty.
 
-Remove from the public interface (kept internally where
+`method = "auto"` (default): simultaneous when it equals global,
+otherwise global with a note (interactions, three-way terms, unknown
+pairs); `"simultaneous"` switches the same way; the sampled backend
+above 20 diseases.
+
+Event impacts through `deconflate(event_model = TRUE, overall_risk = )`:
+a `measure` column with `HR`, `rate_ratio`, `RR`, `OR` and `RD`
+(mixable), crude or stratified, all mapped onto the snapshot hazard
+model; `overall_risk` required (a proportion or a distribution); the
+attributable risk and its Shapley split in the result. Mismatches
+between the table and `event_model` are errors. `hazard_ratios.csv`
+becomes `culling.csv` in the examples.
+
+`n_draws` (default 1000; skipped with a note when no input has a
+distribution): intervals for additive and event impacts, rejections (not
+replaced) and stability checks, `seed`, Latin hypercube sampling.
+Uncertainty of event impacts and of the overall risk.
+
+Removed from the public interface (kept internally where
 [`reproduce_rasmussen_2024()`](https://rasmussenphilip.github.io/deconflate/reference/reproduce.md)
-needs them):
-[`cm_monte_carlo()`](https://rasmussenphilip.github.io/deconflate/reference/cm_monte_carlo.md),
-[`cm_sampler()`](https://rasmussenphilip.github.io/deconflate/reference/cm_sampler.md),
-[`cm_batch_sampler()`](https://rasmussenphilip.github.io/deconflate/reference/cm_batch_sampler.md),
-[`sampler_global_dairy()`](https://rasmussenphilip.github.io/deconflate/reference/sampler_global_dairy.md),
-[`deconflate_hr()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate_hr.md),
-[`cm_hr_model()`](https://rasmussenphilip.github.io/deconflate/reference/cm_hr_model.md),
-[`cm_hazard_ratios()`](https://rasmussenphilip.github.io/deconflate/reference/cm_hazard_ratios.md),
-[`attributable_risk()`](https://rasmussenphilip.github.io/deconflate/reference/attributable_risk.md),
-[`cm_analyses()`](https://rasmussenphilip.github.io/deconflate/reference/cm_analyses.md).
+needs them): `cm_monte_carlo()`, `cm_sampler()`, `cm_batch_sampler()`,
+`sampler_global_dairy()`, `deconflate_hr()`, `cm_hr_model()`,
+`cm_hazard_ratios()`, `attributable_risk()`,
+`example_global_dairy_hr()`, `cm_analyses()`; removed: `cm_reweight()`,
+`cm_scenario()`, `compare_scenarios()`, `cm_diagnose()`, importance
+sampling and `cm_suggest_proposal()`.
 
-Remove scenario reweighting and the separate Monte Carlo diagnostics:
-[`cm_reweight()`](https://rasmussenphilip.github.io/deconflate/reference/cm_reweight.md),
-[`compare_scenarios()`](https://rasmussenphilip.github.io/deconflate/reference/compare_scenarios.md),
-[`cm_diagnose()`](https://rasmussenphilip.github.io/deconflate/reference/cm_diagnose.md),
-importance sampling and
-[`cm_suggest_proposal()`](https://rasmussenphilip.github.io/deconflate/reference/cm_suggest_proposal.md).
-
-Update
-[`compare_methods()`](https://rasmussenphilip.github.io/deconflate/reference/compare_methods.md),
+[`compare_methods()`](https://rasmussenphilip.github.io/deconflate/reference/compare_methods.md)
+(additive and event impacts, with `n_draws`),
 [`cm_threshold()`](https://rasmussenphilip.github.io/deconflate/reference/cm_threshold.md),
-the screens,
-[`sensitivity_oat()`](https://rasmussenphilip.github.io/deconflate/reference/sensitivity_oat.md),
-the plots, the examples and the vignettes to the new interface.
+the screens and
+[`sensitivity_oat()`](https://rasmussenphilip.github.io/deconflate/reference/sensitivity_oat.md)
+(with `event_model`, point estimates only), the plots, the examples (one
+model per outcome), the vignettes and `run_all_features.R` updated to
+the new interface.
 
 **Several estimates per disease and per pair**, each with its own
 estimand, `adjusted_for` and uncertainty.
 
-Impact files: several rows per disease (optional `study` label), fitted
+Impact tables: several rows per disease (optional `study` label), fitted
 by weighted least squares with weights 1/SD²; a row without uncertainty
 is exact. Error only when exact rows contradict each other and the
-anchor does not let the associations reconcile them.
+anchor does not let the associations reconcile them. For event impacts,
+several rows per disease on the snapshot model (all measures already
+supported, one row per disease, in item 3).
 
 Association tables: several rows per pair, mapped to the marginal log
 odds ratio and pooled (random effects by default, `pool = "fixed"` as an
@@ -260,17 +262,6 @@ the model (ids or `all`) are exact conditional associations (logistic
 projection, via a fixed-point mapping to the marginal scale);
 associations adjusted for other covariates are used as marginal, with a
 note.
-
-`mortality.csv`: a `measure` column (`HR`, `rate_ratio`, `RR`, `OR`,
-`RD`), crude or stratified, all mapped onto the snapshot hazard model;
-several rows per disease. The overall period risk is a row of the file
-(`measure = overall_risk`, with optional uncertainty); it is required
-when risk-based measures are used or for the attributable risk, and
-risk-based measures must refer to the same period.
-
-Mortality uncertainty: with `n_draws`, every draw runs the snapshot fit
-and the attributable risk, with intervals, rejections and stability
-checks as for impact files.
 
 **The `anchor` argument and constraints.**
 

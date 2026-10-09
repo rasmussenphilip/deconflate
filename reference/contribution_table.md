@@ -1,8 +1,8 @@
 # Contribution table
 
-One row per disease with raw and adjusted impacts and the disease's
-contribution to the aggregate (its Shapley share, including any
-interaction share), in the units of the impacts.
+One row per disease with the raw estimate, the adjusted value and the
+disease's contribution to the total, with 95% intervals when the result
+has draws.
 
 ## Usage
 
@@ -21,6 +21,15 @@ contribution_table(result)
 ## Value
 
 A data frame.
+
+## Details
+
+- Additive impacts: the contribution to the aggregate (its Shapley
+  share, including any interaction share), in the units of the impacts.
+
+- Event impacts: the adjusted hazard ratio and the disease's share of
+  the risk attributable to disease (Shapley allocation), as a proportion
+  of animals.
 
 ## Examples
 

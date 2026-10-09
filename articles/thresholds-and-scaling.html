@@ -36,10 +36,10 @@
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
 <li><a class="dropdown-item" href="../articles/own-data.html">Using your own data</a></li>
     <li><a class="dropdown-item" href="../articles/thresholds-and-scaling.html">Threshold searches and many diseases</a></li>
-    <li><a class="dropdown-item" href="../articles/culling-hazard-ratios.html">Culling and hazard ratios</a></li>
+    <li><a class="dropdown-item" href="../articles/event-impacts.html">Event impacts (culling and mortality)</a></li>
     <li><a class="dropdown-item" href="../articles/reproducing-published.html">Reproducing the published analyses</a></li>
     <li><a class="dropdown-item" href="../articles/interactions.html">Disease combinations, interactions and attribution</a></li>
-    <li><a class="dropdown-item" href="../articles/uncertainty.html">Uncertainty, scenarios and sensitivity</a></li>
+    <li><a class="dropdown-item" href="../articles/uncertainty.html">Uncertainty and sensitivity</a></li>
   </ul>
 </li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
@@ -73,9 +73,10 @@
     
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/rasmussenphilip/deconflate" class="external-link">deconflate</a></span><span class="op">)</span></span></code></pre></div>
-<p>This vignette covers two extensions: threshold searches, which find
-the input values at which a conclusion changes, and the sampled backend
-of the global model, for more diseases than can be enumerated.</p>
+<p>This vignette covers two extensions: threshold searches and screens,
+which show how much the conclusions depend on single inputs (including
+inputs that have not been estimated), and the sampled backend of the
+global model, for more diseases than can be enumerated.</p>
 <div class="section level2">
 <h2 id="threshold-searches">Threshold searches<a class="anchor" aria-label="anchor" href="#threshold-searches"></a>
 </h2>
@@ -88,9 +89,10 @@ conclusion changes. There are four kinds of conclusion:</p>
 contribution to the aggregate (<code>by = "adjusted"</code> ranks by
 adjusted impact instead);</li>
 <li>
-<code>"sign"</code>: a disease’s adjusted impact crosses zero. This
-is a sign change implied by the model and its inputs; it is not by
-itself evidence of a protective effect;</li>
+<code>"sign"</code>: a disease’s adjusted impact crosses zero (for
+event impacts, its adjusted hazard ratio crosses 1). This is a sign
+change implied by the model and its inputs; it is not by itself evidence
+of a protective effect;</li>
 <li>
 <code>"total"</code>: the aggregate crosses <code>target</code>, in
 the units of the impacts;</li>
@@ -99,25 +101,29 @@ the units of the impacts;</li>
 model’s own input by the relative amount <code>target</code>
 (e.g. <code>-0.1</code> for a 10% reduction). This answers questions
 such as “what association strength would reduce the total by 10%?”,
-which is useful for pairs that are unknown or not listed.</li>
+which is useful for pairs without an association.</li>
 </ul>
-<p>The input is keyed as in <code><a href="../reference/cm_sampler.html">cm_sampler()</a></code>:
-<code>"assoc:&lt;d1&gt;:&lt;d2&gt;"</code>,
+<p>For event impacts (<code>event_model = TRUE</code>), the aggregate is
+the risk attributable to disease and the contributions are its Shapley
+allocation (<code><a href="../articles/event-impacts.html">vignette("event-impacts")</a></code>).</p>
+<p>The input is keyed as in the <code>distributions</code> of
+<code><a href="../reference/cm_model.html">cm_model()</a></code>: <code>"assoc:&lt;d1&gt;:&lt;d2&gt;"</code>,
 <code>"inter:&lt;d1&gt;:&lt;d2&gt;"</code>,
 <code>"prob:&lt;disease&gt;"</code>,
-<code>"impact:&lt;disease&gt;"</code>, or
+<code>"impact:&lt;disease&gt;"</code>,
 <code>"three:&lt;d1&gt;:&lt;d2&gt;:&lt;d3&gt;"</code> for a three-way
-ratio. A pair without a numeric measure (independent, unknown or not
-listed) is varied as an odds ratio. By default, models with interactions
-or three-way terms, and interaction or three-way inputs, use the global
-method; otherwise the method is <code>"simultaneous"</code> (set
-<code>method</code> to override). Interactions and interaction or
-three-way inputs need the global method. With the global method, when
-the input is an impact or an interaction (which do not change the joint
-distribution), the joint distribution is fitted once and reused, or a
-<code>joint</code> from <code><a href="../reference/fit_joint.html">fit_joint()</a></code> can be passed; other
-inputs change the joint distribution, so it is refitted at every
-point.</p>
+ratio, or <code>"risk"</code> for the overall risk of event impacts. A
+pair without an association (unknown) is varied as an odds ratio.</p>
+<p>Each point is adjusted as <code><a href="../reference/deconflate.html">deconflate()</a></code> would adjust it,
+with point estimates. With <code>method = "auto"</code> (the default),
+the method is chosen for the point’s own inputs: the simultaneous method
+when every pair has an association and there are no interactions or
+three-way terms, the global method otherwise. When the input is an
+impact, an interaction or the overall risk (which do not change the
+joint distribution) and the adjustment uses the joint distribution, it
+is fitted once and reused, or a <code>joint</code> from
+<code><a href="../reference/fit_joint.html">fit_joint()</a></code> can be passed; other inputs change the joint
+distribution, so it is refitted at every point.</p>
 <div class="section level3">
 <h3 id="how-the-search-works">How the search works<a class="anchor" aria-label="anchor" href="#how-the-search-works"></a>
 </h3>
@@ -144,9 +150,9 @@ across a pole, such as a nearly singular system, is reported as a
 </ul>
 <p>Thresholds are deterministic: they refer to the model’s input values,
 one input at a time. Statements such as “the probability that d1 ranks
-first” need the Monte Carlo tools
-(<code><a href="../articles/uncertainty.html">vignette("uncertainty")</a></code>); probabilistic thresholds are not
-implemented.</p>
+first” need the draws of <code><a href="../reference/deconflate.html">deconflate()</a></code>
+(<code>n_draws</code>; <code><a href="../articles/uncertainty.html">vignette("uncertainty")</a></code>);
+probabilistic thresholds are not implemented.</p>
 </div>
 <div class="section level3">
 <h3 id="a-relative-change-in-the-aggregate">A relative change in the aggregate<a class="anchor" aria-label="anchor" href="#a-relative-change-in-the-aggregate"></a>
@@ -155,7 +161,7 @@ implemented.</p>
 ratio 1), and the adjusted aggregate is about 2.109 percent:</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">m</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/example_supplement.html">example_supplement</a></span><span class="op">(</span><span class="op">)</span></span>
-<span><span class="fu"><a href="../reference/deconflate.html">deconflate</a></span><span class="op">(</span><span class="va">m</span><span class="op">)</span><span class="op">$</span><span class="va">totals</span></span>
+<span><span class="fu"><a href="../reference/deconflate.html">deconflate</a></span><span class="op">(</span><span class="va">m</span>, n_draws <span class="op">=</span> <span class="fl">0</span><span class="op">)</span><span class="op">$</span><span class="va">totals</span></span>
 <span><span class="co">#&gt;   raw_sum adjusted_total interaction_total</span></span>
 <span><span class="co">#&gt; 1     2.5       2.109229                 0</span></span>
 <span><span class="va">th</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cm_threshold.html">cm_threshold</a></span><span class="op">(</span><span class="va">m</span>, <span class="st">"assoc:d1:d3"</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">50</span><span class="op">)</span>, conclusion <span class="op">=</span> <span class="st">"change"</span>, target <span class="op">=</span> <span class="op">-</span><span class="fl">0.1</span><span class="op">)</span></span>
@@ -166,8 +172,8 @@ ratio 1), and the adjusted aggregate is about 2.109 percent:</p>
 <span><span class="co">#&gt; Crossings:</span></span>
 <span><span class="co">#&gt;   item    status threshold lower upper</span></span>
 <span><span class="co">#&gt;  total threshold     5.264 5.264 5.264</span></span>
-<span><span class="co">#&gt;                                                  description</span></span>
-<span><span class="co">#&gt;  the aggregate falls below the baseline by the target change</span></span></code></pre></div>
+<span><span class="co">#&gt;                                   description</span></span>
+<span><span class="co">#&gt;  the aggregate falls below the baseline - 10%</span></span></code></pre></div>
 <p>An odds ratio of about 5.26 between d1 and d3 would reduce the
 aggregate by 10%, to about 1.898. The adjusted results at the two ends
 of the final bracket are returned:</p>
@@ -190,30 +196,30 @@ the associated disease:</p>
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/cm_threshold.html">cm_threshold</a></span><span class="op">(</span><span class="va">m</span>, <span class="st">"assoc:d2:d3"</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0.2</span>, <span class="fl">20</span><span class="op">)</span>, conclusion <span class="op">=</span> <span class="st">"change"</span>, target <span class="op">=</span> <span class="fl">0.1</span><span class="op">)</span><span class="op">$</span><span class="va">thresholds</span></span>
 <span><span class="co">#&gt;   conclusion  item    status threshold    lower    upper        below</span></span>
 <span><span class="co">#&gt; 1     change total threshold  1.433331 1.433331 1.433331 1.134299e-09</span></span>
-<span><span class="co">#&gt;           above                                                 description</span></span>
-<span><span class="co">#&gt; 1 -4.971832e-10 the aggregate falls below the baseline by the target change</span></span></code></pre></div>
-<p>For an unknown pair, the simultaneous method cannot compute the
-baseline, but the global method can: it leaves the pair unconstrained in
-the maximum-entropy fit. The change is then relative to that fit. Here
-the fitted distribution implies an odds ratio of about 1.14 for d1 and
-d3, and an odds ratio of about 6.4 would reduce the aggregate by
-10%:</p>
+<span><span class="co">#&gt;           above                                  description</span></span>
+<span><span class="co">#&gt; 1 -4.971832e-10 the aggregate falls below the baseline + 10%</span></span></code></pre></div>
+<p>For a pair without an association, the baseline is the global method,
+which fills the pair in from the maximum-entropy fit; the change is
+relative to that fit. Here the pair d1:d3 is left out. The fitted
+distribution gives it an odds ratio of about 1.14, and an odds ratio of
+about 6.4 would reduce the aggregate by 10%:</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">m_unk</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cm_model.html">cm_model</a></span><span class="op">(</span></span>
 <span>  <span class="fu"><a href="../reference/cm_diseases.html">cm_diseases</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"d1"</span>, <span class="st">"d2"</span>, <span class="st">"d3"</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0.10</span>, <span class="fl">0.15</span>, <span class="fl">0.20</span><span class="op">)</span><span class="op">)</span>,</span>
 <span>  <span class="fu"><a href="../reference/cm_impacts.html">cm_impacts</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"d1"</span>, <span class="st">"d2"</span>, <span class="st">"d3"</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">2.5</span>, <span class="fl">5</span>, <span class="fl">7.5</span><span class="op">)</span>, units <span class="op">=</span> <span class="st">"%"</span><span class="op">)</span>,</span>
-<span>  associations <span class="op">=</span> <span class="fu"><a href="../reference/cm_associations.html">cm_associations</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"d1"</span>, <span class="st">"d2"</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"d2"</span>, <span class="st">"d3"</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">2</span>, <span class="fl">3</span><span class="op">)</span><span class="op">)</span>,</span>
-<span>  missing_associations <span class="op">=</span> <span class="st">"unknown"</span></span>
+<span>  associations <span class="op">=</span> <span class="fu"><a href="../reference/cm_associations.html">cm_associations</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"d1"</span>, <span class="st">"d2"</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"d2"</span>, <span class="st">"d3"</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">2</span>, <span class="fl">3</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="op">)</span></span>
-<span><span class="va">th_unk</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cm_threshold.html">cm_threshold</a></span><span class="op">(</span><span class="va">m_unk</span>, <span class="st">"assoc:d1:d3"</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">50</span><span class="op">)</span>, conclusion <span class="op">=</span> <span class="st">"change"</span>,</span>
-<span>                       target <span class="op">=</span> <span class="op">-</span><span class="fl">0.1</span>, method <span class="op">=</span> <span class="st">"global"</span><span class="op">)</span></span>
+<span><span class="fu"><a href="../reference/deconflate.html">deconflate</a></span><span class="op">(</span><span class="va">m_unk</span>, n_draws <span class="op">=</span> <span class="fl">0</span><span class="op">)</span><span class="op">$</span><span class="va">unknown_pairs</span></span>
+<span><span class="co">#&gt;   disease1 disease2 fitted_or</span></span>
+<span><span class="co">#&gt; 1       d1       d3  1.143088</span></span>
+<span><span class="va">th_unk</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cm_threshold.html">cm_threshold</a></span><span class="op">(</span><span class="va">m_unk</span>, <span class="st">"assoc:d1:d3"</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">50</span><span class="op">)</span>, conclusion <span class="op">=</span> <span class="st">"change"</span>, target <span class="op">=</span> <span class="op">-</span><span class="fl">0.1</span><span class="op">)</span></span>
 <span><span class="va">th_unk</span><span class="op">$</span><span class="va">thresholds</span><span class="op">[</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"item"</span>, <span class="st">"status"</span>, <span class="st">"threshold"</span>, <span class="st">"description"</span><span class="op">)</span><span class="op">]</span></span>
-<span><span class="co">#&gt;    item    status threshold</span></span>
-<span><span class="co">#&gt; 1 total threshold  6.364532</span></span>
-<span><span class="co">#&gt;                                                   description</span></span>
-<span><span class="co">#&gt; 1 the aggregate falls below the baseline by the target change</span></span></code></pre></div>
+<span><span class="co">#&gt;    item    status threshold                                  description</span></span>
+<span><span class="co">#&gt; 1 total threshold  6.364532 the aggregate falls below the baseline - 10%</span></span></code></pre></div>
 <p>The baseline value of an unknown input is <code>NA</code>
-(<code>th_unk$baseline</code>).</p>
+(<code>th_unk$baseline</code>). At the grid points the pair has a value,
+so every pair has an association and the simultaneous method is used
+there; it gives the same answer as the global method would.</p>
 </div>
 <div class="section level3">
 <h3 id="rankings">Rankings<a class="anchor" aria-label="anchor" href="#rankings"></a>
@@ -253,27 +259,29 @@ about 0.374 percent:</p>
 <span><span class="va">th_sign</span><span class="op">$</span><span class="va">thresholds</span><span class="op">[</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"item"</span>, <span class="st">"status"</span>, <span class="st">"threshold"</span>, <span class="st">"description"</span><span class="op">)</span><span class="op">]</span></span>
 <span><span class="co">#&gt;   item    status threshold</span></span>
 <span><span class="co">#&gt; 1   d1 threshold  0.374142</span></span>
-<span><span class="co">#&gt;                                                                description</span></span>
-<span><span class="co">#&gt; 1 the adjusted impact of d1 becomes positive (a model-implied sign change)</span></span></code></pre></div>
+<span><span class="co">#&gt;                                                                    description</span></span>
+<span><span class="co">#&gt; 1 the adjusted value of d1 moves above no effect (a model-implied sign change)</span></span></code></pre></div>
 <p>Below that value, the raw impact of d1 is smaller than its associated
 diseases alone would produce under the additive model. This says that
 the inputs are inconsistent with the model there (or the estimands are
 not what they were assumed to be), not that d1 is protective.</p>
 <p><code><a href="../reference/cm_threshold.html">cm_threshold()</a></code> searches with the methods of
-<code><a href="../reference/deconflate.html">deconflate()</a></code> (<code>"simultaneous"</code> or
-<code>"global"</code>). The published approximation,
+<code><a href="../reference/deconflate.html">deconflate()</a></code>. The published approximation,
 <code>m^2 / (m + c)</code>, kept for comparison only, behaves
-differently: it has a pole where its denominator is zero, here at a raw
-impact of d1 of about -0.527, and its adjusted impact changes sign there
-by jumping through infinity. <code><a href="../reference/compare_methods.html">compare_methods()</a></code> shows this
-on either side of the pole:</p>
+differently: it has a pole where its denominator is zero, and its
+adjusted impact changes sign there by jumping through infinity. For d1,
+<code>c</code> is the part of the raw impact that the conflation matrix
+<code>A</code> attributes to the other diseases, so the pole is at a raw
+impact of d1 of about -0.527:</p>
 <div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">pop_s</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cm_population.html">cm_population</a></span><span class="op">(</span></span>
-<span>  <span class="fu"><a href="../reference/cm_diseases.html">cm_diseases</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"d1"</span>, <span class="st">"d2"</span>, <span class="st">"d3"</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0.10</span>, <span class="fl">0.15</span>, <span class="fl">0.20</span><span class="op">)</span><span class="op">)</span>,</span>
-<span>  <span class="fu"><a href="../reference/cm_associations.html">cm_associations</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"d1"</span>, <span class="st">"d2"</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"d2"</span>, <span class="st">"d3"</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">2</span>, <span class="fl">3</span><span class="op">)</span>, measure <span class="op">=</span> <span class="st">"OR"</span><span class="op">)</span></span>
-<span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">sapply</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="op">-</span><span class="fl">0.60</span>, <span class="op">-</span><span class="fl">0.45</span><span class="op">)</span>, <span class="kw">function</span><span class="op">(</span><span class="va">v</span><span class="op">)</span> <span class="op">{</span></span>
-<span>  <span class="va">mv</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cm_model.html">cm_model</a></span><span class="op">(</span><span class="va">pop_s</span>, <span class="fu"><a href="../reference/cm_impacts.html">cm_impacts</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"d1"</span>, <span class="st">"d2"</span>, <span class="st">"d3"</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="va">v</span>, <span class="fl">5</span>, <span class="fl">7.5</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="va">A</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/deconflate.html">deconflate</a></span><span class="op">(</span><span class="va">m</span>, n_draws <span class="op">=</span> <span class="fl">0</span><span class="op">)</span><span class="op">$</span><span class="va">conflation</span><span class="op">$</span><span class="va">A</span></span>
+<span><span class="op">-</span><span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">A</span><span class="op">[</span><span class="st">"d1"</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"d2"</span>, <span class="st">"d3"</span><span class="op">)</span><span class="op">]</span> <span class="op">*</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">5</span>, <span class="fl">7.5</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="co">#&gt; [1] -0.5266329</span></span></code></pre></div>
+<p><code><a href="../reference/compare_methods.html">compare_methods()</a></code> shows this on either side of the
+pole:</p>
+<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">sapply</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="op">-</span><span class="fl">0.60</span>, <span class="op">-</span><span class="fl">0.45</span><span class="op">)</span>, <span class="kw">function</span><span class="op">(</span><span class="va">v</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="va">mv</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cm_model.html">cm_model</a></span><span class="op">(</span><span class="va">m</span>, <span class="fu"><a href="../reference/cm_impacts.html">cm_impacts</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"d1"</span>, <span class="st">"d2"</span>, <span class="st">"d3"</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="va">v</span>, <span class="fl">5</span>, <span class="fl">7.5</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/unlist.html" class="external-link">unlist</a></span><span class="op">(</span><span class="fu"><a href="../reference/compare_methods.html">compare_methods</a></span><span class="op">(</span><span class="va">mv</span>, methods <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"published"</span>, <span class="st">"simultaneous"</span><span class="op">)</span><span class="op">)</span><span class="op">$</span><span class="va">impacts</span><span class="op">[</span><span class="fl">1</span>, <span class="op">-</span><span class="fl">1</span><span class="op">]</span><span class="op">)</span></span>
 <span><span class="op">}</span><span class="op">)</span></span>
 <span><span class="co">#&gt;                    [,1]       [,2]</span></span>
@@ -288,7 +296,7 @@ not a threshold.</p>
 </h3>
 <p>What raw impact of d2 would make the aggregate 3 percent (about
 13.04)?</p>
-<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">th_total</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cm_threshold.html">cm_threshold</a></span><span class="op">(</span><span class="va">m</span>, <span class="st">"impact:d2"</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">20</span><span class="op">)</span>, conclusion <span class="op">=</span> <span class="st">"total"</span>, target <span class="op">=</span> <span class="fl">3</span><span class="op">)</span></span>
 <span><span class="va">th_total</span><span class="op">$</span><span class="va">thresholds</span><span class="op">[</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"item"</span>, <span class="st">"status"</span>, <span class="st">"threshold"</span>, <span class="st">"description"</span><span class="op">)</span><span class="op">]</span></span>
 <span><span class="co">#&gt;    item    status threshold                          description</span></span>
@@ -301,7 +309,7 @@ not a threshold.</p>
 just above 1 are listed as an infeasible region. Below 1, d1 moves above
 d2 at a prevalence of about 0.224 and above d3 at about 0.622; d2 and d3
 do not swap where the range could be evaluated:</p>
-<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">th_prob</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cm_threshold.html">cm_threshold</a></span><span class="op">(</span><span class="va">m</span>, <span class="st">"prob:d1"</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0.05</span>, <span class="fl">1.5</span><span class="op">)</span>, conclusion <span class="op">=</span> <span class="st">"rank"</span><span class="op">)</span></span>
 <span><span class="va">th_prob</span></span>
 <span><span class="co">#&gt; &lt;cm_threshold&gt; rank over prob:d1 in [0.05, 1.5] (baseline 0.1; method simultaneous)</span></span>
@@ -320,6 +328,145 @@ do not swap where the range could be evaluated:</p>
 <span><span class="co">#&gt; 2 d1 vs d3            1       0                            threshold(s) found</span></span>
 <span><span class="co">#&gt; 3 d2 vs d3            0       0 none found where the range could be evaluated</span></span></code></pre></div>
 </div>
+<div class="section level3">
+<h3 id="event-impacts">Event impacts<a class="anchor" aria-label="anchor" href="#event-impacts"></a>
+</h3>
+<p>With <code>event_model = TRUE</code> and <code>overall_risk</code>,
+the search uses the snapshot model of event impacts. The joint
+distribution is refitted at every point when the input is an
+association, so these searches take longer. With culling hazard ratios
+on the same population, the adjusted hazard ratio of d3 falls below 1
+when the odds ratio of d2 and d3 exceeds about 8.09:</p>
+<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">cull</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cm_model.html">cm_model</a></span><span class="op">(</span><span class="va">m</span>, <span class="fu"><a href="../reference/cm_impacts.html">cm_impacts</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"d1"</span>, <span class="st">"d2"</span>, <span class="st">"d3"</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1.5</span>, <span class="fl">2.0</span>, <span class="fl">1.3</span><span class="op">)</span>, measure <span class="op">=</span> <span class="st">"HR"</span>,</span>
+<span>                               estimand <span class="op">=</span> <span class="st">"snapshot_crude"</span>, label <span class="op">=</span> <span class="st">"culling"</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="va">th_ev</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cm_threshold.html">cm_threshold</a></span><span class="op">(</span><span class="va">cull</span>, <span class="st">"assoc:d2:d3"</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">100</span><span class="op">)</span>, conclusion <span class="op">=</span> <span class="st">"sign"</span>,</span>
+<span>                      event_model <span class="op">=</span> <span class="cn">TRUE</span>, overall_risk <span class="op">=</span> <span class="fl">0.25</span><span class="op">)</span></span>
+<span><span class="va">th_ev</span><span class="op">$</span><span class="va">thresholds</span><span class="op">[</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"item"</span>, <span class="st">"status"</span>, <span class="st">"threshold"</span>, <span class="st">"description"</span><span class="op">)</span><span class="op">]</span></span>
+<span><span class="co">#&gt;   item    status threshold</span></span>
+<span><span class="co">#&gt; 1   d3 threshold  8.089342</span></span>
+<span><span class="co">#&gt;                                                                    description</span></span>
+<span><span class="co">#&gt; 1 the adjusted value of d3 moves below no effect (a model-implied sign change)</span></span></code></pre></div>
+<p>The overall risk itself can be searched with the input
+<code>"risk"</code>.</p>
+</div>
+</div>
+<div class="section level2">
+<h2 id="screens">Screens<a class="anchor" aria-label="anchor" href="#screens"></a>
+</h2>
+<p>The screens re-run the adjustment over a set of scenarios, one input
+at a time, and report how much the aggregate and the ranking of diseases
+change. Like <code><a href="../reference/cm_threshold.html">cm_threshold()</a></code>, they report point estimates,
+adjust each scenario as <code><a href="../reference/deconflate.html">deconflate()</a></code> would
+(<code>method = "auto"</code>), and take <code>event_model = TRUE</code>
+with <code>overall_risk</code>:</p>
+<ul>
+<li>
+<code><a href="../reference/screen_associations.html">screen_associations()</a></code> multiplies each given association
+by each of <code>multipliers</code>, and sets each pair without an
+association to each of <code>or_values</code>;</li>
+<li>
+<code><a href="../reference/screen_interactions.html">screen_interactions()</a></code> adds an interaction of each size
+in <code>values</code> to each pair (additive impacts only; always the
+global method, with the joint distribution fitted once);</li>
+<li>
+<code><a href="../reference/screen_three_way.html">screen_three_way()</a></code> sets a three-way term for each
+triple (always the global method);</li>
+<li>
+<code><a href="../reference/sensitivity_oat.html">sensitivity_oat()</a></code> varies every input by
+<code>variation</code> (20% by default).</li>
+</ul>
+<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="../reference/screen_associations.html">screen_associations</a></span><span class="op">(</span><span class="va">m</span>, or_values <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0.5</span>, <span class="fl">3</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="co">#&gt; &lt;cm_screen&gt; 6 scenarios; baseline total 2.109</span></span>
+<span><span class="co">#&gt;   pair    status scenario total  change rel_change max_rank_shift rank_corr</span></span>
+<span><span class="co">#&gt;  d2:d3 specified OR x 0.5  2.31  0.1974     0.0936              0         1</span></span>
+<span><span class="co">#&gt;  d2:d3 specified   OR x 2  1.94 -0.1643    -0.0779              0         1</span></span>
+<span><span class="co">#&gt;  d1:d3 specified   OR x 2  2.01 -0.0963    -0.0457              0         1</span></span>
+<span><span class="co">#&gt;  d1:d3 specified OR x 0.5  2.20  0.0859     0.0407              0         1</span></span>
+<span><span class="co">#&gt;  d1:d2 specified   OR x 2  2.05 -0.0582    -0.0276              0         1</span></span>
+<span><span class="co">#&gt;  d1:d2 specified OR x 0.5  2.16  0.0549     0.0260              0         1</span></span>
+<span><span class="co">#&gt;  failed</span></span>
+<span><span class="co">#&gt;    &lt;NA&gt;</span></span>
+<span><span class="co">#&gt;    &lt;NA&gt;</span></span>
+<span><span class="co">#&gt;    &lt;NA&gt;</span></span>
+<span><span class="co">#&gt;    &lt;NA&gt;</span></span>
+<span><span class="co">#&gt;    &lt;NA&gt;</span></span>
+<span><span class="co">#&gt;    &lt;NA&gt;</span></span>
+<span><span class="fu"><a href="../reference/sensitivity_oat.html">sensitivity_oat</a></span><span class="op">(</span><span class="va">m</span><span class="op">)</span></span>
+<span><span class="co">#&gt;         input value total_low total_high      swing  rel_swing</span></span>
+<span><span class="co">#&gt; 1   impact:d3  7.50  1.844070   2.374387 0.53031715 0.25142703</span></span>
+<span><span class="co">#&gt; 2     prob:d3  0.20  1.851628   2.374637 0.52300893 0.24796215</span></span>
+<span><span class="co">#&gt; 3   impact:d2  5.00  1.998423   2.220035 0.22161264 0.10506809</span></span>
+<span><span class="co">#&gt; 4     prob:d2  0.15  2.026335   2.197276 0.17094138 0.08104449</span></span>
+<span><span class="co">#&gt; 5 assoc:d2:d3  3.00  2.170224   2.062015 0.10820854 0.05130242</span></span>
+<span><span class="co">#&gt; 6   impact:d1  2.50  2.063348   2.155110 0.09176175 0.04350488</span></span>
+<span><span class="co">#&gt; 7     prob:d1  0.10  2.069218   2.149697 0.08047878 0.03815555</span></span>
+<span><span class="co">#&gt; 8 assoc:d1:d3  1.00  2.138876   2.084124 0.05475254 0.02595856</span></span>
+<span><span class="co">#&gt; 9 assoc:d1:d2  2.00  2.127728   2.093846 0.03388228 0.01606382</span></span></code></pre></div>
+<p>A three-way term keeps the pairwise tables of its triple fixed, so
+for additive impacts without interactions it changes nothing when every
+pair of the triple has an association; with an unknown pair it can:</p>
+<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="../reference/screen_three_way.html">screen_three_way</a></span><span class="op">(</span><span class="va">m</span>, ratios <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0.5</span>, <span class="fl">2</span><span class="op">)</span><span class="op">)</span><span class="op">[</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"pair"</span>, <span class="st">"scenario"</span>, <span class="st">"total"</span>, <span class="st">"rel_change"</span><span class="op">)</span><span class="op">]</span></span>
+<span><span class="co">#&gt;      pair    scenario total rel_change</span></span>
+<span><span class="co">#&gt;  d1:d2:d3 ratio = 0.5  2.11  -4.06e-11</span></span>
+<span><span class="co">#&gt;  d1:d2:d3   ratio = 2  2.11   2.82e-11</span></span>
+<span><span class="fu"><a href="../reference/screen_three_way.html">screen_three_way</a></span><span class="op">(</span><span class="va">m_unk</span>, ratios <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0.5</span>, <span class="fl">2</span><span class="op">)</span><span class="op">)</span><span class="op">[</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"pair"</span>, <span class="st">"scenario"</span>, <span class="st">"total"</span>, <span class="st">"rel_change"</span><span class="op">)</span><span class="op">]</span></span>
+<span><span class="co">#&gt;      pair    scenario total rel_change</span></span>
+<span><span class="co">#&gt;  d1:d2:d3   ratio = 2  2.06    -0.0144</span></span>
+<span><span class="co">#&gt;  d1:d2:d3 ratio = 0.5  2.12     0.0138</span></span></code></pre></div>
+<div class="section level3">
+<h3 id="without-association-estimates">Without association estimates<a class="anchor" aria-label="anchor" href="#without-association-estimates"></a>
+</h3>
+<p><code><a href="../reference/deconflate.html">deconflate()</a></code> needs at least one association; without
+any, there is nothing to de-conflate:</p>
+<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">m0</span> <span class="op">&lt;-</span> <span class="va">m</span></span>
+<span><span class="va">m0</span><span class="op">$</span><span class="va">associations</span> <span class="op">&lt;-</span> <span class="cn">NULL</span></span>
+<span><span class="kw"><a href="https://rdrr.io/r/base/conditions.html" class="external-link">tryCatch</a></span><span class="op">(</span><span class="fu"><a href="../reference/deconflate.html">deconflate</a></span><span class="op">(</span><span class="va">m0</span><span class="op">)</span>, deconflate_error <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">e</span><span class="op">)</span> <span class="fu"><a href="https://rdrr.io/r/base/conditions.html" class="external-link">conditionMessage</a></span><span class="op">(</span><span class="va">e</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="co">#&gt; [1] "No association estimates were given, so there is nothing to de-conflate (the diseases would be treated as independent). To see how much associations could change the results, use screen_associations() or cm_threshold()."</span></span></code></pre></div>
+<p>The screens and <code><a href="../reference/cm_threshold.html">cm_threshold()</a></code> work without
+associations. The baseline then has every pair unknown, and the
+maximum-entropy fit with no pairwise constraints makes the diseases
+independent, so the baseline aggregate is the raw one.
+<code><a href="../reference/screen_associations.html">screen_associations()</a></code> shows which pairs would matter if
+they were associated, and <code><a href="../reference/cm_threshold.html">cm_threshold()</a></code> how strong an
+association would have to be to change the aggregate by a given
+amount:</p>
+<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="../reference/screen_associations.html">screen_associations</a></span><span class="op">(</span><span class="va">m0</span>, or_values <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0.5</span>, <span class="fl">2</span>, <span class="fl">4</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="co">#&gt; &lt;cm_screen&gt; 9 scenarios; baseline total 2.5</span></span>
+<span><span class="co">#&gt;   pair  status scenario total  change rel_change max_rank_shift rank_corr</span></span>
+<span><span class="co">#&gt;  d2:d3 unknown   OR = 4  2.09 -0.4143    -0.1657              0         1</span></span>
+<span><span class="co">#&gt;  d1:d3 unknown   OR = 4  2.28 -0.2223    -0.0889              0         1</span></span>
+<span><span class="co">#&gt;  d2:d3 unknown   OR = 2  2.28 -0.2158    -0.0863              0         1</span></span>
+<span><span class="co">#&gt;  d2:d3 unknown OR = 0.5  2.70  0.1984     0.0794              0         1</span></span>
+<span><span class="co">#&gt;  d1:d2 unknown   OR = 4  2.35 -0.1488    -0.0595              0         1</span></span>
+<span><span class="co">#&gt;  d1:d3 unknown   OR = 2  2.38 -0.1171    -0.0468              0         1</span></span>
+<span><span class="co">#&gt;  d1:d3 unknown OR = 0.5  2.60  0.1042     0.0417              0         1</span></span>
+<span><span class="co">#&gt;  d1:d2 unknown   OR = 2  2.43 -0.0733    -0.0293              0         1</span></span>
+<span><span class="co">#&gt;  d1:d2 unknown OR = 0.5  2.56  0.0588     0.0235              0         1</span></span>
+<span><span class="co">#&gt;  failed</span></span>
+<span><span class="co">#&gt;    &lt;NA&gt;</span></span>
+<span><span class="co">#&gt;    &lt;NA&gt;</span></span>
+<span><span class="co">#&gt;    &lt;NA&gt;</span></span>
+<span><span class="co">#&gt;    &lt;NA&gt;</span></span>
+<span><span class="co">#&gt;    &lt;NA&gt;</span></span>
+<span><span class="co">#&gt;    &lt;NA&gt;</span></span>
+<span><span class="co">#&gt;    &lt;NA&gt;</span></span>
+<span><span class="co">#&gt;    &lt;NA&gt;</span></span>
+<span><span class="co">#&gt;    &lt;NA&gt;</span></span>
+<span><span class="va">th0</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cm_threshold.html">cm_threshold</a></span><span class="op">(</span><span class="va">m0</span>, <span class="st">"assoc:d2:d3"</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">50</span><span class="op">)</span>, conclusion <span class="op">=</span> <span class="st">"change"</span>, target <span class="op">=</span> <span class="op">-</span><span class="fl">0.1</span><span class="op">)</span></span>
+<span><span class="va">th0</span><span class="op">$</span><span class="va">thresholds</span><span class="op">[</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"item"</span>, <span class="st">"status"</span>, <span class="st">"threshold"</span>, <span class="st">"description"</span><span class="op">)</span><span class="op">]</span></span>
+<span><span class="co">#&gt;    item    status threshold                                  description</span></span>
+<span><span class="co">#&gt; 1 total threshold  2.238207 the aggregate falls below the baseline - 10%</span></span></code></pre></div>
+<p>An odds ratio of about 2.24 between d2 and d3 (with the other pairs
+unknown) would reduce the aggregate by 10%. Such results show which
+associations are worth estimating; they are not estimates themselves.
+Tables read with <code><a href="../reference/cm_read_inputs.html">cm_read_inputs()</a></code> can leave out
+<code>associations</code> for this purpose.</p>
+</div>
 </div>
 <div class="section level2">
 <h2 id="many-diseases">Many diseases<a class="anchor" aria-label="anchor" href="#many-diseases"></a>
@@ -327,20 +474,20 @@ do not swap where the range could be evaluated:</p>
 <div class="section level3">
 <h3 id="what-limits-the-number-of-diseases">What limits the number of diseases<a class="anchor" aria-label="anchor" href="#what-limits-the-number-of-diseases"></a>
 </h3>
-<p>The <code>"simultaneous"</code> method (and the published
-approximation in <code><a href="../reference/compare_methods.html">compare_methods()</a></code>) uses the pairwise 2x2
-tables only. It never enumerates combinations of diseases, so it works
-for any number of diseases (the default triple screen checks
-n(n-1)(n-2)/6 triples; the exact LP feasibility check is limited to 14
-diseases).</p>
-<p>The <code>"global"</code> method needs the joint distribution of
-disease combinations, for interactions, unknown pairs and three-way
-terms, and so do the snapshot hazard-ratio model and
-<code><a href="../reference/attributable_risk.html">attributable_risk()</a></code>. The exact backend of
+<p>The simultaneous method (and the published approximation in
+<code><a href="../reference/compare_methods.html">compare_methods()</a></code>) uses the pairwise 2x2 tables only. It
+never enumerates combinations of diseases, so it works for any number of
+diseases (the default triple screen checks n(n-1)(n-2)/6 triples; the
+exact LP feasibility check is limited to 14 diseases).</p>
+<p>The global method needs the joint distribution of disease
+combinations, for interactions, unknown pairs and three-way terms, and
+so does the snapshot model of event impacts. The exact backend of
 <code><a href="../reference/fit_joint.html">fit_joint()</a></code> enumerates all 2^n combinations, which limits
-it to about 20 diseases (<code>max_diseases</code>). For more,
-<code>fit_joint(backend = "sampled")</code> fits the same
-maximum-entropy model without enumeration.</p>
+it to about 20 diseases (<code>max_diseases</code>). For more, the
+sampled backend fits the same maximum-entropy model without enumeration.
+<code><a href="../reference/deconflate.html">deconflate()</a></code> uses it automatically when a model with more
+than 20 diseases needs the joint distribution, and says so in a note;
+<code>fit_joint(backend = "sampled")</code> runs it directly.</p>
 </div>
 <div class="section level3">
 <h3 id="the-sampled-backend">The sampled backend<a class="anchor" aria-label="anchor" href="#the-sampled-backend"></a>
@@ -369,13 +516,12 @@ default). The weights of the sampled combinations are adjusted by
 iterative proportional fitting so that the disease probabilities and
 pairwise tables match the targets exactly on the sample. The remaining
 Monte Carlo error affects only the higher-order structure (triples and
-beyond).</li>
+beyond), and the odds ratios of unknown pairs.</li>
 </ol>
 <p>The result has the same form as an exact fit (the distinct sampled
 combinations and their weights), so the global method, interaction
-offsets, Shapley allocation, the snapshot hazard model and
-<code><a href="../reference/attributable_risk.html">attributable_risk()</a></code> use it unchanged. Its
-<code>diagnostics</code> report:</p>
+offsets, Shapley allocation and the snapshot model of event impacts use
+it unchanged. Its <code>diagnostics</code> report:</p>
 <ul>
 <li>the constraint residual of the raw sample and after raking;</li>
 <li>R-hat and effective sample sizes of the fitted probabilities and
@@ -389,7 +535,7 @@ compare fits with different seeds.</p>
 <div class="section level3">
 <h3 id="three-diseases-sampled-and-exact">Three diseases: sampled and exact<a class="anchor" aria-label="anchor" href="#three-diseases-sampled-and-exact"></a>
 </h3>
-<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">je</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fit_joint.html">fit_joint</a></span><span class="op">(</span><span class="va">m</span><span class="op">)</span></span>
 <span><span class="va">js</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fit_joint.html">fit_joint</a></span><span class="op">(</span><span class="va">m</span>, backend <span class="op">=</span> <span class="st">"sampled"</span>, n_samples <span class="op">=</span> <span class="fl">20000</span>, n_chains <span class="op">=</span> <span class="fl">500</span>, seed <span class="op">=</span> <span class="fl">11</span><span class="op">)</span></span>
 <span><span class="va">js</span></span>
@@ -412,7 +558,7 @@ compare fits with different seeds.</p>
 <span><span class="co">#&gt; 5 pair:d1:d3 0.02000000 0.01955 -0.0004500000 0.0009591324 0.9994854 20836.04</span></span>
 <span><span class="co">#&gt; 6 pair:d2:d3 0.05672700 0.05945  0.0027229966 0.0018263532 1.0024836 16763.48</span></span></code></pre></div>
 <p>The probabilities of the eight combinations, exact and sampled:</p>
-<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">cmb</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/merge.html" class="external-link">merge</a></span><span class="op">(</span><span class="fu"><a href="../reference/combination_probs.html">combination_probs</a></span><span class="op">(</span><span class="va">je</span><span class="op">)</span>, <span class="fu"><a href="../reference/combination_probs.html">combination_probs</a></span><span class="op">(</span><span class="va">js</span><span class="op">)</span>,</span>
 <span>             by <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"d1"</span>, <span class="st">"d2"</span>, <span class="st">"d3"</span>, <span class="st">"n_diseases"</span><span class="op">)</span>, suffixes <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"_exact"</span>, <span class="st">"_sampled"</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="va">cmb</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/order.html" class="external-link">order</a></span><span class="op">(</span><span class="op">-</span><span class="va">cmb</span><span class="op">$</span><span class="va">prob_exact</span><span class="op">)</span>, <span class="op">]</span></span>
@@ -428,7 +574,7 @@ compare fits with different seeds.</p>
 <p>A second seed gives a different sample; the differences between seeds
 show the size of the Monte Carlo error. The distribution of the number
 of diseases per animal:</p>
-<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb20"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">js2</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fit_joint.html">fit_joint</a></span><span class="op">(</span><span class="va">m</span>, backend <span class="op">=</span> <span class="st">"sampled"</span>, n_samples <span class="op">=</span> <span class="fl">20000</span>, n_chains <span class="op">=</span> <span class="fl">500</span>, seed <span class="op">=</span> <span class="fl">12</span><span class="op">)</span></span>
 <span><span class="va">by_n</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">j</span><span class="op">)</span> <span class="fu"><a href="https://rdrr.io/r/base/tapply.html" class="external-link">tapply</a></span><span class="op">(</span><span class="va">j</span><span class="op">$</span><span class="va">prob</span>, <span class="fu"><a href="https://rdrr.io/r/base/colSums.html" class="external-link">rowSums</a></span><span class="op">(</span><span class="va">j</span><span class="op">$</span><span class="va">cells</span><span class="op">)</span>, <span class="va">sum</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cbind.html" class="external-link">rbind</a></span><span class="op">(</span>exact <span class="op">=</span> <span class="fu">by_n</span><span class="op">(</span><span class="va">je</span><span class="op">)</span>, seed_11 <span class="op">=</span> <span class="fu">by_n</span><span class="op">(</span><span class="va">js</span><span class="op">)</span>, seed_12 <span class="op">=</span> <span class="fu">by_n</span><span class="op">(</span><span class="va">js2</span><span class="op">)</span><span class="op">)</span></span>
@@ -438,18 +584,18 @@ of diseases per animal:</p>
 <span><span class="co">#&gt; seed_12 0.6426916 0.2731317 0.07566194 0.008514817</span></span></code></pre></div>
 <p>With an interaction, the global method depends on probabilities of
 disease triples, which the sampled fit approximates:</p>
-<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb21"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">mi</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/set_interaction.html">set_interaction</a></span><span class="op">(</span><span class="va">m</span>, <span class="st">"d1"</span>, <span class="st">"d2"</span>, <span class="fl">1</span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/cbind.html" class="external-link">rbind</a></span><span class="op">(</span>exact <span class="op">=</span> <span class="fu"><a href="../reference/deconflate.html">deconflate</a></span><span class="op">(</span><span class="va">mi</span>, method <span class="op">=</span> <span class="st">"global"</span>, joint <span class="op">=</span> <span class="va">je</span><span class="op">)</span><span class="op">$</span><span class="va">adjusted</span><span class="op">$</span><span class="va">adjusted</span>,</span>
-<span>      sampled <span class="op">=</span> <span class="fu"><a href="../reference/deconflate.html">deconflate</a></span><span class="op">(</span><span class="va">mi</span>, method <span class="op">=</span> <span class="st">"global"</span>, joint <span class="op">=</span> <span class="va">js</span><span class="op">)</span><span class="op">$</span><span class="va">adjusted</span><span class="op">$</span><span class="va">adjusted</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/cbind.html" class="external-link">rbind</a></span><span class="op">(</span>exact <span class="op">=</span> <span class="fu"><a href="../reference/deconflate.html">deconflate</a></span><span class="op">(</span><span class="va">mi</span>, n_draws <span class="op">=</span> <span class="fl">0</span>, joint <span class="op">=</span> <span class="va">je</span><span class="op">)</span><span class="op">$</span><span class="va">adjusted</span><span class="op">$</span><span class="va">adjusted</span>,</span>
+<span>      sampled <span class="op">=</span> <span class="fu"><a href="../reference/deconflate.html">deconflate</a></span><span class="op">(</span><span class="va">mi</span>, n_draws <span class="op">=</span> <span class="fl">0</span>, joint <span class="op">=</span> <span class="va">js</span><span class="op">)</span><span class="op">$</span><span class="va">adjusted</span><span class="op">$</span><span class="va">adjusted</span><span class="op">)</span></span>
 <span><span class="co">#&gt;             [,1]     [,2]     [,3]</span></span>
 <span><span class="co">#&gt; exact   1.913880 3.240641 6.935621</span></span>
 <span><span class="co">#&gt; sampled 1.913888 3.240574 6.935939</span></span></code></pre></div>
 <p>A fitted joint can be passed to <code><a href="../reference/deconflate.html">deconflate()</a></code>,
-<code><a href="../reference/deconflate_hr.html">deconflate_hr()</a></code>, <code><a href="../reference/compare_methods.html">compare_methods()</a></code> and
-<code><a href="../reference/attributable_risk.html">attributable_risk()</a></code> with <code>joint</code>. Alternatively,
-the fitting arguments can be passed through <code>...</code>, e.g.
-<code>deconflate(m, method = "global", backend = "sampled", n_samples = 20000, seed = 1)</code>.</p>
+<code><a href="../reference/compare_methods.html">compare_methods()</a></code> and <code><a href="../reference/cm_threshold.html">cm_threshold()</a></code> with
+<code>joint</code>. Alternatively, the fitting arguments can be passed
+through <code>...</code>,
+e.g. <code>deconflate(m, method = "global", backend = "sampled", n_samples = 20000)</code>.</p>
 </div>
 <div class="section level3">
 <h3 id="unresolved-is-not-infeasible">Unresolved is not infeasible<a class="anchor" aria-label="anchor" href="#unresolved-is-not-infeasible"></a>
@@ -462,7 +608,7 @@ is <code>FALSE</code>, a warning of class
 that the inputs are infeasible: more samples, chains or iterations may
 resolve it. <code><a href="../reference/check_feasibility.html">check_feasibility()</a></code> tests feasibility directly.
 Here the inputs are infeasible, which the triple screen shows:</p>
-<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb22"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">bad</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cm_population.html">cm_population</a></span><span class="op">(</span><span class="fu"><a href="../reference/cm_diseases.html">cm_diseases</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"a"</span>, <span class="st">"b"</span>, <span class="st">"c"</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0.5</span>, <span class="fl">0.5</span>, <span class="fl">0.5</span><span class="op">)</span><span class="op">)</span>,</span>
 <span>                     <span class="fu"><a href="../reference/cm_associations.html">cm_associations</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"a"</span>, <span class="st">"a"</span>, <span class="st">"b"</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"b"</span>, <span class="st">"c"</span>, <span class="st">"c"</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">20</span>, <span class="fl">20</span>, <span class="fl">0.05</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="va">jb</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fit_joint.html">fit_joint</a></span><span class="op">(</span><span class="va">bad</span>, backend <span class="op">=</span> <span class="st">"sampled"</span>, n_samples <span class="op">=</span> <span class="fl">2000</span>, n_chains <span class="op">=</span> <span class="fl">100</span>,</span>
@@ -485,9 +631,9 @@ Here the inputs are infeasible, which the triple screen shows:</p>
 </h3>
 <p>A synthetic population of 24 diseases with prevalences from 0.05 to
 0.3, an odds ratio of 2 between consecutive diseases (x01 with x02, x02
-with x03, and so on; all other pairs independent) and raw impacts from 1
-to 5 percent:</p>
-<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
+with x03, and so on; the other 253 pairs are unknown) and raw impacts
+from 1 to 5 percent:</p>
+<div class="sourceCode" id="cb23"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">ids</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/sprintf.html" class="external-link">sprintf</a></span><span class="op">(</span><span class="st">"x%02d"</span>, <span class="fl">1</span><span class="op">:</span><span class="fl">24</span><span class="op">)</span></span>
 <span><span class="va">pop24</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cm_population.html">cm_population</a></span><span class="op">(</span></span>
 <span>  <span class="fu"><a href="../reference/cm_diseases.html">cm_diseases</a></span><span class="op">(</span><span class="va">ids</span>, <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq</a></span><span class="op">(</span><span class="fl">0.05</span>, <span class="fl">0.3</span>, length.out <span class="op">=</span> <span class="fl">24</span><span class="op">)</span><span class="op">)</span>,</span>
@@ -496,64 +642,59 @@ to 5 percent:</p>
 <span><span class="va">m24</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cm_model.html">cm_model</a></span><span class="op">(</span><span class="va">pop24</span>, <span class="fu"><a href="../reference/cm_impacts.html">cm_impacts</a></span><span class="op">(</span><span class="va">ids</span>, <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">5</span>, length.out <span class="op">=</span> <span class="fl">24</span><span class="op">)</span>, units <span class="op">=</span> <span class="st">"%"</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
 <p>The exact backend would need 2^24 (about 16.8 million) combinations
 and refuses:</p>
-<div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb24"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/conditions.html" class="external-link">tryCatch</a></span><span class="op">(</span><span class="fu"><a href="../reference/fit_joint.html">fit_joint</a></span><span class="op">(</span><span class="va">pop24</span><span class="op">)</span>, deconflate_error <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">e</span><span class="op">)</span> <span class="fu"><a href="https://rdrr.io/r/base/conditions.html" class="external-link">conditionMessage</a></span><span class="op">(</span><span class="va">e</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [1] "24 diseases give 2^24 cells; use backend = \"sampled\", or increase `max_diseases` if intended."</span></span></code></pre></div>
-<p>The sampled fit:</p>
-<div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">j24</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fit_joint.html">fit_joint</a></span><span class="op">(</span><span class="va">pop24</span>, backend <span class="op">=</span> <span class="st">"sampled"</span>, n_samples <span class="op">=</span> <span class="fl">20000</span>, n_chains <span class="op">=</span> <span class="fl">500</span>, seed <span class="op">=</span> <span class="fl">3</span><span class="op">)</span></span>
-<span><span class="va">j24</span></span>
-<span><span class="co">#&gt; &lt;cm_joint&gt; 24 diseases, 11902 combinations (sampled backend)</span></span>
-<span><span class="co">#&gt;   Converged: TRUE after 17 calibration iterations (max residual 7.92e-11)</span></span>
-<span><span class="co">#&gt;   Constrained pairs: 276</span></span>
-<span><span class="co">#&gt;   Sample: 20000 draws from 500 chains, 11902 distinct combinations</span></span>
-<span><span class="co">#&gt;   Constraint residual: 1.06e-02 in the sample, 7.92e-11 after raking; max R-hat 1.005; min ESS 14809</span></span>
-<span><span class="va">j24</span><span class="op">$</span><span class="va">diagnostics</span><span class="op">$</span><span class="va">summary</span></span>
-<span><span class="co">#&gt;   n_samples n_chains n_unique fit_iterations fit_converged residual_sample</span></span>
-<span><span class="co">#&gt; 1     20000      500    11902             17          TRUE       0.0106413</span></span>
-<span><span class="co">#&gt;   residual_calibrated max_rhat  min_ess    max_mcse</span></span>
-<span><span class="co">#&gt; 1        7.921988e-11 1.004523 14809.15 0.003494783</span></span>
-<span><span class="fu">by_n</span><span class="op">(</span><span class="va">j24</span><span class="op">)</span></span>
-<span><span class="co">#&gt;            0            1            2            3            4            5 </span></span>
-<span><span class="co">#&gt; 1.638581e-02 6.089480e-02 1.312900e-01 1.809753e-01 1.929059e-01 1.715441e-01 </span></span>
-<span><span class="co">#&gt;            6            7            8            9           10           11 </span></span>
-<span><span class="co">#&gt; 1.168930e-01 6.859365e-02 3.536791e-02 1.596657e-02 6.176876e-03 2.114325e-03 </span></span>
-<span><span class="co">#&gt;           12           13           14           15 </span></span>
-<span><span class="co">#&gt; 6.615586e-04 1.418021e-04 3.669966e-05 5.182282e-05</span></span></code></pre></div>
-<p>Without interactions, the global method uses the pairwise tables
-only. Raking matches every pairwise table exactly on the sample
-(including the independent pairs, which are constrained to an odds ratio
-of 1), so the global result equals the simultaneous one up to the raking
-tolerance:</p>
-<div class="sourceCode" id="cb20"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">r_sim</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/deconflate.html">deconflate</a></span><span class="op">(</span><span class="va">m24</span><span class="op">)</span></span>
-<span><span class="va">r_glob</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/deconflate.html">deconflate</a></span><span class="op">(</span><span class="va">m24</span>, method <span class="op">=</span> <span class="st">"global"</span>, joint <span class="op">=</span> <span class="va">j24</span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">max</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">abs</a></span><span class="op">(</span><span class="va">r_glob</span><span class="op">$</span><span class="va">adjusted</span><span class="op">$</span><span class="va">adjusted</span> <span class="op">-</span> <span class="va">r_sim</span><span class="op">$</span><span class="va">adjusted</span><span class="op">$</span><span class="va">adjusted</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="co">#&gt; [1] 1.021933e-09</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>simultaneous <span class="op">=</span> <span class="va">r_sim</span><span class="op">$</span><span class="va">totals</span><span class="op">$</span><span class="va">adjusted_total</span>, global <span class="op">=</span> <span class="va">r_glob</span><span class="op">$</span><span class="va">totals</span><span class="op">$</span><span class="va">adjusted_total</span><span class="op">)</span></span>
-<span><span class="co">#&gt; simultaneous       global </span></span>
-<span><span class="co">#&gt;      11.9101      11.9101</span></span></code></pre></div>
+<p>The unknown pairs need the global method, and with 24 diseases
+<code><a href="../reference/deconflate.html">deconflate()</a></code> fits the joint distribution with the sampled
+backend (with the default <code>n_samples</code> and
+<code>n_chains</code> of <code><a href="../reference/fit_joint.html">fit_joint()</a></code>). The
+<code>seed</code> argument of <code><a href="../reference/deconflate.html">deconflate()</a></code> is for its
+draws; to make the sampled fit reproducible, set the random seed before
+the call, or fit it with <code>fit_joint(..., seed = )</code> and pass
+it with <code>joint</code>:</p>
+<div class="sourceCode" id="cb25"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">3</span><span class="op">)</span></span>
+<span><span class="va">r24</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/deconflate.html">deconflate</a></span><span class="op">(</span><span class="va">m24</span>, n_draws <span class="op">=</span> <span class="fl">0</span><span class="op">)</span></span>
+<span><span class="va">r24</span><span class="op">$</span><span class="va">notes</span></span>
+<span><span class="co">#&gt; [1] "The global method was used because of 253 pairs without an association (unknown)."             </span></span>
+<span><span class="co">#&gt; [2] "With 24 diseases, the joint distribution was fitted with the sampled backend (see ?fit_joint)."</span></span>
+<span><span class="va">r24</span><span class="op">$</span><span class="va">joint</span></span>
+<span><span class="co">#&gt; &lt;cm_joint&gt; 24 diseases, 24537 combinations (sampled backend)</span></span>
+<span><span class="co">#&gt;   Converged: TRUE after 17 calibration iterations (max residual 2.32e-12)</span></span>
+<span><span class="co">#&gt;   Constrained pairs: 23</span></span>
+<span><span class="co">#&gt;   Sample: 50000 draws from 1000 chains, 24537 distinct combinations</span></span>
+<span><span class="co">#&gt;   Constraint residual: 4.70e-03 in the sample, 2.32e-12 after raking; max R-hat 1.002; min ESS 43146</span></span>
+<span><span class="va">r24</span><span class="op">$</span><span class="va">totals</span></span>
+<span><span class="co">#&gt;    raw_sum adjusted_total interaction_total</span></span>
+<span><span class="co">#&gt; 1 14.77391       11.57177                 0</span></span></code></pre></div>
+<p>The odds ratios the fit gives the unknown pairs come from the sample,
+so they carry Monte Carlo error (see the raking step above), and so do
+the adjusted impacts that depend on them:</p>
+<div class="sourceCode" id="cb26"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">r24</span><span class="op">$</span><span class="va">unknown_pairs</span><span class="op">$</span><span class="va">fitted_or</span><span class="op">)</span></span>
+<span><span class="co">#&gt;    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. </span></span>
+<span><span class="co">#&gt;  0.8591  0.9807  1.0021  1.0073  1.0283  1.2301</span></span></code></pre></div>
 <p>An interaction (1 percentage point when x12 and x13 occur together)
-needs the probabilities of disease triples, so it uses the sampled
-distribution beyond its pairwise tables:</p>
-<div class="sourceCode" id="cb21"><pre class="downlit sourceCode r">
+does not change the joint distribution, so the fit is reused:</p>
+<div class="sourceCode" id="cb27"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">m24i</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/set_interaction.html">set_interaction</a></span><span class="op">(</span><span class="va">m24</span>, <span class="st">"x12"</span>, <span class="st">"x13"</span>, <span class="fl">1</span><span class="op">)</span></span>
-<span><span class="va">r_int</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/deconflate.html">deconflate</a></span><span class="op">(</span><span class="va">m24i</span>, method <span class="op">=</span> <span class="st">"global"</span>, joint <span class="op">=</span> <span class="va">j24</span><span class="op">)</span></span>
+<span><span class="va">r_int</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/deconflate.html">deconflate</a></span><span class="op">(</span><span class="va">m24i</span>, n_draws <span class="op">=</span> <span class="fl">0</span>, joint <span class="op">=</span> <span class="va">r24</span><span class="op">$</span><span class="va">joint</span><span class="op">)</span></span>
 <span><span class="va">near</span> <span class="op">&lt;-</span> <span class="va">ids</span><span class="op">[</span><span class="fl">10</span><span class="op">:</span><span class="fl">15</span><span class="op">]</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span>disease <span class="op">=</span> <span class="va">near</span>,</span>
-<span>           raw <span class="op">=</span> <span class="va">r_glob</span><span class="op">$</span><span class="va">adjusted</span><span class="op">$</span><span class="va">raw</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/match.html" class="external-link">match</a></span><span class="op">(</span><span class="va">near</span>, <span class="va">ids</span><span class="op">)</span><span class="op">]</span>,</span>
-<span>           no_interaction <span class="op">=</span> <span class="va">r_glob</span><span class="op">$</span><span class="va">adjusted</span><span class="op">$</span><span class="va">adjusted</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/match.html" class="external-link">match</a></span><span class="op">(</span><span class="va">near</span>, <span class="va">ids</span><span class="op">)</span><span class="op">]</span>,</span>
+<span>           raw <span class="op">=</span> <span class="va">r24</span><span class="op">$</span><span class="va">adjusted</span><span class="op">$</span><span class="va">raw</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/match.html" class="external-link">match</a></span><span class="op">(</span><span class="va">near</span>, <span class="va">ids</span><span class="op">)</span><span class="op">]</span>,</span>
+<span>           no_interaction <span class="op">=</span> <span class="va">r24</span><span class="op">$</span><span class="va">adjusted</span><span class="op">$</span><span class="va">adjusted</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/match.html" class="external-link">match</a></span><span class="op">(</span><span class="va">near</span>, <span class="va">ids</span><span class="op">)</span><span class="op">]</span>,</span>
 <span>           interaction <span class="op">=</span> <span class="va">r_int</span><span class="op">$</span><span class="va">adjusted</span><span class="op">$</span><span class="va">adjusted</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/match.html" class="external-link">match</a></span><span class="op">(</span><span class="va">near</span>, <span class="va">ids</span><span class="op">)</span><span class="op">]</span><span class="op">)</span></span>
 <span><span class="co">#&gt;   disease      raw no_interaction interaction</span></span>
-<span><span class="co">#&gt; 1     x10 2.565217       2.131149    2.130591</span></span>
-<span><span class="co">#&gt; 2     x11 2.739130       2.257329    2.257990</span></span>
-<span><span class="co">#&gt; 3     x12 2.913043       2.382451    2.132485</span></span>
-<span><span class="co">#&gt; 4     x13 3.086957       2.506642    2.273895</span></span>
-<span><span class="co">#&gt; 5     x14 3.260870       2.630017    2.631250</span></span>
-<span><span class="co">#&gt; 6     x15 3.434783       2.752682    2.750201</span></span>
+<span><span class="co">#&gt; 1     x10 2.565217       2.154282    2.152973</span></span>
+<span><span class="co">#&gt; 2     x11 2.739130       2.173030    2.170177</span></span>
+<span><span class="co">#&gt; 3     x12 2.913043       2.313843    2.064371</span></span>
+<span><span class="co">#&gt; 4     x13 3.086957       2.322939    2.089923</span></span>
+<span><span class="co">#&gt; 5     x14 3.260870       2.643353    2.647016</span></span>
+<span><span class="co">#&gt; 6     x15 3.434783       2.594803    2.595581</span></span>
 <span><span class="va">r_int</span><span class="op">$</span><span class="va">totals</span></span>
 <span><span class="co">#&gt;    raw_sum adjusted_total interaction_total</span></span>
-<span><span class="co">#&gt; 1 14.77391       11.87258        0.04696013</span></span></code></pre></div>
+<span><span class="co">#&gt; 1 14.77391       11.53431        0.04696013</span></span></code></pre></div>
 <p>The adjusted impacts of x12 and x13 fall, because part of their raw
 impacts is now attributed to the interaction; the other diseases change
 little. These values carry Monte Carlo error from the sampled triples.
@@ -561,8 +702,10 @@ In an analysis, refit the joint distribution with another seed (or more
 samples) and check that the conclusions do not change.</p>
 <p>The run time of a sampled fit grows with <code>n_samples</code> and
 <code>n_chains</code>, and that of the raking step with the number of
-constrained pairs (every pair that is specified or independent by
-default) times the number of distinct sampled combinations.</p>
+constrained pairs (the pairs with an association) times the number of
+distinct sampled combinations. Draws (<code>n_draws</code>) refit the
+joint distribution for every draw, which is slow with the sampled
+backend; check the run time on a few draws first.</p>
 </div>
 </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

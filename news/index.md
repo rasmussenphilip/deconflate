@@ -2,77 +2,119 @@
 
 ## deconflate (development version)
 
+Version 0.4 is being built in steps (see `ROADMAP.md`). So far: the
+interface is slimmed to de-conflation itself, and everything runs
+through one function,
+[`deconflate()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate.md),
+with one impact table per call.
+
 ### Breaking changes
 
-- **The published approximation is no longer a method of
+- **One function, one impact table.**
   [`deconflate()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate.md)
-  or
-  [`deconflate_hr()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate_hr.md).**
+  adjusts one table of impact estimates; for several outcomes, call it
+  once per table. `cm_analyses()` and the multi-analysis results are
+  removed.
+- **Named input tables with any file name.**
+  [`cm_read_inputs()`](https://rasmussenphilip.github.io/deconflate/reference/cm_read_inputs.md)
+  and
+  [`cm_check_inputs()`](https://rasmussenphilip.github.io/deconflate/reference/cm_check_inputs.md)
+  take each table as its own argument (`diseases`, `associations`,
+  `impacts`, and optionally `interactions` and `three_way`), as a path
+  to a CSV file with any name or a data frame. The `dir` argument and
+  the fixed file names are removed.
   [`deconflate()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate.md)
-  (for `cm_model` and `cm_analyses`) has the methods `"simultaneous"`
-  (default) and `"global"`;
-  [`deconflate_hr()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate_hr.md)
-  has `"snapshot"` (default) and `"first_order"`. `method = "published"`
-  now gives an error of class `deconflate_unsupported` that points to
-  the alternatives. The approximation of Rasmussen et al. (2022, eq.
-  16), and the HR - 1 approach of Rasmussen et al. (2024), are kept for
-  comparison and reproduction only: in
+  needs at least one association; the sensitivity tools also run without
+  any.
+  [`cm_template()`](https://rasmussenphilip.github.io/deconflate/reference/cm_template.md)
+  writes one example of each table (`type` is removed).
+- **Pairs without an association are unknown by default.** The global
+  model fills them in from the other associations, and the result lists
+  them with the odds ratios the fit gave them (`$unknown_pairs`). An
+  odds ratio of 1 states that two diseases are unrelated. The argument
+  `missing_associations` and the association measures `"independent"`,
+  `"unknown"` and `"table"` (with `n11`-`n00`) are removed; old tables
+  get a message saying what to write instead. The published analyses
+  treated unlisted pairs as independent; the `reproduce_*()` functions
+  still do.
+- **`method = "auto"` is the default.** It uses the simultaneous method
+  when every pair has an association and there are no interactions or
+  three-way terms (where the two methods give the same answer), and the
+  global method otherwise, with a note giving the reason.
+  `method = "simultaneous"` switches in the same way; `"global"` always
+  uses the global method. With more than 20 diseases the sampled backend
+  of
+  [`fit_joint()`](https://rasmussenphilip.github.io/deconflate/reference/fit_joint.md)
+  is used automatically.
+- **Event impacts run through
+  [`deconflate()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate.md).**
+  With `event_model = TRUE` and `overall_risk` (a proportion or a
+  distribution), the impact table has a `measure` column: hazard ratios,
+  rate ratios, risk ratios, odds ratios and risk differences, which can
+  be mixed, all adjusted with the snapshot hazard model. The result has
+  the adjusted hazard ratios and the risk attributable to disease, with
+  its Shapley allocation. `deconflate_hr()`, `cm_hr_model()`,
+  `cm_hazard_ratios()`, `attributable_risk()` and
+  `example_global_dairy_hr()` are removed;
+  `example_global_dairy("culling")` and
+  `example_uk_dairy_2022("culling")` give the event impacts. In the
+  example folders, `hazard_ratios.csv` is replaced by `culling.csv`.
+- **Uncertainty is part of
+  [`deconflate()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate.md).**
+  When inputs have distributions (in the tables, in
+  `cm_model(distributions = )`, or `overall_risk`),
+  [`deconflate()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate.md)
+  runs `n_draws = 1000` draws by default and adds intervals to its
+  tables (`$draws` holds the summary, rejections and the seed). With no
+  distributions it gives point estimates, with a note. Rejected draws
+  are counted and not replaced.
   [`compare_methods()`](https://rasmussenphilip.github.io/deconflate/reference/compare_methods.md)
-  (whose default methods still include `"published"`),
-  `cm_monte_carlo(method = ...)` and
+  takes `n_draws` too. Removed: `cm_monte_carlo()`, `cm_sampler()`,
+  `cm_batch_sampler()`, `sampler_global_dairy()`, `cm_reweight()`,
+  `cm_scenario()`, `compare_scenarios()`, `cm_diagnose()`,
+  `cm_suggest_proposal()`, importance sampling and `summary.cm_mc()`.
+- **The published approximation is no longer a method of
+  [`deconflate()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate.md).**
+  The approximation of Rasmussen et al. (2022, eq. 16), and the HR - 1
+  approach of Rasmussen et al. (2024), are kept for comparison and
+  reproduction only: in
+  [`compare_methods()`](https://rasmussenphilip.github.io/deconflate/reference/compare_methods.md)
+  (whose default methods still include `"published"`) and
   [`reproduce_rasmussen_2022()`](https://rasmussenphilip.github.io/deconflate/reference/reproduce.md)
   /
   [`reproduce_rasmussen_2024()`](https://rasmussenphilip.github.io/deconflate/reference/reproduce.md).
-  [`cm_threshold()`](https://rasmussenphilip.github.io/deconflate/reference/cm_threshold.md)
-  accepts `"simultaneous"` and `"global"` only, and
-  [`sensitivity_oat()`](https://rasmussenphilip.github.io/deconflate/reference/sensitivity_oat.md),
-  the `screen_*()` functions and
-  [`compare_scenarios()`](https://rasmussenphilip.github.io/deconflate/reference/compare_scenarios.md)
-  inherit the methods of
-  [`deconflate()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate.md).
-  Method guidance: use `"simultaneous"` when impacts are additive and
-  every pair has an association estimate or a defensible independence
-  assumption; `"global"` otherwise (interactions, unknown pairs); the
-  snapshot model for hazard ratios.
+  `method = "published"` elsewhere gives an error of class
+  `deconflate_unsupported`.
 - **Valuation is removed from the package.** The package reports
   adjusted impacts and contributions in the units of the impacts.
-  Removed:
-  - the exported functions `productivity_gap()`, `value_losses()`,
-    `cm_mc_gap()` and `uk_dairy_2022_economics()`;
-  - the `valuation` argument of
-    [`contribution_table()`](https://rasmussenphilip.github.io/deconflate/reference/contribution_table.md),
-    [`summary.cm_result()`](https://rasmussenphilip.github.io/deconflate/reference/summary.cm_result.md),
-    [`compare_methods()`](https://rasmussenphilip.github.io/deconflate/reference/compare_methods.md)
-    (for `cm_model` and `cm_analyses`; `totals` now has `raw_sum` and
-    `adjusted_total` per method),
-    [`sensitivity_oat()`](https://rasmussenphilip.github.io/deconflate/reference/sensitivity_oat.md),
-    [`screen_associations()`](https://rasmussenphilip.github.io/deconflate/reference/screen_associations.md),
-    [`screen_interactions()`](https://rasmussenphilip.github.io/deconflate/reference/screen_interactions.md),
-    [`screen_three_way()`](https://rasmussenphilip.github.io/deconflate/reference/screen_three_way.md),
-    [`compare_scenarios()`](https://rasmussenphilip.github.io/deconflate/reference/compare_scenarios.md)
-    and
-    [`plot_burden()`](https://rasmussenphilip.github.io/deconflate/reference/plots.md)
-    (which now plots shares of the aggregate); the screens use the
-    adjusted aggregate as their metric;
-  - the `unit_value` argument of
-    [`attributable_risk()`](https://rasmussenphilip.github.io/deconflate/reference/attributable_risk.md)
-    and its `value` columns.
-
-  The gap and value calculation of the 2022 paper moved into
+  Removed: `productivity_gap()`, `value_losses()`, `cm_mc_gap()`,
+  `uk_dairy_2022_economics()`, every `valuation` argument and the
+  `unit_value` of the attributable risk. The gap and value calculation
+  of the 2022 paper moved into
   [`reproduce_rasmussen_2022()`](https://rasmussenphilip.github.io/deconflate/reference/reproduce.md),
-  whose output is unchanged. For new analyses,
+  whose output is unchanged;
   [`vignette("deconflate")`](https://rasmussenphilip.github.io/deconflate/articles/deconflate.md)
-  shows in a few lines of base R how to turn the adjusted aggregate and
-  contributions into a gap and a value.
+  shows the calculation in base R.
+- **Examples return one model.** `example_global_dairy(outcome, inputs)`
+  and `example_uk_dairy_2022(outcome)` return the model of one outcome
+  (`"yield"`, `"fertility"` or `"culling"`).
+- **Sensitivity tools**
+  ([`screen_associations()`](https://rasmussenphilip.github.io/deconflate/reference/screen_associations.md),
+  [`screen_interactions()`](https://rasmussenphilip.github.io/deconflate/reference/screen_interactions.md),
+  [`screen_three_way()`](https://rasmussenphilip.github.io/deconflate/reference/screen_three_way.md),
+  [`sensitivity_oat()`](https://rasmussenphilip.github.io/deconflate/reference/sensitivity_oat.md),
+  [`cm_threshold()`](https://rasmussenphilip.github.io/deconflate/reference/cm_threshold.md))
+  use `method = "auto"`, support event impacts (`event_model = TRUE`,
+  `overall_risk`), and run on point estimates.
+  [`cm_threshold()`](https://rasmussenphilip.github.io/deconflate/reference/cm_threshold.md)
+  reports the methods it used and accepts the input `"risk"`.
 
 ### Documentation
 
-- Vignettes, README and the five-disease example script use the new
-  interface: the published approximation is shown with
-  [`compare_methods()`](https://rasmussenphilip.github.io/deconflate/reference/compare_methods.md)
-  or
-  [`cm_monte_carlo()`](https://rasmussenphilip.github.io/deconflate/reference/cm_monte_carlo.md),
-  and gaps and values are computed in base R.
+- All vignettes, the README and the five-disease example (its README and
+  `run_all_features.R`) use the new interface. The vignette on hazard
+  ratios is now
+  [`vignette("event-impacts")`](https://rasmussenphilip.github.io/deconflate/articles/event-impacts.md).
 
 ## deconflate 0.3.0
 
@@ -105,22 +147,20 @@ five-disease example that uses every feature.
   use the new layout. Every table can also have a free-text `note`
   column.
 - **Hazard-ratio estimands are named for the snapshot model and must be
-  stated.**
-  [`cm_hazard_ratios()`](https://rasmussenphilip.github.io/deconflate/reference/cm_hazard_ratios.md)
-  has no default estimand; use `estimand = "snapshot_crude"` or
-  `"snapshot_stratified"` (the old `"crude"` and `"adjusted"` give an
-  error explaining the change). The documentation explains how these
-  differ from Cox hazard ratios estimated over follow-up.
-  `hazard_ratios.csv` needs an `estimand` column.
+  stated.** `cm_hazard_ratios()` has no default estimand; use
+  `estimand = "snapshot_crude"` or `"snapshot_stratified"` (the old
+  `"crude"` and `"adjusted"` give an error explaining the change). The
+  documentation explains how these differ from Cox hazard ratios
+  estimated over follow-up. `hazard_ratios.csv` needs an `estimand`
+  column.
 - **Historical conversions are confined to the reproduction functions.**
   [`example_uk_dairy_2022()`](https://rasmussenphilip.github.io/deconflate/reference/example_uk_dairy_2022.md)
   has the yield and fertility analyses only (the 2022 culling analysis,
   hazard ratios treated as odds ratios, is built inside
   [`reproduce_rasmussen_2022()`](https://rasmussenphilip.github.io/deconflate/reference/reproduce.md));
   [`example_global_dairy()`](https://rasmussenphilip.github.io/deconflate/reference/example_global_dairy.md)
-  and
-  [`sampler_global_dairy()`](https://rasmussenphilip.github.io/deconflate/reference/sampler_global_dairy.md)
-  lose `culling` (the 2024 HR - 1 analysis is built inside
+  and `sampler_global_dairy()` lose `culling` (the 2024 HR - 1 analysis
+  is built inside
   [`reproduce_rasmussen_2024()`](https://rasmussenphilip.github.io/deconflate/reference/reproduce.md)).
 - `uk_dairy_2022_economics()` returns the yield and fertility valuations
   (and `additional`); the paper’s culling valuation is used inside
@@ -147,12 +187,10 @@ five-disease example that uses every feature.
   every part of the package on it; `README.md` describes the files.
   Reference values are in `inst/validation/reference_five_diseases.py`.
 
-- **Three-way ratios can be uncertain:**
-  [`cm_sampler()`](https://rasmussenphilip.github.io/deconflate/reference/cm_sampler.md)
-  and
-  [`cm_batch_sampler()`](https://rasmussenphilip.github.io/deconflate/reference/cm_batch_sampler.md)
-  take `three_way` distributions (keys `three:<d1>:<d2>:<d3>`, diseases
-  in any order); in batch runs they are shared population inputs.
+- **Three-way ratios can be uncertain:** `cm_sampler()` and
+  `cm_batch_sampler()` take `three_way` distributions (keys
+  `three:<d1>:<d2>:<d3>`, diseases in any order); in batch runs they are
+  shared population inputs.
 
 - **Threshold searches:**
   [`cm_threshold()`](https://rasmussenphilip.github.io/deconflate/reference/cm_threshold.md)
@@ -193,9 +231,8 @@ five-disease example that uses every feature.
   after raking, R-hat, effective sample sizes and Monte Carlo errors; a
   fit that does not converge is reported as unresolved, not as
   infeasible. The global method, interaction offsets, Shapley
-  allocation, the snapshot hazard model and
-  [`attributable_risk()`](https://rasmussenphilip.github.io/deconflate/reference/attributable_risk.md)
-  use it unchanged. Pass `backend = "sampled"` through
+  allocation, the snapshot hazard model and `attributable_risk()` use it
+  unchanged. Pass `backend = "sampled"` through
   `deconflate(..., method = "global")`, or pass the fitted joint.
 
 - The pairwise methods (`"simultaneous"`, `"published"`) never enumerate
@@ -210,19 +247,16 @@ five-disease example that uses every feature.
   the input’s whole support, so a mixture that spans the range but
   leaves a gap is rejected (it previously converged to a biased estimate
   with a high effective sample size). The same check applies to
-  [`cm_scenario()`](https://rasmussenphilip.github.io/deconflate/reference/cm_scenario.md).
+  `cm_scenario()`.
 - **Undefined results:** one finiteness check is shared by Monte Carlo,
   [`compare_methods()`](https://rasmussenphilip.github.io/deconflate/reference/compare_methods.md),
-  the sensitivity screens,
-  [`compare_scenarios()`](https://rasmussenphilip.github.io/deconflate/reference/compare_scenarios.md)
-  and
+  the sensitivity screens, `compare_scenarios()` and
   [`cm_threshold()`](https://rasmussenphilip.github.io/deconflate/reference/cm_threshold.md).
   A published result with a non-finite value is reported as failed
   (“undefined”);
   [`compare_methods()`](https://rasmussenphilip.github.io/deconflate/reference/compare_methods.md)
   keeps it in `undefined` for inspection but not among the estimates.
-  Screens stop if their baseline is undefined;
-  [`compare_scenarios()`](https://rasmussenphilip.github.io/deconflate/reference/compare_scenarios.md)
+  Screens stop if their baseline is undefined; `compare_scenarios()`
   gains a `failed` column.
 - **Precision status:** a new stability status, `"insufficient_info"`,
   is used when precision cannot be assessed (fewer than two Latin
@@ -239,8 +273,8 @@ five-disease example that uses every feature.
   converged.
 - [`shapley_by_cell()`](https://rasmussenphilip.github.io/deconflate/reference/shapley_by_cell.md)
   caches the loss of each combination by code, which makes
-  [`attributable_risk()`](https://rasmussenphilip.github.io/deconflate/reference/attributable_risk.md)
-  much faster for 10 or more diseases and works with sampled joints.
+  `attributable_risk()` much faster for 10 or more diseases and works
+  with sampled joints.
 
 ### Validation
 
@@ -284,16 +318,11 @@ changes”).
   omitted diseases, with an identifiability check. `adjusted_for`
   without `"adjusted_linear"` is an error: the estimand is never
   inferred from it. The published method is limited to crude estimates.
-- **Hazard ratios have their own adapter.**
-  [`cm_hazard_ratios()`](https://rasmussenphilip.github.io/deconflate/reference/cm_hazard_ratios.md),
-  [`cm_hr_model()`](https://rasmussenphilip.github.io/deconflate/reference/cm_hr_model.md)
-  and
-  [`deconflate_hr()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate_hr.md)
-  (methods `"snapshot"`, a snapshot hazard-multiplier model solved
-  exactly over the joint distribution, `"first_order"` and
-  `"published"`), with stratified `adjusted_for` and `"all"`.
-  [`attributable_risk()`](https://rasmussenphilip.github.io/deconflate/reference/attributable_risk.md)
-  takes their results.
+- **Hazard ratios have their own adapter.** `cm_hazard_ratios()`,
+  `cm_hr_model()` and `deconflate_hr()` (methods `"snapshot"`, a
+  snapshot hazard-multiplier model solved exactly over the joint
+  distribution, `"first_order"` and `"published"`), with stratified
+  `adjusted_for` and `"all"`. `attributable_risk()` takes their results.
 - **Removed:** `combine_impacts()`, `hr_to_risk()`, `excess_to_hr()`,
   `hr_conversion()`, `as_impacts()` and `adjusted_hr()`. The conversions
   used in the papers are kept only to reproduce them: hazard ratios as
@@ -326,11 +355,10 @@ changes”).
   correction is explicit (`zero_cell = c("haldane", "error")`) and
   recorded in `corrected`.
 - **Disease ids** must not contain `|`, `;` or `:`; `"all"` is reserved.
-- **Monte Carlo keys** in
-  [`cm_sampler()`](https://rasmussenphilip.github.io/deconflate/reference/cm_sampler.md)
-  are `impact:<disease>` and `inter:<d1>:<d2>` (input files use
-  `impact:<analysis>:<disease>` and `inter:<analysis>:<d1>:<d2>`); the
-  sampler no longer correlates outcomes (`outcome_correlation` removed).
+- **Monte Carlo keys** in `cm_sampler()` are `impact:<disease>` and
+  `inter:<d1>:<d2>` (input files use `impact:<analysis>:<disease>` and
+  `inter:<analysis>:<d1>:<d2>`); the sampler no longer correlates
+  outcomes (`outcome_correlation` removed).
 - [`cm_read_inputs()`](https://rasmussenphilip.github.io/deconflate/reference/cm_read_inputs.md)
   reads one impact table per analysis (see below).
 
@@ -359,18 +387,16 @@ changes”).
   [`set_three_way()`](https://rasmussenphilip.github.io/deconflate/reference/set_three_way.md)
   and
   [`screen_three_way()`](https://rasmussenphilip.github.io/deconflate/reference/screen_three_way.md).
-- **Batch Monte Carlo:**
-  [`cm_batch_sampler()`](https://rasmussenphilip.github.io/deconflate/reference/cm_batch_sampler.md)
-  runs several analyses on shared draws of the disease probabilities and
-  associations.
+- **Batch Monte Carlo:** `cm_batch_sampler()` runs several analyses on
+  shared draws of the disease probabilities and associations.
 - **Reproduction:**
   [`reproduce_rasmussen_2022()`](https://rasmussenphilip.github.io/deconflate/reference/reproduce.md)
   (Tables 8-10) and
   [`reproduce_rasmussen_2024()`](https://rasmussenphilip.github.io/deconflate/reference/reproduce.md)
   (Table 5), with the published values beside the package’s.
 - `cm_mc_gap()`: productivity gaps and values per Monte Carlo draw.
-- [`example_global_dairy_hr()`](https://rasmussenphilip.github.io/deconflate/reference/example_global_dairy_hr.md):
-  the 2024 culling hazard ratios as a hazard-ratio model.
+- `example_global_dairy_hr()`: the 2024 culling hazard ratios as a
+  hazard-ratio model.
 
 ### Corrections and checks
 
@@ -397,9 +423,8 @@ changes”).
   `deconflate_unsupported` and `deconflate_nonfinite`.
 - [`shapley_by_cell()`](https://rasmussenphilip.github.io/deconflate/reference/shapley_by_cell.md)
   reports the probability and loss of any skipped combinations, and
-  [`attributable_risk()`](https://rasmussenphilip.github.io/deconflate/reference/attributable_risk.md)
-  the unallocated part; the allocated and unallocated parts add up to
-  the total.
+  `attributable_risk()` the unallocated part; the allocated and
+  unallocated parts add up to the total.
 - Sensitivity screens report failed scenarios in a `failed` column
   instead of dropping them, and reject unknown pairs or triples.
 
@@ -428,8 +453,7 @@ changes”).
   impact estimates come from.
 - Pairwise associations do not identify three-way structure; the global
   method assumes maximum entropy unless three-way scenarios are given.
-- The global method, the snapshot hazard model and
-  [`attributable_risk()`](https://rasmussenphilip.github.io/deconflate/reference/attributable_risk.md)
+- The global method, the snapshot hazard model and `attributable_risk()`
   enumerate all 2^n disease combinations (about 20 diseases at most).
 - The triple screen is a necessary condition for joint feasibility only;
   the exact check needs `lpSolve`.
@@ -443,11 +467,10 @@ Checked against the published 2024 analysis code (1st revision) and the
 
 - **Breaking:**
   [`example_global_dairy()`](https://rasmussenphilip.github.io/deconflate/reference/example_global_dairy.md)
-  and
-  [`sampler_global_dairy()`](https://rasmussenphilip.github.io/deconflate/reference/sampler_global_dairy.md)
-  gain `inputs = c("analysis", "tables")` and `culling = TRUE`. The
-  default, `"analysis"`, uses the inputs of the published analysis code,
-  which reproduce Table 5 of Rasmussen et al. (2024):
+  and `sampler_global_dairy()` gain `inputs = c("analysis", "tables")`
+  and `culling = TRUE`. The default, `"analysis"`, uses the inputs of
+  the published analysis code, which reproduce Table 5 of Rasmussen et
+  al. (2024):
   - fixed disease probabilities (`1 - exp(-incidence)` at the unrounded
     global means; subclinical mastitis entered unconverted, as in the
     analysis);
@@ -481,11 +504,10 @@ Builds the remaining v0.1 features.
   culling results of Tables 8-10 and documents why the yield results
   differ (the printed Table 4 differs from the inputs implied by Tables
   8-10).
-- Added
-  [`sampler_global_dairy()`](https://rasmussenphilip.github.io/deconflate/reference/sampler_global_dairy.md)
-  with the input distributions of Rasmussen et al. (2024). Monte Carlo
-  means of the adjusted yield impacts reproduce Table 5. The central
-  value of the PERT distributions in Tables 2-4 is the mode.
+- Added `sampler_global_dairy()` with the input distributions of
+  Rasmussen et al. (2024). Monte Carlo means of the adjusted yield
+  impacts reproduce Table 5. The central value of the PERT distributions
+  in Tables 2-4 is the mode.
 
 #### Culling and valuation
 
@@ -510,22 +532,17 @@ Builds the remaining v0.1 features.
   [`dist_uniform()`](https://rasmussenphilip.github.io/deconflate/reference/distributions.md)
   and
   [`dist_mixture()`](https://rasmussenphilip.github.io/deconflate/reference/distributions.md).
-- Added
-  [`cm_sampler()`](https://rasmussenphilip.github.io/deconflate/reference/cm_sampler.md),
-  which draws inputs on their entry scale. It supports optional
-  correlation of impacts across outcomes (Gaussian copula).
-- [`cm_monte_carlo()`](https://rasmussenphilip.github.io/deconflate/reference/cm_monte_carlo.md)
-  now:
+- Added `cm_sampler()`, which draws inputs on their entry scale. It
+  supports optional correlation of impacts across outcomes (Gaussian
+  copula).
+- `cm_monte_carlo()` now:
   - accepts `economics` (observed means and unit values, fixed or
     uncertain) and records gaps and losses for each draw;
   - counts sampler failures as rejected draws;
   - takes `seed` and `progress` arguments.
-- Added
-  [`cm_scenario()`](https://rasmussenphilip.github.io/deconflate/reference/cm_scenario.md)
-  for scenario reweighting from distributions.
-  [`summary.cm_mc()`](https://rasmussenphilip.github.io/deconflate/reference/summary.cm_mc.md)
-  gains `what = "loss"`, `"total"` and `"rejections"`, and reports Monte
-  Carlo standard errors.
+- Added `cm_scenario()` for scenario reweighting from distributions.
+  `summary.cm_mc()` gains `what = "loss"`, `"total"` and `"rejections"`,
+  and reports Monte Carlo standard errors.
 - Parameter keys are now `prob:<id>`, `assoc:<d1>:<d2>`,
   `impact:<outcome>:<disease>` and `inter:<outcome>:<d1>:<d2>`.
 
@@ -546,9 +563,7 @@ Builds the remaining v0.1 features.
   [`screen_associations()`](https://rasmussenphilip.github.io/deconflate/reference/screen_associations.md),
   [`screen_interactions()`](https://rasmussenphilip.github.io/deconflate/reference/screen_interactions.md),
   [`sensitivity_oat()`](https://rasmussenphilip.github.io/deconflate/reference/sensitivity_oat.md)
-  and
-  [`compare_scenarios()`](https://rasmussenphilip.github.io/deconflate/reference/compare_scenarios.md).
-  Also added
+  and `compare_scenarios()`. Also added
   [`set_association()`](https://rasmussenphilip.github.io/deconflate/reference/set_association.md)
   and
   [`set_interaction()`](https://rasmussenphilip.github.io/deconflate/reference/set_interaction.md)

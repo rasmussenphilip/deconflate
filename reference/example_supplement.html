@@ -27,10 +27,10 @@ observed mean yield in the example is 10,000 units per animal per year."></head>
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/own-data.html">Using your own data</a></li>
     <li><a class="dropdown-item" href="../articles/thresholds-and-scaling.html">Threshold searches and many diseases</a></li>
-    <li><a class="dropdown-item" href="../articles/culling-hazard-ratios.html">Culling and hazard ratios</a></li>
+    <li><a class="dropdown-item" href="../articles/event-impacts.html">Event impacts (culling and mortality)</a></li>
     <li><a class="dropdown-item" href="../articles/reproducing-published.html">Reproducing the published analyses</a></li>
     <li><a class="dropdown-item" href="../articles/interactions.html">Disease combinations, interactions and attribution</a></li>
-    <li><a class="dropdown-item" href="../articles/uncertainty.html">Uncertainty, scenarios and sensitivity</a></li>
+    <li><a class="dropdown-item" href="../articles/uncertainty.html">Uncertainty and sensitivity</a></li>
   </ul></li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
@@ -85,8 +85,13 @@ units (see <code><a href="../articles/reproducing-published.html">vignette("repr
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Raw sum: 2.5; adjusted total: 2.109</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Diagnostics: residual 8.88e-16, condition number 1.53, sign changes 0</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Notes:</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> * No input has a distribution, so no draws were run: the results are point</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   estimates.</span>
 <span class="r-in"><span><span class="fu"><a href="compare_methods.html">compare_methods</a></span><span class="op">(</span><span class="fu">example_supplement</span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> &lt;cm_comparison&gt; methods: published, simultaneous, global</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Impacts: yield</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Units: %</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Adjusted values:</span>

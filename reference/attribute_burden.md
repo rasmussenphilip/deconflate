@@ -26,4 +26,10 @@ attribute_burden(result)
 
 A data frame with, per disease, the main contribution, the share of
 interaction terms, the total and the share of the aggregate (`NA` when
-the aggregate is zero).
+the aggregate is zero); for event impacts, the attributable risk and its
+share.
+
+## Details
+
+For event impacts, it is the Shapley allocation of the risk attributable
+to disease (`$attributable$by_disease`).

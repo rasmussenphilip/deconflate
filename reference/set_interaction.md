@@ -25,4 +25,5 @@ set_interaction(model, disease1, disease2, value)
 
 ## Value
 
-The modified model.
+The modified model. A distribution of the pair's interaction in the
+model's `distributions` is dropped (the scenario value is fixed).

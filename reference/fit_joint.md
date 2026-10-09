@@ -9,8 +9,10 @@ with main effects and the two-way terms of the constrained pairs, plus
 any three-way terms from
 [`cm_three_way()`](https://rasmussenphilip.github.io/deconflate/reference/cm_three_way.md).
 This is an assumption, not something the pairwise evidence identifies.
-Pairs whose measure is `"unknown"` are not constrained; pairs set to
-`"independent"` are constrained to an odds ratio of 1.
+Pairs without an association (unknown pairs) are not constrained: their
+association is whatever the maximum-entropy fit implies given the
+others. A pair given an odds ratio of 1 is constrained to be
+independent.
 
 ## Usage
 
@@ -26,7 +28,8 @@ fit_joint(
   burn_in = 50L,
   fit_iter = 300L,
   calibrate = TRUE,
-  seed = NULL
+  seed = NULL,
+  start = NULL
 )
 ```
 
@@ -83,6 +86,14 @@ fit_joint(
 
   Optional random seed (sampled backend).
 
+- start:
+
+  Optional earlier exact fit to start the IPF from (e.g. the fit at the
+  central inputs, when refitting for a draw of the inputs). It is used
+  only when it has the same diseases, constrained pairs and three-way
+  terms; the result is then the same maximum-entropy distribution, found
+  in fewer sweeps.
+
 ## Value
 
 A `cm_joint` object: `cells` (0/1 matrix of combinations), `prob`
@@ -132,13 +143,12 @@ combinations, for larger numbers of diseases:
 
 The result has the same form as the exact one (`cells` are the distinct
 sampled combinations, `prob` their weights), so the global method,
-interaction offsets, Shapley allocation, the snapshot hazard model and
-[`attributable_risk()`](https://rasmussenphilip.github.io/deconflate/reference/attributable_risk.md)
-work with it. Its `diagnostics` give the constraint residuals of the raw
-sample and after raking, R-hat and effective sample sizes of the fitted
-probabilities across chains, and the Monte Carlo errors. Results are
-approximations with Monte Carlo error: compare runs with different
-seeds, and with the exact backend where n allows.
+interaction offsets, Shapley allocation and the snapshot hazard model of
+event impacts work with it. Its `diagnostics` give the constraint
+residuals of the raw sample and after raking, R-hat and effective sample
+sizes of the fitted probabilities across chains, and the Monte Carlo
+errors. Results are approximations with Monte Carlo error: compare runs
+with different seeds, and with the exact backend where n allows.
 
 ## Convergence
 

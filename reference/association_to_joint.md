@@ -13,9 +13,7 @@ association_to_joint(measure, value, p1, p2)
 - measure:
 
   One of the measures in
-  [`cm_associations()`](https://rasmussenphilip.github.io/deconflate/reference/cm_associations.md)
-  other than `"unknown"` (`"table"` rows store the table's odds ratio in
-  `value`).
+  [`cm_associations()`](https://rasmussenphilip.github.io/deconflate/reference/cm_associations.md).
 
 - value:
 

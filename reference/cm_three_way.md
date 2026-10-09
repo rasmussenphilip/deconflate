@@ -42,16 +42,16 @@ maximum-entropy assumption. Pairwise evidence cannot identify `ratio`,
 so three-way terms are sensitivity scenarios unless there is direct
 evidence.
 
-When every pair in the triple is constrained (an association is given,
-or the pair is independent by default), a three-way term leaves the
-pairwise tables unchanged, so additive results without interactions do
-not change; it affects only results that depend on the joint
-distribution: the global method with interactions, the hazard-ratio
-snapshot model and
-[`attributable_risk()`](https://rasmussenphilip.github.io/deconflate/reference/attributable_risk.md).
-When a pair is unknown (`missing_associations = "unknown"`), the global
-fit determines its table, and a three-way term can change it, and with
-it the additive results.
+When every pair in the triple has an association, a three-way term
+leaves the pairwise tables unchanged, so additive results without
+interactions do not change; it affects only results that depend on the
+joint distribution: additive impacts with interactions, and event
+impacts (`event_model = TRUE` in
+[`deconflate()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate.md)).
+When a pair is unknown (no association given), the global fit determines
+its table, and a three-way term can change it, and with it the additive
+results. A model with three-way terms is always adjusted with the global
+method.
 
 ## Examples
 

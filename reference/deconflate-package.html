@@ -29,10 +29,10 @@ estimates so that they can be aggregated."></head><body>
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/own-data.html">Using your own data</a></li>
     <li><a class="dropdown-item" href="../articles/thresholds-and-scaling.html">Threshold searches and many diseases</a></li>
-    <li><a class="dropdown-item" href="../articles/culling-hazard-ratios.html">Culling and hazard ratios</a></li>
+    <li><a class="dropdown-item" href="../articles/event-impacts.html">Event impacts (culling and mortality)</a></li>
     <li><a class="dropdown-item" href="../articles/reproducing-published.html">Reproducing the published analyses</a></li>
     <li><a class="dropdown-item" href="../articles/interactions.html">Disease combinations, interactions and attribution</a></li>
-    <li><a class="dropdown-item" href="../articles/uncertainty.html">Uncertainty, scenarios and sensitivity</a></li>
+    <li><a class="dropdown-item" href="../articles/uncertainty.html">Uncertainty and sensitivity</a></li>
   </ul></li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
@@ -64,41 +64,37 @@ estimates so that they can be aggregated.</p>
     <h2 id="workflow">Workflow<a class="anchor" aria-label="anchor" href="#workflow"></a></h2>
 
 
-<ol><li><p>Describe the population with <code><a href="cm_diseases.html">cm_diseases()</a></code>, <code><a href="cm_associations.html">cm_associations()</a></code> and,
-optionally, three-way scenarios (<code><a href="cm_three_way.html">cm_three_way()</a></code>), combined with
-<code><a href="cm_population.html">cm_population()</a></code>. Add one impact vector (<code><a href="cm_impacts.html">cm_impacts()</a></code>) per analysis
-with <code><a href="cm_model.html">cm_model()</a></code>, or several with <code><a href="cm_analyses.html">cm_analyses()</a></code>. Or read the same
-tables from CSV files or data frames with <code><a href="cm_read_inputs.html">cm_read_inputs()</a></code> (see
-<code><a href="cm_template.html">cm_template()</a></code>).</p></li>
-<li><p>Adjust impacts with <code><a href="deconflate.html">deconflate()</a></code>, using one of two methods:</p><ul><li><p><code>"simultaneous"</code> (default): the exact solution of the additive impact
-equations, built from pairwise 2x2 tables. Crude estimates and
-coefficients from additive regressions with a recorded adjustment set
-(<code>estimand = "adjusted_linear"</code>) are supported. Use it when impacts
-are additive and every pair has an association estimate or a
-defensible independence assumption.</p></li>
-<li><p><code>"global"</code>: fits a maximum-entropy distribution of disease
-combinations with <code><a href="fit_joint.html">fit_joint()</a></code>, then solves the impact equations
-including pairwise interactions (<code><a href="cm_interactions.html">cm_interactions()</a></code>) and unknown
-pairs.</p></li>
-</ul></li>
-<li><p>Inspect each disease's contribution to the aggregate
-(<code><a href="attribute_burden.html">attribute_burden()</a></code>, <code><a href="contribution_table.html">contribution_table()</a></code>), in the units of the
-impacts. Converting the results into other quantities (e.g. a
-productivity gap or a monetary value) is left to the user.
-<code><a href="compare_methods.html">compare_methods()</a></code> sets the methods side by side, including the
-proportional approximation of Rasmussen et al. (2022, eq. 16), which is
-kept for comparison and reproduction only.</p></li>
-<li><p>Hazard ratios (e.g. of culling) combine multiplicatively and have their
-own adapter: <code><a href="cm_hazard_ratios.html">cm_hazard_ratios()</a></code>, <code><a href="cm_hr_model.html">cm_hr_model()</a></code>, <code><a href="deconflate_hr.html">deconflate_hr()</a></code>
-and <code><a href="attributable_risk.html">attributable_risk()</a></code>.</p></li>
+<ol><li><p>Read the inputs with <code><a href="cm_read_inputs.html">cm_read_inputs()</a></code>: the diseases, their
+associations, one impact table and, optionally, interactions and
+three-way terms (CSV files with any names, or data frames; see
+<code><a href="cm_template.html">cm_template()</a></code>). Values can have distributions in their own rows. The
+same inputs can be built in R with <code><a href="cm_diseases.html">cm_diseases()</a></code>,
+<code><a href="cm_associations.html">cm_associations()</a></code>, <code><a href="cm_three_way.html">cm_three_way()</a></code>, <code><a href="cm_impacts.html">cm_impacts()</a></code>,
+<code><a href="cm_interactions.html">cm_interactions()</a></code> and <code><a href="cm_model.html">cm_model()</a></code>. For several outcomes, use one
+impact table each and adjust each in turn.</p></li>
+<li><p>Adjust the impacts with <code><a href="deconflate.html">deconflate()</a></code>. Additive impacts (in any units)
+are adjusted with the exact simultaneous solution when every pair has
+an association and there are no interactions or three-way terms, and
+with the global (maximum-entropy) model otherwise; pairs without an
+association are unknown and filled in by the global model. Event
+impacts (hazard ratios, rate ratios, risk ratios, odds ratios or risk
+differences of e.g. culling) use the snapshot hazard model
+(<code>event_model = TRUE</code>, with the overall risk), which also gives the
+risk attributable to disease. When inputs have distributions,
+<code><a href="deconflate.html">deconflate()</a></code> also reports intervals (<code>n_draws</code>).</p></li>
+<li><p>Inspect each disease's contribution (<code><a href="attribute_burden.html">attribute_burden()</a></code>,
+<code><a href="contribution_table.html">contribution_table()</a></code>, <code><a href="plots.html">plot_burden()</a></code>), in the units of the impacts.
+Converting the results into other quantities (e.g. a productivity gap
+or a monetary value) is left to the user. <code><a href="compare_methods.html">compare_methods()</a></code> sets the
+methods side by side, including the proportional approximation of
+Rasmussen et al. (2022, eq. 16), which is kept for comparison and
+reproduction only.</p></li>
 <li><p>Check joint feasibility with <code><a href="check_feasibility.html">check_feasibility()</a></code> (a screen runs by
 default).</p></li>
-<li><p>Propagate uncertainty with <code><a href="cm_sampler.html">cm_sampler()</a></code> or <code><a href="cm_batch_sampler.html">cm_batch_sampler()</a></code> and
-<code><a href="cm_monte_carlo.html">cm_monte_carlo()</a></code> (check stability with <code><a href="cm_diagnose.html">cm_diagnose()</a></code>), and explore
-scenarios with <code><a href="cm_scenario.html">cm_scenario()</a></code>, <code><a href="sensitivity_oat.html">sensitivity_oat()</a></code>,
-<code><a href="screen_associations.html">screen_associations()</a></code>, <code><a href="screen_interactions.html">screen_interactions()</a></code>, <code><a href="screen_three_way.html">screen_three_way()</a></code>
-and <code><a href="compare_scenarios.html">compare_scenarios()</a></code>. Find where a conclusion (a ranking, a sign
-or the aggregate) changes as one input varies with <code><a href="cm_threshold.html">cm_threshold()</a></code>.</p></li>
+<li><p>Explore the inputs with <code><a href="sensitivity_oat.html">sensitivity_oat()</a></code>, <code><a href="screen_associations.html">screen_associations()</a></code>
+(also without any association estimates), <code><a href="screen_interactions.html">screen_interactions()</a></code> and
+<code><a href="screen_three_way.html">screen_three_way()</a></code>, and find where a conclusion (a ranking, a sign
+or the total) changes as one input varies with <code><a href="cm_threshold.html">cm_threshold()</a></code>.</p></li>
 </ol><p><code><a href="reproduce.html">reproduce_rasmussen_2022()</a></code> and <code><a href="reproduce.html">reproduce_rasmussen_2024()</a></code> recompute
 the published tables. See <code><a href="../articles/deconflate.html">vignette("deconflate")</a></code> to get started.</p>
     </div>
@@ -106,8 +102,9 @@ the published tables. See <code><a href="../articles/deconflate.html">vignette("
     <h2 id="conventions">Conventions<a class="anchor" aria-label="anchor" href="#conventions"></a></h2>
 
 
-<ul><li><p>Impacts are additive and in any units, the same within an analysis;
-results come back in those units.</p></li>
+<ul><li><p>Additive impacts are in any units, the same within an impact table;
+results come back in those units. Event impacts are adjusted to hazard
+ratios, and risks are proportions of animals over the period.</p></li>
 <li><p><code>E[k, i]</code> (see <code><a href="excess_matrix.html">excess_matrix()</a></code>) is the excess probability of disease
 <code>k</code> among animals with disease <code>i</code>: <code>P(k | i) - P(k | not i)</code>.</p></li>
 <li><p>Under additive impacts, the crude impact of disease <code>i</code> satisfies

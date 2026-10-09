@@ -36,10 +36,10 @@
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
 <li><a class="dropdown-item" href="../articles/own-data.html">Using your own data</a></li>
     <li><a class="dropdown-item" href="../articles/thresholds-and-scaling.html">Threshold searches and many diseases</a></li>
-    <li><a class="dropdown-item" href="../articles/culling-hazard-ratios.html">Culling and hazard ratios</a></li>
+    <li><a class="dropdown-item" href="../articles/event-impacts.html">Event impacts (culling and mortality)</a></li>
     <li><a class="dropdown-item" href="../articles/reproducing-published.html">Reproducing the published analyses</a></li>
     <li><a class="dropdown-item" href="../articles/interactions.html">Disease combinations, interactions and attribution</a></li>
-    <li><a class="dropdown-item" href="../articles/uncertainty.html">Uncertainty, scenarios and sensitivity</a></li>
+    <li><a class="dropdown-item" href="../articles/uncertainty.html">Uncertainty and sensitivity</a></li>
   </ul>
 </li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
@@ -98,8 +98,9 @@ with the disease probabilities and the pairwise associations.</p>
 <p>Enumerating 2^n combinations limits this exact fit to about 20
 diseases. For more, <code>fit_joint(backend = "sampled")</code> fits the
 same model by Monte Carlo (Gibbs sampling with calibrated parameters,
-followed by raking to the pairwise tables); the functions below that use
-the joint distribution accept a fit from either backend. See
+followed by raking to the pairwise tables); <code><a href="../reference/deconflate.html">deconflate()</a></code>
+switches to it by itself above 20 diseases, and the functions below that
+use the joint distribution accept a fit from either backend. See
 <code><a href="../articles/thresholds-and-scaling.html">vignette("thresholds-and-scaling")</a></code> for how it works, its
 diagnostics and a 24-disease example.</p>
 </div>
@@ -123,11 +124,11 @@ association is implied by the associations both diseases have with other
 diseases.</li>
 </ul>
 <p>Additive results without interactions do not depend on this
-assumption: they need the pairwise tables only. It matters for
-interactions, for three-way scenarios, and for the results that use the
-whole distribution (the snapshot hazard-ratio model and
-<code><a href="../reference/attributable_risk.html">attributable_risk()</a></code>, see
-<code><a href="../articles/culling-hazard-ratios.html">vignette("culling-hazard-ratios")</a></code>).</p>
+assumption when every pair has an association: they need the pairwise
+tables only. It matters for unknown pairs, for interactions, for
+three-way scenarios, and for event impacts
+(<code>deconflate(..., event_model = TRUE)</code>, which uses the whole
+distribution; see <code><a href="../articles/event-impacts.html">vignette("event-impacts")</a></code>).</p>
 <p>If the pairwise associations cannot hold together, no distribution
 exists. <code><a href="../reference/check_feasibility.html">check_feasibility()</a></code> detects this and identifies the
 conflicting associations:</p>
@@ -142,25 +143,74 @@ conflicting associations:</p>
 <span><span class="co">#&gt;         a        b        c 0.226</span></span></code></pre></div>
 </div>
 <div class="section level2">
+<h2 id="how-deconflate-chooses-the-method">How deconflate() chooses the method<a class="anchor" aria-label="anchor" href="#how-deconflate-chooses-the-method"></a>
+</h2>
+<p><code><a href="../reference/deconflate.html">deconflate()</a></code> has two exact methods. The simultaneous
+method solves the impact equations from the pairwise 2x2 tables; the
+global method solves the same equations from the fitted distribution of
+disease combinations. They give the same answer when every pair has an
+association and there are no interactions and no three-way terms. With
+<code>method = "auto"</code> (the default), <code><a href="../reference/deconflate.html">deconflate()</a></code>
+uses the simultaneous method in that case and the global method
+otherwise, and says why in <code>$notes</code>. The reasons are:</p>
+<ul>
+<li>
+<strong>unknown pairs</strong>: pairs with no association
+(below);</li>
+<li>
+<strong>interactions</strong> (below);</li>
+<li>
+<strong>three-way terms</strong> (below).</li>
+</ul>
+<p><code>method = "simultaneous"</code> switches in the same way (with a
+note saying so), and <code>method = "global"</code> always uses the
+global method.</p>
+</div>
+<div class="section level2">
 <h2 id="unknown-associations-are-not-independence">Unknown associations are not independence<a class="anchor" aria-label="anchor" href="#unknown-associations-are-not-independence"></a>
 </h2>
-<p>Setting an association to an odds ratio of 1 imposes independence.
-Leaving it unknown lets the maximum-entropy fit imply an association
-through the other diseases. Use the simultaneous method when every pair
-has an association estimate or a defensible independence assumption;
-with unknown pairs (or interactions, below), use the global method, the
-only one that accepts them. <code><a href="../reference/compare_methods.html">compare_methods()</a></code> reports why
-the others fail (the <code>"published"</code> approximation is listed
-for comparison only):</p>
+<p>A pair without an association is unknown. Giving it an odds ratio of
+1 states that the two diseases are unrelated, which is an assumption of
+its own. Leaving it unknown lets the maximum-entropy fit imply an
+association through the other diseases. Here <code>a</code> and
+<code>c</code> are unrelated in one model and unknown in the other:</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">d</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cm_diseases.html">cm_diseases</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"a"</span>, <span class="st">"b"</span>, <span class="st">"c"</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0.2</span>, <span class="fl">0.3</span>, <span class="fl">0.25</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="va">a</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cm_associations.html">cm_associations</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"a"</span>, <span class="st">"b"</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"b"</span>, <span class="st">"c"</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">3</span>, <span class="fl">2</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="va">imp</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cm_impacts.html">cm_impacts</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"a"</span>, <span class="st">"b"</span>, <span class="st">"c"</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">3</span>, <span class="fl">4</span>, <span class="fl">5</span><span class="op">)</span>, units <span class="op">=</span> <span class="st">"%"</span><span class="op">)</span></span>
-<span><span class="va">ind</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cm_model.html">cm_model</a></span><span class="op">(</span><span class="va">d</span>, <span class="va">imp</span>, associations <span class="op">=</span> <span class="va">a</span>, missing_associations <span class="op">=</span> <span class="st">"independent"</span><span class="op">)</span></span>
-<span><span class="va">unk</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cm_model.html">cm_model</a></span><span class="op">(</span><span class="va">d</span>, <span class="va">imp</span>, associations <span class="op">=</span> <span class="va">a</span>, missing_associations <span class="op">=</span> <span class="st">"unknown"</span><span class="op">)</span></span>
-<span><span class="fu"><a href="../reference/deconflate.html">deconflate</a></span><span class="op">(</span><span class="va">ind</span><span class="op">)</span><span class="op">$</span><span class="va">adjusted</span><span class="op">$</span><span class="va">adjusted</span></span>
+<span><span class="va">ind</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cm_model.html">cm_model</a></span><span class="op">(</span><span class="va">d</span>, <span class="va">imp</span>, associations <span class="op">=</span> <span class="fu"><a href="../reference/cm_associations.html">cm_associations</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"a"</span>, <span class="st">"b"</span>, <span class="st">"a"</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"b"</span>, <span class="st">"c"</span>, <span class="st">"c"</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">3</span>, <span class="fl">2</span>, <span class="fl">1</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="va">unk</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cm_model.html">cm_model</a></span><span class="op">(</span><span class="va">d</span>, <span class="va">imp</span>, associations <span class="op">=</span> <span class="fu"><a href="../reference/cm_associations.html">cm_associations</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"a"</span>, <span class="st">"b"</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"b"</span>, <span class="st">"c"</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">3</span>, <span class="fl">2</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="fu"><a href="../reference/deconflate.html">deconflate</a></span><span class="op">(</span><span class="va">ind</span>, n_draws <span class="op">=</span> <span class="fl">0</span><span class="op">)</span><span class="op">$</span><span class="va">adjusted</span><span class="op">$</span><span class="va">adjusted</span></span>
 <span><span class="co">#&gt; [1] 2.263264 2.946945 4.548702</span></span>
-<span><span class="fu"><a href="../reference/compare_methods.html">compare_methods</a></span><span class="op">(</span><span class="va">unk</span><span class="op">)</span></span>
+<span><span class="va">res_unk</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/deconflate.html">deconflate</a></span><span class="op">(</span><span class="va">unk</span>, n_draws <span class="op">=</span> <span class="fl">0</span><span class="op">)</span></span>
+<span><span class="va">res_unk</span></span>
+<span><span class="co">#&gt; &lt;cm_result&gt; method: global [%]</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt;  disease raw adjusted  change</span></span>
+<span><span class="co">#&gt;        a   3    2.100 -0.3000</span></span>
+<span><span class="co">#&gt;        b   4    2.987 -0.2532</span></span>
+<span><span class="co">#&gt;        c   5    4.481 -0.1037</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Raw sum: 3.05; adjusted total: 2.436</span></span>
+<span><span class="co">#&gt; Diagnostics: residual 8.88e-16, condition number 1.7, sign changes 0</span></span>
+<span><span class="co">#&gt; Unknown pairs: 1 without an association; the global fit gave it an odds ratio of 1.19 (see $unknown_pairs).</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Notes:</span></span>
+<span><span class="co">#&gt; * The global method was used because of 1 pair without an association</span></span>
+<span><span class="co">#&gt;   (unknown).</span></span></code></pre></div>
+<p><code>$unknown_pairs</code> lists the unknown pairs and the odds
+ratios the global fit gave them. Both <code>a</code> and <code>c</code>
+are positively associated with <code>b</code>, so the fit implies a
+positive association between them too:</p>
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">res_unk</span><span class="op">$</span><span class="va">unknown_pairs</span></span>
+<span><span class="co">#&gt;   disease1 disease2 fitted_or</span></span>
+<span><span class="co">#&gt; 1        a        c  1.194529</span></span></code></pre></div>
+<p><code><a href="../reference/compare_methods.html">compare_methods()</a></code> runs each method as asked, without
+switching, and reports why the pairwise methods cannot run (the
+<code>"published"</code> approximation is listed for comparison
+only):</p>
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="../reference/compare_methods.html">compare_methods</a></span><span class="op">(</span><span class="va">unk</span><span class="op">)</span></span>
 <span><span class="co">#&gt; &lt;cm_comparison&gt; methods: global</span></span>
 <span><span class="co">#&gt; Units: %</span></span>
 <span><span class="co">#&gt; </span></span>
@@ -175,34 +225,26 @@ for comparison only):</p>
 <span><span class="co">#&gt;  global    3.05          2.436</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Not run:</span></span>
-<span><span class="co">#&gt;   published: Unknown associations for a-c. Specify them, set missing_associations = 'independent', or use method = 'global'.</span></span>
-<span><span class="co">#&gt;   simultaneous: Unknown associations for a-c. Specify them, set missing_associations = 'independent', or use method = 'global'.</span></span></code></pre></div>
-<p>The odds ratio of <code>a</code> and <code>c</code> implied by the
-fitted distribution:</p>
-<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">ju</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fit_joint.html">fit_joint</a></span><span class="op">(</span><span class="va">unk</span><span class="op">)</span></span>
-<span><span class="va">p_ac</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">ju</span><span class="op">$</span><span class="va">prob</span><span class="op">[</span><span class="va">ju</span><span class="op">$</span><span class="va">cells</span><span class="op">[</span>, <span class="st">"a"</span><span class="op">]</span> <span class="op">==</span> <span class="fl">1</span> <span class="op">&amp;</span> <span class="va">ju</span><span class="op">$</span><span class="va">cells</span><span class="op">[</span>, <span class="st">"c"</span><span class="op">]</span> <span class="op">==</span> <span class="fl">1</span><span class="op">]</span><span class="op">)</span></span>
-<span><span class="fu"><a href="../reference/joint_to_or.html">joint_to_or</a></span><span class="op">(</span><span class="va">p_ac</span>, <span class="fl">0.2</span>, <span class="fl">0.25</span><span class="op">)</span></span>
-<span><span class="co">#&gt; [1] 1.194529</span></span></code></pre></div>
+<span><span class="co">#&gt;   published: No association for a-c: the pairwise methods need every pair. The global method fills unknown pairs in (deconflate() uses it automatically); to treat a pair as unrelated, give it an odds ratio of 1.</span></span>
+<span><span class="co">#&gt;   simultaneous: No association for a-c: the pairwise methods need every pair. The global method fills unknown pairs in (deconflate() uses it automatically); to treat a pair as unrelated, give it an odds ratio of 1.</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="impact-interactions">Impact interactions<a class="anchor" aria-label="anchor" href="#impact-interactions"></a>
 </h2>
 <p>An interaction is the extra impact when two diseases occur together,
-in the units of the impact vector: positive values are synergistic and
+in the units of the impact table: positive values are synergistic and
 negative values antagonistic. Interactions cannot be inferred from
-associations; they need evidence or explicit scenarios.</p>
+associations; they need evidence or explicit scenarios. They apply to
+additive impacts only.</p>
 <p>The raw estimate of disease <code>i</code> then includes, besides the
 conflated main impacts, the part of the interaction burden that goes
 with <code>i</code>. Its expected value depends on how often pairs occur
 together with each disease, that is, on probabilities of disease
-triples, so interactions need the joint distribution and the global
-method:</p>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+triples, so interactions need the joint distribution.
+<code><a href="../reference/deconflate.html">deconflate()</a></code> therefore uses the global method:</p>
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">mi</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/set_interaction.html">set_interaction</a></span><span class="op">(</span><span class="va">m</span>, <span class="st">"d1"</span>, <span class="st">"d2"</span>, <span class="fl">1</span><span class="op">)</span>   <span class="co"># 1 percentage point</span></span>
-<span><span class="kw"><a href="https://rdrr.io/r/base/conditions.html" class="external-link">tryCatch</a></span><span class="op">(</span><span class="fu"><a href="../reference/deconflate.html">deconflate</a></span><span class="op">(</span><span class="va">mi</span><span class="op">)</span>, deconflate_unsupported <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">e</span><span class="op">)</span> <span class="fu"><a href="https://rdrr.io/r/base/conditions.html" class="external-link">conditionMessage</a></span><span class="op">(</span><span class="va">e</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="co">#&gt; [1] "Interactions require method = 'global' (they need probabilities of disease triples)."</span></span>
-<span><span class="va">res</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/deconflate.html">deconflate</a></span><span class="op">(</span><span class="va">mi</span>, method <span class="op">=</span> <span class="st">"global"</span><span class="op">)</span></span>
+<span><span class="va">res</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/deconflate.html">deconflate</a></span><span class="op">(</span><span class="va">mi</span>, n_draws <span class="op">=</span> <span class="fl">0</span><span class="op">)</span></span>
 <span><span class="va">res</span></span>
 <span><span class="co">#&gt; &lt;cm_result&gt; method: global; yield [%]</span></span>
 <span><span class="co">#&gt; </span></span>
@@ -211,11 +253,14 @@ method:</p>
 <span><span class="co">#&gt;       d2 5.0    3.241 -0.35187</span></span>
 <span><span class="co">#&gt;       d3 7.5    6.936 -0.07525</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Raw sum: 2.5; adjusted total: 2.089 (interactions: 0.02448)</span></span>
-<span><span class="co">#&gt; Diagnostics: residual 0.00e+00, condition number 1.53, sign changes 0</span></span></code></pre></div>
+<span><span class="co">#&gt; Raw sum: 2.5; adjusted total: 2.089; interactions: 0.02448</span></span>
+<span><span class="co">#&gt; Diagnostics: residual 0.00e+00, condition number 1.53, sign changes 0</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Notes:</span></span>
+<span><span class="co">#&gt; * The global method was used because of interactions.</span></span></code></pre></div>
 <p>The raw impacts satisfy <code>raw = A %*% adjusted + offset</code>,
 where <code>offset</code> holds the interaction part:</p>
-<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">res</span><span class="op">$</span><span class="va">conflation</span><span class="op">$</span><span class="va">offset</span></span>
 <span><span class="co">#&gt;         d1         d2         d3 </span></span>
 <span><span class="co">#&gt; 0.24479393 0.16319595 0.02304974</span></span>
@@ -226,19 +271,38 @@ where <code>offset</code> holds the interaction part:</p>
 <p>A simulated herd with known impacts (2, 4 and 6 percent) and
 interactions (1 point for d1 with d2, 1.5 for d2 with d3) checks the
 method:</p>
-<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">int</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cm_interactions.html">cm_interactions</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"d1"</span>, <span class="st">"d2"</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"d2"</span>, <span class="st">"d3"</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">1.5</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="va">raw</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/simulate_raw_impacts.html">simulate_raw_impacts</a></span><span class="op">(</span><span class="va">m</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>d1 <span class="op">=</span> <span class="fl">2</span>, d2 <span class="op">=</span> <span class="fl">4</span>, d3 <span class="op">=</span> <span class="fl">6</span><span class="op">)</span>, interactions <span class="op">=</span> <span class="va">int</span><span class="op">)</span></span>
 <span><span class="va">raw</span><span class="op">$</span><span class="va">value</span></span>
 <span><span class="co">#&gt; [1] 2.714619 6.136904 7.116677</span></span>
-<span><span class="fu"><a href="../reference/deconflate.html">deconflate</a></span><span class="op">(</span><span class="fu"><a href="../reference/cm_model.html">cm_model</a></span><span class="op">(</span><span class="va">m</span>, <span class="va">raw</span>, <span class="va">int</span><span class="op">)</span>, method <span class="op">=</span> <span class="st">"global"</span><span class="op">)</span><span class="op">$</span><span class="va">adjusted</span></span>
+<span><span class="fu"><a href="../reference/deconflate.html">deconflate</a></span><span class="op">(</span><span class="fu"><a href="../reference/cm_model.html">cm_model</a></span><span class="op">(</span><span class="va">m</span>, <span class="va">raw</span>, <span class="va">int</span><span class="op">)</span>, n_draws <span class="op">=</span> <span class="fl">0</span><span class="op">)</span><span class="op">$</span><span class="va">adjusted</span></span>
 <span><span class="co">#&gt;   disease      raw adjusted     change estimand adjusted_for</span></span>
 <span><span class="co">#&gt; 1      d1 2.714619        2 -0.2632484    crude         &lt;NA&gt;</span></span>
 <span><span class="co">#&gt; 2      d2 6.136904        4 -0.3482055    crude         &lt;NA&gt;</span></span>
 <span><span class="co">#&gt; 3      d3 7.116677        6 -0.1569099    crude         &lt;NA&gt;</span></span></code></pre></div>
-<p>In files, interactions go in
-<code>interactions_&lt;analysis&gt;.csv</code> (see
-<code><a href="../articles/own-data.html">vignette("own-data")</a></code>).</p>
+<p>In files, interactions are a table of their own
+(<code>disease1</code>, <code>disease2</code>, <code>value</code>),
+passed to <code>cm_read_inputs(interactions = )</code> with the impact
+table they belong to (see <code><a href="../articles/own-data.html">vignette("own-data")</a></code>). The
+five-disease example has one for its welfare scores:</p>
+<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">ex</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/system.file.html" class="external-link">system.file</a></span><span class="op">(</span><span class="st">"extdata"</span>, <span class="st">"five_diseases"</span>, package <span class="op">=</span> <span class="st">"deconflate"</span><span class="op">)</span></span>
+<span><span class="va">welfare</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cm_read_inputs.html">cm_read_inputs</a></span><span class="op">(</span>diseases <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/file.path.html" class="external-link">file.path</a></span><span class="op">(</span><span class="va">ex</span>, <span class="st">"diseases.csv"</span><span class="op">)</span>,</span>
+<span>                          associations <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/file.path.html" class="external-link">file.path</a></span><span class="op">(</span><span class="va">ex</span>, <span class="st">"associations.csv"</span><span class="op">)</span>,</span>
+<span>                          impacts <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/file.path.html" class="external-link">file.path</a></span><span class="op">(</span><span class="va">ex</span>, <span class="st">"impacts_welfare.csv"</span><span class="op">)</span>,</span>
+<span>                          interactions <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/file.path.html" class="external-link">file.path</a></span><span class="op">(</span><span class="va">ex</span>, <span class="st">"interactions_welfare.csv"</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="va">welfare</span><span class="op">$</span><span class="va">interactions</span><span class="op">[</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"disease1"</span>, <span class="st">"disease2"</span>, <span class="st">"value"</span><span class="op">)</span><span class="op">]</span></span>
+<span><span class="co">#&gt;   disease1 disease2 value</span></span>
+<span><span class="co">#&gt; 1      LAM      MAS   2.0</span></span>
+<span><span class="co">#&gt; 2      MET       RP   1.5</span></span>
+<span><span class="co">#&gt; 3      LAM      SCK  -0.5</span></span>
+<span><span class="va">res_w</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/deconflate.html">deconflate</a></span><span class="op">(</span><span class="va">welfare</span>, n_draws <span class="op">=</span> <span class="fl">0</span><span class="op">)</span></span>
+<span><span class="va">res_w</span><span class="op">$</span><span class="va">notes</span></span>
+<span><span class="co">#&gt; [1] "The global method was used because of interactions."</span></span>
+<span><span class="va">res_w</span><span class="op">$</span><span class="va">totals</span></span>
+<span><span class="co">#&gt;    raw_sum adjusted_total interaction_total</span></span>
+<span><span class="co">#&gt; 1 5.845091       4.190673          0.147228</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="attribution">Attribution<a class="anchor" aria-label="anchor" href="#attribution"></a>
@@ -249,7 +313,7 @@ any disease involved in a term removes that term, so each disease’s
 Shapley value is its own term plus an equal share of every interaction
 term it is involved in. This is the <code>contributions</code>
 table:</p>
-<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/attribute_burden.html">attribute_burden</a></span><span class="op">(</span><span class="va">res</span><span class="op">)</span></span>
 <span><span class="co">#&gt;   disease      main interaction     total      share</span></span>
 <span><span class="co">#&gt; 1      d1 0.1913880   0.0122397 0.2036277 0.09747208</span></span>
@@ -258,7 +322,7 @@ table:</p>
 <p>For general loss functions, <code><a href="../reference/shapley_by_cell.html">shapley_by_cell()</a></code> computes
 Shapley values cell by cell over the joint distribution. For example,
 with proportional impacts that compound (here as proportions):</p>
-<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/shapley_by_cell.html">shapley_by_cell</a></span><span class="op">(</span><span class="va">j</span>, <span class="fu"><a href="../reference/loss_functions.html">loss_multiplicative</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>d1 <span class="op">=</span> <span class="fl">0.02</span>, d2 <span class="op">=</span> <span class="fl">0.04</span>, d3 <span class="op">=</span> <span class="fl">0.06</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt;   disease     shapley      share</span></span>
 <span><span class="co">#&gt; 1      d1 0.001978346 0.09981218</span></span>
@@ -274,7 +338,7 @@ sets a three-way term, the ratio of conditional odds ratios
 <code>OR(d1, d2 | d3 present) / OR(d1, d2 | d3 absent)</code>. A ratio
 of 1 is the maximum-entropy assumption. All pairwise associations are
 still matched:</p>
-<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">m3</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/set_three_way.html">set_three_way</a></span><span class="op">(</span><span class="va">m</span>, <span class="st">"d1"</span>, <span class="st">"d2"</span>, <span class="st">"d3"</span>, ratio <span class="op">=</span> <span class="fl">2</span><span class="op">)</span></span>
 <span><span class="va">m3</span><span class="op">$</span><span class="va">three_way</span></span>
 <span><span class="co">#&gt;   disease1 disease2 disease3 ratio   source</span></span>
@@ -284,14 +348,24 @@ still matched:</p>
 <span>  ratio_2 <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">j3</span><span class="op">$</span><span class="va">prob</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/colSums.html" class="external-link">rowSums</a></span><span class="op">(</span><span class="va">j3</span><span class="op">$</span><span class="va">cells</span><span class="op">)</span> <span class="op">==</span> <span class="fl">3</span><span class="op">]</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt; maximum_entropy         ratio_2 </span></span>
 <span><span class="co">#&gt;     0.008583836     0.010703834</span></span></code></pre></div>
-<p>Three-way terms are sensitivity scenarios. When all pairs of a triple
-are constrained, they keep the pairwise tables fixed and change additive
-results only through interactions: without interactions every scenario
-reproduces the baseline, and with an interaction they change the offset.
-When a pair is unknown, its fitted table moves with the three-way term,
-so additive results can change even without interactions.
-<code><a href="../reference/screen_three_way.html">screen_three_way()</a></code> sets each triple in turn:</p>
-<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
+<p>Three-way terms are scenarios: they explore an assumption the data
+cannot check, rather than describe an estimate. A model with a three-way
+term needs the joint distribution, so <code><a href="../reference/deconflate.html">deconflate()</a></code> uses the
+global method. When all pairs of a triple have an association, the term
+keeps the pairwise tables fixed and changes additive results only
+through interactions: without interactions the scenario reproduces the
+baseline.</p>
+<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">res3</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/deconflate.html">deconflate</a></span><span class="op">(</span><span class="va">m3</span>, n_draws <span class="op">=</span> <span class="fl">0</span><span class="op">)</span></span>
+<span><span class="va">res3</span><span class="op">$</span><span class="va">notes</span></span>
+<span><span class="co">#&gt; [1] "The global method was used because of three-way terms."</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/all.equal.html" class="external-link">all.equal</a></span><span class="op">(</span><span class="va">res3</span><span class="op">$</span><span class="va">adjusted</span><span class="op">$</span><span class="va">adjusted</span>, <span class="fu"><a href="../reference/deconflate.html">deconflate</a></span><span class="op">(</span><span class="va">m</span>, n_draws <span class="op">=</span> <span class="fl">0</span><span class="op">)</span><span class="op">$</span><span class="va">adjusted</span><span class="op">$</span><span class="va">adjusted</span><span class="op">)</span></span>
+<span><span class="co">#&gt; [1] TRUE</span></span></code></pre></div>
+<p>With an interaction they change the offset. When a pair is unknown,
+its fitted table moves with the three-way term, so additive results can
+change even without interactions. <code><a href="../reference/screen_three_way.html">screen_three_way()</a></code> sets
+each triple in turn:</p>
+<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/screen_three_way.html">screen_three_way</a></span><span class="op">(</span><span class="va">m</span>, ratios <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0.5</span>, <span class="fl">2</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt; &lt;cm_screen&gt; 2 scenarios; baseline total 2.109</span></span>
 <span><span class="co">#&gt;      pair    status    scenario total    change rel_change max_rank_shift</span></span>
@@ -308,16 +382,24 @@ so additive results can change even without interactions.
 <span><span class="co">#&gt;  rank_corr failed</span></span>
 <span><span class="co">#&gt;          1   &lt;NA&gt;</span></span>
 <span><span class="co">#&gt;          1   &lt;NA&gt;</span></span></code></pre></div>
-<p>They also change the joint-based results, such as snapshot hazard
-ratios:</p>
-<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">hr</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cm_hazard_ratios.html">cm_hazard_ratios</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"d1"</span>, <span class="st">"d2"</span>, <span class="st">"d3"</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1.5</span>, <span class="fl">2.0</span>, <span class="fl">1.3</span><span class="op">)</span>, estimand <span class="op">=</span> <span class="st">"snapshot_crude"</span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/cbind.html" class="external-link">rbind</a></span><span class="op">(</span>maximum_entropy <span class="op">=</span> <span class="fu"><a href="../reference/deconflate_hr.html">deconflate_hr</a></span><span class="op">(</span><span class="fu"><a href="../reference/cm_hr_model.html">cm_hr_model</a></span><span class="op">(</span><span class="va">m</span>, <span class="va">hr</span><span class="op">)</span><span class="op">)</span><span class="op">$</span><span class="va">adjusted</span><span class="op">$</span><span class="va">adjusted</span>,</span>
-<span>      ratio_2 <span class="op">=</span> <span class="fu"><a href="../reference/deconflate_hr.html">deconflate_hr</a></span><span class="op">(</span><span class="fu"><a href="../reference/cm_hr_model.html">cm_hr_model</a></span><span class="op">(</span><span class="va">m3</span>, <span class="va">hr</span><span class="op">)</span><span class="op">)</span><span class="op">$</span><span class="va">adjusted</span><span class="op">$</span><span class="va">adjusted</span><span class="op">)</span></span>
-<span><span class="co">#&gt;                     [,1]     [,2]     [,3]</span></span>
+<p>They also change results that use the whole distribution, such as
+event impacts (here hazard ratios of culling, with an overall culling
+risk of 0.25; see <code><a href="../articles/event-impacts.html">vignette("event-impacts")</a></code>):</p>
+<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">hr</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cm_impacts.html">cm_impacts</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"d1"</span>, <span class="st">"d2"</span>, <span class="st">"d3"</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1.5</span>, <span class="fl">2.0</span>, <span class="fl">1.3</span><span class="op">)</span>, measure <span class="op">=</span> <span class="st">"HR"</span>,</span>
+<span>                 estimand <span class="op">=</span> <span class="st">"snapshot_crude"</span>, label <span class="op">=</span> <span class="st">"culling"</span><span class="op">)</span></span>
+<span><span class="va">e0</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/deconflate.html">deconflate</a></span><span class="op">(</span><span class="fu"><a href="../reference/cm_model.html">cm_model</a></span><span class="op">(</span><span class="va">m</span>, <span class="va">hr</span><span class="op">)</span>, event_model <span class="op">=</span> <span class="cn">TRUE</span>, overall_risk <span class="op">=</span> <span class="fl">0.25</span>, n_draws <span class="op">=</span> <span class="fl">0</span><span class="op">)</span></span>
+<span><span class="va">e3</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/deconflate.html">deconflate</a></span><span class="op">(</span><span class="fu"><a href="../reference/cm_model.html">cm_model</a></span><span class="op">(</span><span class="va">m3</span>, <span class="va">hr</span><span class="op">)</span>, event_model <span class="op">=</span> <span class="cn">TRUE</span>, overall_risk <span class="op">=</span> <span class="fl">0.25</span>, n_draws <span class="op">=</span> <span class="fl">0</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/cbind.html" class="external-link">rbind</a></span><span class="op">(</span>maximum_entropy <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/setNames.html" class="external-link">setNames</a></span><span class="op">(</span><span class="va">e0</span><span class="op">$</span><span class="va">adjusted</span><span class="op">$</span><span class="va">adjusted</span>, <span class="va">e0</span><span class="op">$</span><span class="va">adjusted</span><span class="op">$</span><span class="va">disease</span><span class="op">)</span>,</span>
+<span>      ratio_2 <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/setNames.html" class="external-link">setNames</a></span><span class="op">(</span><span class="va">e3</span><span class="op">$</span><span class="va">adjusted</span><span class="op">$</span><span class="va">adjusted</span>, <span class="va">e3</span><span class="op">$</span><span class="va">adjusted</span><span class="op">$</span><span class="va">disease</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="co">#&gt;                       d1       d2       d3</span></span>
 <span><span class="co">#&gt; maximum_entropy 1.383153 1.890932 1.143987</span></span>
 <span><span class="co">#&gt; ratio_2         1.379893 1.891328 1.139917</span></span></code></pre></div>
-<p>In files, three-way terms go in <code>three_way.csv</code>.</p>
+<p>In files, three-way terms are a table of their own
+(<code>disease1</code>, <code>disease2</code>, <code>disease3</code>,
+<code>ratio</code>), passed to
+<code>cm_read_inputs(three_way = )</code>; see
+<code>three_way.csv</code> in the five-disease example.</p>
 </div>
 <div class="section level2">
 <h2 id="which-interactions-would-matter">Which interactions would matter?<a class="anchor" aria-label="anchor" href="#which-interactions-would-matter"></a>
@@ -325,7 +407,7 @@ ratios:</p>
 <p><code><a href="../reference/screen_interactions.html">screen_interactions()</a></code> adds an interaction of each size
 to each pair in turn and reports the change in the aggregate and in the
 ranking of diseases:</p>
-<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/screen_interactions.html">screen_interactions</a></span><span class="op">(</span><span class="va">m</span>, values <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="op">-</span><span class="fl">1</span>, <span class="fl">1</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt; &lt;cm_screen&gt; 6 scenarios; baseline total 2.109</span></span>
 <span><span class="co">#&gt;   pair      status   scenario total  change rel_change max_rank_shift rank_corr</span></span>

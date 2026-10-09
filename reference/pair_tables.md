@@ -19,7 +19,8 @@ pair_tables(model)
 
 ## Value
 
-A data frame with one row per unordered pair: the measure used, whether
-it was specified or defaulted, the joint probability `p11` (`NA` for
-unknown pairs), the implied odds ratio, and the excess probabilities
+A data frame with one row per unordered pair: the measure used (`NA` for
+a pair without an association), its `status` (`"specified"` or
+`"unknown"`), the joint probability `p11` (`NA` for unknown pairs), the
+implied odds ratio, and the excess probabilities
 `ep_2_given_1 = P(d2 | d1) - P(d2 | not d1)` and `ep_1_given_2`.

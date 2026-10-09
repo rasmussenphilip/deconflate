@@ -37,8 +37,13 @@ deconflate(example_supplement())
 #> 
 #> Raw sum: 2.5; adjusted total: 2.109
 #> Diagnostics: residual 8.88e-16, condition number 1.53, sign changes 0
+#> 
+#> Notes:
+#> * No input has a distribution, so no draws were run: the results are point
+#>   estimates.
 compare_methods(example_supplement())
 #> <cm_comparison> methods: published, simultaneous, global
+#> Impacts: yield
 #> Units: %
 #> 
 #> Adjusted values:

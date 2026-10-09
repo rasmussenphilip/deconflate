@@ -5,67 +5,69 @@
 library(deconflate)
 ```
 
-Inputs can be kept in CSV files (one per table) or typed in R as data
-frames.
+Inputs are tables: the diseases, their associations, one impact table
+and, if needed, interactions and three-way terms. Each table can be a
+CSV file (with any name) or a data frame typed in R.
 [`cm_read_inputs()`](https://rasmussenphilip.github.io/deconflate/reference/cm_read_inputs.md)
-checks every table, reports all problems at once, and returns the
-population, the model (one analysis per impact table), a hazard-ratio
-model if there are hazard ratios, and a Monte Carlo sampler if any value
-has a distribution.
+checks every table, reports all problems at once, and returns a model
+([`cm_model()`](https://rasmussenphilip.github.io/deconflate/reference/cm_model.md))
+that
+[`deconflate()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate.md)
+adjusts.
 
-## Files
+## The tables
 
-| File | Contents | Required columns |
+Each table is a named argument of
+[`cm_read_inputs()`](https://rasmussenphilip.github.io/deconflate/reference/cm_read_inputs.md):
+
+| Argument | Contents | Required columns |
 |----|----|----|
-| `diseases.csv` | one row per disease | `id`, `value` |
-| `associations.csv` | one row per associated pair | `disease1`, `disease2` |
-| `three_way.csv` | optional three-way association scenarios | `disease1`, `disease2`, `disease3`, `ratio` |
-| `impacts.csv` | the impact table of a single analysis | `disease`, `value` |
-| `impacts_<analysis>.csv` | for several analyses, one impact table each, e.g. `impacts_yield.csv` | `disease`, `value` |
-| `interactions.csv`, `interactions_<analysis>.csv` | optional impact interactions | `disease1`, `disease2`, `value` |
-| `hazard_ratios.csv` | optional culling (or mortality) hazard ratios | `disease`, `value`, `estimand` |
+| `diseases` | one row per disease | `id`, `value` |
+| `associations` | one row per pair with an association estimate | `disease1`, `disease2`, `value` |
+| `impacts` | the raw impact estimates of one outcome, one row per disease | `disease`, `value` |
+| `interactions` | optional pairwise impact interactions (additive impacts only) | `disease1`, `disease2`, `value` |
+| `three_way` | optional three-way association terms | `disease1`, `disease2`, `disease3`, `ratio` |
 
-Only `diseases.csv` is required. A single `impacts.csv` is read as one
-analysis named `impacts`. All analyses share the diseases, associations
-and three-way terms. The optional columns are described in
+`diseases` and `impacts` are required.
+[`deconflate()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate.md)
+also needs at least one association; without any, the sensitivity tools
+([`screen_associations()`](https://rasmussenphilip.github.io/deconflate/reference/screen_associations.md),
+[`cm_threshold()`](https://rasmussenphilip.github.io/deconflate/reference/cm_threshold.md))
+show how much associations could matter. The optional columns are
+described in
 [`?cm_read_inputs`](https://rasmussenphilip.github.io/deconflate/reference/cm_read_inputs.md):
 
-- `diseases.csv`: `type` (`prevalence`, `probability` or
+- `diseases`: `type` (`prevalence` (default), `probability` or
   `incidence_rate`), `time_horizon`, `reference_population`, `source`;
-- `associations.csv`: `value`, `measure` (`OR`, `RR`, `RD`, `cond_prob`,
-  `phi`, `table`, `independent` or `unknown`), the counts `n11`, `n10`,
-  `n01`, `n00` for `measure = table`, `adjusted`, `adjusted_for`,
-  `source`;
-- impact tables: `estimand` (`crude` or `adjusted_linear`),
-  `adjusted_for`, `source`, and one `label` and one `units` per table;
-- `hazard_ratios.csv`: `adjusted_for`, `source`. The `estimand` column
-  is required (`snapshot_crude` or `snapshot_stratified`; see below).
+- `associations`: `measure` (`OR` (default), `RR`, `RD`, `cond_prob` or
+  `phi`), `adjusted`, `adjusted_for`, `source`;
+- `impacts`: `estimand` (`crude` (default) or `adjusted_linear`),
+  `adjusted_for`, `source`, and one `label` and one `units` per table; a
+  `measure` column makes them event impacts (see below);
+- `interactions` and `three_way`: `source`.
 
-Every disease needs a row in every impact table (use 0 for no impact)
-and in the hazard-ratio table (use 1 for no effect). Impact values can
-be in any units, the same within a table; results come back in those
-units.
+Every table can also have a free-text `note` column, and the columns
+`dist` and `p1`-`p4` for uncertain values (see Uncertainty below).
+Column names are not case-sensitive.
 
-There is no separate uncertainty file: an uncertain value gets its
-distribution in its own row, in the columns `dist` and `p1`-`p4` (see
-Uncertainty below), so point values and uncertain values sit side by
-side. Every table can also have a free-text `note` column.
+Every disease needs a row in the impact table (use 0 for no impact).
+Additive impacts can be in any units, the same for every row; results
+come back in those units.
 
 ## Start from the template
 
 [`cm_template()`](https://rasmussenphilip.github.io/deconflate/reference/cm_template.md)
-writes an example set of files to a folder. By default it is a single
-analysis, the standard workflow:
+writes an example set of files to a folder:
 
 ``` r
 
 dir <- file.path(tempdir(), "my-inputs")
 cm_template(dir, overwrite = TRUE)
-#> Wrote 5 files to /tmp/Rtmp9Ghi8s/my-inputs
+#> Wrote 6 files to /tmp/RtmpATEobY/my-inputs
 list.files(dir)
-#> [1] "associations.csv" "diseases.csv"     "impacts.csv"      "interactions.csv"
-#> [5] "three_way.csv"
-read.csv(file.path(dir, "impacts.csv"))
+#> [1] "associations.csv"       "culling.csv"            "diseases.csv"          
+#> [4] "three_way.csv"          "yield_interactions.csv" "yield.csv"
+read.csv(file.path(dir, "yield.csv"))
 #>   disease value estimand adjusted_for           label      units
 #> 1     LAM  4.81    crude           NA milk yield loss % of yield
 #> 2     SCK  8.40    crude           NA milk yield loss % of yield
@@ -76,51 +78,34 @@ read.csv(file.path(dir, "impacts.csv"))
 #> 3 Illustrative values          NA   NA NA NA
 ```
 
-`interactions.csv` and `three_way.csv` are empty (header only); fill
-them in if needed.
+The files are three diseases (`diseases.csv`), their odds ratios
+(`associations.csv`), additive impacts on milk yield in percent
+(`yield.csv`), event impacts on culling (`culling.csv`, see below), and
+an empty interactions table (`yield_interactions.csv`) and three-way
+table (`three_way.csv`), with a header only. Rename them, or add files
+for other outcomes, as you like: the file names carry no meaning.
 
 ## Read the files
 
-``` r
-
-inp <- cm_read_inputs(dir = dir)
-inp
-#> <cm_inputs>
-#> <cm_population>
-#>   Diseases: 3 (LAM, SCK, MET)
-#>   Disease pairs: 3 [specified: 3]
-#>   Analyses: impacts
-#>   Uncertain inputs: 4 (use $sampler with cm_monte_carlo())
-```
-
-The result holds:
-
-- `population`: the diseases, associations and three-way terms, as a
-  [`cm_population()`](https://rasmussenphilip.github.io/deconflate/reference/cm_population.md)
-  object;
-- `model`: the
-  [`cm_model()`](https://rasmussenphilip.github.io/deconflate/reference/cm_model.md)
-  when there is exactly one analysis (otherwise `NULL`);
-- `analyses`: a
-  [`cm_analyses()`](https://rasmussenphilip.github.io/deconflate/reference/cm_analyses.md)
-  object with one model per impact table (here one, named `impacts`);
-- `hr_model`: the hazard-ratio model, for
-  [`deconflate_hr()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate_hr.md)
-  (`NULL` without `hazard_ratios.csv`);
-- `sampler`: a
-  [`cm_sampler()`](https://rasmussenphilip.github.io/deconflate/reference/cm_sampler.md)
-  for one analysis, or a
-  [`cm_batch_sampler()`](https://rasmussenphilip.github.io/deconflate/reference/cm_batch_sampler.md)
-  for several, for
-  [`cm_monte_carlo()`](https://rasmussenphilip.github.io/deconflate/reference/cm_monte_carlo.md).
+Pass each file to its argument:
 
 ``` r
 
-inp$population
-#> <cm_population>
+yield <- cm_read_inputs(
+  diseases = file.path(dir, "diseases.csv"),
+  associations = file.path(dir, "associations.csv"),
+  impacts = file.path(dir, "yield.csv"),
+  interactions = file.path(dir, "yield_interactions.csv"),
+  three_way = file.path(dir, "three_way.csv")
+)
+yield
+#> <cm_model>
 #>   Diseases: 3 (LAM, SCK, MET)
-#>   Disease pairs: 3 [specified: 3]
-deconflate(inp$model)
+#>   Disease pairs: 3 (3 with an association, 0 unknown)
+#>   Impacts: milk yield loss [% of yield] (additive)
+#>   Estimands: crude: 3
+#>   Uncertain inputs (with a distribution): 4
+deconflate(yield, n_draws = 0)
 #> <cm_result> method: simultaneous; milk yield loss [% of yield]
 #> 
 #>  disease  raw adjusted   change
@@ -132,14 +117,281 @@ deconflate(inp$model)
 #> Diagnostics: residual 1.78e-15, condition number 2, sign changes 0
 ```
 
-## From the files to a Monte Carlo run
+Empty tables (here the interactions and three-way terms) are the same as
+leaving the argument out. Some values in the template have a
+distribution, so
+[`deconflate()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate.md)
+would by default also run 1000 draws for intervals; `n_draws = 0` gives
+point estimates only (see Uncertainty below).
 
-In the template, four values have a distribution in their row: the
-lameness prevalence (`diseases.csv`), the lameness:subclinical ketosis
-odds ratio (`associations.csv`) and two yield impacts (`impacts.csv`).
-The other values are point values (empty `dist`). With one analysis, the
-sampler is a
-[`cm_sampler()`](https://rasmussenphilip.github.io/deconflate/reference/cm_sampler.md):
+## Associations
+
+### Unknown pairs and odds ratios of 1
+
+A pair of diseases with no row in the association table is **unknown**.
+Then
+[`deconflate()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate.md)
+uses the global method, which fills in the association of unknown pairs
+from the other associations (the maximum-entropy distribution of disease
+combinations), and says so in a note. To state that two diseases are
+unrelated, give the pair an odds ratio of 1 (with no distribution).
+
+Here the MET:SCK row is left out:
+
+``` r
+
+a <- read.csv(file.path(dir, "associations.csv"))
+a[, c("disease1", "disease2", "value", "measure")]
+#>   disease1 disease2 value measure
+#> 1      LAM      SCK  2.01      OR
+#> 2      MET      SCK  1.94      OR
+#> 3      MET      LAM  6.10      OR
+y_unknown <- cm_read_inputs(diseases = file.path(dir, "diseases.csv"),
+                            associations = a[-2, ],
+                            impacts = file.path(dir, "yield.csv"))
+y_unknown
+#> <cm_model>
+#>   Diseases: 3 (LAM, SCK, MET)
+#>   Disease pairs: 3 (2 with an association, 1 unknown)
+#>   Impacts: milk yield loss [% of yield] (additive)
+#>   Estimands: crude: 3
+#>   Uncertain inputs (with a distribution): 4
+r_unknown <- deconflate(y_unknown, n_draws = 0)
+r_unknown
+#> <cm_result> method: global; milk yield loss [% of yield]
+#> 
+#>  disease  raw adjusted  change
+#>      LAM 4.81    2.696 -0.4396
+#>      SCK 8.40    7.935 -0.0554
+#>      MET 5.61    3.964 -0.2935
+#> 
+#> Raw sum: 4.966; adjusted total: 4.095
+#> Diagnostics: residual 8.88e-16, condition number 1.99, sign changes 0
+#> Unknown pairs: 1 without an association; the global fit gave it an odds ratio of 1.33 (see $unknown_pairs).
+#> 
+#> Notes:
+#> * The global method was used because of 1 pair without an association
+#>   (unknown).
+r_unknown$unknown_pairs
+#>   disease1 disease2 fitted_or
+#> 1      SCK      MET  1.330169
+```
+
+`$unknown_pairs` lists the pairs without an association and the odds
+ratio the global fit gave them. With an odds ratio of 1 for MET:SCK
+instead, every pair has an association and the simultaneous method is
+used:
+
+``` r
+
+a_indep <- a
+a_indep$value[2] <- 1
+y_indep <- cm_read_inputs(diseases = file.path(dir, "diseases.csv"),
+                          associations = a_indep,
+                          impacts = file.path(dir, "yield.csv"))
+deconflate(y_indep, n_draws = 0)
+#> <cm_result> method: simultaneous; milk yield loss [% of yield]
+#> 
+#>  disease  raw adjusted   change
+#>      LAM 4.81    2.557 -0.46844
+#>      SCK 8.40    8.057 -0.04079
+#>      MET 5.61    4.566 -0.18604
+#> 
+#> Raw sum: 4.966; adjusted total: 4.167
+#> Diagnostics: residual 8.88e-16, condition number 2.01, sign changes 0
+```
+
+The two are different statements: an unknown pair is filled in from the
+other associations, while an odds ratio of 1 is an estimate of no
+association. Some published analyses treated unlisted pairs as
+independent; to do the same, add those pairs with an odds ratio of 1.
+
+### Measures
+
+The measures are `OR` (default), `RR`, `RD`, `cond_prob` (P(disease1 \|
+disease2)) and `phi`. Files written for earlier versions may use the
+measures `unknown`, `independent` or `table`, or the count columns
+`n11`, `n10`, `n01` and `n00`; these are reported with what to do
+instead:
+
+``` r
+
+cm_check_inputs(
+  diseases = data.frame(id = c("d1", "d2", "d3"), value = c(0.10, 0.15, 0.20)),
+  associations = data.frame(disease1 = c("d1", "d1", "d2"), disease2 = c("d2", "d3", "d3"),
+                            value = c(NA, 1, NA), measure = c("unknown", "independent", "table")),
+  impacts = data.frame(disease = c("d1", "d2", "d3"), value = c(2.5, 5, 7.5))
+)
+#> Found 3 problem(s) in the inputs:
+#>   associations, row 1, column 'measure': measure = 'unknown' is no longer used: leave the pair out. Pairs without a row are unknown, and the global model fills in their association.
+#>   associations, row 2, column 'measure': measure = 'independent' is no longer used: give the pair an odds ratio of 1 (value 1, measure OR).
+#>   associations, row 3, column 'measure': measure = 'table' is no longer used: compute the odds ratio from the counts, n11 * n00 / (n10 * n01), and enter it with measure OR.
+```
+
+For a study’s 2x2 table, compute the odds ratio yourself,
+`n11 * n00 / (n10 * n01)` (both diseases, only the first, only the
+second, neither), and enter it with measure `OR`. If a cell is zero,
+decide how to handle it (e.g. add 0.5 to every cell) before computing
+the odds ratio.
+
+### Adjusted association measures
+
+The 2x2 algebra needs marginal (crude) association measures. An odds
+ratio from a multivariable model is conditional on its covariates, so it
+is rejected unless you choose to use it as if it were marginal, which is
+an approximation:
+
+``` r
+
+d12 <- cm_diseases(c("d1", "d2"), c(0.10, 0.15))
+a_adj <- cm_associations("d1", "d2", 1.8, adjusted = TRUE, adjusted_for = "parity; herd")
+tryCatch(cm_population(d12, a_adj), deconflate_unsupported = function(e) conditionMessage(e))
+#> [1] "Covariate-adjusted associations (d1:d2) are not marginal 2x2 associations. Use crude measures, or set adjusted_associations = 'use_as_marginal' to use them as an approximation."
+cm_population(d12, a_adj, adjusted_associations = "use_as_marginal")
+#> <cm_population>
+#>   Diseases: 2 (d1, d2)
+#>   Disease pairs: 1 (1 with an association, 0 unknown)
+#>   Covariate-adjusted association measures used as marginal: 1
+```
+
+In files, set the column `adjusted` to `TRUE` and call
+`cm_read_inputs(..., adjusted_associations = "use_as_marginal")`; each
+such row is then reported as a note.
+
+## Several outcomes
+
+An impact table holds one outcome, and
+[`deconflate()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate.md)
+adjusts one impact table per call. For several outcomes, keep one impact
+table per outcome and repeat the call; the disease and association
+tables are shared. The installed folder `five_diseases` has impact
+tables for milk yield (in percent) and calving interval (in days), among
+others:
+
+``` r
+
+five <- system.file("extdata", "five_diseases", package = "deconflate")
+list.files(five)
+#>  [1] "associations.csv"             "culling.csv"                 
+#>  [3] "diseases.csv"                 "impacts_calving_interval.csv"
+#>  [5] "impacts_welfare.csv"          "impacts_yield.csv"           
+#>  [7] "interactions_welfare.csv"     "README.md"                   
+#>  [9] "run_all_features.R"           "three_way.csv"
+outcomes <- c(yield = "impacts_yield.csv", calving_interval = "impacts_calving_interval.csv")
+results <- lapply(outcomes, function(f) {
+  m <- cm_read_inputs(diseases = file.path(five, "diseases.csv"),
+                      associations = file.path(five, "associations.csv"),
+                      three_way = file.path(five, "three_way.csv"),
+                      impacts = file.path(five, f))
+  deconflate(m, n_draws = 0)
+})
+results$calving_interval
+#> <cm_result> method: global; calving interval increase [days]
+#> 
+#>  disease raw adjusted  change        estimand
+#>      LAM  12   10.280 -0.1434           crude
+#>      MAS   6    4.410 -0.2651 adjusted_linear
+#>      MET  18   15.616 -0.1324           crude
+#>      SCK   4    4.000  0.0000 adjusted_linear
+#>       RP  10    5.067 -0.4933           crude
+#> 
+#> Raw sum: 8.355; adjusted total: 6.978
+#> Diagnostics: residual 3.55e-15, condition number 1.67, sign changes 0
+#> 
+#> Notes:
+#> * The global method was used because of three-way terms.
+```
+
+The results can then be combined in base R, e.g. into one long table:
+
+``` r
+
+do.call(rbind, lapply(names(results), function(o) {
+  data.frame(outcome = o, units = results[[o]]$units,
+             results[[o]]$adjusted[, c("disease", "raw", "adjusted")])
+}))
+#>             outcome      units disease  raw  adjusted
+#> 1             yield % of yield     LAM  4.8  4.139274
+#> 2             yield % of yield     MAS  3.3  2.355802
+#> 3             yield % of yield     MET  5.6  4.514058
+#> 4             yield % of yield     SCK  2.5  1.366295
+#> 5             yield % of yield      RP  4.2  2.665420
+#> 6  calving_interval       days     LAM 12.0 10.279625
+#> 7  calving_interval       days     MAS  6.0  4.409635
+#> 8  calving_interval       days     MET 18.0 15.616227
+#> 9  calving_interval       days     SCK  4.0  4.000000
+#> 10 calving_interval       days      RP 10.0  5.067130
+```
+
+## Event impacts
+
+Impacts on an event such as culling or death are event impacts: hazard
+ratios, rate ratios, risk ratios, odds ratios or risk differences. Their
+table has a `measure` column (`HR`, `rate_ratio`, `RR`, `OR` or `RD`,
+which can be mixed, one row per disease) and an `estimand`
+(`snapshot_crude`, or `snapshot_stratified` with `adjusted_for`). They
+are adjusted with `event_model = TRUE`, which needs the overall risk of
+the event in the population over the period; risk ratios, odds ratios
+and risk differences must refer to the same period. The template’s
+`culling.csv`:
+
+``` r
+
+read.csv(file.path(dir, "culling.csv"))[, c("disease", "value", "measure", "estimand")]
+#>   disease value measure       estimand
+#> 1     LAM  1.74      HR snapshot_crude
+#> 2     SCK  1.92      HR snapshot_crude
+#> 3     MET  1.45      RR snapshot_crude
+culling <- cm_read_inputs(diseases = file.path(dir, "diseases.csv"),
+                          associations = file.path(dir, "associations.csv"),
+                          impacts = file.path(dir, "culling.csv"))
+deconflate(culling, event_model = TRUE, overall_risk = 0.25, n_draws = 0)
+#> <cm_event_result> culling; method: snapshot
+#> 
+#>  disease measure  raw adjusted_hr
+#>      LAM      HR 1.74       1.514
+#>      SCK      HR 1.92       1.782
+#>      MET      RR 1.45       1.201
+#> 
+#> Overall risk 0.25; disease-free risk 0.1767; attributable to disease 0.07328 (29.3% of the overall risk)
+#> 
+#> Attributable risk by disease (Shapley allocation):
+#>  disease attributable   share
+#>      LAM     0.022295 0.30424
+#>      SCK     0.047051 0.64205
+#>      MET     0.003936 0.05371
+#> 
+#> Diagnostics: residual 2.22e-16, condition number 2.2, sign changes 0
+```
+
+The adjusted hazard ratios are each disease’s own effect; the result
+also gives the risk attributable to disease and its split by disease. If
+an adjusted hazard ratio falls on the other side of 1 from its raw
+estimate,
+[`deconflate()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate.md)
+warns: the raw estimate is weaker than the disease’s associations alone
+would produce, so check the estimate and its source population.
+
+A table with a `measure` column needs `event_model = TRUE`, and
+`event_model = TRUE` needs a `measure` column:
+
+``` r
+
+tryCatch(deconflate(culling, n_draws = 0), deconflate_unsupported = function(e) conditionMessage(e))
+#> [1] "These are event impacts (the impact table has a measure column): use event_model = TRUE, with overall_risk."
+```
+
+See
+[`vignette("event-impacts")`](https://rasmussenphilip.github.io/deconflate/articles/event-impacts.md)
+for the model and its results.
+
+## Uncertainty
+
+There is no separate uncertainty file: an uncertain value gets its
+distribution in its own row, in the columns `dist` and `p1`-`p4`, so
+point values and uncertain values sit side by side. A row with an empty
+`dist` is a point value. In the template, the LAM prevalence, the
+LAM:SCK odds ratio and two yield impacts have a distribution:
 
 ``` r
 
@@ -153,190 +405,69 @@ read.csv(file.path(dir, "associations.csv"))[, c("disease1", "disease2", "value"
 #> 1      LAM      SCK  2.01 normal 2.01 0.2  0
 #> 2      MET      SCK  1.94          NA  NA NA
 #> 3      MET      LAM  6.10          NA  NA NA
-inp$sampler
-#> <cm_sampler> 4 uncertain inputs
-#>   prob:LAM: beta
-#>   assoc:LAM:SCK: normal
-#>   impact:LAM: normal
-#>   impact:SCK: normal
-mc <- cm_monte_carlo(inp$sampler, 200, seed = 1)
-mc
-#> <cm_mc> method: simultaneous
-#>   Analysis: milk yield loss [% of yield]
-#>   Draws: 200, rejected: 0 (0.0%)
-#>   Sampling: random
-#>   Effective sample size: 200.0
-summary(mc, diagnose = FALSE)[, c("disease", "mean", "mcse", "q0.025", "q0.975")]
-#>   disease     mean       mcse   q0.025   q0.975
-#> 1     LAM 2.941653 0.06803879 1.109592 4.926224
-#> 2     SCK 7.793789 0.08327428 5.743658 9.896458
-#> 3     MET 3.142470 0.02738527 2.336560 3.849221
 ```
 
-A single-analysis sampler supports Latin hypercube sampling
-(`sampling = "lhs"`) and importance sampling. For importance sampling,
-each proposal must cover the whole support of the input’s own
-distribution. A defensive mixture, part the input’s own distribution and
-part a wider or shifted one, does so by construction. Here the lameness
-yield impact is sampled more often around 6%:
+[`cm_read_inputs()`](https://rasmussenphilip.github.io/deconflate/reference/cm_read_inputs.md)
+keeps them in the model, and
+[`deconflate()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate.md)
+draws them (1000 draws by default) and adds 95% intervals to the
+results:
 
 ``` r
 
-specs <- attr(inp$sampler, "specs")
-prop <- list("impact:LAM" = dist_mixture(specs[["impact:LAM"]], dist_normal(6, 1.5),
-                                         weights = c(0.5, 0.5)))
-mc_is <- cm_monte_carlo(inp$sampler, 200, proposal = prop, seed = 1)
-mc_is
-#> <cm_mc> method: simultaneous
-#>   Analysis: milk yield loss [% of yield]
-#>   Draws: 200, rejected: 0 (0.0%)
-#>   Sampling: random, importance sampling of impact:LAM
-#>   Effective sample size: 167.9
-summary(mc_is, diagnose = FALSE)[, c("disease", "mean", "mcse", "q0.025", "q0.975")]
-#>   disease     mean       mcse    q0.025    q0.975
-#> 1     LAM 2.780003 0.07196501 0.7373599  4.709681
-#> 2     SCK 7.966686 0.09387597 5.7170650 10.075637
-#> 3     MET 3.180425 0.02769793 2.4727201  3.881797
-```
-
-The draws are weighted by the ratio of the densities, so the estimates
-still refer to the input’s own distribution; compare the standard errors
-(`mcse`) to see whether the proposal helped. See
-[`vignette("uncertainty")`](https://rasmussenphilip.github.io/deconflate/articles/uncertainty.md).
-
-## Several analyses
-
-`cm_template(type = "analyses")` writes two analyses on one population,
-milk yield (in percent) and calving interval (in days):
-
-``` r
-
-dir2 <- file.path(tempdir(), "my-analyses")
-cm_template(dir2, type = "analyses", overwrite = TRUE)
-#> Wrote 6 files to /tmp/Rtmp9Ghi8s/my-analyses
-list.files(dir2)
-#> [1] "associations.csv"             "diseases.csv"                
-#> [3] "impacts_calving_interval.csv" "impacts_yield.csv"           
-#> [5] "interactions_yield.csv"       "three_way.csv"
-read.csv(file.path(dir2, "impacts_calving_interval.csv"))
-#>   disease value estimand adjusted_for                     label units
-#> 1     LAM    12    crude           NA calving interval increase  days
-#> 2     SCK     4    crude           NA calving interval increase  days
-#> 3     MET    18    crude           NA calving interval increase  days
-#>                source dist p1 p2 p3 p4                       note
-#> 1 Illustrative values      NA NA NA NA                           
-#> 2 Illustrative values      NA NA NA NA                           
-#> 3 Illustrative values pert  6 18 30 NA pert(min, mode, max), days
-inp2 <- cm_read_inputs(dir = dir2)
-inp2
-#> <cm_inputs>
-#> <cm_population>
-#>   Diseases: 3 (LAM, SCK, MET)
-#>   Disease pairs: 3 [specified: 3]
-#>   Analyses: calving_interval, yield
-#>   Uncertain inputs: batch sampler over 2 analyses (use $sampler with cm_monte_carlo())
-names(inp2$analyses$models)
-#> [1] "calving_interval" "yield"
-deconflate(inp2$analyses)
-#> <cm_results> 2 analyses: calving_interval, yield
-#> 
-#> == calving_interval ==
-#> <cm_result> method: simultaneous; calving interval increase [days]
-#> 
-#>  disease raw adjusted  change
-#>      LAM  12    8.922 -0.2565
-#>      SCK   4    1.935 -0.5162
-#>      MET  18   14.044 -0.2198
-#> 
-#> Raw sum: 6.325; adjusted total: 4.373
-#> Diagnostics: residual 0.00e+00, condition number 2, sign changes 0
-#> 
-#> == yield ==
+deconflate(yield, n_draws = 200, seed = 1)
 #> <cm_result> method: simultaneous; milk yield loss [% of yield]
 #> 
-#>  disease  raw adjusted   change
-#>      LAM 4.81    2.871 -0.40320
-#>      SCK 8.40    7.819 -0.06915
-#>      MET 5.61    3.170 -0.43496
+#>  disease  raw adjusted lower  upper   change
+#>      LAM 4.81    2.871 0.600  4.697 -0.40320
+#>      SCK 8.40    7.819 5.475 10.065 -0.06915
+#>      MET 5.61    3.170 2.302  4.010 -0.43496
 #> 
-#> Raw sum: 4.966; adjusted total: 4.015
+#> Raw sum: 4.966; adjusted total: 4.015 (95% interval 3.111 to 4.932)
 #> Diagnostics: residual 1.78e-15, condition number 2, sign changes 0
+#> Uncertainty: 95% intervals from 200 draws (0 rejected; random sampling; seed 1).
 ```
 
-With several analyses, `model` is `NULL` and the sampler is a batch
-sampler: every draw of the shared disease and association inputs is used
-by both analyses. Batch runs use simple random sampling.
+The central estimate always uses the point values (`value`); the draws
+give the intervals. Values are drawn on the scale they were entered on:
+
+- a disease’s `value` (e.g. a prevalence or an incidence rate);
+- an association’s `value`, on its own measure (e.g. an odds ratio);
+- a three-way `ratio`;
+- an impact or an interaction, in the units of its table (for event
+  impacts, on the scale of the measure, e.g. a hazard ratio).
+
+`dist` and the parameters `p1`-`p4`:
+
+| `dist` | `p1` | `p2` | `p3` | `p4` |
+|----|----|----|----|----|
+| `fixed` | value |  |  |  |
+| `normal` | mean | sd | lower bound (optional) | upper bound (optional) |
+| `lognormal` | meanlog | sdlog |  |  |
+| `lognormal_ci` | estimate | lower CI | upper CI | level (default 0.95) |
+| `beta` | shape1 | shape2 | min (default 0) | max (default 1) |
+| `pert` | min | mode | max | lambda (default 4) |
+| `pert_mean` | min | mean | max | lambda (default 4) |
+| `uniform` | min | max |  |  |
+
+The checks report a distribution with missing or invalid parameters and
+parameters without a `dist`; a point value outside its distribution’s
+range is noted. In the model, the distributions are kept in
+`$distributions`, keyed `prob:<disease>`, `assoc:<d1>:<d2>`,
+`three:<d1>:<d2>:<d3>`, `impact:<disease>` and `inter:<d1>:<d2>`, the
+same keys as `cm_model(distributions = )`:
 
 ``` r
 
-inp2$sampler
-#> <cm_batch_sampler> 2 analyses (calving_interval, yield); 2 shared population inputs
-mcb <- cm_monte_carlo(inp2$sampler, 200, seed = 1)
-mcb
-#> <cm_mc_batch> 200 draws, 2 analyses
-#>   calving_interval: 200 accepted, 0 rejected
-#>   yield: 200 accepted, 0 rejected
-s <- summary(mcb, diagnose = FALSE)
-s[, c("analysis", "disease", "mean", "q0.025", "q0.975")]
-#>           analysis disease      mean    q0.025    q0.975
-#> 1 calving_interval     LAM  8.933671 7.0997909 10.666460
-#> 2 calving_interval     SCK  1.942984 1.4555402  2.520507
-#> 3 calving_interval     MET 14.154484 4.2837150 22.834133
-#> 4            yield     LAM  3.000444 0.7481448  4.965309
-#> 5            yield     SCK  7.908887 5.7769745 10.105338
-#> 6            yield     MET  3.099691 2.2065559  3.869254
+names(yield$distributions)
+#> [1] "prob:LAM"      "assoc:LAM:SCK" "impact:LAM"    "impact:SCK"
 ```
 
-## Hazard ratios
-
-Hazard ratios go in `hazard_ratios.csv`. They are adjusted by a separate
-model
-([`vignette("culling-hazard-ratios")`](https://rasmussenphilip.github.io/deconflate/articles/culling-hazard-ratios.md)),
-and the `estimand` column states how each value is to be read:
-`snapshot_crude`, or `snapshot_stratified` with `adjusted_for`. Entering
-a published Cox hazard ratio as either is an approximation and your
-assumption, so there is no default:
-
-``` r
-
-write.csv(data.frame(disease = c("LAM", "SCK", "MET"), value = c(1.74, 1.5, 1.9),
-                     estimand = "snapshot_crude", source = "Illustrative"),
-          file.path(dir, "hazard_ratios.csv"), row.names = FALSE)
-inp_hr <- cm_read_inputs(dir = dir)
-deconflate_hr(inp_hr$hr_model)
-#> <cm_hr_result> method: snapshot
-#> 
-#>  disease  raw adjusted   change       estimand
-#>      LAM 1.74    1.496 -0.13995 snapshot_crude
-#>      SCK 1.50    1.366 -0.08945 snapshot_crude
-#>      MET 1.90    1.524 -0.19768 snapshot_crude
-#> 
-#> Diagnostics:
-#>  max_reconstruction_residual n_sign_changes condition_number
-#>                     2.69e-13              0             2.21
-#>                                       feasibility
-#>  joint distribution fitted (max residual 6.6e-11)
-```
-
-A table without the `estimand` column, or with the names used before
-version 0.3.0 (`crude`, `adjusted`), is reported:
-
-``` r
-
-d3 <- data.frame(id = c("LAM", "SCK", "MET"), value = c(0.25, 0.38, 0.10))
-cm_check_inputs(diseases = d3,
-                hazard_ratios = data.frame(disease = c("LAM", "SCK", "MET"),
-                                           value = c(1.74, 1.5, 1.9)))
-#> Found 1 problem(s) in the inputs:
-#>   hazard_ratios, column 'estimand': Required column is missing.
-cm_check_inputs(diseases = d3,
-                hazard_ratios = data.frame(disease = c("LAM", "SCK", "MET"),
-                                           value = c(1.74, 1.5, 1.9), estimand = "crude"))
-#> Found 3 problem(s) in the inputs:
-#>   hazard_ratios, row 1, column 'estimand': Unknown estimand 'crude' (use snapshot_crude or snapshot_stratified; see ?cm_hazard_ratios).
-#>   hazard_ratios, row 2, column 'estimand': Unknown estimand 'crude' (use snapshot_crude or snapshot_stratified; see ?cm_hazard_ratios).
-#>   hazard_ratios, row 3, column 'estimand': Unknown estimand 'crude' (use snapshot_crude or snapshot_stratified; see ?cm_hazard_ratios).
-```
+[`cm_dist_table()`](https://rasmussenphilip.github.io/deconflate/reference/cm_dist_table.md)
+builds distributions from a table with columns `key`, `dist` and
+`p1`-`p4`. See
+[`vignette("uncertainty")`](https://rasmussenphilip.github.io/deconflate/articles/uncertainty.md)
+for the draws, their intervals and rejected draws.
 
 ## When something is wrong
 
@@ -361,230 +492,102 @@ cm_check_inputs(
 
 [`cm_read_inputs()`](https://rasmussenphilip.github.io/deconflate/reference/cm_read_inputs.md)
 stops with the same list (an error of class `deconflate_input_problems`)
-when there are errors, and prints notes otherwise. The installed example
-with errors shows more cases:
+when there are errors, and prints notes otherwise.
+
+The installed folder `example_with_errors` has a disease table, an
+association table, an additive impact table (`impacts_yield.csv`) and an
+event impact table (`culling.csv`), each with mistakes explained in its
+`note` column: a missing distribution parameter, a prevalence above 1, a
+duplicate disease or pair, a missing association value, an unknown
+disease, a covariate-adjusted odds ratio, measures and count columns
+from earlier versions, a decimal comma, two units in one table, an
+unsupported distribution, and a point value outside its distribution:
 
 ``` r
 
-cm_check_inputs(dir = system.file("extdata", "example_with_errors", package = "deconflate"))
-#> Found 19 problem(s) in the inputs:
-#>   uncertainty: Uncertainty files are no longer read: give each uncertain value a distribution in its own table, in the columns dist and p1-p4 (see ?cm_read_inputs).
-#>   interactions_culling: There is no impact table for analysis 'culling'.
+err <- system.file("extdata", "example_with_errors", package = "deconflate")
+list.files(err)
+#> [1] "associations.csv"  "culling.csv"       "diseases.csv"     
+#> [4] "impacts_yield.csv"
+cm_check_inputs(diseases = file.path(err, "diseases.csv"),
+                associations = file.path(err, "associations.csv"),
+                impacts = file.path(err, "impacts_yield.csv"))
+#> Found 18 problem(s) in the inputs:
 #>   diseases, row 5, column 'id': Duplicate disease id 'SCK'.
 #>   diseases, row 3, column 'value': Gives a probability of 1.1; it must be strictly between 0 and 1.
 #>   diseases, row 2, column 'dist': 'normal' needs p1 (mean) and p2 (sd).
 #>   diseases, row 4, column 'dist': Parameters p1-p4 are given without a distribution (dist).
+#>   associations: Contingency-table counts (n11, n10, n01, n00) are no longer read: compute each table's odds ratio, n11 * n00 / (n10 * n01), and enter it in `value` with measure OR.
 #>   associations, row 3, column 'disease2': Unknown disease 'CM' (not in the diseases table).
+#>   associations, row 9, column 'disease2': Unknown disease 'MAS' (not in the diseases table).
 #>   associations, row 4: Duplicate pair SCK:LAM.
-#>   associations, row 5, column 'value': Missing value for measure OR.
+#>   associations, row 7, column 'measure': measure = 'table' is no longer used: compute the odds ratio from the counts, n11 * n00 / (n10 * n01), and enter it with measure OR.
+#>   associations, row 8, column 'measure': measure = 'independent' is no longer used: give the pair an odds ratio of 1 (value 1, measure OR).
+#>   associations, row 9, column 'measure': measure = 'unknown' is no longer used: leave the pair out. Pairs without a row are unknown, and the global model fills in their association.
+#>   associations, row 5, column 'value': Missing value. Leave the pair out (no row) if its association is unknown; an odds ratio of 1 states that the diseases are unrelated.
 #>   associations, row 6, column 'adjusted': A covariate-adjusted measure is not a marginal 2x2 association. Use the crude measure, or set adjusted_associations = 'use_as_marginal' to use it as an approximation.
 #>   associations, row 2, column 'dist': PERT needs min <= mode <= max and min < max.
-#>   associations, row 7, column 'dist': A distribution needs a numeric measure (OR, RR, RD, cond_prob or phi); give the measure and its point value.
-#>   hazard_ratios, column 'dist' (note): Uncertainty is not used for hazard ratios (Monte Carlo runs adjust additive impacts); the dist and p1-p4 columns are ignored.
-#>   hazard_ratios, row 3, column 'value': Hazard ratios must be positive.
-#>   impacts_fertility, column 'units': One units per table is allowed (found: % increase, days).
-#>   impacts_fertility, row 3, column 'p2': '8,5' is not a number.
-#>   impacts_fertility, row 2, column 'dist' (note): The point value 1.12 lies outside the distribution's support [1.5, 3].
-#>   impacts_yield, row 2, column 'value': '8,40' is not a number.
-#>   impacts_yield, row 3, column 'adjusted_for': adjusted_for is given for a crude estimate. Set estimand = adjusted_linear if this is a coefficient from an additive regression adjusted for those diseases; other adjusted estimands are not supported.
-#>   impacts_yield: No impact for: MET. Add a row with value 0 for no impact.
-#>   impacts_yield, row 3, column 'dist': Unknown distribution 'gamma' (use fixed, normal, lognormal, lognormal_ci, beta, pert, pert_mean or uniform).
+#>   impacts, row 2, column 'value': '8,40' is not a number.
+#>   impacts, row 3, column 'adjusted_for': adjusted_for is given for a crude estimate. Set estimand = adjusted_linear if this is a coefficient from an additive regression adjusted for those diseases; other adjusted estimands are not supported.
+#>   impacts, column 'units': One units per table is allowed (found: % decrease, days).
+#>   impacts, row 3, column 'dist': Unknown distribution 'gamma' (use fixed, normal, lognormal, lognormal_ci, beta, pert, pert_mean or uniform).
+#>   impacts, row 4, column 'dist' (note): The point value 5.61 lies outside the distribution's support [6, 8].
 ```
 
-## The global dairy example
-
-The folder `global_dairy_2024` holds the inputs of Rasmussen et
-al. (2024): `diseases.csv` (12 diseases), `associations.csv` (38 odds
-ratios), `impacts_yield.csv` and `impacts_fertility.csv` (in percent)
-and `hazard_ratios.csv` (culling, entered as `snapshot_crude`). The
-input distributions of the paper’s Monte Carlo analysis are in the
-`dist` and `p1`-`p4` columns of the association and impact tables.
+The event impact table has a missing estimand, a hazard ratio of 0, and
+a stratified estimand without `adjusted_for` (the disease table’s
+problems, listed above, are left out here):
 
 ``` r
 
-gd <- cm_read_inputs(dir = system.file("extdata", "global_dairy_2024", package = "deconflate"))
-gd
-#> <cm_inputs>
-#> <cm_population>
-#>   Diseases: 12 (CK, CM, DA, DYS, LAM, MET, MF, OC, PTB, RP, SCK, SCM)
-#>   Disease pairs: 66 [independent (default): 28; specified: 38]
-#>   Analyses: fertility, yield
-#>   Hazard ratios: yes (use $hr_model with deconflate_hr())
-#>   Uncertain inputs: batch sampler over 2 analyses (use $sampler with cm_monte_carlo())
-cmp <- compare_methods(gd$analyses, methods = c("published", "simultaneous"))
-cmp$impacts[cmp$impacts$analysis == "yield", ]
-#>    analysis disease       raw  published simultaneous
-#> 13    yield      CK 0.4321944 0.02473297   -5.3709141
-#> 14    yield      CM 3.2499000 1.33194993   -0.3380725
-#> 15    yield      DA 2.8369300 0.79378291   -2.6316316
-#> 16    yield     DYS 4.9190880 3.56881898    4.3096749
-#> 17    yield     LAM 4.8061000 2.53240737    1.9792779
-#> 18    yield     MET 5.6130850 2.84095146    2.7909168
-#> 19    yield      MF 0.5365131 0.06897532   -1.5399737
-#> 20    yield      OC 3.7478390 2.63859343    3.2174755
-#> 21    yield     PTB 4.3000000 3.22917066    3.9410642
-#> 22    yield      RP 4.1986640 2.25771112    2.4733053
-#> 23    yield     SCK 8.3964720 7.10307185    8.2785938
-#> 24    yield     SCM 6.2931840 5.58961905    6.5761493
-```
-
-The `"published"` column (the approximation of the paper, kept for
-comparison only) and the simultaneous solution differ; the simultaneous
-solution changes the sign of several adjusted impacts (see
-[`vignette("reproducing-published")`](https://rasmussenphilip.github.io/deconflate/articles/reproducing-published.md)).
-The culling hazard ratios are adjusted separately with the snapshot
-model
-([`vignette("culling-hazard-ratios")`](https://rasmussenphilip.github.io/deconflate/articles/culling-hazard-ratios.md)),
-and
-[`compare_methods()`](https://rasmussenphilip.github.io/deconflate/reference/compare_methods.md)
-sets the paper’s approach beside it:
-
-``` r
-
-hr_gd <- deconflate_hr(gd$hr_model)
-#> Warning: Adjusted hazard ratios cross 1 for CK, MET. The raw hazard ratios are
-#> smaller than the associated diseases alone would produce; check the estimands
-#> and source populations.
-hr_gd
-#> <cm_hr_result> method: snapshot
-#> 
-#>  disease   raw adjusted   change       estimand
-#>       CK 1.500   0.9821 -0.34529 snapshot_crude
-#>       CM 2.300   1.8194 -0.20898 snapshot_crude
-#>       DA 2.851   1.8477 -0.35196 snapshot_crude
-#>      DYS 1.258   1.0505 -0.16500 snapshot_crude
-#>      LAM 1.745   1.2230 -0.29912 snapshot_crude
-#>      MET 1.116   0.7198 -0.35524 snapshot_crude
-#>       MF 3.000   2.6601 -0.11325 snapshot_crude
-#>       OC 1.620   1.5580 -0.03829 snapshot_crude
-#>      PTB 2.311   2.0165 -0.12723 snapshot_crude
-#>       RP 1.600   1.1817 -0.26140 snapshot_crude
-#>      SCK 1.920   1.7107 -0.10900 snapshot_crude
-#>      SCM 1.450   1.2109 -0.16489 snapshot_crude
-#> 
-#> Diagnostics:
-#>  max_reconstruction_residual n_sign_changes condition_number
-#>                      8.1e-15              2             3.75
-#>                                       feasibility
-#>  joint distribution fitted (max residual 4.9e-11)
-compare_methods(gd$hr_model, methods = c("published", "snapshot"), joint = hr_gd$joint)$impacts
-#>    disease      raw published  snapshot
-#> 1       CK 1.500100  1.177580 0.9821306
-#> 2       CM 2.300000  1.903941 1.8193536
-#> 3       DA 2.851179  2.197930 1.8476664
-#> 4      DYS 1.258143  1.098377 1.0505432
-#> 5      LAM 1.744976  1.380683 1.2230210
-#> 6      MET 1.116444  1.012411 0.7198427
-#> 7       MF 2.999886  2.647637 2.6601486
-#> 8       OC 1.620000  1.458644 1.5579660
-#> 9      PTB 2.310508  2.047235 2.0165455
-#> 10      RP 1.599928  1.284496 1.1816995
-#> 11     SCK 1.920000  1.675253 1.7107120
-#> 12     SCM 1.449996  1.254928 1.2109005
+p <- cm_check_inputs(diseases = file.path(err, "diseases.csv"),
+                     impacts = file.path(err, "culling.csv"))
+p[p$table == "impacts", ]
+#> Found 3 problem(s) in the inputs:
+#>   impacts, row 2, column 'estimand': Missing estimand: event impacts need snapshot_crude or snapshot_stratified (see ?cm_impacts).
+#>   impacts, row 4, column 'adjusted_for': estimand = snapshot_stratified needs adjusted_for (disease ids or all).
+#>   impacts, row 3, column 'value': Ratios must be positive.
 ```
 
 ## Tables typed in R
 
-Any table can be a data frame instead of a file. Tables that come one
-per analysis (`impacts`, `interactions`) are named lists, named after
-the analyses. Distributions are columns of the tables, as in the files:
+Any table can be a data frame instead of a file, with the same columns,
+including the distribution columns:
 
 ``` r
 
-inp3 <- cm_read_inputs(
+typed <- cm_read_inputs(
   diseases = data.frame(id = c("d1", "d2", "d3"), value = c(0.10, 0.15, 0.20)),
   associations = data.frame(disease1 = c("d1", "d2"), disease2 = c("d2", "d3"),
                             value = c(2, 3), measure = "OR",
                             dist = c("lognormal_ci", NA), p1 = c(2, NA), p2 = c(1.4, NA),
                             p3 = c(2.9, NA)),
-  impacts = list(
-    yield = data.frame(disease = c("d1", "d2", "d3"), value = c(2.5, 5, 7.5),
+  impacts = data.frame(disease = c("d1", "d2", "d3"), value = c(2.5, 5, 7.5),
                        units = "% of yield", dist = c("normal", NA, NA),
-                       p1 = c(2.5, NA, NA), p2 = c(0.5, NA, NA)),
-    fertility = data.frame(disease = c("d1", "d2", "d3"), value = c(1, 2, 0),
-                           units = "% of calving interval")
-  )
+                       p1 = c(2.5, NA, NA), p2 = c(0.5, NA, NA))
 )
-inp3
-#> <cm_inputs>
-#> <cm_population>
+typed
+#> <cm_model>
 #>   Diseases: 3 (d1, d2, d3)
-#>   Disease pairs: 3 [independent (default): 1; specified: 2]
-#>   Analyses: yield, fertility
-#>   Uncertain inputs: batch sampler over 2 analyses (use $sampler with cm_monte_carlo())
-inp3$sampler
-#> <cm_batch_sampler> 2 analyses (yield, fertility); 1 shared population inputs
-deconflate(inp3$analyses)$yield$adjusted
+#>   Disease pairs: 3 (2 with an association, 1 unknown)
+#>   Impacts: (unlabelled) [% of yield] (additive)
+#>   Estimands: crude: 3
+#>   Uncertain inputs (with a distribution): 2
+deconflate(typed, n_draws = 0)$adjusted
 #>   disease raw adjusted      change estimand adjusted_for
-#> 1      d1 2.5 2.143250 -0.14269981    crude         <NA>
-#> 2      d2 5.0 3.387080 -0.32258408    crude         <NA>
-#> 3      d3 7.5 6.934209 -0.07543874    crude         <NA>
+#> 1      d1 2.5 1.988942 -0.20442313    crude         <NA>
+#> 2      d2 5.0 3.404334 -0.31913313    crude         <NA>
+#> 3      d3 7.5 6.906626 -0.07911658    crude         <NA>
 ```
 
-With a single analysis (e.g. `impacts = list(yield = ...)`, or one data
-frame, which becomes the analysis `impacts`), `$model` is set and
-`$sampler` is a single-analysis sampler.
-
-## Associations from other designs
-
-### Adjusted association measures
-
-The 2x2 algebra needs marginal (crude) association measures. An odds
-ratio from a multivariable model is conditional on its covariates, so it
-is rejected unless you choose to use it as if it were marginal, which is
-an approximation:
-
-``` r
-
-d12 <- cm_diseases(c("d1", "d2"), c(0.10, 0.15))
-a_adj <- cm_associations("d1", "d2", 1.8, adjusted = TRUE, adjusted_for = "parity; herd")
-tryCatch(cm_population(d12, a_adj), deconflate_unsupported = function(e) conditionMessage(e))
-#> [1] "Covariate-adjusted associations (d1:d2) are not marginal 2x2 associations. Use crude measures, or set adjusted_associations = 'use_as_marginal' to use them as an approximation."
-cm_population(d12, a_adj, adjusted_associations = "use_as_marginal")
-#> <cm_population>
-#>   Diseases: 2 (d1, d2)
-#>   Disease pairs: 1 [specified: 1]
-#>   Covariate-adjusted association measures used as marginal: 1
-```
-
-In files, set the column `adjusted` to `TRUE` and call
-`cm_read_inputs(..., adjusted_associations = "use_as_marginal")`; each
-such row is then reported as a note.
-
-### Contingency tables and zero cells
-
-A study table can be given as counts (`measure = "table"`). Its odds
-ratio is applied to the modelled population’s own probabilities. A table
-with a zero cell has no finite odds ratio, so by default 0.5 is added to
-every cell (Haldane-Anscombe correction), and the row is flagged in
-column `corrected`:
-
-``` r
-
-tab <- cm_associations("d1", "d2", measure = "table", n11 = 0, n10 = 30, n01 = 40, n00 = 930)
-tab[, c("disease1", "disease2", "measure", "value", "corrected")]
-#>   disease1 disease2 measure     value corrected
-#> 1       d1       d2   table 0.3766444      TRUE
-tryCatch(cm_associations("d1", "d2", measure = "table", n11 = 0, n10 = 30, n01 = 40,
-                         n00 = 930, zero_cell = "error"),
-         deconflate_error = function(e) conditionMessage(e))
-#> [1] "A contingency table has a zero cell; use zero_cell = 'haldane' to add 0.5 to every cell."
-```
-
-When reading files, the correction is applied and reported as a note:
-
-``` r
-
-cm_check_inputs(
-  diseases = data.frame(id = c("d1", "d2"), value = c(0.10, 0.15)),
-  associations = data.frame(disease1 = "d1", disease2 = "d2", measure = "table",
-                            n11 = 0, n10 = 30, n01 = 40, n00 = 930)
-)
-#> Notes on the inputs:
-#>   associations, row 1 (note): The table has a zero cell; 0.5 was added to every cell (Haldane correction).
-```
-
-Tables in which every count is zero are rejected.
+Here the pair d1:d3 has no row, so it is unknown and the global method
+is used. The R constructors
+([`cm_diseases()`](https://rasmussenphilip.github.io/deconflate/reference/cm_diseases.md),
+[`cm_associations()`](https://rasmussenphilip.github.io/deconflate/reference/cm_associations.md),
+[`cm_population()`](https://rasmussenphilip.github.io/deconflate/reference/cm_population.md),
+[`cm_impacts()`](https://rasmussenphilip.github.io/deconflate/reference/cm_impacts.md),
+[`cm_model()`](https://rasmussenphilip.github.io/deconflate/reference/cm_model.md))
+build the same model directly.
 
 ## Disease ids
 
@@ -603,95 +606,38 @@ tryCatch(cm_diseases(c("LAM", "all"), c(0.25, 0.40)),
 #> [1] "'all' is reserved and cannot be a disease id."
 ```
 
-## Uncertainty
-
-The tables `diseases`, `associations`, `three_way`, `impacts` and
-`interactions` can have the columns `dist` and `p1`-`p4`. A row with a
-`dist` has an uncertain value; a row with an empty `dist` is a point
-value. The deterministic methods use the point value (`value`, or
-`ratio` for a three-way term); Monte Carlo runs draw from the
-distribution, on the scale the value was entered on:
-
-- a disease’s `value` (e.g. a prevalence or an incidence rate);
-- an association’s `value` (e.g. an odds ratio); the measure must be
-  numeric (`OR`, `RR`, `RD`, `cond_prob` or `phi`), not `table`,
-  `independent` or `unknown`;
-- a three-way `ratio`;
-- an impact or an interaction, in the units of its table.
-
-Hazard ratios cannot have distributions (the Monte Carlo tools adjust
-additive impacts). `dist` and the parameters `p1`-`p4`:
-
-| `dist` | `p1` | `p2` | `p3` | `p4` |
-|----|----|----|----|----|
-| `fixed` | value |  |  |  |
-| `normal` | mean | sd | lower bound (optional) | upper bound (optional) |
-| `lognormal` | meanlog | sdlog |  |  |
-| `lognormal_ci` | estimate | lower CI | upper CI | level (default 0.95) |
-| `beta` | shape1 | shape2 | min (default 0) | max (default 1) |
-| `pert` | min | mode | max | lambda (default 4) |
-| `pert_mean` | min | mean | max | lambda (default 4) |
-| `uniform` | min | max |  |  |
-
-The checks report a distribution with missing or invalid parameters,
-parameters without a `dist`, and a distribution on a non-numeric
-association measure; a point value outside its distribution’s range is
-noted. In the sampler, inputs are keyed `prob:<disease>`,
-`assoc:<d1>:<d2>`, `three:<d1>:<d2>:<d3>`, `impact:<disease>` and
-`inter:<d1>:<d2>` (the keys of `mc$params`, of proposals in importance
-sampling and of
-[`cm_scenario()`](https://rasmussenphilip.github.io/deconflate/reference/cm_scenario.md)):
-
-``` r
-
-names(attr(inp2$sampler$samplers$yield, "specs"))
-#> [1] "prob:LAM"      "assoc:LAM:SCK" "impact:LAM"    "impact:SCK"
-```
-
-Files named `uncertainty.csv` or `uncertainty_<analysis>.csv`, used by
-version 0.2, are reported as an error: move each distribution into the
-row of its value.
-
-[`cm_dist_table()`](https://rasmussenphilip.github.io/deconflate/reference/cm_dist_table.md)
-builds distributions from a table with columns `key`, `dist` and
-`p1`-`p4`, if you want to pass them to
-[`cm_sampler()`](https://rasmussenphilip.github.io/deconflate/reference/cm_sampler.md)
-yourself. See
-[`vignette("uncertainty")`](https://rasmussenphilip.github.io/deconflate/articles/uncertainty.md)
-for the Monte Carlo analysis.
-
-## A fuller example
+## Fuller examples
 
 The folder `five_diseases` uses every feature on five diseases: all
 probability types and association measures, a three-way term, crude and
-adjusted impacts, interactions, hazard ratios, and every distribution
-type mixed with point values. Its `run_all_features.R` script runs every
-part of the package on it:
+adjusted impacts, interactions (`interactions_welfare.csv`, for the
+welfare impacts), event impacts with mixed measures (`culling.csv`), and
+every distribution type mixed with point values. Its
+`run_all_features.R` script runs every part of the package on it.
+
+The folder `global_dairy_2024` holds the inputs of Rasmussen et
+al. (2024) for 12 diseases: `diseases.csv`, `associations.csv` (the 38
+odds ratios of Table 3), `impacts_yield.csv`, `impacts_fertility.csv`
+and `culling.csv` (hazard ratios entered as `snapshot_crude`), with the
+input distributions of the paper’s analysis in the `dist` columns. Pairs
+not in Table 3 have no row, so they are unknown:
 
 ``` r
 
-five <- system.file("extdata", "five_diseases", package = "deconflate")
-list.files(five)
-#>  [1] "associations.csv"             "diseases.csv"                
-#>  [3] "hazard_ratios.csv"            "impacts_calving_interval.csv"
-#>  [5] "impacts_welfare.csv"          "impacts_yield.csv"           
-#>  [7] "interactions_welfare.csv"     "README.md"                   
-#>  [9] "run_all_features.R"           "three_way.csv"
-inp5 <- cm_read_inputs(dir = five)
-inp5
-#> <cm_inputs>
-#> <cm_population>
-#>   Diseases: 5 (LAM, MAS, MET, SCK, RP)
-#>   Disease pairs: 10 [specified: 10]
-#>   Three-way terms: 1
-#>   Analyses: calving_interval, welfare, yield
-#>   Hazard ratios: yes (use $hr_model with deconflate_hr())
-#>   Uncertain inputs: batch sampler over 3 analyses (use $sampler with cm_monte_carlo())
-read.csv(file.path(five, "impacts_yield.csv"))[, c("disease", "value", "dist", "p1", "p2", "p3")]
-#>   disease value      dist  p1  p2 p3
-#> 1     LAM   4.8    normal 4.8 0.9 NA
-#> 2     MAS   3.3      pert 1.5 3.3  6
-#> 3     MET   5.6 pert_mean 3.0 5.6  8
-#> 4     SCK   2.5     fixed 2.5  NA NA
-#> 5      RP   4.2            NA  NA NA
+gd <- system.file("extdata", "global_dairy_2024", package = "deconflate")
+cm_read_inputs(diseases = file.path(gd, "diseases.csv"),
+               associations = file.path(gd, "associations.csv"),
+               impacts = file.path(gd, "impacts_yield.csv"))
+#> <cm_model>
+#>   Diseases: 12 (CK, CM, DA, DYS, LAM, MET, MF, OC, PTB, RP, SCK, SCM)
+#>   Disease pairs: 66 (38 with an association, 28 unknown)
+#>   Impacts: milk yield loss [% decrease] (additive)
+#>   Estimands: crude: 12
+#>   Uncertain inputs (with a distribution): 46
 ```
+
+[`example_global_dairy()`](https://rasmussenphilip.github.io/deconflate/reference/example_global_dairy.md)
+returns the same inputs as a model, and
+[`vignette("reproducing-published")`](https://rasmussenphilip.github.io/deconflate/articles/reproducing-published.md)
+compares it with the published analysis, which treated these pairs as
+independent.

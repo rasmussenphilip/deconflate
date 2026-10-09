@@ -2,16 +2,19 @@
 
 Varies each input by `variation` (e.g. +/- 20%) with everything else
 fixed, as in Rasmussen et al. (2024), Fig. 7, and reports the resulting
-range of the adjusted aggregate.
+range of the total: the adjusted aggregate for additive impacts, the
+risk attributable to disease for event impacts.
 
 ## Usage
 
 ``` r
 sensitivity_oat(
   model,
-  method = "simultaneous",
+  method = "auto",
+  event_model = FALSE,
+  overall_risk = NULL,
   variation = 0.2,
-  inputs = c("prob", "assoc", "impact")
+  inputs = c("prob", "assoc", "impact", "risk")
 )
 ```
 
@@ -22,9 +25,10 @@ sensitivity_oat(
   A
   [`cm_model()`](https://rasmussenphilip.github.io/deconflate/reference/cm_model.md).
 
-- method:
+- method, event_model, overall_risk:
 
-  Adjustment method.
+  As in
+  [`deconflate()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate.md).
 
 - variation:
 
@@ -32,7 +36,8 @@ sensitivity_oat(
 
 - inputs:
 
-  Which inputs to vary: `"prob"`, `"assoc"`, `"impact"`.
+  Which inputs to vary: `"prob"`, `"assoc"`, `"impact"`, and for event
+  impacts `"risk"` (the overall risk).
 
 ## Value
 

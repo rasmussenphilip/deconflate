@@ -4,20 +4,20 @@ Varies one input over a range, with everything else fixed at the model's
 values, and finds the input values at which a conclusion changes:
 
 - `"rank"`: two diseases swap places, ranked by their contribution to
-  the aggregate (including interaction shares; `by = "adjusted"` ranks
-  by adjusted impact instead);
+  the total (including interaction shares; `by = "adjusted"` ranks by
+  adjusted impact instead);
 
-- `"sign"`: a disease's adjusted impact crosses zero. This is a sign
-  change implied by the model and its inputs, not by itself evidence of
-  a protective effect;
+- `"sign"`: a disease's adjusted impact crosses zero (for event impacts,
+  its adjusted hazard ratio crosses 1). This is a sign change implied by
+  the model and its inputs, not by itself evidence of a protective
+  effect;
 
-- `"total"`: the aggregate adjusted burden crosses `target` (in the
-  units of the impacts);
+- `"total"`: the total crosses `target`;
 
-- `"change"`: the aggregate departs from its value at the model's own
-  input by the relative amount `target` (e.g. `0.1` for +10%), which
-  answers questions such as "what association strength would increase
-  the total by 10%?".
+- `"change"`: the total departs from its value at the model's own input
+  by the relative amount `target` (e.g. `0.1` for +10%), which answers
+  questions such as "what association strength would increase the total
+  by 10%?".
 
 ## Usage
 
@@ -30,7 +30,9 @@ cm_threshold(
   target = NULL,
   diseases = NULL,
   by = c("contribution", "adjusted"),
-  method = NULL,
+  method = "auto",
+  event_model = FALSE,
+  overall_risk = NULL,
   n_grid = 101L,
   log_scale = NULL,
   tol = 1e-08,
@@ -48,13 +50,14 @@ cm_threshold(
 - input:
 
   The input to vary, keyed as in
-  [`cm_sampler()`](https://rasmussenphilip.github.io/deconflate/reference/cm_sampler.md):
-  `"assoc:<d1>:<d2>"` (the pair's association; a pair without a numeric
-  measure is varied as an odds ratio, so unknown or unlisted pairs can
-  be explored), `"inter:<d1>:<d2>"` (an interaction), `"prob:<disease>"`
-  (the disease's `value`, on the scale it was entered),
-  `"impact:<disease>"` (a raw impact), or `"three:<d1>:<d2>:<d3>"` (a
-  three-way ratio).
+  [`cm_model()`](https://rasmussenphilip.github.io/deconflate/reference/cm_model.md)
+  (`distributions`): `"assoc:<d1>:<d2>"` (the pair's association, on its
+  measure; a pair without an association is varied as an odds ratio, so
+  unknown pairs can be explored), `"inter:<d1>:<d2>"` (an interaction),
+  `"prob:<disease>"` (the disease's `value`, on the scale it was
+  entered), `"impact:<disease>"` (a raw impact),
+  `"three:<d1>:<d2>:<d3>"` (a three-way ratio), or, for event impacts,
+  `"risk"` (the overall risk).
 
 - range:
 
@@ -66,8 +69,9 @@ cm_threshold(
 
 - target:
 
-  For `"total"`, the value of the aggregate; for `"change"`, the
-  relative change from the baseline aggregate (e.g. `0.1`, or `-0.1`).
+  For `"total"`, the value of the aggregate (for event impacts, of the
+  attributable risk); for `"change"`, the relative change from the
+  baseline (e.g. `0.1`, or `-0.1`).
 
 - diseases:
 
@@ -78,13 +82,11 @@ cm_threshold(
 
   For `"rank"`: `"contribution"` (default) or `"adjusted"`.
 
-- method:
+- method, event_model, overall_risk:
 
-  Adjustment method; by default `"global"` for models with interactions
-  or three-way terms (and for `"inter:"` and `"three:"` inputs),
-  otherwise `"simultaneous"`. The simultaneous method is rejected (class
-  `deconflate_unsupported`) for `"inter:"` and `"three:"` inputs and for
-  models with interactions.
+  As in
+  [`deconflate()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate.md)
+  (a distribution of the overall risk is used at its mean).
 
 - n_grid:
 
@@ -105,11 +107,9 @@ cm_threshold(
 
 - ...:
 
-  Passed to
-  [`deconflate()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate.md)
-  (e.g. `feasibility`, `joint`, or arguments of
+  `joint`, or arguments of
   [`fit_joint()`](https://rasmussenphilip.github.io/deconflate/reference/fit_joint.md)
-  for the global method).
+  (e.g. `backend = "sampled"`).
 
 ## Value
 
@@ -122,6 +122,12 @@ point with its status, the aggregate and the condition number),
 number of thresholds, and whether part of the range could not be
 evaluated), and the settings (`input`, `range`, `baseline` value of the
 input, `method`, `conclusion`, `target`, `fixed`).
+
+## Details
+
+The total is the adjusted aggregate (in the units of the impacts) for
+additive impacts, and the risk attributable to disease for event impacts
+(`event_model = TRUE`), whose contributions are its Shapley allocation.
 
 ## Method
 
@@ -148,13 +154,15 @@ found" can be told apart from "part of the range could not be
 evaluated". A sign change between usable points separated by unusable
 ones is not reported as a crossing; such stretches appear in `regions`.
 
-With the global method, when the input is an impact or an interaction
-(which do not change the joint distribution), the joint distribution is
-fitted once and reused (or the `joint` passed through `...` is used).
+Each point is adjusted as
+[`deconflate()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate.md)
+would (point estimates; the method is chosen for the point's own
+inputs). When the input is an impact, an interaction or the overall risk
+(which do not change the joint distribution) and the adjustment uses the
+joint distribution, it is fitted once and reused (or the `joint` passed
+through `...` is used).
 
 Thresholds are deterministic: they are for the model's input values.
-Probabilistic statements (e.g. the probability that a disease ranks
-first) need the Monte Carlo tools.
 
 ## Examples
 
@@ -167,11 +175,11 @@ th
 #> Fixed: all inputs other than assoc:d1:d2 at the model's values.
 #> 
 #> No crossing found in the range.
-# What odds ratio between d1 and d3 (independent in the example) would
-# reduce the aggregate by 10%?
+# What odds ratio between d1 and d3 (an odds ratio of 1 in the example)
+# would reduce the aggregate by 10%?
 cm_threshold(m, "assoc:d1:d3", c(1, 50), conclusion = "change", target = -0.1)$thresholds
 #>   conclusion  item    status threshold    lower    upper        below
 #> 1     change total threshold  5.263907 5.263907 5.263907 4.931178e-10
-#>          above                                                 description
-#> 1 -3.74885e-10 the aggregate falls below the baseline by the target change
+#>           above                                  description
+#> 1 -3.748852e-10 the aggregate falls below the baseline - 10%
 ```

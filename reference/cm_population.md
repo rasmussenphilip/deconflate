@@ -1,11 +1,9 @@
 # Describe the population: diseases and their associations
 
-A population holds everything that is shared by all impact analyses: the
-disease probabilities, the pairwise associations and, optionally,
-three-way association scenarios. Combine it with an impact vector in
-[`cm_model()`](https://rasmussenphilip.github.io/deconflate/reference/cm_model.md),
-or with several in
-[`cm_analyses()`](https://rasmussenphilip.github.io/deconflate/reference/cm_analyses.md).
+A population holds the disease probabilities, the pairwise associations
+and, optionally, three-way association scenarios. Combine it with one
+impact table in
+[`cm_model()`](https://rasmussenphilip.github.io/deconflate/reference/cm_model.md).
 
 ## Usage
 
@@ -14,7 +12,6 @@ cm_population(
   diseases,
   associations = NULL,
   three_way = NULL,
-  missing_associations = c("independent", "unknown"),
   adjusted_associations = c("error", "use_as_marginal")
 )
 ```
@@ -32,18 +29,16 @@ cm_population(
   Optional
   [`cm_associations()`](https://rasmussenphilip.github.io/deconflate/reference/cm_associations.md)
   object.
+  [`deconflate()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate.md)
+  needs at least one association; the sensitivity tools (e.g.
+  [`screen_associations()`](https://rasmussenphilip.github.io/deconflate/reference/screen_associations.md))
+  also run without any.
 
 - three_way:
 
   Optional
   [`cm_three_way()`](https://rasmussenphilip.github.io/deconflate/reference/cm_three_way.md)
-  object (global model only).
-
-- missing_associations:
-
-  How to treat pairs without an association: `"independent"` (default;
-  odds ratio 1, as in Rasmussen et al. 2022) or `"unknown"`
-  (unconstrained). These are different assumptions.
+  object.
 
 - adjusted_associations:
 
@@ -56,6 +51,12 @@ cm_population(
 
 A `cm_population` object.
 
+## Details
+
+Pairs without an association are unknown: the global model fills in
+their association from the others (see
+[`fit_joint()`](https://rasmussenphilip.github.io/deconflate/reference/fit_joint.md)).
+
 ## Examples
 
 ``` r
@@ -66,5 +67,5 @@ pop <- cm_population(
 pop
 #> <cm_population>
 #>   Diseases: 3 (d1, d2, d3)
-#>   Disease pairs: 3 [independent (default): 1; specified: 2]
+#>   Disease pairs: 3 (2 with an association, 1 unknown)
 ```

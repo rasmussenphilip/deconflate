@@ -11,8 +11,8 @@
 <script src="deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
 <link href="deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
 <script src="deps/headroom-0.11.0/headroom.min.js"></script><script src="deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="deps/search-1.0.0/fuse.min.js"></script><script src="deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="pkgdown.js"></script><meta property="og:title" content="Comorbidity Adjustment of Disease Impact Estimates">
-<meta name="description" content='Adjusts ("de-conflates") single-disease impact estimates for statistical associations between diseases, so that impacts can be aggregated without double counting. Implements an exact simultaneous solution of the additive impact equations of Rasmussen et al. (2022) &lt;doi:10.1016/j.prevetmed.2022.105617&gt; for crude estimates and for coefficients of additive regressions with recorded adjustment sets (the published proportional approximation is kept for comparison and reproduction), and a global model that fits a maximum-entropy distribution of disease combinations by iterative proportional fitting and incorporates specified pairwise impact interactions and three-way association scenarios. Hazard ratios are adjusted with a separate multiplicative adapter, with attributable risk. Includes Shapley attribution, feasibility checks, Monte Carlo propagation of input uncertainty with stability diagnostics, Latin hypercube and importance sampling, sensitivity screening and reproduction of the published analyses.'>
-<meta property="og:description" content='Adjusts ("de-conflates") single-disease impact estimates for statistical associations between diseases, so that impacts can be aggregated without double counting. Implements an exact simultaneous solution of the additive impact equations of Rasmussen et al. (2022) &lt;doi:10.1016/j.prevetmed.2022.105617&gt; for crude estimates and for coefficients of additive regressions with recorded adjustment sets (the published proportional approximation is kept for comparison and reproduction), and a global model that fits a maximum-entropy distribution of disease combinations by iterative proportional fitting and incorporates specified pairwise impact interactions and three-way association scenarios. Hazard ratios are adjusted with a separate multiplicative adapter, with attributable risk. Includes Shapley attribution, feasibility checks, Monte Carlo propagation of input uncertainty with stability diagnostics, Latin hypercube and importance sampling, sensitivity screening and reproduction of the published analyses.'>
+<meta name="description" content='Adjusts ("de-conflates") single-disease impact estimates for statistical associations between diseases, so that impacts can be aggregated without double counting. Implements an exact simultaneous solution of the additive impact equations of Rasmussen et al. (2022) &lt;doi:10.1016/j.prevetmed.2022.105617&gt; for crude estimates and for coefficients of additive regressions with recorded adjustment sets (the published proportional approximation is kept for comparison and reproduction), and a global model that fits a maximum-entropy distribution of disease combinations by iterative proportional fitting, fills in pairs without an association estimate, and incorporates specified pairwise impact interactions and three-way association scenarios. Event impacts (hazard ratios, rate ratios, risk ratios, odds ratios and risk differences of, e.g., culling) are adjusted with a snapshot hazard model, with the risk attributable to disease. Includes Shapley attribution, feasibility checks, propagation of input uncertainty with stability diagnostics, threshold searches, sensitivity screening and reproduction of the published analyses.'>
+<meta property="og:description" content='Adjusts ("de-conflates") single-disease impact estimates for statistical associations between diseases, so that impacts can be aggregated without double counting. Implements an exact simultaneous solution of the additive impact equations of Rasmussen et al. (2022) &lt;doi:10.1016/j.prevetmed.2022.105617&gt; for crude estimates and for coefficients of additive regressions with recorded adjustment sets (the published proportional approximation is kept for comparison and reproduction), and a global model that fits a maximum-entropy distribution of disease combinations by iterative proportional fitting, fills in pairs without an association estimate, and incorporates specified pairwise impact interactions and three-way association scenarios. Event impacts (hazard ratios, rate ratios, risk ratios, odds ratios and risk differences of, e.g., culling) are adjusted with a snapshot hazard model, with the risk attributable to disease. Includes Shapley attribution, feasibility checks, propagation of input uncertainty with stability diagnostics, threshold searches, sensitivity screening and reproduction of the published analyses.'>
 </head>
 <body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
@@ -38,10 +38,10 @@
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
 <li><a class="dropdown-item" href="articles/own-data.html">Using your own data</a></li>
     <li><a class="dropdown-item" href="articles/thresholds-and-scaling.html">Threshold searches and many diseases</a></li>
-    <li><a class="dropdown-item" href="articles/culling-hazard-ratios.html">Culling and hazard ratios</a></li>
+    <li><a class="dropdown-item" href="articles/event-impacts.html">Event impacts (culling and mortality)</a></li>
     <li><a class="dropdown-item" href="articles/reproducing-published.html">Reproducing the published analyses</a></li>
     <li><a class="dropdown-item" href="articles/interactions.html">Disease combinations, interactions and attribution</a></li>
-    <li><a class="dropdown-item" href="articles/uncertainty.html">Uncertainty, scenarios and sensitivity</a></li>
+    <li><a class="dropdown-item" href="articles/uncertainty.html">Uncertainty and sensitivity</a></li>
   </ul>
 </li>
 <li class="nav-item"><a class="nav-link" href="news/index.html">Changelog</a></li>
@@ -113,32 +113,16 @@
 <div class="section level2">
 <h2 id="how-it-works">How it works<a class="anchor" aria-label="anchor" href="#how-it-works"></a>
 </h2>
-<p>A <strong>population</strong> holds the disease probabilities and their associations. Each <strong>analysis</strong> adds one vector of additive impact estimates, in any units (kg of milk, percent of yield, days, euros, welfare scores); results come back in the same units. Each estimate declares its estimand: a crude comparison (<code>"crude"</code>) or the coefficient of an additive regression adjusted for named diseases (<code>"adjusted_linear"</code>).</p>
-<table class="table">
-<colgroup>
-<col width="50%">
-<col width="50%">
-</colgroup>
-<thead><tr>
-<th>Method</th>
-<th>What it does</th>
-</tr></thead>
-<tbody>
-<tr>
-<td>
-<code>"simultaneous"</code> (default)</td>
-<td>Exact solution of the additive impact equations <code>raw = A b</code>, using pairwise 2×2 tables. Reports sign changes, reconstruction residuals and the conditioning of <code>A</code>, and screens the pairs for joint feasibility.</td>
-</tr>
-<tr>
-<td><code>"global"</code></td>
-<td>Maximum-entropy distribution of disease combinations fitted by iterative proportional fitting, then the full equations including specified pairwise interactions (and optional three-way scenarios).</td>
-</tr>
-</tbody>
-</table>
-<p>Use <code>"simultaneous"</code> when impacts are additive and every pair of diseases has an association estimate or a defensible independence assumption; use <code>"global"</code> otherwise (impact interactions, unknown pairs). The proportional approximation of Rasmussen et al. (2022, eq. 16) is not a method of <code><a href="reference/deconflate.html">deconflate()</a></code>: it is kept as <code>"published"</code> in <code><a href="reference/compare_methods.html">compare_methods()</a></code>, <code><a href="reference/cm_monte_carlo.html">cm_monte_carlo()</a></code> and the <code>reproduce_*()</code> functions, for comparison and reproduction only.</p>
+<p>A model has the disease probabilities, their pairwise associations and <strong>one</strong> table of impact estimates. You give each table as a CSV file (with any name) or a data frame, and adjust one impact table per call; for several outcomes, repeat the call. The package assumes no species, outcome or unit.</p>
+<ul>
+<li>
+<strong>Additive impacts</strong> (the default) are in any units (kg of milk, percent of yield, days, euros, welfare scores), the same for every row; results come back in those units. Each estimate declares its estimand: a crude comparison (<code>"crude"</code>) or the coefficient of an additive regression adjusted for named diseases (<code>"adjusted_linear"</code>). Pairwise interactions can be added.</li>
+<li>
+<strong>Event impacts</strong> (<code>event_model = TRUE</code>, with <code>overall_risk</code>) are hazard ratios, rate ratios, risk ratios, odds ratios or risk differences of an event such as culling or death, which can be mixed. They are adjusted with the snapshot hazard model, and the result includes the risk attributable to disease, split by disease.</li>
+</ul>
+<p><code>method = "auto"</code> (the default) uses the simultaneous method (the exact solution of <code>raw = A b</code> from the pairwise 2×2 tables) when every pair has an association and there are no interactions or three-way terms; otherwise it uses the global method (the maximum-entropy distribution of disease combinations), with a note saying why. Pairs without an association are unknown and are filled in by the global fit; an odds ratio of 1 states that two diseases are unrelated.</p>
+<p>Inputs can carry distributions; <code><a href="reference/deconflate.html">deconflate()</a></code> then runs 1000 draws by default (<code>n_draws</code>) and reports intervals. The proportional approximation of Rasmussen et al. (2022, eq. 16) is not a method of <code><a href="reference/deconflate.html">deconflate()</a></code>: it is kept as <code>"published"</code> in <code><a href="reference/compare_methods.html">compare_methods()</a></code> and the <code>reproduce_*()</code> functions, for comparison and reproduction only.</p>
 <p>The package reports adjusted impacts and contributions in the units of the impacts. Converting them into a productivity gap or a monetary value is a few lines of base R (see <code><a href="articles/deconflate.html">vignette("deconflate")</a></code>).</p>
-<p>Hazard ratios (e.g. of culling) combine multiplicatively and have their own model, the snapshot hazard-multiplier model (<code><a href="reference/deconflate_hr.html">deconflate_hr()</a></code>, with explicitly named estimands; the default and recommended method), with <code><a href="reference/attributable_risk.html">attributable_risk()</a></code>.</p>
-<p>The simultaneous method works for any number of diseases. The global method enumerates disease combinations up to about 20 diseases; beyond that, <code>fit_joint(backend = "sampled")</code> fits the same model by Monte Carlo.</p>
 </div>
 <div class="section level2">
 <h2 id="example">Example<a class="anchor" aria-label="anchor" href="#example"></a>
@@ -146,29 +130,28 @@
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/rasmussenphilip/deconflate" class="external-link">deconflate</a></span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Global dairy inputs, Rasmussen et al. (2024): yield and fertility analyses</span></span>
-<span><span class="co"># on one population</span></span>
-<span><span class="va">gd</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/example_global_dairy.html">example_global_dairy</a></span><span class="op">(</span><span class="op">)</span></span>
-<span><span class="va">res</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/deconflate.html">deconflate</a></span><span class="op">(</span><span class="va">gd</span><span class="op">)</span></span>
-<span><span class="va">res</span><span class="op">$</span><span class="va">yield</span><span class="op">$</span><span class="va">contributions</span></span>
+<span><span class="co"># Your own data: one call per impact table, file names of your choice</span></span>
+<span><span class="va">dir</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/file.path.html" class="external-link">file.path</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempdir</a></span><span class="op">(</span><span class="op">)</span>, <span class="st">"my-inputs"</span><span class="op">)</span></span>
+<span><span class="fu"><a href="reference/cm_template.html">cm_template</a></span><span class="op">(</span><span class="va">dir</span><span class="op">)</span></span>
+<span><span class="va">m</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/cm_read_inputs.html">cm_read_inputs</a></span><span class="op">(</span>diseases <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/file.path.html" class="external-link">file.path</a></span><span class="op">(</span><span class="va">dir</span>, <span class="st">"diseases.csv"</span><span class="op">)</span>,</span>
+<span>                    associations <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/file.path.html" class="external-link">file.path</a></span><span class="op">(</span><span class="va">dir</span>, <span class="st">"associations.csv"</span><span class="op">)</span>,</span>
+<span>                    impacts <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/file.path.html" class="external-link">file.path</a></span><span class="op">(</span><span class="va">dir</span>, <span class="st">"yield.csv"</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="va">res</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/deconflate.html">deconflate</a></span><span class="op">(</span><span class="va">m</span><span class="op">)</span>          <span class="co"># intervals from 1000 draws of the uncertain inputs</span></span>
+<span><span class="va">res</span><span class="op">$</span><span class="va">contributions</span></span>
+<span></span>
+<span><span class="co"># Event impacts (culling): hazard ratios and a risk ratio</span></span>
+<span><span class="va">cull</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/cm_read_inputs.html">cm_read_inputs</a></span><span class="op">(</span>diseases <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/file.path.html" class="external-link">file.path</a></span><span class="op">(</span><span class="va">dir</span>, <span class="st">"diseases.csv"</span><span class="op">)</span>,</span>
+<span>                       associations <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/file.path.html" class="external-link">file.path</a></span><span class="op">(</span><span class="va">dir</span>, <span class="st">"associations.csv"</span><span class="op">)</span>,</span>
+<span>                       impacts <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/file.path.html" class="external-link">file.path</a></span><span class="op">(</span><span class="va">dir</span>, <span class="st">"culling.csv"</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="fu"><a href="reference/deconflate.html">deconflate</a></span><span class="op">(</span><span class="va">cull</span>, event_model <span class="op">=</span> <span class="cn">TRUE</span>, overall_risk <span class="op">=</span> <span class="fl">0.25</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Global dairy inputs, Rasmussen et al. (2024); unlisted pairs are unknown</span></span>
+<span><span class="va">gd</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/example_global_dairy.html">example_global_dairy</a></span><span class="op">(</span><span class="st">"yield"</span><span class="op">)</span></span>
+<span><span class="fu"><a href="reference/deconflate.html">deconflate</a></span><span class="op">(</span><span class="va">gd</span>, n_draws <span class="op">=</span> <span class="fl">0</span><span class="op">)</span></span>
 <span><span class="fu"><a href="reference/compare_methods.html">compare_methods</a></span><span class="op">(</span><span class="va">gd</span><span class="op">)</span>   <span class="co"># includes the published approximation, for comparison</span></span>
 <span></span>
 <span><span class="co"># At what odds ratio between d2 and d3 does the ranking of d1 and d2 change?</span></span>
 <span><span class="fu"><a href="reference/cm_threshold.html">cm_threshold</a></span><span class="op">(</span><span class="fu"><a href="reference/example_supplement.html">example_supplement</a></span><span class="op">(</span><span class="op">)</span>, <span class="st">"assoc:d2:d3"</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0.1</span>, <span class="fl">100</span><span class="op">)</span>, conclusion <span class="op">=</span> <span class="st">"rank"</span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># Culling hazard ratios (snapshot model)</span></span>
-<span><span class="va">hr</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/deconflate_hr.html">deconflate_hr</a></span><span class="op">(</span><span class="fu"><a href="reference/example_global_dairy_hr.html">example_global_dairy_hr</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="fu"><a href="reference/attributable_risk.html">attributable_risk</a></span><span class="op">(</span><span class="va">hr</span>, overall_risk <span class="op">=</span> <span class="fl">0.2366</span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># Your own data</span></span>
-<span><span class="va">dir</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/file.path.html" class="external-link">file.path</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempdir</a></span><span class="op">(</span><span class="op">)</span>, <span class="st">"my-inputs"</span><span class="op">)</span></span>
-<span><span class="fu"><a href="reference/cm_template.html">cm_template</a></span><span class="op">(</span><span class="va">dir</span><span class="op">)</span></span>
-<span><span class="va">inp</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/cm_read_inputs.html">cm_read_inputs</a></span><span class="op">(</span>dir <span class="op">=</span> <span class="va">dir</span><span class="op">)</span></span>
-<span><span class="fu"><a href="reference/deconflate.html">deconflate</a></span><span class="op">(</span><span class="va">inp</span><span class="op">$</span><span class="va">model</span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># Uncertainty, with shared population draws across analyses</span></span>
-<span><span class="va">mc</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/cm_monte_carlo.html">cm_monte_carlo</a></span><span class="op">(</span><span class="fu"><a href="reference/sampler_global_dairy.html">sampler_global_dairy</a></span><span class="op">(</span><span class="op">)</span>, <span class="fl">1000</span>, seed <span class="op">=</span> <span class="fl">1</span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">mc</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># The published tables</span></span>
 <span><span class="fu"><a href="reference/reproduce.html">reproduce_rasmussen_2022</a></span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
@@ -178,21 +161,15 @@
 </h2>
 <ul>
 <li>
-<strong>Inputs:</strong> <code><a href="reference/cm_diseases.html">cm_diseases()</a></code>, <code><a href="reference/cm_associations.html">cm_associations()</a></code> (OR, RR, RD, conditional probability, phi, contingency tables, independent, unknown), <code><a href="reference/cm_three_way.html">cm_three_way()</a></code>, <code><a href="reference/cm_population.html">cm_population()</a></code>, <code><a href="reference/cm_impacts.html">cm_impacts()</a></code>, <code><a href="reference/cm_interactions.html">cm_interactions()</a></code>, <code><a href="reference/cm_model.html">cm_model()</a></code> and <code><a href="reference/cm_analyses.html">cm_analyses()</a></code>.</li>
+<strong>Inputs:</strong> <code><a href="reference/cm_read_inputs.html">cm_read_inputs()</a></code> reads CSV files or data frames (each table a named argument) and reports every problem at once (<code><a href="reference/cm_check_inputs.html">cm_check_inputs()</a></code>); uncertain values carry their distribution in their own row (<code>dist</code>, <code>p1</code>-<code>p4</code>), mixed freely with point values. <code><a href="reference/cm_template.html">cm_template()</a></code> writes example files, and <code>system.file("extdata", "five_diseases", package = "deconflate")</code> holds a five-disease example that uses every feature, with a script (<code>run_all_features.R</code>) that runs them all. In R: <code><a href="reference/cm_diseases.html">cm_diseases()</a></code>, <code><a href="reference/cm_associations.html">cm_associations()</a></code> (OR, RR, RD, conditional probability, phi), <code><a href="reference/cm_three_way.html">cm_three_way()</a></code>, <code><a href="reference/cm_population.html">cm_population()</a></code>, <code><a href="reference/cm_impacts.html">cm_impacts()</a></code>, <code><a href="reference/cm_interactions.html">cm_interactions()</a></code> and <code><a href="reference/cm_model.html">cm_model()</a></code>.</li>
 <li>
-<strong>Your own data:</strong> <code><a href="reference/cm_read_inputs.html">cm_read_inputs()</a></code> reads CSV files or data frames and reports every problem at once; uncertain values carry their distribution in their own row (<code>dist</code>, <code>p1</code>-<code>p4</code>), mixed freely with point values. <code><a href="reference/cm_template.html">cm_template()</a></code> writes example files, and <code>system.file("extdata", "five_diseases", package = "deconflate")</code> holds a five-disease example that uses every feature, with a script (<code>run_all_features.R</code>) that runs them all.</li>
-<li>
-<strong>Adjustment:</strong> <code><a href="reference/deconflate.html">deconflate()</a></code> and <code><a href="reference/compare_methods.html">compare_methods()</a></code> (which also shows the published approximation, for comparison); contributions of each disease (closed-form Shapley values) in <code><a href="reference/attribute_burden.html">attribute_burden()</a></code> and <code><a href="reference/contribution_table.html">contribution_table()</a></code>.</li>
+<strong>Adjustment:</strong> <code><a href="reference/deconflate.html">deconflate()</a></code> for additive and event impacts, with intervals (<code>n_draws</code>); <code><a href="reference/compare_methods.html">compare_methods()</a></code> (which also shows the published approximation, for comparison); contributions of each disease (closed-form Shapley values) in <code><a href="reference/attribute_burden.html">attribute_burden()</a></code> and <code><a href="reference/contribution_table.html">contribution_table()</a></code>; the attributable risk of event impacts.</li>
 <li>
 <strong>Joint distribution and feasibility:</strong> <code><a href="reference/fit_joint.html">fit_joint()</a></code> (exact, or sampled for many diseases), <code><a href="reference/combination_probs.html">combination_probs()</a></code> and <code><a href="reference/check_feasibility.html">check_feasibility()</a></code>.</li>
 <li>
 <strong>Attribution of non-additive losses:</strong> <code><a href="reference/shapley_by_cell.html">shapley_by_cell()</a></code>.</li>
 <li>
-<strong>Hazard ratios:</strong> <code><a href="reference/cm_hazard_ratios.html">cm_hazard_ratios()</a></code>, <code><a href="reference/cm_hr_model.html">cm_hr_model()</a></code>, <code><a href="reference/deconflate_hr.html">deconflate_hr()</a></code> and <code><a href="reference/attributable_risk.html">attributable_risk()</a></code>.</li>
-<li>
-<strong>Uncertainty:</strong> <code>dist_*()</code> distributions, <code><a href="reference/cm_sampler.html">cm_sampler()</a></code> and <code><a href="reference/cm_batch_sampler.html">cm_batch_sampler()</a></code>, <code><a href="reference/cm_monte_carlo.html">cm_monte_carlo()</a></code> (several methods on the same draws, rejection reporting, Latin hypercube and importance sampling), stability checks with suggestions (<code><a href="reference/cm_diagnose.html">cm_diagnose()</a></code>, <code><a href="reference/cm_suggest_proposal.html">cm_suggest_proposal()</a></code>), and reweighting (<code><a href="reference/cm_scenario.html">cm_scenario()</a></code>, <code><a href="reference/cm_reweight.html">cm_reweight()</a></code>).</li>
-<li>
-<strong>Sensitivity and thresholds:</strong> <code><a href="reference/cm_threshold.html">cm_threshold()</a></code> (where a ranking, a sign or the aggregate changes as one input varies), <code><a href="reference/sensitivity_oat.html">sensitivity_oat()</a></code>, <code><a href="reference/screen_associations.html">screen_associations()</a></code>, <code><a href="reference/screen_interactions.html">screen_interactions()</a></code>, <code><a href="reference/screen_three_way.html">screen_three_way()</a></code> and <code><a href="reference/compare_scenarios.html">compare_scenarios()</a></code>.</li>
+<strong>Sensitivity and thresholds:</strong> <code><a href="reference/cm_threshold.html">cm_threshold()</a></code> (where a ranking, a sign or the aggregate changes as one input varies), <code><a href="reference/sensitivity_oat.html">sensitivity_oat()</a></code>, <code><a href="reference/screen_associations.html">screen_associations()</a></code>, <code><a href="reference/screen_interactions.html">screen_interactions()</a></code> and <code><a href="reference/screen_three_way.html">screen_three_way()</a></code>; they also run without any association estimates, to show which associations would matter.</li>
 <li>
 <strong>Reproduction:</strong> <code><a href="reference/reproduce.html">reproduce_rasmussen_2022()</a></code> and <code><a href="reference/reproduce.html">reproduce_rasmussen_2024()</a></code>.</li>
 <li>

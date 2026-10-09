@@ -21,10 +21,10 @@
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/own-data.html">Using your own data</a></li>
     <li><a class="dropdown-item" href="../articles/thresholds-and-scaling.html">Threshold searches and many diseases</a></li>
-    <li><a class="dropdown-item" href="../articles/culling-hazard-ratios.html">Culling and hazard ratios</a></li>
+    <li><a class="dropdown-item" href="../articles/event-impacts.html">Event impacts (culling and mortality)</a></li>
     <li><a class="dropdown-item" href="../articles/reproducing-published.html">Reproducing the published analyses</a></li>
     <li><a class="dropdown-item" href="../articles/interactions.html">Disease combinations, interactions and attribution</a></li>
-    <li><a class="dropdown-item" href="../articles/uncertainty.html">Uncertainty, scenarios and sensitivity</a></li>
+    <li><a class="dropdown-item" href="../articles/uncertainty.html">Uncertainty and sensitivity</a></li>
   </ul></li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
@@ -84,7 +84,7 @@
           <code><a href="cm_impacts.html">cm_impacts()</a></code>
 
         </dt>
-        <dd>Describe raw impact estimates (one impact vector)</dd>
+        <dd>Describe raw impact estimates</dd>
 
         <dt>
 
@@ -98,14 +98,7 @@
           <code><a href="cm_model.html">cm_model()</a></code>
 
         </dt>
-        <dd>Combine a population with an impact vector</dd>
-
-        <dt>
-
-          <code><a href="cm_analyses.html">cm_analyses()</a></code>
-
-        </dt>
-        <dd>Several impact analyses on one population</dd>
+        <dd>Combine a population with an impact table</dd>
 
         <dt>
 
@@ -278,7 +271,7 @@
 
         <dt>
 
-          <code><a href="summary.cm_result.html">summary(<i>&lt;cm_result&gt;</i>)</a></code>
+          <code><a href="summary.cm_result.html">summary(<i>&lt;cm_result&gt;</i>)</a></code> <code><a href="summary.cm_result.html">summary(<i>&lt;cm_event_result&gt;</i>)</a></code>
 
         </dt>
         <dd>Summarise an adjustment result</dd>
@@ -297,44 +290,7 @@
         </dt>
         <dd>Loss functions for Shapley attribution</dd>
       </dl></div><div class="section level2">
-      <h2 id="hazard-ratios-culling-and-mortality-">Hazard ratios (culling and mortality)<a class="anchor" aria-label="anchor" href="#hazard-ratios-culling-and-mortality-"></a></h2>
-
-
-
-      <dl></dl></div><div class="section level2">
-
-
-
-
-      <dl><dt>
-
-          <code><a href="cm_hazard_ratios.html">cm_hazard_ratios()</a></code>
-
-        </dt>
-        <dd>Describe raw culling (or mortality) hazard ratios</dd>
-
-        <dt>
-
-          <code><a href="cm_hr_model.html">cm_hr_model()</a></code>
-
-        </dt>
-        <dd>Combine a population with hazard ratios</dd>
-
-        <dt>
-
-          <code><a href="deconflate_hr.html">deconflate_hr()</a></code>
-
-        </dt>
-        <dd>Adjust hazard ratios for comorbidity (hazard-ratio adapter)</dd>
-
-        <dt>
-
-          <code><a href="attributable_risk.html">attributable_risk()</a></code>
-
-        </dt>
-        <dd>Culling (or mortality) attributable to disease</dd>
-      </dl></div><div class="section level2">
-      <h2 id="uncertainty-and-scenarios">Uncertainty and scenarios<a class="anchor" aria-label="anchor" href="#uncertainty-and-scenarios"></a></h2>
+      <h2 id="uncertainty">Uncertainty<a class="anchor" aria-label="anchor" href="#uncertainty"></a></h2>
 
 
 
@@ -348,63 +304,7 @@
           <code><a href="distributions.html">dist_fixed()</a></code> <code><a href="distributions.html">dist_normal()</a></code> <code><a href="distributions.html">dist_lognormal()</a></code> <code><a href="distributions.html">dist_lognormal_ci()</a></code> <code><a href="distributions.html">dist_beta()</a></code> <code><a href="distributions.html">dist_pert()</a></code> <code><a href="distributions.html">dist_pert_mean()</a></code> <code><a href="distributions.html">dist_uniform()</a></code> <code><a href="distributions.html">dist_mixture()</a></code>
 
         </dt>
-        <dd>Input distributions for Monte Carlo analysis</dd>
-
-        <dt>
-
-          <code><a href="cm_sampler.html">cm_sampler()</a></code>
-
-        </dt>
-        <dd>Build a Monte Carlo sampler from input distributions</dd>
-
-        <dt>
-
-          <code><a href="cm_batch_sampler.html">cm_batch_sampler()</a></code>
-
-        </dt>
-        <dd>Batch sampler: several analyses on shared population draws</dd>
-
-        <dt>
-
-          <code><a href="cm_monte_carlo.html">cm_monte_carlo()</a></code>
-
-        </dt>
-        <dd>Monte Carlo propagation of input uncertainty</dd>
-
-        <dt>
-
-          <code><a href="summary.cm_mc.html">summary(<i>&lt;cm_mc&gt;</i>)</a></code>
-
-        </dt>
-        <dd>Summarise Monte Carlo results</dd>
-
-        <dt>
-
-          <code><a href="cm_reweight.html">cm_reweight()</a></code>
-
-        </dt>
-        <dd>Reweight Monte Carlo draws (importance sampling)</dd>
-
-        <dt>
-
-          <code><a href="cm_scenario.html">cm_scenario()</a></code>
-
-        </dt>
-        <dd>Scenario analysis by reweighting Monte Carlo draws</dd>
-
-        <dt>
-
-          <code><a href="cm_diagnose.html">cm_diagnose()</a></code>
-
-        </dt>
-        <dd>Diagnose unstable Monte Carlo estimates</dd>
-
-        <dt>
-
-          <code><a href="cm_suggest_proposal.html">cm_suggest_proposal()</a></code>
-
-        </dt>
-        <dd>Suggest an importance-sampling proposal for an unstable estimate</dd>
+        <dd>Input distributions</dd>
       </dl></div><div class="section level2">
       <h2 id="sensitivity-and-thresholds">Sensitivity and thresholds<a class="anchor" aria-label="anchor" href="#sensitivity-and-thresholds"></a></h2>
 
@@ -449,13 +349,6 @@
 
         </dt>
         <dd>Screen three-way association scenarios</dd>
-
-        <dt>
-
-          <code><a href="compare_scenarios.html">compare_scenarios()</a></code>
-
-        </dt>
-        <dd>Compare scenarios</dd>
       </dl></div><div class="section level2">
       <h2 id="plots">Plots<a class="anchor" aria-label="anchor" href="#plots"></a></h2>
 
@@ -468,7 +361,7 @@
 
       <dl><dt>
 
-          <code><a href="plots.html">plot(<i>&lt;cm_result&gt;</i>)</a></code> <code><a href="plots.html">plot(<i>&lt;cm_results&gt;</i>)</a></code> <code><a href="plots.html">plot_burden()</a></code> <code><a href="plots.html">plot(<i>&lt;cm_mc&gt;</i>)</a></code> <code><a href="plots.html">plot(<i>&lt;cm_screen&gt;</i>)</a></code> <code><a href="plots.html">plot(<i>&lt;cm_oat&gt;</i>)</a></code> <code><a href="plots.html">plot(<i>&lt;cm_threshold&gt;</i>)</a></code>
+          <code><a href="plots.html">plot(<i>&lt;cm_result&gt;</i>)</a></code> <code><a href="plots.html">plot(<i>&lt;cm_event_result&gt;</i>)</a></code> <code><a href="plots.html">plot_burden()</a></code> <code><a href="plots.html">plot(<i>&lt;cm_screen&gt;</i>)</a></code> <code><a href="plots.html">plot(<i>&lt;cm_oat&gt;</i>)</a></code> <code><a href="plots.html">plot(<i>&lt;cm_threshold&gt;</i>)</a></code>
 
         </dt>
         <dd>Plots</dd>
@@ -502,20 +395,6 @@
 
         </dt>
         <dd>Global dairy inputs from Rasmussen et al. (2024)</dd>
-
-        <dt>
-
-          <code><a href="example_global_dairy_hr.html">example_global_dairy_hr()</a></code>
-
-        </dt>
-        <dd>Global dairy culling hazard ratios (Rasmussen et al. 2024)</dd>
-
-        <dt>
-
-          <code><a href="sampler_global_dairy.html">sampler_global_dairy()</a></code>
-
-        </dt>
-        <dd>Monte Carlo sampler for the global dairy inputs (Rasmussen et al. 2024)</dd>
 
         <dt>
 

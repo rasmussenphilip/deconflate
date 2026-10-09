@@ -32,4 +32,5 @@ set_association(model, disease1, disease2, value, measure = "OR")
 
 ## Value
 
-The modified object.
+The modified object. A distribution of the pair's association in the
+model's `distributions` is dropped (the scenario value is fixed).

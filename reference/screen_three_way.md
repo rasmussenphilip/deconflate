@@ -11,7 +11,13 @@ and rankings.
 ## Usage
 
 ``` r
-screen_three_way(model, ratios = c(0.5, 2), triples = NULL)
+screen_three_way(
+  model,
+  ratios = c(0.5, 2),
+  triples = NULL,
+  event_model = FALSE,
+  overall_risk = NULL
+)
 ```
 
 ## Arguments
@@ -30,6 +36,11 @@ screen_three_way(model, ratios = c(0.5, 2), triples = NULL)
   Optional list of character vectors of three disease ids; default all
   triples (which can be many).
 
+- event_model, overall_risk:
+
+  As in
+  [`deconflate()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate.md).
+
 ## Value
 
 A `cm_screen` data frame as in
@@ -42,7 +53,5 @@ their tables fixed, so it changes additive results only through
 interactions: without interactions such a scenario reproduces the
 baseline. When a pair is unknown (unconstrained), the fitted pairwise
 table changes with the three-way term, and additive results can change
-even without interactions. Three-way terms also matter for hazard ratios
-([`deconflate_hr()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate_hr.md))
-and
-[`attributable_risk()`](https://rasmussenphilip.github.io/deconflate/reference/attributable_risk.md).
+even without interactions. Three-way terms also matter for event impacts
+(`event_model = TRUE`).

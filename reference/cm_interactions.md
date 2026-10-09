@@ -4,8 +4,10 @@ An interaction `delta` is the additional impact when both diseases are
 present, in the same units as the impact vector: positive values are
 synergistic (more than the sum), negative values antagonistic.
 Interactions cannot be inferred from associations and must come from
-evidence or explicit scenarios. They require `method = "global"` in
-[`deconflate()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate.md).
+evidence or explicit scenarios. A model with interactions is always
+adjusted with the global method (see
+[`deconflate()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate.md)).
+Interactions apply to additive impacts only.
 
 ## Usage
 

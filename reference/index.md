@@ -11,13 +11,11 @@
 - [`cm_population()`](https://rasmussenphilip.github.io/deconflate/reference/cm_population.md)
   : Describe the population: diseases and their associations
 - [`cm_impacts()`](https://rasmussenphilip.github.io/deconflate/reference/cm_impacts.md)
-  : Describe raw impact estimates (one impact vector)
+  : Describe raw impact estimates
 - [`cm_interactions()`](https://rasmussenphilip.github.io/deconflate/reference/cm_interactions.md)
   : Describe pairwise impact interactions
 - [`cm_model()`](https://rasmussenphilip.github.io/deconflate/reference/cm_model.md)
-  : Combine a population with an impact vector
-- [`cm_analyses()`](https://rasmussenphilip.github.io/deconflate/reference/cm_analyses.md)
-  : Several impact analyses on one population
+  : Combine a population with an impact table
 - [`set_association()`](https://rasmussenphilip.github.io/deconflate/reference/set_association.md)
   : Set or replace one association
 - [`set_interaction()`](https://rasmussenphilip.github.io/deconflate/reference/set_interaction.md)
@@ -69,6 +67,7 @@
 - [`contribution_table()`](https://rasmussenphilip.github.io/deconflate/reference/contribution_table.md)
   : Contribution table
 - [`summary(`*`<cm_result>`*`)`](https://rasmussenphilip.github.io/deconflate/reference/summary.cm_result.md)
+  [`summary(`*`<cm_event_result>`*`)`](https://rasmussenphilip.github.io/deconflate/reference/summary.cm_result.md)
   : Summarise an adjustment result
 - [`shapley_by_cell()`](https://rasmussenphilip.github.io/deconflate/reference/shapley_by_cell.md)
   : Shapley attribution of a general loss function over disease
@@ -77,18 +76,7 @@
   [`loss_multiplicative()`](https://rasmussenphilip.github.io/deconflate/reference/loss_functions.md)
   : Loss functions for Shapley attribution
 
-## Hazard ratios (culling and mortality)
-
-- [`cm_hazard_ratios()`](https://rasmussenphilip.github.io/deconflate/reference/cm_hazard_ratios.md)
-  : Describe raw culling (or mortality) hazard ratios
-- [`cm_hr_model()`](https://rasmussenphilip.github.io/deconflate/reference/cm_hr_model.md)
-  : Combine a population with hazard ratios
-- [`deconflate_hr()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate_hr.md)
-  : Adjust hazard ratios for comorbidity (hazard-ratio adapter)
-- [`attributable_risk()`](https://rasmussenphilip.github.io/deconflate/reference/attributable_risk.md)
-  : Culling (or mortality) attributable to disease
-
-## Uncertainty and scenarios
+## Uncertainty
 
 - [`dist_fixed()`](https://rasmussenphilip.github.io/deconflate/reference/distributions.md)
   [`dist_normal()`](https://rasmussenphilip.github.io/deconflate/reference/distributions.md)
@@ -99,23 +87,7 @@
   [`dist_pert_mean()`](https://rasmussenphilip.github.io/deconflate/reference/distributions.md)
   [`dist_uniform()`](https://rasmussenphilip.github.io/deconflate/reference/distributions.md)
   [`dist_mixture()`](https://rasmussenphilip.github.io/deconflate/reference/distributions.md)
-  : Input distributions for Monte Carlo analysis
-- [`cm_sampler()`](https://rasmussenphilip.github.io/deconflate/reference/cm_sampler.md)
-  : Build a Monte Carlo sampler from input distributions
-- [`cm_batch_sampler()`](https://rasmussenphilip.github.io/deconflate/reference/cm_batch_sampler.md)
-  : Batch sampler: several analyses on shared population draws
-- [`cm_monte_carlo()`](https://rasmussenphilip.github.io/deconflate/reference/cm_monte_carlo.md)
-  : Monte Carlo propagation of input uncertainty
-- [`summary(`*`<cm_mc>`*`)`](https://rasmussenphilip.github.io/deconflate/reference/summary.cm_mc.md)
-  : Summarise Monte Carlo results
-- [`cm_reweight()`](https://rasmussenphilip.github.io/deconflate/reference/cm_reweight.md)
-  : Reweight Monte Carlo draws (importance sampling)
-- [`cm_scenario()`](https://rasmussenphilip.github.io/deconflate/reference/cm_scenario.md)
-  : Scenario analysis by reweighting Monte Carlo draws
-- [`cm_diagnose()`](https://rasmussenphilip.github.io/deconflate/reference/cm_diagnose.md)
-  : Diagnose unstable Monte Carlo estimates
-- [`cm_suggest_proposal()`](https://rasmussenphilip.github.io/deconflate/reference/cm_suggest_proposal.md)
-  : Suggest an importance-sampling proposal for an unstable estimate
+  : Input distributions
 
 ## Sensitivity and thresholds
 
@@ -129,15 +101,12 @@
   : Screen disease pairs for influential impact interactions
 - [`screen_three_way()`](https://rasmussenphilip.github.io/deconflate/reference/screen_three_way.md)
   : Screen three-way association scenarios
-- [`compare_scenarios()`](https://rasmussenphilip.github.io/deconflate/reference/compare_scenarios.md)
-  : Compare scenarios
 
 ## Plots
 
 - [`plot(`*`<cm_result>`*`)`](https://rasmussenphilip.github.io/deconflate/reference/plots.md)
-  [`plot(`*`<cm_results>`*`)`](https://rasmussenphilip.github.io/deconflate/reference/plots.md)
+  [`plot(`*`<cm_event_result>`*`)`](https://rasmussenphilip.github.io/deconflate/reference/plots.md)
   [`plot_burden()`](https://rasmussenphilip.github.io/deconflate/reference/plots.md)
-  [`plot(`*`<cm_mc>`*`)`](https://rasmussenphilip.github.io/deconflate/reference/plots.md)
   [`plot(`*`<cm_screen>`*`)`](https://rasmussenphilip.github.io/deconflate/reference/plots.md)
   [`plot(`*`<cm_oat>`*`)`](https://rasmussenphilip.github.io/deconflate/reference/plots.md)
   [`plot(`*`<cm_threshold>`*`)`](https://rasmussenphilip.github.io/deconflate/reference/plots.md)
@@ -152,11 +121,6 @@
   : UK dairy example from Rasmussen et al. (2022)
 - [`example_global_dairy()`](https://rasmussenphilip.github.io/deconflate/reference/example_global_dairy.md)
   : Global dairy inputs from Rasmussen et al. (2024)
-- [`example_global_dairy_hr()`](https://rasmussenphilip.github.io/deconflate/reference/example_global_dairy_hr.md)
-  : Global dairy culling hazard ratios (Rasmussen et al. 2024)
-- [`sampler_global_dairy()`](https://rasmussenphilip.github.io/deconflate/reference/sampler_global_dairy.md)
-  : Monte Carlo sampler for the global dairy inputs (Rasmussen et al.
-  2024)
 - [`reproduce_rasmussen_2022()`](https://rasmussenphilip.github.io/deconflate/reference/reproduce.md)
   [`reproduce_rasmussen_2024()`](https://rasmussenphilip.github.io/deconflate/reference/reproduce.md)
   : Reproduce the published analyses

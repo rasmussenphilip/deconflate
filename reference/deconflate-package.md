@@ -8,45 +8,42 @@ estimates so that they can be aggregated.
 
 ## Workflow
 
-1.  Describe the population with
-    [`cm_diseases()`](https://rasmussenphilip.github.io/deconflate/reference/cm_diseases.md),
-    [`cm_associations()`](https://rasmussenphilip.github.io/deconflate/reference/cm_associations.md)
-    and, optionally, three-way scenarios
-    ([`cm_three_way()`](https://rasmussenphilip.github.io/deconflate/reference/cm_three_way.md)),
-    combined with
-    [`cm_population()`](https://rasmussenphilip.github.io/deconflate/reference/cm_population.md).
-    Add one impact vector
-    ([`cm_impacts()`](https://rasmussenphilip.github.io/deconflate/reference/cm_impacts.md))
-    per analysis with
-    [`cm_model()`](https://rasmussenphilip.github.io/deconflate/reference/cm_model.md),
-    or several with
-    [`cm_analyses()`](https://rasmussenphilip.github.io/deconflate/reference/cm_analyses.md).
-    Or read the same tables from CSV files or data frames with
-    [`cm_read_inputs()`](https://rasmussenphilip.github.io/deconflate/reference/cm_read_inputs.md)
-    (see
+1.  Read the inputs with
+    [`cm_read_inputs()`](https://rasmussenphilip.github.io/deconflate/reference/cm_read_inputs.md):
+    the diseases, their associations, one impact table and, optionally,
+    interactions and three-way terms (CSV files with any names, or data
+    frames; see
     [`cm_template()`](https://rasmussenphilip.github.io/deconflate/reference/cm_template.md)).
+    Values can have distributions in their own rows. The same inputs can
+    be built in R with
+    [`cm_diseases()`](https://rasmussenphilip.github.io/deconflate/reference/cm_diseases.md),
+    [`cm_associations()`](https://rasmussenphilip.github.io/deconflate/reference/cm_associations.md),
+    [`cm_three_way()`](https://rasmussenphilip.github.io/deconflate/reference/cm_three_way.md),
+    [`cm_impacts()`](https://rasmussenphilip.github.io/deconflate/reference/cm_impacts.md),
+    [`cm_interactions()`](https://rasmussenphilip.github.io/deconflate/reference/cm_interactions.md)
+    and
+    [`cm_model()`](https://rasmussenphilip.github.io/deconflate/reference/cm_model.md).
+    For several outcomes, use one impact table each and adjust each in
+    turn.
 
-2.  Adjust impacts with
-    [`deconflate()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate.md),
-    using one of two methods:
+2.  Adjust the impacts with
+    [`deconflate()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate.md).
+    Additive impacts (in any units) are adjusted with the exact
+    simultaneous solution when every pair has an association and there
+    are no interactions or three-way terms, and with the global
+    (maximum-entropy) model otherwise; pairs without an association are
+    unknown and filled in by the global model. Event impacts (hazard
+    ratios, rate ratios, risk ratios, odds ratios or risk differences of
+    e.g. culling) use the snapshot hazard model (`event_model = TRUE`,
+    with the overall risk), which also gives the risk attributable to
+    disease. When inputs have distributions,
+    [`deconflate()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate.md)
+    also reports intervals (`n_draws`).
 
-    - `"simultaneous"` (default): the exact solution of the additive
-      impact equations, built from pairwise 2x2 tables. Crude estimates
-      and coefficients from additive regressions with a recorded
-      adjustment set (`estimand = "adjusted_linear"`) are supported. Use
-      it when impacts are additive and every pair has an association
-      estimate or a defensible independence assumption.
-
-    - `"global"`: fits a maximum-entropy distribution of disease
-      combinations with
-      [`fit_joint()`](https://rasmussenphilip.github.io/deconflate/reference/fit_joint.md),
-      then solves the impact equations including pairwise interactions
-      ([`cm_interactions()`](https://rasmussenphilip.github.io/deconflate/reference/cm_interactions.md))
-      and unknown pairs.
-
-3.  Inspect each disease's contribution to the aggregate
+3.  Inspect each disease's contribution
     ([`attribute_burden()`](https://rasmussenphilip.github.io/deconflate/reference/attribute_burden.md),
-    [`contribution_table()`](https://rasmussenphilip.github.io/deconflate/reference/contribution_table.md)),
+    [`contribution_table()`](https://rasmussenphilip.github.io/deconflate/reference/contribution_table.md),
+    [`plot_burden()`](https://rasmussenphilip.github.io/deconflate/reference/plots.md)),
     in the units of the impacts. Converting the results into other
     quantities (e.g. a productivity gap or a monetary value) is left to
     the user.
@@ -55,35 +52,18 @@ estimates so that they can be aggregated.
     approximation of Rasmussen et al. (2022, eq. 16), which is kept for
     comparison and reproduction only.
 
-4.  Hazard ratios (e.g. of culling) combine multiplicatively and have
-    their own adapter:
-    [`cm_hazard_ratios()`](https://rasmussenphilip.github.io/deconflate/reference/cm_hazard_ratios.md),
-    [`cm_hr_model()`](https://rasmussenphilip.github.io/deconflate/reference/cm_hr_model.md),
-    [`deconflate_hr()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate_hr.md)
-    and
-    [`attributable_risk()`](https://rasmussenphilip.github.io/deconflate/reference/attributable_risk.md).
-
-5.  Check joint feasibility with
+4.  Check joint feasibility with
     [`check_feasibility()`](https://rasmussenphilip.github.io/deconflate/reference/check_feasibility.md)
     (a screen runs by default).
 
-6.  Propagate uncertainty with
-    [`cm_sampler()`](https://rasmussenphilip.github.io/deconflate/reference/cm_sampler.md)
-    or
-    [`cm_batch_sampler()`](https://rasmussenphilip.github.io/deconflate/reference/cm_batch_sampler.md)
-    and
-    [`cm_monte_carlo()`](https://rasmussenphilip.github.io/deconflate/reference/cm_monte_carlo.md)
-    (check stability with
-    [`cm_diagnose()`](https://rasmussenphilip.github.io/deconflate/reference/cm_diagnose.md)),
-    and explore scenarios with
-    [`cm_scenario()`](https://rasmussenphilip.github.io/deconflate/reference/cm_scenario.md),
+5.  Explore the inputs with
     [`sensitivity_oat()`](https://rasmussenphilip.github.io/deconflate/reference/sensitivity_oat.md),
-    [`screen_associations()`](https://rasmussenphilip.github.io/deconflate/reference/screen_associations.md),
-    [`screen_interactions()`](https://rasmussenphilip.github.io/deconflate/reference/screen_interactions.md),
-    [`screen_three_way()`](https://rasmussenphilip.github.io/deconflate/reference/screen_three_way.md)
+    [`screen_associations()`](https://rasmussenphilip.github.io/deconflate/reference/screen_associations.md)
+    (also without any association estimates),
+    [`screen_interactions()`](https://rasmussenphilip.github.io/deconflate/reference/screen_interactions.md)
     and
-    [`compare_scenarios()`](https://rasmussenphilip.github.io/deconflate/reference/compare_scenarios.md).
-    Find where a conclusion (a ranking, a sign or the aggregate) changes
+    [`screen_three_way()`](https://rasmussenphilip.github.io/deconflate/reference/screen_three_way.md),
+    and find where a conclusion (a ranking, a sign or the total) changes
     as one input varies with
     [`cm_threshold()`](https://rasmussenphilip.github.io/deconflate/reference/cm_threshold.md).
 
@@ -96,8 +76,9 @@ to get started.
 
 ## Conventions
 
-- Impacts are additive and in any units, the same within an analysis;
-  results come back in those units.
+- Additive impacts are in any units, the same within an impact table;
+  results come back in those units. Event impacts are adjusted to hazard
+  ratios, and risks are proportions of animals over the period.
 
 - `E[k, i]` (see
   [`excess_matrix()`](https://rasmussenphilip.github.io/deconflate/reference/excess_matrix.md))

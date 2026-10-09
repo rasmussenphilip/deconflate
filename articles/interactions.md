@@ -34,8 +34,10 @@ head(combination_probs(j))
 Enumerating 2^n combinations limits this exact fit to about 20 diseases.
 For more, `fit_joint(backend = "sampled")` fits the same model by Monte
 Carlo (Gibbs sampling with calibrated parameters, followed by raking to
-the pairwise tables); the functions below that use the joint
-distribution accept a fit from either backend. See
+the pairwise tables);
+[`deconflate()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate.md)
+switches to it by itself above 20 diseases, and the functions below that
+use the joint distribution accept a fit from either backend. See
 [`vignette("thresholds-and-scaling")`](https://rasmussenphilip.github.io/deconflate/articles/thresholds-and-scaling.md)
 for how it works, its diagnostics and a 24-disease example.
 
@@ -56,13 +58,12 @@ identifies:
   association is implied by the associations both diseases have with
   other diseases.
 
-Additive results without interactions do not depend on this assumption:
-they need the pairwise tables only. It matters for interactions, for
-three-way scenarios, and for the results that use the whole distribution
-(the snapshot hazard-ratio model and
-[`attributable_risk()`](https://rasmussenphilip.github.io/deconflate/reference/attributable_risk.md),
-see
-[`vignette("culling-hazard-ratios")`](https://rasmussenphilip.github.io/deconflate/articles/culling-hazard-ratios.md)).
+Additive results without interactions do not depend on this assumption
+when every pair has an association: they need the pairwise tables only.
+It matters for unknown pairs, for interactions, for three-way scenarios,
+and for event impacts (`deconflate(..., event_model = TRUE)`, which uses
+the whole distribution; see
+[`vignette("event-impacts")`](https://rasmussenphilip.github.io/deconflate/articles/event-impacts.md)).
 
 If the pairwise associations cannot hold together, no distribution
 exists.
@@ -81,27 +82,78 @@ check_feasibility(bad, method = "triples")
 #>         a        b        c 0.226
 ```
 
+## How deconflate() chooses the method
+
+[`deconflate()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate.md)
+has two exact methods. The simultaneous method solves the impact
+equations from the pairwise 2x2 tables; the global method solves the
+same equations from the fitted distribution of disease combinations.
+They give the same answer when every pair has an association and there
+are no interactions and no three-way terms. With `method = "auto"` (the
+default),
+[`deconflate()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate.md)
+uses the simultaneous method in that case and the global method
+otherwise, and says why in `$notes`. The reasons are:
+
+- **unknown pairs**: pairs with no association (below);
+- **interactions** (below);
+- **three-way terms** (below).
+
+`method = "simultaneous"` switches in the same way (with a note saying
+so), and `method = "global"` always uses the global method.
+
 ## Unknown associations are not independence
 
-Setting an association to an odds ratio of 1 imposes independence.
-Leaving it unknown lets the maximum-entropy fit imply an association
-through the other diseases. Use the simultaneous method when every pair
-has an association estimate or a defensible independence assumption;
-with unknown pairs (or interactions, below), use the global method, the
-only one that accepts them.
-[`compare_methods()`](https://rasmussenphilip.github.io/deconflate/reference/compare_methods.md)
-reports why the others fail (the `"published"` approximation is listed
-for comparison only):
+A pair without an association is unknown. Giving it an odds ratio of 1
+states that the two diseases are unrelated, which is an assumption of
+its own. Leaving it unknown lets the maximum-entropy fit imply an
+association through the other diseases. Here `a` and `c` are unrelated
+in one model and unknown in the other:
 
 ``` r
 
 d <- cm_diseases(c("a", "b", "c"), c(0.2, 0.3, 0.25))
-a <- cm_associations(c("a", "b"), c("b", "c"), c(3, 2))
 imp <- cm_impacts(c("a", "b", "c"), c(3, 4, 5), units = "%")
-ind <- cm_model(d, imp, associations = a, missing_associations = "independent")
-unk <- cm_model(d, imp, associations = a, missing_associations = "unknown")
-deconflate(ind)$adjusted$adjusted
+ind <- cm_model(d, imp, associations = cm_associations(c("a", "b", "a"), c("b", "c", "c"), c(3, 2, 1)))
+unk <- cm_model(d, imp, associations = cm_associations(c("a", "b"), c("b", "c"), c(3, 2)))
+deconflate(ind, n_draws = 0)$adjusted$adjusted
 #> [1] 2.263264 2.946945 4.548702
+res_unk <- deconflate(unk, n_draws = 0)
+res_unk
+#> <cm_result> method: global [%]
+#> 
+#>  disease raw adjusted  change
+#>        a   3    2.100 -0.3000
+#>        b   4    2.987 -0.2532
+#>        c   5    4.481 -0.1037
+#> 
+#> Raw sum: 3.05; adjusted total: 2.436
+#> Diagnostics: residual 8.88e-16, condition number 1.7, sign changes 0
+#> Unknown pairs: 1 without an association; the global fit gave it an odds ratio of 1.19 (see $unknown_pairs).
+#> 
+#> Notes:
+#> * The global method was used because of 1 pair without an association
+#>   (unknown).
+```
+
+`$unknown_pairs` lists the unknown pairs and the odds ratios the global
+fit gave them. Both `a` and `c` are positively associated with `b`, so
+the fit implies a positive association between them too:
+
+``` r
+
+res_unk$unknown_pairs
+#>   disease1 disease2 fitted_or
+#> 1        a        c  1.194529
+```
+
+[`compare_methods()`](https://rasmussenphilip.github.io/deconflate/reference/compare_methods.md)
+runs each method as asked, without switching, and reports why the
+pairwise methods cannot run (the `"published"` approximation is listed
+for comparison only):
+
+``` r
+
 compare_methods(unk)
 #> <cm_comparison> methods: global
 #> Units: %
@@ -117,39 +169,30 @@ compare_methods(unk)
 #>  global    3.05          2.436
 #> 
 #> Not run:
-#>   published: Unknown associations for a-c. Specify them, set missing_associations = 'independent', or use method = 'global'.
-#>   simultaneous: Unknown associations for a-c. Specify them, set missing_associations = 'independent', or use method = 'global'.
-```
-
-The odds ratio of `a` and `c` implied by the fitted distribution:
-
-``` r
-
-ju <- fit_joint(unk)
-p_ac <- sum(ju$prob[ju$cells[, "a"] == 1 & ju$cells[, "c"] == 1])
-joint_to_or(p_ac, 0.2, 0.25)
-#> [1] 1.194529
+#>   published: No association for a-c: the pairwise methods need every pair. The global method fills unknown pairs in (deconflate() uses it automatically); to treat a pair as unrelated, give it an odds ratio of 1.
+#>   simultaneous: No association for a-c: the pairwise methods need every pair. The global method fills unknown pairs in (deconflate() uses it automatically); to treat a pair as unrelated, give it an odds ratio of 1.
 ```
 
 ## Impact interactions
 
 An interaction is the extra impact when two diseases occur together, in
-the units of the impact vector: positive values are synergistic and
+the units of the impact table: positive values are synergistic and
 negative values antagonistic. Interactions cannot be inferred from
-associations; they need evidence or explicit scenarios.
+associations; they need evidence or explicit scenarios. They apply to
+additive impacts only.
 
 The raw estimate of disease `i` then includes, besides the conflated
 main impacts, the part of the interaction burden that goes with `i`. Its
 expected value depends on how often pairs occur together with each
 disease, that is, on probabilities of disease triples, so interactions
-need the joint distribution and the global method:
+need the joint distribution.
+[`deconflate()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate.md)
+therefore uses the global method:
 
 ``` r
 
 mi <- set_interaction(m, "d1", "d2", 1)   # 1 percentage point
-tryCatch(deconflate(mi), deconflate_unsupported = function(e) conditionMessage(e))
-#> [1] "Interactions require method = 'global' (they need probabilities of disease triples)."
-res <- deconflate(mi, method = "global")
+res <- deconflate(mi, n_draws = 0)
 res
 #> <cm_result> method: global; yield [%]
 #> 
@@ -158,8 +201,11 @@ res
 #>       d2 5.0    3.241 -0.35187
 #>       d3 7.5    6.936 -0.07525
 #> 
-#> Raw sum: 2.5; adjusted total: 2.089 (interactions: 0.02448)
+#> Raw sum: 2.5; adjusted total: 2.089; interactions: 0.02448
 #> Diagnostics: residual 0.00e+00, condition number 1.53, sign changes 0
+#> 
+#> Notes:
+#> * The global method was used because of interactions.
 ```
 
 The raw impacts satisfy `raw = A %*% adjusted + offset`, where `offset`
@@ -186,15 +232,38 @@ int <- cm_interactions(c("d1", "d2"), c("d2", "d3"), c(1, 1.5))
 raw <- simulate_raw_impacts(m, c(d1 = 2, d2 = 4, d3 = 6), interactions = int)
 raw$value
 #> [1] 2.714619 6.136904 7.116677
-deconflate(cm_model(m, raw, int), method = "global")$adjusted
+deconflate(cm_model(m, raw, int), n_draws = 0)$adjusted
 #>   disease      raw adjusted     change estimand adjusted_for
 #> 1      d1 2.714619        2 -0.2632484    crude         <NA>
 #> 2      d2 6.136904        4 -0.3482055    crude         <NA>
 #> 3      d3 7.116677        6 -0.1569099    crude         <NA>
 ```
 
-In files, interactions go in `interactions_<analysis>.csv` (see
+In files, interactions are a table of their own (`disease1`, `disease2`,
+`value`), passed to `cm_read_inputs(interactions = )` with the impact
+table they belong to (see
 [`vignette("own-data")`](https://rasmussenphilip.github.io/deconflate/articles/own-data.md)).
+The five-disease example has one for its welfare scores:
+
+``` r
+
+ex <- system.file("extdata", "five_diseases", package = "deconflate")
+welfare <- cm_read_inputs(diseases = file.path(ex, "diseases.csv"),
+                          associations = file.path(ex, "associations.csv"),
+                          impacts = file.path(ex, "impacts_welfare.csv"),
+                          interactions = file.path(ex, "interactions_welfare.csv"))
+welfare$interactions[, c("disease1", "disease2", "value")]
+#>   disease1 disease2 value
+#> 1      LAM      MAS   2.0
+#> 2      MET       RP   1.5
+#> 3      LAM      SCK  -0.5
+res_w <- deconflate(welfare, n_draws = 0)
+res_w$notes
+#> [1] "The global method was used because of interactions."
+res_w$totals
+#>    raw_sum adjusted_total interaction_total
+#> 1 5.845091       4.190673          0.147228
+```
 
 ## Attribution
 
@@ -251,12 +320,27 @@ c(maximum_entropy = sum(j$prob[rowSums(j$cells) == 3]),
 #>     0.008583836     0.010703834
 ```
 
-Three-way terms are sensitivity scenarios. When all pairs of a triple
-are constrained, they keep the pairwise tables fixed and change additive
-results only through interactions: without interactions every scenario
-reproduces the baseline, and with an interaction they change the offset.
-When a pair is unknown, its fitted table moves with the three-way term,
-so additive results can change even without interactions.
+Three-way terms are scenarios: they explore an assumption the data
+cannot check, rather than describe an estimate. A model with a three-way
+term needs the joint distribution, so
+[`deconflate()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate.md)
+uses the global method. When all pairs of a triple have an association,
+the term keeps the pairwise tables fixed and changes additive results
+only through interactions: without interactions the scenario reproduces
+the baseline.
+
+``` r
+
+res3 <- deconflate(m3, n_draws = 0)
+res3$notes
+#> [1] "The global method was used because of three-way terms."
+all.equal(res3$adjusted$adjusted, deconflate(m, n_draws = 0)$adjusted$adjusted)
+#> [1] TRUE
+```
+
+With an interaction they change the offset. When a pair is unknown, its
+fitted table moves with the three-way term, so additive results can
+change even without interactions.
 [`screen_three_way()`](https://rasmussenphilip.github.io/deconflate/reference/screen_three_way.md)
 sets each triple in turn:
 
@@ -280,20 +364,28 @@ screen_three_way(mi, ratios = c(0.5, 2))
 #>          1   <NA>
 ```
 
-They also change the joint-based results, such as snapshot hazard
-ratios:
+They also change results that use the whole distribution, such as event
+impacts (here hazard ratios of culling, with an overall culling risk of
+0.25; see
+[`vignette("event-impacts")`](https://rasmussenphilip.github.io/deconflate/articles/event-impacts.md)):
 
 ``` r
 
-hr <- cm_hazard_ratios(c("d1", "d2", "d3"), c(1.5, 2.0, 1.3), estimand = "snapshot_crude")
-rbind(maximum_entropy = deconflate_hr(cm_hr_model(m, hr))$adjusted$adjusted,
-      ratio_2 = deconflate_hr(cm_hr_model(m3, hr))$adjusted$adjusted)
-#>                     [,1]     [,2]     [,3]
+hr <- cm_impacts(c("d1", "d2", "d3"), c(1.5, 2.0, 1.3), measure = "HR",
+                 estimand = "snapshot_crude", label = "culling")
+e0 <- deconflate(cm_model(m, hr), event_model = TRUE, overall_risk = 0.25, n_draws = 0)
+e3 <- deconflate(cm_model(m3, hr), event_model = TRUE, overall_risk = 0.25, n_draws = 0)
+rbind(maximum_entropy = setNames(e0$adjusted$adjusted, e0$adjusted$disease),
+      ratio_2 = setNames(e3$adjusted$adjusted, e3$adjusted$disease))
+#>                       d1       d2       d3
 #> maximum_entropy 1.383153 1.890932 1.143987
 #> ratio_2         1.379893 1.891328 1.139917
 ```
 
-In files, three-way terms go in `three_way.csv`.
+In files, three-way terms are a table of their own (`disease1`,
+`disease2`, `disease3`, `ratio`), passed to
+`cm_read_inputs(three_way = )`; see `three_way.csv` in the five-disease
+example.
 
 ## Which interactions would matter?
 

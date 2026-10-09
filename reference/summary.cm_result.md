@@ -7,6 +7,9 @@ Summarise an adjustment result
 ``` r
 # S3 method for class 'cm_result'
 summary(object, ...)
+
+# S3 method for class 'cm_event_result'
+summary(object, ...)
 ```
 
 ## Arguments
@@ -24,5 +27,8 @@ summary(object, ...)
 ## Value
 
 A `summary.cm_result` list with `method`, `label`, `units`, `totals`
-(naive and adjusted aggregate and the reduction), `diagnostics` and
-`contributions`.
+(additive impacts: naive and adjusted aggregate and the reduction; event
+impacts: overall, disease-free and attributable risk), `diagnostics`,
+`contributions` (see
+[`contribution_table()`](https://rasmussenphilip.github.io/deconflate/reference/contribution_table.md))
+and `notes`.

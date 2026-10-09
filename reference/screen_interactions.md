@@ -3,7 +3,7 @@
 Adds a pairwise interaction of each size in `values` to each disease
 pair, one at a time, re-runs the global adjustment and reports the
 change in the aggregate and rankings. The joint distribution is fitted
-once and reused.
+once and reused. Interactions apply to additive impacts only.
 
 ## Usage
 
