@@ -1,0 +1,390 @@
+---
+title: "Event impacts (culling and mortality)"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Event impacts (culling and mortality)}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+```
+
+```{r setup}
+library(deconflate)
+```
+
+Some impacts are not amounts but comparisons of the risk of an event, such
+as culling or death, between animals with and without a disease. They are
+reported as hazard ratios (HR) from survival models, rate ratios, risk
+ratios (RR), odds ratios (OR) or risk differences (RD). Such an estimate for
+one disease is conflated with the effects of associated diseases, as an
+additive impact is, but the effects combine multiplicatively, not
+additively. These are **event impacts**, and `deconflate()` adjusts them
+with a separate model, the snapshot hazard model, when called with
+`event_model = TRUE`.
+
+All five measures are mapped onto the same model, so they can be mixed in
+one impact table (one row per disease): an HR for one disease, a risk
+difference for another. The result is the same for every measure: an
+adjusted hazard ratio per disease (its own hazard multiplier), and the risk
+of the event attributable to disease, allocated to diseases.
+
+## Describing event impacts
+
+An impact table holds event impacts when it has a `measure` column: `"HR"`,
+`"rate_ratio"`, `"RR"`, `"OR"` or `"RD"`. Every disease needs a row (1 for
+no effect on a ratio scale, 0 for a risk difference). The estimand must be
+stated; there is no default, because it is an assumption about what the
+source estimate measures (see below):
+
+```{r}
+pop <- example_supplement()   # its yield impacts are not used here
+cull <- cm_model(pop, cm_impacts(c("d1", "d2", "d3"), c(1.5, 2.0, 1.3), measure = "HR",
+                                 estimand = "snapshot_crude", label = "culling"))
+cull
+tryCatch(cm_impacts("d1", 1.5, measure = "HR"),
+         deconflate_error = function(e) conditionMessage(e))
+```
+
+In a CSV file read by `cm_read_inputs(impacts = )`, the same information is
+in the columns `disease`, `value`, `measure`, `estimand` and `adjusted_for`
+(see the five-disease example at the end).
+
+`deconflate()` needs `event_model = TRUE` and the overall risk of the event:
+
+```{r}
+res <- deconflate(cull, event_model = TRUE, overall_risk = 0.25, n_draws = 0)
+res
+```
+
+The kind of impacts and the call must agree. Event impacts without
+`event_model = TRUE`, additive impacts with it, or a missing
+`overall_risk` are errors:
+
+```{r}
+tryCatch(deconflate(cull), deconflate_error = function(e) conditionMessage(e))
+tryCatch(deconflate(pop, event_model = TRUE, overall_risk = 0.25),
+         deconflate_error = function(e) conditionMessage(e))
+tryCatch(deconflate(cull, event_model = TRUE),
+         deconflate_error = function(e) conditionMessage(e))
+```
+
+## The snapshot model
+
+Within the period of the overall risk, an animal with disease combination
+`d` has a constant hazard `h0 * exp(sum_i beta_i * d_i)`, so its risk of the
+event over the period is `R(d) = 1 - exp(-h0 * exp(sum_i beta_i * d_i))`.
+The baseline `h0` is set so that the population risk, averaged over the
+distribution of disease combinations (`fit_joint()`), equals
+`overall_risk`. The `beta`s are solved so that the model reproduces each
+raw estimate:
+
+* a hazard ratio or rate ratio by the ratio of the average hazard
+  multipliers among animals with and without the disease;
+* a risk ratio, odds ratio or risk difference by the ratio, odds ratio or
+  difference of the average risks `R` among animals with and without the
+  disease.
+
+The adjusted hazard ratios are `exp(beta)`. The comparison is made at the
+start of the period (the "snapshot"); its estimands are defined by the
+model:
+
+* `"snapshot_crude"`: the comparison of animals with and without the
+  disease at the start of the period, in the population described by the
+  probabilities and associations;
+* `"snapshot_stratified"`: the same comparison within strata of the
+  diseases in `adjusted_for`, combined across strata (see below).
+
+Because the model uses the whole distribution of disease combinations, it
+depends on the maximum-entropy assumption of `fit_joint()` and on any
+three-way terms (`vignette("interactions")`). Pairs without an association
+are unknown, and the fit fills them in, as in the global method for
+additive impacts; the result lists them with their fitted odds ratios
+(`$unknown_pairs`).
+
+### What the snapshot model is not
+
+A Cox HR estimated over follow-up is not, in general, the snapshot ratio:
+animals with high hazards leave first, so the mixture of disease
+combinations among survivors changes over time, and the marginal HR changes
+with it. The snapshot model is exact for its own estimands. Entering a
+published HR as `"snapshot_crude"` is an approximation that you state, not a
+conversion the package makes. It is reasonable when follow-up is short
+relative to the hazards or the diseases are rare, and it should be reported
+and checked.
+
+## The overall risk
+
+`overall_risk` is the proportion of animals with the event over the period
+(e.g. the annual culling rate). It is required. For hazard and rate ratios
+it fixes the baseline hazard, and so the attributable risk, but not the
+adjusted hazard ratios:
+
+```{r}
+risks <- c(0.10, 0.25, 0.40)
+sapply(risks, function(r) {
+  deconflate(cull, event_model = TRUE, overall_risk = r, n_draws = 0)$adjusted$adjusted
+})
+```
+
+Risk ratios, odds ratios and risk differences compare risks over a period,
+so they depend on the risk level, and the adjusted hazard ratios change
+with `overall_risk`. They must refer to the same period as `overall_risk`
+(a risk ratio of culling within the lactation needs the culling risk over
+the lactation):
+
+```{r}
+cull_rr <- cm_model(pop, cm_impacts(c("d1", "d2", "d3"), c(1.4, 1.8, 1.2), measure = "RR",
+                                    estimand = "snapshot_crude"))
+sapply(risks, function(r) {
+  deconflate(cull_rr, event_model = TRUE, overall_risk = r, n_draws = 0)$adjusted$adjusted
+})
+```
+
+Not every set of estimates fits every overall risk. Risk ratios of 4 for
+every disease cannot hold when half of the animals have the event: animals
+with d2 would need a risk above 1.
+
+```{r}
+cull_rr4 <- cm_model(pop, cm_impacts(c("d1", "d2", "d3"), c(4, 4, 4), measure = "RR",
+                                     estimand = "snapshot_crude"))
+tryCatch(deconflate(cull_rr4, event_model = TRUE, overall_risk = 0.5, n_draws = 0),
+         deconflate_error = function(e) conditionMessage(e))
+```
+
+The overall risk can be uncertain: give it as a distribution, and
+`deconflate()` draws it with the other uncertain inputs
+(`vignette("uncertainty")`). Here only the overall risk is uncertain; the
+adjusted hazard ratios do not depend on it, so their intervals have zero
+width, while the attributable risk gets an interval. The central estimate
+uses the mean of the distribution:
+
+```{r}
+deconflate(cull, event_model = TRUE, overall_risk = dist_beta(250, 750),
+           n_draws = 200, seed = 1)
+```
+
+## Estimates adjusted for other diseases
+
+If a source estimate comes from a model that already included other
+diseases, the closest snapshot estimand is `"snapshot_stratified"`, with
+those diseases in `adjusted_for` (ids separated by `";"`), or `"all"` for
+every other disease. The model value of such an estimate is computed within
+strata of its adjustment set and combined across strata with
+Mantel-Haenszel-type weights. With `adjusted_for = "all"`, a hazard ratio is
+the disease's own hazard multiplier and is used as it is. A Cox coefficient
+adjusted for the same diseases matches this only under the snapshot model's
+assumptions:
+
+```{r}
+cull_adj <- cm_model(pop, cm_impacts(
+  c("d1", "d2", "d3"), c(1.5, 2.0, 1.3), measure = "HR",
+  estimand = c("snapshot_stratified", "snapshot_crude", "snapshot_stratified"),
+  adjusted_for = c("d2", NA, "all")
+))
+deconflate(cull_adj, event_model = TRUE, overall_risk = 0.25, n_draws = 0)$adjusted
+```
+
+The estimate of d1 is a ratio within strata of d2 that still averages over
+d3, which it is not adjusted for. Hazard ratios are not collapsible, so it
+differs slightly from d1's own hazard multiplier, the adjusted HR (1.509
+against the estimate of 1.5).
+
+## Risk attributable to disease
+
+The risk attributable to disease is the overall risk minus the risk of a
+disease-free animal, `1 - exp(-h0)`. An animal's risk cannot exceed 1, so an
+animal with several diseases is counted once, and the attributable risk is
+smaller than the sum of per-disease excess risks when diseases co-occur. It
+is allocated to diseases by Shapley values over all disease combinations
+(`shapley_by_cell()`); the allocation adds up to the attributable risk
+(`unallocated` is zero up to rounding):
+
+```{r}
+res$attributable$summary
+res$attributable$by_disease
+```
+
+A disease whose adjusted hazard ratio is below 1 gets a negative share. The
+risks are proportions of animals with the event in the period. Converting
+them into numbers of animals or a value (e.g. times the replacement price
+less salvage value) is left to the user.
+
+## Comparing methods
+
+`compare_methods(event_model = TRUE)` sets the snapshot model beside two
+approximations, each with the attributable risk at `overall_risk`:
+
+* `"snapshot"`: the model of `deconflate()`;
+* `"first_order"`: the log-linear approximation `log(HR_raw) = A beta`, with
+  the conflation matrix `A` of the additive model. It needs only the
+  pairwise tables, so every pair needs an association;
+* `"published"`: the approach of Rasmussen et al. (2024), HR - 1 adjusted
+  with the proportional approximation (eq. 16 of Rasmussen et al. 2022) and
+  1 added back. It is not a method of `deconflate()`; it is kept for
+  comparison and reproduction only.
+
+The first-order and published methods need hazard (or rate) ratios, and the
+published approach crude estimates. Methods that cannot be run are listed
+with the reason:
+
+```{r}
+compare_methods(cull, event_model = TRUE, overall_risk = 0.25)
+compare_methods(cull_adj, event_model = TRUE, overall_risk = 0.25)$failed
+```
+
+## Sensitivity tools
+
+`screen_associations()`, `screen_three_way()`, `sensitivity_oat()` and
+`cm_threshold()` take `event_model = TRUE` and `overall_risk` as well. Their
+total is then the attributable risk, and disease rankings use its Shapley
+allocation. They report point estimates (a distribution of the overall risk
+is used at its mean). `sensitivity_oat()` also varies the overall risk:
+
+```{r}
+screen_associations(cull, event_model = TRUE, overall_risk = 0.25)
+sensitivity_oat(cull, event_model = TRUE, overall_risk = 0.25)
+```
+
+In `cm_threshold()`, the overall risk is the input `"risk"`. At what overall
+risk does the attributable risk reach 0.04, and what raw hazard ratio of d1
+would change the ranking of diseases?
+
+```{r}
+cm_threshold(cull, "risk", c(0.05, 0.6), conclusion = "total", target = 0.04,
+             event_model = TRUE, overall_risk = 0.25)$thresholds[, c("item", "status", "threshold")]
+cm_threshold(cull, "impact:d1", c(0.5, 3), conclusion = "rank",
+             event_model = TRUE, overall_risk = 0.25)$thresholds[, c("item", "status", "threshold")]
+```
+
+See `vignette("thresholds-and-scaling")` for how threshold searches work.
+
+## Five diseases, mixed measures
+
+The folder `five_diseases` contains an illustrative population of five
+diseases (made-up values) and a culling table, `culling.csv`, that mixes
+measures and estimands:
+
+```{r}
+dir <- system.file("extdata", "five_diseases", package = "deconflate")
+read.csv(file.path(dir, "culling.csv"))[, c("disease", "value", "measure", "estimand", "adjusted_for")]
+```
+
+LAM has a crude hazard ratio, MAS a hazard ratio stratified by LAM and SCK,
+MET a risk ratio and SCK an odds ratio of culling within the lactation, and
+RP a risk difference stratified by all other diseases. The risk-based
+estimates need the culling risk over the lactation, here taken to be 0.25.
+The population includes a three-way term, which the snapshot model uses:
+
+```{r}
+five <- cm_read_inputs(diseases = file.path(dir, "diseases.csv"),
+                       associations = file.path(dir, "associations.csv"),
+                       three_way = file.path(dir, "three_way.csv"),
+                       impacts = file.path(dir, "culling.csv"))
+five
+deconflate(five, event_model = TRUE, overall_risk = 0.25, n_draws = 0)
+```
+
+The tables have distributions (the `dist` columns), so the default call,
+without `n_draws = 0`, would also report 95% intervals from 1000 draws.
+Only the snapshot model applies to these measures:
+
+```{r}
+compare_methods(five, event_model = TRUE, overall_risk = 0.25)$failed
+```
+
+## The global dairy example
+
+`example_global_dairy("culling")` contains the culling HRs of Rasmussen et
+al. (2024) on the 12-disease population of that paper. They are published
+Cox HRs, entered as `"snapshot_crude"`; that is an assumption, and the
+results below hold under it. The global average replacement rate is 23.66%
+(Rasmussen et al. 2024, Table 1). Pairs not in the paper's Table 3 are
+unknown, and the joint distribution fills them in. It is fitted once and
+passed on with `joint`, so that it can be reused below:
+
+```{r}
+gd_cull <- example_global_dairy("culling")
+j_gd <- fit_joint(gd_cull)
+gd <- deconflate(gd_cull, event_model = TRUE, overall_risk = 0.2366, n_draws = 0, joint = j_gd)
+gd
+```
+
+For clinical ketosis, dystocia and metritis, the adjusted HRs are below 1:
+under the multiplicative model, their raw HRs are smaller than the
+associated diseases alone would produce, and `deconflate()` warns about
+this. Their shares of the attributable risk are negative.
+
+The 2024 paper instead converted each adjusted HR to an excess risk
+relative to the overall rate, `HR * r / (HR * r + 1 - r) - r`, and summed
+these excess risks weighted by prevalence. Applied to the adjusted HRs
+above, that sum is larger than the attributable risk, because it counts
+animals with several diseases more than once:
+
+```{r}
+p <- gd_cull$diseases$prob
+h <- gd$adjusted$adjusted
+c(excess_risk_sum = sum(p * (h * 0.2366 / (h * 0.2366 + 1 - 0.2366) - 0.2366)),
+  attributable = gd$attributable$summary$attributable)
+```
+
+The paper treated unlisted pairs as independent and used the published
+approximation; `reproduce_rasmussen_2024()` recomputes its tables
+(`vignette("reproducing-published")`).
+
+## Event impacts alongside additive impacts
+
+Event impacts and additive impacts are adjusted in separate calls: the
+additive analyses return impacts in their own units, and the event model
+returns hazard ratios and a proportion of animals. To set them side by side,
+convert both to a common unit, here a value per cow and year with the
+global average yield of 5013 kg, a milk price of 0.5981 per kg, and a
+replacement price less culled-cow price of 1299.33 - 785.86 (Rasmussen et
+al. 2024, Table 1). The yield analysis has the same population, so the
+joint distribution is reused. The yield impacts are percent losses, so the
+gap is computed as in `vignette("deconflate")`:
+
+```{r}
+yres <- deconflate(example_global_dairy("yield"), n_draws = 0, joint = j_gd)
+yield_gap <- 5013 / (1 - yres$totals$adjusted_total / 100) - 5013
+c(yield = yield_gap * 0.5981,
+  culling = gd$attributable$summary$attributable * (1299.33 - 785.86))
+```
+
+The warning says that, with the unknown pairs filled in by the global fit,
+the raw yield impacts of four diseases are smaller than their associated
+diseases alone would produce under the additive model.
+
+## Methods that are not available for new analyses
+
+The published analyses converted hazard ratios in ways that the package
+does not offer for new analyses:
+
+* Rasmussen et al. (2022) treated each HR as an odds ratio of a 2x2 table of
+  disease by culling, to obtain an excess annual culling risk, and recovered
+  adjusted HRs by rescaling (eq. 23);
+* Rasmussen et al. (2024) adjusted HR - 1 as if it were an additive impact,
+  and valued culling with the excess risk relative to the overall rate given
+  above.
+
+These conversions are used only inside `reproduce_rasmussen_2022()` and
+`reproduce_rasmussen_2024()`, so that the published tables can be recomputed
+(see `vignette("reproducing-published")`).
+
+## Caveats
+
+* The model assumes a constant hazard within the period and that the
+  estimates apply for the whole period. Most source estimates come from
+  models in which disease status changes during the period.
+* Hazard ratios and odds ratios are not collapsible: even without
+  confounding, an average ratio differs from the ratio within subgroups. The
+  snapshot model accounts for this given the distribution of disease
+  combinations; the first-order method and the published approach do not.
+* The snapshot model and the attributable risk use the whole distribution
+  of disease combinations, so they depend on the maximum-entropy assumption,
+  on how unknown pairs are filled in, and on any three-way terms.
+* Culling and death compete. Make sure the source estimates are of the same
+  kind (cause-specific or subdistribution), and that `overall_risk` is the
+  risk of the same event.

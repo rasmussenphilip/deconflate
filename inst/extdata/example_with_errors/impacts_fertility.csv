@@ -1,5 +1,0 @@
-disease,value,estimand,label,units,source,dist,p1,p2,p3,p4,note
-LAM,3.30,crude,calving interval increase,% increase,Illustrative,pert,1.19,3.30,10.71,,"pert(min, mode, max)"
-SCK,1.12,crude,calving interval increase,% increase,Illustrative,uniform,1.5,3.0,,,"Note: the point value 1.12 is outside the distribution (uniform from 1.5 to 3): reported as a note, not an error"
-MET,14.67,crude,calving interval increase,% increase,Illustrative,normal,14.67,"8,5",,,"Error: decimal comma in p2 (write 8.5)"
-RP,6.76,crude,calving interval increase,days,Illustrative,,,,,,"Error: a second unit in one table (one unit per analysis; put impacts in days in their own impacts_<analysis>.csv)"

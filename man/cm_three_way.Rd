@@ -31,13 +31,14 @@ diseases), which is symmetric in the three diseases. \code{ratio = 1} is the
 maximum-entropy assumption. Pairwise evidence cannot identify \code{ratio}, so
 three-way terms are sensitivity scenarios unless there is direct evidence.
 
-When every pair in the triple is constrained (an association is given, or
-the pair is independent by default), a three-way term leaves the pairwise
-tables unchanged, so additive results without interactions do not change;
-it affects only results that depend on the joint distribution: the global
-method with interactions, the hazard-ratio snapshot model and
-\code{\link[=attributable_risk]{attributable_risk()}}. When a pair is unknown (\code{missing_associations = "unknown"}), the global fit determines its table, and a three-way term can
-change it, and with it the additive results.
+When every pair in the triple has an association, a three-way term leaves
+the pairwise tables unchanged, so additive results without interactions
+do not change; it affects only results that depend on the joint
+distribution: additive impacts with interactions, and event impacts
+(\code{event_model = TRUE} in \code{\link[=deconflate]{deconflate()}}). When a pair is unknown (no
+association given), the global fit determines its table, and a three-way
+term can change it, and with it the additive results. A model with
+three-way terms is always adjusted with the global method.
 }
 \examples{
 cm_three_way("d1", "d2", "d3", ratio = 2)

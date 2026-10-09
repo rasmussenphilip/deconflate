@@ -12,7 +12,8 @@ attribute_burden(result)
 \value{
 A data frame with, per disease, the main contribution, the share
 of interaction terms, the total and the share of the aggregate (\code{NA}
-when the aggregate is zero).
+when the aggregate is zero); for event impacts, the attributable risk
+and its share.
 }
 \description{
 The expected aggregate impact is
@@ -21,4 +22,8 @@ involved in a term removes that term, so each disease's Shapley value is
 its own term plus an equal share of every interaction term it is involved
 in. The shares add up to the aggregate. This is the \code{contributions} table
 of \code{\link[=deconflate]{deconflate()}}.
+}
+\details{
+For event impacts, it is the Shapley allocation of the risk attributable
+to disease (\verb{$attributable$by_disease}).
 }

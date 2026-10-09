@@ -21,6 +21,19 @@ test_that("contribution tables have the documented columns and add up", {
   expect_error(contribution_table(example_supplement()), "deconflate")
 })
 
+test_that("contribution tables of event results and of results with draws", {
+  ev <- deconflate(supp_hr_model(), event_model = TRUE, overall_risk = 0.25)
+  ct <- contribution_table(ev)
+  expect_equal(names(ct), c("disease", "measure", "raw", "adjusted_hr", "attributable", "share"))
+  expect_equal(ct$adjusted_hr, c(1.3831529713, 1.8909315489, 1.1439870467), tolerance = 1e-7)
+  expect_equal(sum(ct$attributable), 0.03664898509534775, tolerance = 1e-7)
+  m <- cm_model(example_supplement(), example_supplement()$impacts,
+                distributions = list("impact:d1" = dist_normal(2.5, 0.5)))
+  ctd <- contribution_table(deconflate(m, n_draws = 50, seed = 1))
+  expect_true(all(c("adjusted_lower", "adjusted_upper", "contribution_lower", "contribution_upper") %in% names(ctd)))
+  expect_true(all(ctd$adjusted_lower <= ctd$adjusted & ctd$adjusted <= ctd$adjusted_upper))
+})
+
 test_that("legacy gaps follow the direction and effect of the impacts", {
   pub <- adjust_impacts(example_supplement(), method = "published")
   g <- legacy_gap(pub, observed = 10000, direction = "decrease", effect = "percent")
@@ -53,9 +66,8 @@ test_that("legacy gaps follow the direction and effect of the impacts", {
   expect_error(legacy_gap(deconflate(supp_model(c(-250, -500, -750))), 10000, "increase", "percent"),
                "above -1")
   # The exported helpers were removed with valuation.
-  ns <- asNamespace("deconflate")
-  expect_false(exists("productivity_gap", envir = ns, inherits = FALSE))
-  expect_false(exists("value_losses", envir = ns, inherits = FALSE))
+  expect_false(exists("productivity_gap", envir = environment(deconflate), inherits = FALSE))
+  expect_false(exists("value_losses", envir = environment(deconflate), inherits = FALSE))
 })
 
 test_that("legacy_value values a gap", {
@@ -87,9 +99,9 @@ test_that("zero aggregates give NA shares but valid legacy gaps and values", {
   # A zero naive sum has no defined reduction.
   expect_true(is.na(summary(res0)$totals$reduction))
 
-  # Impacts that cancel: two independent diseases with equal probability and
-  # impacts +1 and -1.
-  m <- cm_model(cm_population(cm_diseases(c("a", "b"), c(0.2, 0.2))),
+  # Impacts that cancel: two independent diseases (an odds ratio of 1) with
+  # equal probability and impacts +1 and -1.
+  m <- cm_model(cm_population(cm_diseases(c("a", "b"), c(0.2, 0.2)), cm_associations("a", "b", 1)),
                 cm_impacts(c("a", "b"), c(1, -1)))
   res <- deconflate(m)
   expect_equal(res$adjusted$adjusted, c(1, -1))
@@ -131,10 +143,20 @@ test_that("summary() reports totals and contributions", {
   # Sign changes are printed.
   ss <- summary(deconflate(supp_model(c(0.1, 5, 7.5)), warn = FALSE))
   expect_output(print(ss), "Sign changes: d1")
+  # Event results.
+  se <- summary(deconflate(supp_hr_model(), event_model = TRUE, overall_risk = 0.25))
+  expect_s3_class(se, "summary.cm_result")
+  expect_equal(se$method, "snapshot")
+  expect_equal(se$totals$attributable, 0.03664898509534775, tolerance = 1e-7)
+  expect_output(print(se), "Comorbidity adjustment \\(method: snapshot\\)")
+  # Notes are carried over (here: the automatic switch to the global method).
+  su <- summary(deconflate(cm_model(supp_unknown_population(), cm_impacts(ids3, c(2.5, 5, 7.5)))))
+  expect_true(any(grepl("global method was used", su$notes)))
+  expect_output(print(su), "Note: The global method was used")
 })
 
 test_that("the legacy helpers reproduce the published total value (2022)", {
-  res <- adjust_analyses(uk_dairy_2022_analyses(3.05, culling = TRUE), method = "published")
+  res <- lapply(uk_dairy_2022_analyses(3.05, culling = TRUE), adjust_impacts, method = "published")
   eco <- uk_dairy_2022_economics()
   eco$valuation$culling <- uk_dairy_2022_culling_valuation()
   vls <- lapply(names(res), function(nm) {
@@ -154,16 +176,19 @@ test_that("the legacy helpers reproduce the published total value (2022)", {
 test_that("plots draw without error", {
   grDevices::pdf(NULL)
   on.exit(grDevices::dev.off())
-  res <- adjust_analyses(example_uk_dairy_2022(), method = "published")
-  expect_invisible(plot(res$yield))
+  uk <- example_uk_dairy_2022()
+  res <- adjust_impacts(cm_model(with_independent_pairs(as_population(uk)), uk$impacts), method = "published")
   expect_invisible(plot(res))
   expect_invisible(plot_burden(res))
-  expect_invisible(plot_burden(res$yield))
   expect_invisible(plot_burden(deconflate(example_supplement())))
   expect_false("valuation" %in% names(formals(plot_burden)))
   expect_invisible(plot(screen_associations(example_supplement())))
   expect_invisible(plot(sensitivity_oat(example_supplement())))
-  s <- cm_sampler(example_supplement(), impacts = list(d1 = dist_normal(2.5, 0.5)))
-  expect_invisible(plot(cm_monte_carlo(s, 20, seed = 1)))
+  m <- cm_model(example_supplement(), example_supplement()$impacts,
+                distributions = list("impact:d1" = dist_normal(2.5, 0.5)))
+  expect_invisible(plot(deconflate(m, n_draws = 20, seed = 1)))
+  ev <- deconflate(supp_hr_model(), event_model = TRUE, overall_risk = dist_beta(25, 75), n_draws = 20, seed = 1)
+  expect_invisible(plot(ev))
+  expect_invisible(plot_burden(ev))
   expect_error(plot_burden(example_supplement()), "deconflate")
 })

@@ -21,8 +21,9 @@ An interaction \code{delta} is the additional impact when both diseases are
 present, in the same units as the impact vector: positive values are
 synergistic (more than the sum), negative values antagonistic.
 Interactions cannot be inferred from associations and must come from
-evidence or explicit scenarios. They require \code{method = "global"} in
-\code{\link[=deconflate]{deconflate()}}.
+evidence or explicit scenarios. A model with interactions is always
+adjusted with the global method (see \code{\link[=deconflate]{deconflate()}}). Interactions apply
+to additive impacts only.
 }
 \examples{
 cm_interactions("d1", "d2", 0.5)

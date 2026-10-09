@@ -1,8 +1,8 @@
 ---
-title: "Uncertainty, scenarios and sensitivity"
+title: "Uncertainty and sensitivity"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Uncertainty, scenarios and sensitivity}
+  %\VignetteIndexEntry{Uncertainty and sensitivity}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
@@ -15,6 +15,13 @@ knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
 library(deconflate)
 ```
 
+Any input can be uncertain: a disease probability, an association, a
+three-way term, an impact, an interaction, and, for event impacts, the
+overall risk. `deconflate()` draws the uncertain inputs from their
+distributions, adjusts each draw in the same way as the central estimate,
+and reports intervals. Monte Carlo runs are part of `deconflate()`
+(`n_draws`).
+
 ## Input distributions
 
 `dist_*()` functions describe uncertain inputs. Draws are on the scale the
@@ -26,251 +33,222 @@ dist_lognormal_ci(2.7, 1.5, 4.9)    # odds ratio and 95% CI
 dist_normal(2.63, 1.44, lower = 0)  # truncated at zero
 ```
 
-## Monte Carlo analysis
+The others are `dist_fixed()`, `dist_lognormal()`, `dist_beta()`,
+`dist_pert_mean()`, `dist_uniform()` and `dist_mixture()` (e.g. two pooled
+sources of evidence); see `?distributions`.
 
-`cm_sampler()` attaches distributions to a model. Keys name the inputs:
-`prob:<disease>`, `assoc:<d1>:<d2>`, `three:<d1>:<d2>:<d3>`,
-`impact:<disease>` and `inter:<d1>:<d2>`. (When inputs are read from files
-with `cm_read_inputs()`, distributions are given in the rows of the tables,
-in the columns `dist` and `p1`-`p4`, and the sampler is built for you; see
-`vignette("own-data")`.) Each draw is a complete model, so the uncertainty of
-probabilities, associations and impacts is propagated jointly. Here the
-association of d2 and d3 is given a defensive mixture (a wider component
-with weight 0.2), which is used for a scenario below:
+## Where distributions are given
+
+In input tables, an uncertain value gets its distribution in its own row,
+in the columns `dist` and `p1`-`p4`, and `cm_read_inputs()` keeps it in the
+model (see `vignette("own-data")`). In R, give them to `cm_model()` as
+`distributions`, a named list whose names are keys: `prob:<disease>`,
+`assoc:<d1>:<d2>`, `three:<d1>:<d2>:<d3>`, `impact:<disease>` and
+`inter:<d1>:<d2>`. Inputs without a distribution keep their point value in
+every draw.
 
 ```{r}
 m <- example_supplement()
-s <- cm_sampler(
-  m,
-  diseases = list(d1 = dist_beta(20, 180)),
-  associations = list(
-    "d1:d2" = dist_lognormal_ci(2, 1.4, 2.9),
-    "d2:d3" = dist_mixture(dist_lognormal_ci(3, 2, 4.5), dist_lognormal(log(3), 0.8),
-                           weights = c(0.8, 0.2))
-  ),
-  impacts = list(d1 = dist_normal(2.5, 0.5), d2 = dist_normal(5, 1),
-                 d3 = dist_pert(5, 7.5, 9))
+mu <- cm_model(m, m$impacts, distributions = list(
+  "prob:d1" = dist_beta(20, 180),
+  "assoc:d1:d2" = dist_lognormal_ci(2, 1.4, 2.9),
+  "impact:d1" = dist_normal(2.5, 0.5),
+  "impact:d2" = dist_normal(5, 1),
+  "impact:d3" = dist_pert(5, 7.5, 9)
+))
+mu
+```
+
+## Draws and intervals
+
+When any input has a distribution, `deconflate()` runs `n_draws` draws
+(1000 by default; here 200 to keep this vignette fast). Each draw is a
+complete set of inputs, so the uncertainty of probabilities, associations
+and impacts is propagated jointly:
+
+```{r}
+r <- deconflate(mu, n_draws = 200, seed = 1)
+r
+```
+
+The central estimate (`adjusted`) always uses the point values; the draws
+give the 95% intervals (`lower`, `upper`: the 2.5% and 97.5% quantiles over
+the accepted draws). The intervals are added to the adjusted impacts, the
+contributions and the adjusted total:
+
+```{r}
+r$contributions
+r$totals
+```
+
+`$draws` holds the details: `summary` (mean, standard deviation, Monte
+Carlo standard error `mcse`, interval, median and a stability check for
+every quantity), the accepted draws (`values`, and the drawn inputs in
+`params`), the rejections and the seed:
+
+```{r}
+r$draws$summary
+```
+
+The stability check is `ok`, `imprecise` (the Monte Carlo standard error is
+more than 5% of the mean: use more draws, or Latin hypercube sampling),
+`heavy_tail` (the most extreme 1% of draws contribute more than 60% of the
+variance) or `insufficient_info` (the precision cannot be assessed, e.g.
+because the mean is zero; `mcse` still gives the absolute error). A note
+lists the quantities that are not `ok`.
+
+Without any distribution, no draws are run, whatever `n_draws`, and a note
+says so; `n_draws = 0` skips the draws (and the note) for a model that has
+distributions:
+
+```{r}
+deconflate(example_supplement())$notes
+```
+
+### Seed
+
+Draws are reproducible with `seed`. Without it, a seed is chosen and stored
+in the result, so a run can always be repeated:
+
+```{r}
+r_again <- deconflate(mu, n_draws = 200, seed = 1)
+identical(r$adjusted, r_again$adjusted)
+r_unseeded <- deconflate(mu, n_draws = 200)
+r_unseeded$draws$seed
+```
+
+### Rejected draws
+
+Some draws are impossible: a probability outside (0, 1), a non-positive
+odds ratio, or associations that no population can have together. Such
+draws are rejected and not replaced, so the intervals describe the
+accepted draws only. The number rejected is printed with the result, each
+rejection is listed by type with its reason in `$draws$rejections`, and a
+note appears when more than 10% are rejected. Here a prevalence is given a
+normal distribution that reaches below zero:
+
+```{r}
+m_rej <- cm_model(m, m$impacts, distributions = list("prob:d1" = dist_normal(0.05, 0.05)))
+r_rej <- deconflate(m_rej, n_draws = 200, seed = 1)
+r_rej
+head(r_rej$draws$rejections, 3)
+```
+
+Draws can also be rejected because the values cannot hold together, even
+when each is valid alone. Three diseases with strong odds ratios are
+feasible at their point values, but not when one of them is much weaker
+(`warn = FALSE` hides a warning that these made-up impacts change sign):
+
+```{r}
+strong <- cm_model(
+  cm_diseases(c("a", "b", "c"), c(0.5, 0.5, 0.5)),
+  cm_impacts(c("a", "b", "c"), c(4, 5, 6)),
+  associations = cm_associations(c("a", "a", "b"), c("b", "c", "c"), c(20, 20, 20)),
+  distributions = list("assoc:a:b" = dist_lognormal_ci(20, 1, 400))
 )
-s
-mc <- cm_monte_carlo(s, 400, seed = 1)
-mc
-summary(mc)
-summary(mc, what = "total")
+r_strong <- deconflate(strong, n_draws = 200, seed = 1, warn = FALSE)
+r_strong$draws$n_rejected
+table(r_strong$draws$rejections$type)
+r_strong$draws$rejections$reason[1]
 ```
 
-Draws with impossible inputs (e.g. a probability outside (0, 1), or
-associations that no population can have together) are rejected and counted
-by type with `summary(mc, what = "rejections")`. A draw whose results are not
-finite is rejected as a whole. Report the rejection rate: conditioning on
-acceptance changes the effective input distribution.
-
-## Several analyses on shared draws
-
-`cm_batch_sampler()` builds one sampler per analysis of a `cm_analyses()`
-object. Each draw of the disease and association inputs is shared by all
-analyses, with the same draw identifiers; each analysis draws its own
-impacts:
-
-```{r}
-pop <- cm_population(m$diseases, m$associations)
-a <- cm_analyses(pop,
-  yield = cm_impacts(c("d1", "d2", "d3"), c(2.5, 5, 7.5), units = "%"),
-  calving_interval = cm_impacts(c("d1", "d2", "d3"), c(4, 10, 2), units = "days")
-)
-bs <- cm_batch_sampler(a,
-  diseases = list(d1 = dist_beta(20, 180)),
-  associations = list("d1:d2" = dist_lognormal_ci(2, 1.4, 2.9)),
-  impacts = list(yield = list(d1 = dist_normal(2.5, 0.5)),
-                 calving_interval = list(d2 = dist_normal(10, 3)))
-)
-bs
-mcb <- cm_monte_carlo(bs, 200, seed = 1)
-mcb
-summary(mcb, diagnose = FALSE)[, c("analysis", "disease", "mean", "q0.025", "q0.975")]
-```
-
-Each analysis's run is in `mcb$analyses`, and can be used with the functions
-below.
-
-## Comparing methods on the same draws
-
-Give several methods to `cm_monte_carlo()` and every accepted draw is
-adjusted with each of them (a draw is rejected if any method fails on it).
-Besides the methods of `deconflate()`, `"published"` (the approximation of
-Rasmussen et al. 2022, eq. 16) is accepted here, for comparison with and
-reproduction of earlier analyses only. `compare_methods()` then tabulates
-the results:
-
-```{r}
-mc2 <- cm_monte_carlo(s, 400, method = c("published", "simultaneous"), seed = 1)
-compare_methods(mc2)
-```
-
-## Unstable estimates
-
-Monte Carlo means can be unstable. `summary()` checks every estimate and,
-when one looks unstable, prints why and what to do. Here the raw impact of
-`d2` is uncertain enough to be near zero or negative:
-
-```{r}
-s_d2 <- cm_sampler(example_supplement(), impacts = list(d2 = dist_normal(0.5, 1.5)))
-mc_d2 <- cm_monte_carlo(s_d2, 400, method = c("published", "simultaneous"), seed = 2)
-sm <- summary(mc_d2)
-sm[, c("disease", "method", "mean", "q0.5", "trimmed_mean", "mcse", "stability")]
-```
-
-Each estimate gets one of five statuses (see `?cm_diagnose`):
-
-* **`ok`**: no problem detected.
-* **`imprecise`**: the Monte Carlo standard error is more than 5% of the
-  mean. Use more draws, or Latin hypercube sampling.
-* **`insufficient_info`**: the precision cannot be assessed, because fewer
-  than two Latin hypercube blocks have draws with positive weight, or
-  because the mean is (nearly) zero, so that a relative error is undefined.
-  In the second case `mcse` still gives the absolute error, which can be
-  judged against the size of effect that matters. A missing precision is
-  never reported as `ok`.
-* **`heavy_tail`**: the most extreme 1% of draws contribute more than 60% of
-  the variance. Importance sampling can help if they come from one region
-  of one input (below).
-* **`possible_pole`**: the published approximation, `m^2 / (m + c)`,
-  divides by `m + c`, which takes both signs within the sampled inputs and
-  in some draws has the opposite sign to `m`. The estimate then has a pole
-  inside the input distribution, and its mean may not exist; no number of
-  draws, and no sampling scheme, makes such a mean converge. Report
-  quantiles (e.g. the median), or use the exact method. A trimmed mean is a
-  different estimand.
-  Removable cases are not flagged: when `c = 0` (e.g. a disease with no
-  associated impacts) the formula reduces to `m`, and a sign change of `m`
-  alone does not create a pole.
-
-Draws that give non-finite results are rejected, and are noted as
-`non_finite`. `cm_diagnose()` lists the flagged estimates with the
-suggestions:
-
-```{r}
-cm_diagnose(mc_d2)
-```
+Report the rejection share: conditioning on acceptance changes the
+effective input distribution. A high share means the input distributions
+often combine values that contradict each other; narrower or correlated
+evidence may be needed.
 
 ### Latin hypercube sampling
 
 `sampling = "lhs"` stratifies each input's distribution, which usually
-reduces the Monte Carlo error of means. LHS draws are not independent, so the
-draws are split into `lhs_replicates` independent blocks (10 by default),
-and the standard error is estimated from the spread of the block means. The
-pooled mean is a ratio estimator over the blocks (each block's weighted sum
-over the total weight), and its standard error uses all blocks as sampled
-(`mc$n_blocks`), including any whose draws were all rejected; with fewer
-than two blocks with positive weight the status is `insufficient_info`:
+reduces the Monte Carlo error of means. Latin hypercube draws are not
+independent, so they are split into `lhs_replicates` independent blocks (10
+by default), and the Monte Carlo standard error is estimated from the
+spread of the block means. Compare `mcse` with the random draws above:
 
 ```{r}
-mc_lhs <- cm_monte_carlo(s_d2, 400, method = "simultaneous", sampling = "lhs", seed = 2)
-mc_lhs
-summary(mc_lhs, diagnose = FALSE)[, c("disease", "mean", "mcse")]
-sm[sm$method == "simultaneous", c("disease", "mean", "mcse")]
+r_lhs <- deconflate(mu, n_draws = 200, seed = 1, sampling = "lhs")
+r_lhs
+data.frame(quantity = r$draws$summary$quantity,
+           mcse_random = r$draws$summary$mcse,
+           mcse_lhs = r_lhs$draws$summary$mcse)
 ```
 
-### Importance sampling
+## Event impacts: the overall risk
 
-When extreme values come from one region of one input,
-`cm_suggest_proposal()` builds a defensive mixture that samples that region
-more often. The draws are then weighted by the ratio of the densities, so
-the estimates still refer to the original input distributions:
+For event impacts (`vignette("event-impacts")`), the impacts can have
+distributions like any other input, and `overall_risk` can be a
+distribution too. The central estimate uses the mean of that distribution:
 
 ```{r}
-prop <- cm_suggest_proposal(mc_d2, "d2", method = "simultaneous")
-mc_is <- cm_monte_carlo(s_d2, 400, method = "simultaneous", proposal = prop, seed = 3)
-mc_is
-summary(mc_is, diagnose = FALSE)[, c("disease", "mean", "mcse")]
+cull <- cm_model(m, cm_impacts(c("d1", "d2", "d3"), c(1.5, 2.0, 1.2),
+                               measure = c("HR", "HR", "RR"),
+                               estimand = "snapshot_crude", label = "culling"))
+e <- deconflate(cull, event_model = TRUE, overall_risk = dist_beta(250, 750),
+                n_draws = 200, seed = 1)
+e
+e$attributable$summary
 ```
 
-Each proposal must cover the whole support of the input's own
-distribution, and point masses (fixed values) cannot be importance-sampled.
-Both are checked before any draw is made. A proposal that is too narrow is
-rejected:
+Here only the overall risk is uncertain. The attributable risk and its
+allocation to diseases vary with it, while the adjusted hazard ratios
+hardly change: raw hazard ratios do not depend on the overall risk, and
+only the risk ratio of d3 does.
+
+## Comparing methods on the same draws
+
+`compare_methods()` runs several methods on the same inputs, including the
+approximation of Rasmussen et al. (2022, eq. 16) (`"published"`), kept for
+comparison with earlier analyses only. With `n_draws` (default 0), every
+method is applied to the same draws; a draw is rejected if any method fails
+on it. There is no automatic switch of method here: methods that cannot be
+run are listed in `$failed`.
 
 ```{r}
-tryCatch(cm_monte_carlo(s_d2, 10, proposal = list("impact:d2" = dist_uniform(-5, 5))),
-         deconflate_unsupported = function(e) conditionMessage(e))
-```
-
-So is a mixture whose range spans the support but leaves a gap: draws
-would never fall in the gap, and the weighted estimates would converge to
-the mean over the covered part only. Here the raw impact of d3 has a PERT
-distribution on [5, 9], and the proposal has no mass between 6.5 and 7.5:
-
-```{r}
-gap <- dist_mixture(dist_uniform(4, 6.5), dist_uniform(7.5, 10))
-tryCatch(cm_monte_carlo(s, 10, proposal = list("impact:d3" = gap)),
-         deconflate_unsupported = function(e) conditionMessage(e))
-```
-
-Including the input's own distribution as a mixture component, as
-`cm_suggest_proposal()` does, always covers its support.
-
-A defensive mixture guarantees support, but not a finite variance or better
-precision: compare the standard errors. Importance sampling reduces the
-error of a mean that exists. It cannot fix a `possible_pole` estimate.
-
-## Scenarios by reweighting
-
-`cm_scenario()` replaces input distributions and reweights the existing
-draws (importance sampling), so no re-run is needed. The sampler above used
-a defensive mixture for the d2:d3 odds ratio, so a scenario with a stronger
-association still has support:
-
-```{r}
-sc <- cm_scenario(mc, list("assoc:d2:d3" = dist_lognormal_ci(4, 2.5, 6.4)))
-sc$ess
-summary(sc, what = "total", diagnose = FALSE)
-```
-
-Check the effective sample size: a small value means the scenario is poorly
-covered by the original draws. A scenario distribution must lie within the
-range the input was sampled from, which is checked. Reweighting cannot
-recover rejected draws.
-
-`cm_reweight()` takes any log density ratio as a function of the sampled
-inputs (`mc$params`). For example, conditioning on a raw impact of d1 above
-2%:
-
-```{r}
-cond <- cm_reweight(mc, function(p) ifelse(p[["impact:d1"]] > 2, 0, -Inf))
-cond$ess
-summary(cond, diagnose = FALSE)[, c("disease", "mean", "q0.5")]
+mu2 <- cm_model(m, m$impacts, distributions = list(
+  "assoc:d1:d2" = dist_lognormal_ci(2, 1.4, 2.9),
+  "impact:d2" = dist_normal(5, 1)
+))
+cmp <- compare_methods(mu2, methods = c("published", "simultaneous"), n_draws = 200, seed = 1)
+cmp
+s <- cmp$draws$summary
+s[s$quantity == "adjusted:d2", c("method", "mean", "lower", "upper")]
 ```
 
 ## Gaps and values over the draws
 
 The package reports impacts in their own units. A gap or a value per draw
-is computed from `mc$totals` (one row per accepted draw and method) in base
-R, as in `vignette("deconflate")`. Here the impacts are percent losses of an
-observed level of 10,000 units, and the unit value is drawn per draw:
+is computed in base R from the accepted draws in `$draws$values` (one row
+per draw, one column per quantity). Here the impacts are percent losses of
+an observed level of 10,000 units, and the value of a unit is drawn per
+draw:
 
 ```{r}
-tt <- mc$totals
-w <- mc$weights[match(tt$draw, mc$params$draw)]
-tt$gap <- 10000 / (1 - tt$adjusted_total / 100) - 10000
+total <- r$draws$values[, "total"]
+gap <- 10000 / (1 - total / 100) - 10000
 set.seed(5)
-tt$value <- tt$gap * runif(nrow(tt), 0.25, 0.35)
-sapply(tt[c("gap", "value")], function(x) c(mean = sum(w * x) / sum(w),
-                                             quantile(x, c(0.025, 0.975))))
+value <- gap * runif(length(gap), 0.25, 0.35)
+sapply(list(gap = gap, value = value),
+       function(x) c(mean = mean(x), quantile(x, c(0.025, 0.975))))
 ```
 
-The quantiles are unweighted, which is right for this run (simple random
-sampling, equal weights); after importance sampling or `cm_reweight()`, use
-weighted quantiles.
+The central gap uses the central total:
+
+```{r}
+10000 / (1 - r$totals$adjusted_total / 100) - 10000
+```
 
 ## Sensitivity
 
-One-at-a-time sensitivity (as in Rasmussen et al. 2024, Fig. 7):
+The sensitivity tools give point estimates (they do not run draws), and
+choose the method as `deconflate()` does. They also accept
+`event_model = TRUE` with `overall_risk`. One-at-a-time sensitivity (as in
+Rasmussen et al. 2024, Fig. 7):
 
 ```{r}
-oat <- sensitivity_oat(example_supplement(), variation = 0.2)
-oat
+sensitivity_oat(example_supplement(), variation = 0.2)
 ```
 
-Screening associations, including pairs with no estimate, to find those
+Screening associations, including pairs with no estimate, finds those
 worth estimating. Specified associations are multiplied by each of
 `multipliers`; pairs without an estimate (here d1 and d3) are set to each of
 `or_values`:
@@ -285,23 +263,16 @@ screen_associations(m_pairs, or_values = c(0.5, 2), multipliers = c(0.5, 2))
 ```
 
 The screens report scenarios that cannot be run, with the reason in column
-`failed`, rather than skipping them. Here, weakening any of three strong
-associations makes the pairs jointly infeasible:
+`failed`, rather than skipping them. Here, weakening any of the three strong
+associations above makes the pairs jointly infeasible:
 
 ```{r}
-strong <- cm_model(
-  cm_diseases(c("a", "b", "c"), c(0.5, 0.5, 0.5)),
-  cm_impacts(c("a", "b", "c"), c(1, 2, 3)),
-  associations = cm_associations(c("a", "a", "b"), c("b", "c", "c"), c(20, 20, 20))
-)
 screen_associations(strong, multipliers = c(0.05, 2))
 ```
 
-`screen_interactions()` and `screen_three_way()` (see
-`vignette("interactions")`) work in the same way. Comparing complete
-scenarios:
-
-```{r}
-base <- example_supplement()
-compare_scenarios(base = base, d1_d3_linked = set_association(base, "d1", "d3", 2))$totals
-```
+The screens also work without any association estimates: the baseline then
+has every disease independent, and the screen shows which pairs would
+matter if they were associated. `screen_interactions()` and
+`screen_three_way()` (see `vignette("interactions")`) work in the same way,
+and `cm_threshold()` finds the association at which a result changes (see
+`vignette("thresholds-and-scaling")`).

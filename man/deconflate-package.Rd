@@ -14,43 +14,37 @@ estimates so that they can be aggregated.
 \section{Workflow}{
 
 \enumerate{
-\item Describe the population with \code{\link[=cm_diseases]{cm_diseases()}}, \code{\link[=cm_associations]{cm_associations()}} and,
-optionally, three-way scenarios (\code{\link[=cm_three_way]{cm_three_way()}}), combined with
-\code{\link[=cm_population]{cm_population()}}. Add one impact vector (\code{\link[=cm_impacts]{cm_impacts()}}) per analysis
-with \code{\link[=cm_model]{cm_model()}}, or several with \code{\link[=cm_analyses]{cm_analyses()}}. Or read the same
-tables from CSV files or data frames with \code{\link[=cm_read_inputs]{cm_read_inputs()}} (see
-\code{\link[=cm_template]{cm_template()}}).
-\item Adjust impacts with \code{\link[=deconflate]{deconflate()}}, using one of two methods:
-\itemize{
-\item \code{"simultaneous"} (default): the exact solution of the additive impact
-equations, built from pairwise 2x2 tables. Crude estimates and
-coefficients from additive regressions with a recorded adjustment set
-(\code{estimand = "adjusted_linear"}) are supported. Use it when impacts
-are additive and every pair has an association estimate or a
-defensible independence assumption.
-\item \code{"global"}: fits a maximum-entropy distribution of disease
-combinations with \code{\link[=fit_joint]{fit_joint()}}, then solves the impact equations
-including pairwise interactions (\code{\link[=cm_interactions]{cm_interactions()}}) and unknown
-pairs.
-}
-\item Inspect each disease's contribution to the aggregate
-(\code{\link[=attribute_burden]{attribute_burden()}}, \code{\link[=contribution_table]{contribution_table()}}), in the units of the
-impacts. Converting the results into other quantities (e.g. a
-productivity gap or a monetary value) is left to the user.
-\code{\link[=compare_methods]{compare_methods()}} sets the methods side by side, including the
-proportional approximation of Rasmussen et al. (2022, eq. 16), which is
-kept for comparison and reproduction only.
-\item Hazard ratios (e.g. of culling) combine multiplicatively and have their
-own adapter: \code{\link[=cm_hazard_ratios]{cm_hazard_ratios()}}, \code{\link[=cm_hr_model]{cm_hr_model()}}, \code{\link[=deconflate_hr]{deconflate_hr()}}
-and \code{\link[=attributable_risk]{attributable_risk()}}.
+\item Read the inputs with \code{\link[=cm_read_inputs]{cm_read_inputs()}}: the diseases, their
+associations, one impact table and, optionally, interactions and
+three-way terms (CSV files with any names, or data frames; see
+\code{\link[=cm_template]{cm_template()}}). Values can have distributions in their own rows. The
+same inputs can be built in R with \code{\link[=cm_diseases]{cm_diseases()}},
+\code{\link[=cm_associations]{cm_associations()}}, \code{\link[=cm_three_way]{cm_three_way()}}, \code{\link[=cm_impacts]{cm_impacts()}},
+\code{\link[=cm_interactions]{cm_interactions()}} and \code{\link[=cm_model]{cm_model()}}. For several outcomes, use one
+impact table each and adjust each in turn.
+\item Adjust the impacts with \code{\link[=deconflate]{deconflate()}}. Additive impacts (in any units)
+are adjusted with the exact simultaneous solution when every pair has
+an association and there are no interactions or three-way terms, and
+with the global (maximum-entropy) model otherwise; pairs without an
+association are unknown and filled in by the global model. Event
+impacts (hazard ratios, rate ratios, risk ratios, odds ratios or risk
+differences of e.g. culling) use the snapshot hazard model
+(\code{event_model = TRUE}, with the overall risk), which also gives the
+risk attributable to disease. When inputs have distributions,
+\code{deconflate()} also reports intervals (\code{n_draws}).
+\item Inspect each disease's contribution (\code{\link[=attribute_burden]{attribute_burden()}},
+\code{\link[=contribution_table]{contribution_table()}}, \code{\link[=plot_burden]{plot_burden()}}), in the units of the impacts.
+Converting the results into other quantities (e.g. a productivity gap
+or a monetary value) is left to the user. \code{\link[=compare_methods]{compare_methods()}} sets the
+methods side by side, including the proportional approximation of
+Rasmussen et al. (2022, eq. 16), which is kept for comparison and
+reproduction only.
 \item Check joint feasibility with \code{\link[=check_feasibility]{check_feasibility()}} (a screen runs by
 default).
-\item Propagate uncertainty with \code{\link[=cm_sampler]{cm_sampler()}} or \code{\link[=cm_batch_sampler]{cm_batch_sampler()}} and
-\code{\link[=cm_monte_carlo]{cm_monte_carlo()}} (check stability with \code{\link[=cm_diagnose]{cm_diagnose()}}), and explore
-scenarios with \code{\link[=cm_scenario]{cm_scenario()}}, \code{\link[=sensitivity_oat]{sensitivity_oat()}},
-\code{\link[=screen_associations]{screen_associations()}}, \code{\link[=screen_interactions]{screen_interactions()}}, \code{\link[=screen_three_way]{screen_three_way()}}
-and \code{\link[=compare_scenarios]{compare_scenarios()}}. Find where a conclusion (a ranking, a sign
-or the aggregate) changes as one input varies with \code{\link[=cm_threshold]{cm_threshold()}}.
+\item Explore the inputs with \code{\link[=sensitivity_oat]{sensitivity_oat()}}, \code{\link[=screen_associations]{screen_associations()}}
+(also without any association estimates), \code{\link[=screen_interactions]{screen_interactions()}} and
+\code{\link[=screen_three_way]{screen_three_way()}}, and find where a conclusion (a ranking, a sign
+or the total) changes as one input varies with \code{\link[=cm_threshold]{cm_threshold()}}.
 }
 
 \code{\link[=reproduce_rasmussen_2022]{reproduce_rasmussen_2022()}} and \code{\link[=reproduce_rasmussen_2024]{reproduce_rasmussen_2024()}} recompute
@@ -60,8 +54,9 @@ the published tables. See \code{vignette("deconflate")} to get started.
 \section{Conventions}{
 
 \itemize{
-\item Impacts are additive and in any units, the same within an analysis;
-results come back in those units.
+\item Additive impacts are in any units, the same within an impact table;
+results come back in those units. Event impacts are adjusted to hazard
+ratios, and risks are proportions of animals over the period.
 \item \code{E[k, i]} (see \code{\link[=excess_matrix]{excess_matrix()}}) is the excess probability of disease
 \code{k} among animals with disease \code{i}: \verb{P(k | i) - P(k | not i)}.
 \item Under additive impacts, the crude impact of disease \code{i} satisfies

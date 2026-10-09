@@ -3,9 +3,8 @@
 \name{plots}
 \alias{plots}
 \alias{plot.cm_result}
-\alias{plot.cm_results}
+\alias{plot.cm_event_result}
 \alias{plot_burden}
-\alias{plot.cm_mc}
 \alias{plot.cm_screen}
 \alias{plot.cm_oat}
 \alias{plot.cm_threshold}
@@ -13,11 +12,9 @@
 \usage{
 \method{plot}{cm_result}(x, ...)
 
-\method{plot}{cm_results}(x, ...)
+\method{plot}{cm_event_result}(x, ...)
 
 plot_burden(result, ...)
-
-\method{plot}{cm_mc}(x, probs = c(0.025, 0.975), method = NULL, ...)
 
 \method{plot}{cm_screen}(x, top = 15, ...)
 
@@ -30,11 +27,6 @@ plot_burden(result, ...)
 
 \item{...}{Passed to the underlying graphics function.}
 
-\item{probs}{Interval bounds for Monte Carlo plots.}
-
-\item{method}{For Monte Carlo runs with several methods: the method to
-show (default the first).}
-
 \item{top}{Number of rows to show.}
 
 \item{items}{For \code{cm_threshold} plots: the items to show (default all).}
@@ -45,12 +37,13 @@ The input, invisibly.
 \description{
 Base-graphics plots for the main result types:
 \itemize{
-\item \verb{plot(<cm_result>)}: raw and adjusted impacts by disease;
-\verb{plot(<cm_results>)} one panel per analysis.
+\item \verb{plot(<cm_result>)}: raw and adjusted impacts by disease, with 95\%
+intervals of the adjusted impacts when the result has draws.
+\item \verb{plot(<cm_event_result>)}: adjusted hazard ratios by disease (with
+intervals when the result has draws), and the raw hazard and rate
+ratios.
 \item \code{plot_burden()}: each disease's share of the aggregate (including its
-share of interaction effects); for several analyses, one bar per
-analysis.
-\item \verb{plot(<cm_mc>)}: Monte Carlo means and intervals of adjusted impacts.
+share of interaction effects), or of the risk attributable to disease.
 \item \verb{plot(<cm_screen>)}: the most influential scenarios from
 \code{\link[=screen_associations]{screen_associations()}}, \code{\link[=screen_interactions]{screen_interactions()}} or
 \code{\link[=screen_three_way]{screen_three_way()}}.
@@ -58,7 +51,7 @@ analysis.
 }
 }
 \examples{
-res <- deconflate(example_uk_dairy_2022())
-plot(res$yield)
+res <- deconflate(example_supplement())
+plot(res)
 plot_burden(res)
 }

@@ -1,12 +1,13 @@
 #' Plots
 #'
 #' Base-graphics plots for the main result types:
-#' * `plot(<cm_result>)`: raw and adjusted impacts by disease;
-#'   `plot(<cm_results>)` one panel per analysis.
+#' * `plot(<cm_result>)`: raw and adjusted impacts by disease, with 95%
+#'   intervals of the adjusted impacts when the result has draws.
+#' * `plot(<cm_event_result>)`: adjusted hazard ratios by disease (with
+#'   intervals when the result has draws), and the raw hazard and rate
+#'   ratios.
 #' * `plot_burden()`: each disease's share of the aggregate (including its
-#'   share of interaction effects); for several analyses, one bar per
-#'   analysis.
-#' * `plot(<cm_mc>)`: Monte Carlo means and intervals of adjusted impacts.
+#'   share of interaction effects), or of the risk attributable to disease.
 #' * `plot(<cm_screen>)`: the most influential scenarios from
 #'   [screen_associations()], [screen_interactions()] or
 #'   [screen_three_way()].
@@ -14,20 +15,17 @@
 #'
 #' @param x,result The object to plot.
 #' @param top Number of rows to show.
-#' @param probs Interval bounds for Monte Carlo plots.
-#' @param method For Monte Carlo runs with several methods: the method to
-#'   show (default the first).
 #' @param ... Passed to the underlying graphics function.
 #' @return The input, invisibly.
 #' @name plots
 #' @examples
-#' res <- deconflate(example_uk_dairy_2022())
-#' plot(res$yield)
+#' res <- deconflate(example_supplement())
+#' plot(res)
 #' plot_burden(res)
 NULL
 
 impact_axis_label <- function(units) {
-  if (is.null(units)) "Impact" else sprintf("Impact (%s)", units)
+  if (is.null(units) || is.na(units)) "Impact" else sprintf("Impact (%s)", units)
 }
 
 #' @rdname plots
@@ -37,70 +35,68 @@ plot.cm_result <- function(x, ...) {
   cols <- grDevices::hcl.colors(2, "Blues 3")
   mat <- rbind(raw = a$raw, adjusted = a$adjusted)
   colnames(mat) <- a$disease
-  graphics::barplot(mat, beside = TRUE, col = cols, las = 2,
-                    ylab = impact_axis_label(x$units),
-                    main = sprintf("%s (%s)", x$label %||% "Impacts", x$method),
-                    legend.text = c("raw", "adjusted"),
-                    args.legend = list(bty = "n"), ...)
+  ylim <- range(c(0, mat, a$lower, a$upper), finite = TRUE)
+  mids <- graphics::barplot(mat, beside = TRUE, col = cols, las = 2, ylim = ylim,
+                            ylab = impact_axis_label(x$units),
+                            main = sprintf("%s (%s)", x$label %||% "Impacts", x$method),
+                            legend.text = c("raw", "adjusted"),
+                            args.legend = list(bty = "n"), ...)
+  if (!is.null(a$lower)) {
+    graphics::arrows(mids[2, ], a$lower, mids[2, ], a$upper, angle = 90, code = 3, length = 0.04)
+  }
   graphics::abline(h = 0, col = "grey40")
   invisible(x)
 }
 
 #' @rdname plots
 #' @export
-plot.cm_results <- function(x, ...) {
-  op <- graphics::par(mfrow = c(length(x), 1), mar = c(5, 4, 3, 1))
+plot.cm_event_result <- function(x, ...) {
+  a <- x$adjusted
+  k <- nrow(a)
+  lo <- a$lower %||% a$adjusted
+  hi <- a$upper %||% a$adjusted
+  raw_hr <- ifelse(a$measure %in% c("HR", "rate_ratio"), a$raw, NA_real_)
+  op <- graphics::par(mar = c(4, 6, 3, 1))
   on.exit(graphics::par(op))
-  for (nm in names(x)) plot(x[[nm]], ...)
+  xl <- range(c(1, lo, hi, raw_hr), finite = TRUE)
+  graphics::plot(a$adjusted, seq_len(k), xlim = xl, yaxt = "n", pch = 19, log = "x",
+                 xlab = "Hazard ratio", ylab = "",
+                 main = sprintf("%s: adjusted hazard ratios", x$label %||% "Event impacts"), ...)
+  if (!is.null(a$lower)) graphics::segments(lo, seq_len(k), hi, seq_len(k))
+  graphics::points(raw_hr, seq_len(k), pch = 1, col = "grey40")
+  graphics::axis(2, at = seq_len(k), labels = a$disease, las = 1)
+  graphics::abline(v = 1, lty = 2, col = "grey50")
+  graphics::legend("bottomright", legend = c("adjusted", "raw (hazard and rate ratios)"),
+                   pch = c(19, 1), col = c("black", "grey40"), bty = "n", cex = 0.8)
   invisible(x)
 }
 
 #' @rdname plots
 #' @export
 plot_burden <- function(result, ...) {
-  if (inherits(result, "cm_result")) {
-    res <- list(result)
-    names(res) <- result$label %||% "impacts"
-  } else if (inherits(result, "cm_results")) {
-    res <- unclass(result)
+  if (inherits(result, "cm_event_result")) {
+    by <- result$attributable$by_disease
+    if (is.null(by)) cm_abort("The result has no allocation of the attributable risk.")
+    ids <- by$disease
+    share <- 100 * by$share
+    main <- "Risk attributable to disease, by disease"
+    ylab <- "Share of the attributable risk (%)"
+  } else if (inherits(result, "cm_result")) {
+    ids <- result$adjusted$disease
+    share <- 100 * result$contributions$share
+    main <- "Burden by disease"
+    ylab <- "Share of the aggregate (%)"
   } else {
     cm_abort("`result` must come from deconflate().")
   }
-  ids <- res[[1]]$adjusted$disease
-  mat <- vapply(res, function(r) 100 * r$contributions$share, numeric(length(ids)))
-  ylab <- "Share of the aggregate (%)"
-  mat <- matrix(mat, nrow = length(ids), dimnames = list(ids, names(res)))
+  mat <- matrix(share, nrow = length(ids), dimnames = list(ids, result$label %||% "impacts"))
   cols <- grDevices::hcl.colors(nrow(mat), "Set 2")
   op <- graphics::par(mar = c(5, 4, 3, 8), xpd = TRUE)
   on.exit(graphics::par(op))
-  graphics::barplot(mat, col = cols, ylab = ylab, main = "Burden by disease", ...)
+  graphics::barplot(mat, col = cols, ylab = ylab, main = main, ...)
   graphics::legend("topright", inset = c(-0.25, 0), legend = rownames(mat), fill = cols,
                    bty = "n", cex = 0.8)
   invisible(result)
-}
-
-#' @rdname plots
-#' @export
-plot.cm_mc <- function(x, probs = c(0.025, 0.975), method = NULL, ...) {
-  s <- summary(x, probs = c(probs[1], 0.5, probs[2]), diagnose = FALSE)
-  method <- method %||% s$method[1]
-  s <- s[s$method == method, , drop = FALSE]
-  lo <- s[[paste0("q", probs[1])]]
-  hi <- s[[paste0("q", probs[2])]]
-  mu <- s$mean
-  k <- nrow(s)
-  op <- graphics::par(mar = c(4, 6, 3, 1))
-  on.exit(graphics::par(op))
-  graphics::plot(mu, seq_len(k), xlim = range(c(lo, hi, 0), na.rm = TRUE), yaxt = "n",
-                 pch = 19, xlab = sub("^Impact", "Adjusted impact", impact_axis_label(x$units)),
-                 ylab = "",
-                 main = sprintf("%s (%s): mean and %g%% interval (%d draws, %d rejected)",
-                                x$label %||% "Impacts", method, 100 * (probs[2] - probs[1]),
-                                x$n_draws, x$n_rejected), ...)
-  graphics::segments(lo, seq_len(k), hi, seq_len(k))
-  graphics::axis(2, at = seq_len(k), labels = s$disease, las = 1)
-  graphics::abline(v = 0, lty = 2, col = "grey50")
-  invisible(x)
 }
 
 #' @rdname plots
@@ -114,7 +110,8 @@ plot.cm_screen <- function(x, top = 15, ...) {
   on.exit(graphics::par(op))
   graphics::barplot(100 * d$rel_change, horiz = TRUE, names.arg = paste(d$pair, d$scenario),
                     las = 1, col = ifelse(d$rel_change < 0, "#4477AA", "#CC6677"),
-                    xlab = "Change in total burden (%)", main = "Most influential scenarios", ...)
+                    xlab = sprintf("Change in the %s (%%)", attr(x, "metric") %||% "total"),
+                    main = "Most influential scenarios", ...)
   graphics::abline(v = 0)
   invisible(x)
 }
@@ -132,7 +129,7 @@ plot.cm_oat <- function(x, top = 15, ...) {
   op <- graphics::par(mar = c(4, 12, 3, 1))
   on.exit(graphics::par(op))
   graphics::plot(0, 0, type = "n", xlim = range(c(lo, hi, 0)), ylim = c(0.5, k + 0.5),
-                 yaxt = "n", xlab = "Change in total burden", ylab = "",
+                 yaxt = "n", xlab = sprintf("Change in the %s", attr(x, "metric") %||% "total"), ylab = "",
                  main = "One-at-a-time sensitivity", ...)
   graphics::rect(lo, seq_len(k) - 0.4, hi, seq_len(k) + 0.4, col = "#88CCEE", border = NA)
   graphics::axis(2, at = seq_len(k), labels = d$input, las = 1, cex.axis = 0.8)

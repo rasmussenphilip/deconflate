@@ -27,8 +27,8 @@ reproduce_rasmussen_2024(
 \value{
 A \code{cm_reproduction} object: a list with \code{adjusted} (adjusted
 values per disease), \code{comparison} (package beside the published values),
-and for 2022 \code{gaps}, \code{values} and \code{total}, or for 2024 the Monte Carlo
-run \code{mc}.
+and for 2022 \code{gaps}, \code{values} and \code{total}, or for 2024 the summary of
+the draws (\code{summary}) and the number of draws.
 }
 \description{
 Recompute the tables of Rasmussen et al. (2022) and Rasmussen et al.
@@ -36,17 +36,19 @@ Recompute the tables of Rasmussen et al. (2022) and Rasmussen et al.
 papers, and set them beside the printed values.
 }
 \details{
-These functions exist to document and check the published numbers. Two of
-the conversions they use are not offered for new analyses:
+These functions exist to document and check the published numbers. They
+use the assumptions of the papers, which are not the package defaults:
 \itemize{
+\item pairs without a published odds ratio are independent (the package
+treats them as unknown);
 \item 2022: culling hazard ratios were converted to excess annual culling
 risks by treating them as odds ratios, and adjusted hazard ratios were
 recovered by rescaling (eq. 23);
 \item 2024: hazard ratios minus 1 were adjusted as additive impacts.
 }
 
-For new analyses of hazard ratios use \code{\link[=deconflate_hr]{deconflate_hr()}} and
-\code{\link[=attributable_risk]{attributable_risk()}}.
+For new analyses of hazard ratios use event impacts
+(\code{deconflate(..., event_model = TRUE)}).
 }
 \section{2022 (Tables 8-10)}{
 
@@ -64,10 +66,11 @@ reproduce exactly from the printed Table 4 (see
 
 \section{2024 (Table 5)}{
 
-\code{reproduce_rasmussen_2024()} runs \code{\link[=cm_monte_carlo]{cm_monte_carlo()}} with the samplers of
-\code{\link[=sampler_global_dairy]{sampler_global_dairy()}} plus the historical culling analysis (HR - 1,
-named \code{culling_hr_minus_1}) and the published method, and
-reports the means beside Table 5. Culling is reported on the hazard-ratio
+\code{reproduce_rasmussen_2024()} draws the input distributions of the 2024
+analysis (those of \code{\link[=example_global_dairy]{example_global_dairy()}}, with shared draws of the odds
+ratios for every outcome), adds the historical culling analysis (HR - 1,
+named \code{culling_hr_minus_1}), adjusts every draw with the published method
+and reports the means beside Table 5. Culling is reported on the hazard-ratio
 scale (1 + adjusted HR - 1). Table 5 used 50,000 draws; use at least
 several thousand for stable means. Some fertility means are unstable for
 the published method (see the \code{stability} column).

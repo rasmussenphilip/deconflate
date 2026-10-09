@@ -1,48 +1,84 @@
 # deconflate (development version)
 
+Version 0.4 is being built in steps (see `ROADMAP.md`). So far: the
+interface is slimmed to de-conflation itself, and everything runs through
+one function, `deconflate()`, with one impact table per call.
+
 ## Breaking changes
 
-* **The published approximation is no longer a method of `deconflate()` or
-  `deconflate_hr()`.** `deconflate()` (for `cm_model` and `cm_analyses`) has
-  the methods `"simultaneous"` (default) and `"global"`; `deconflate_hr()`
-  has `"snapshot"` (default) and `"first_order"`. `method = "published"`
-  now gives an error of class `deconflate_unsupported` that points to the
-  alternatives. The approximation of Rasmussen et al. (2022, eq. 16), and
-  the HR - 1 approach of Rasmussen et al. (2024), are kept for comparison
-  and reproduction only: in `compare_methods()` (whose default methods
-  still include `"published"`), `cm_monte_carlo(method = ...)` and
-  `reproduce_rasmussen_2022()` / `reproduce_rasmussen_2024()`.
-  `cm_threshold()` accepts `"simultaneous"` and `"global"` only, and
-  `sensitivity_oat()`, the `screen_*()` functions and `compare_scenarios()`
-  inherit the methods of `deconflate()`. Method guidance: use
-  `"simultaneous"` when impacts are additive and every pair has an
-  association estimate or a defensible independence assumption; `"global"`
-  otherwise (interactions, unknown pairs); the snapshot model for hazard
-  ratios.
+* **One function, one impact table.** `deconflate()` adjusts one table of
+  impact estimates; for several outcomes, call it once per table.
+  `cm_analyses()` and the multi-analysis results are removed.
+* **Named input tables with any file name.** `cm_read_inputs()` and
+  `cm_check_inputs()` take each table as its own argument (`diseases`,
+  `associations`, `impacts`, and optionally `interactions` and
+  `three_way`), as a path to a CSV file with any name or a data frame. The
+  `dir` argument and the fixed file names are removed. `deconflate()` needs
+  at least one association; the sensitivity tools also run without any.
+  `cm_template()` writes one example of each table (`type` is removed).
+* **Pairs without an association are unknown by default.** The global
+  model fills them in from the other associations, and the result lists
+  them with the odds ratios the fit gave them (`$unknown_pairs`). An odds
+  ratio of 1 states that two diseases are unrelated. The argument
+  `missing_associations` and the association measures `"independent"`,
+  `"unknown"` and `"table"` (with `n11`-`n00`) are removed; old tables get
+  a message saying what to write instead. The published analyses treated
+  unlisted pairs as independent; the `reproduce_*()` functions still do.
+* **`method = "auto"` is the default.** It uses the simultaneous method when
+  every pair has an association and there are no interactions or three-way
+  terms (where the two methods give the same answer), and the global method
+  otherwise, with a note giving the reason. `method = "simultaneous"`
+  switches in the same way; `"global"` always uses the global method. With
+  more than 20 diseases the sampled backend of `fit_joint()` is used
+  automatically.
+* **Event impacts run through `deconflate()`.** With `event_model = TRUE`
+  and `overall_risk` (a proportion or a distribution), the impact table has
+  a `measure` column: hazard ratios, rate ratios, risk ratios, odds ratios
+  and risk differences, which can be mixed, all adjusted with the snapshot
+  hazard model. The result has the adjusted hazard ratios and the risk
+  attributable to disease, with its Shapley allocation. `deconflate_hr()`,
+  `cm_hr_model()`, `cm_hazard_ratios()`, `attributable_risk()` and
+  `example_global_dairy_hr()` are removed; `example_global_dairy("culling")`
+  and `example_uk_dairy_2022("culling")` give the event impacts. In the
+  example folders, `hazard_ratios.csv` is replaced by `culling.csv`.
+* **Uncertainty is part of `deconflate()`.** When inputs have distributions
+  (in the tables, in `cm_model(distributions = )`, or `overall_risk`),
+  `deconflate()` runs `n_draws = 1000` draws by default and adds intervals
+  to its tables (`$draws` holds the summary, rejections and the seed). With
+  no distributions it gives point estimates, with a note. Rejected draws are
+  counted and not replaced. `compare_methods()` takes `n_draws` too.
+  Removed: `cm_monte_carlo()`, `cm_sampler()`, `cm_batch_sampler()`,
+  `sampler_global_dairy()`, `cm_reweight()`, `cm_scenario()`,
+  `compare_scenarios()`, `cm_diagnose()`, `cm_suggest_proposal()`,
+  importance sampling and `summary.cm_mc()`.
+* **The published approximation is no longer a method of `deconflate()`.**
+  The approximation of Rasmussen et al. (2022, eq. 16), and the HR - 1
+  approach of Rasmussen et al. (2024), are kept for comparison and
+  reproduction only: in `compare_methods()` (whose default methods still
+  include `"published"`) and `reproduce_rasmussen_2022()` /
+  `reproduce_rasmussen_2024()`. `method = "published"` elsewhere gives an
+  error of class `deconflate_unsupported`.
 * **Valuation is removed from the package.** The package reports adjusted
   impacts and contributions in the units of the impacts. Removed:
-  * the exported functions `productivity_gap()`, `value_losses()`,
-    `cm_mc_gap()` and `uk_dairy_2022_economics()`;
-  * the `valuation` argument of `contribution_table()`,
-    `summary.cm_result()`, `compare_methods()` (for `cm_model` and
-    `cm_analyses`; `totals` now has `raw_sum` and `adjusted_total` per
-    method), `sensitivity_oat()`, `screen_associations()`,
-    `screen_interactions()`, `screen_three_way()`, `compare_scenarios()`
-    and `plot_burden()` (which now plots shares of the aggregate); the
-    screens use the adjusted aggregate as their metric;
-  * the `unit_value` argument of `attributable_risk()` and its `value`
-    columns.
-
-  The gap and value calculation of the 2022 paper moved into
-  `reproduce_rasmussen_2022()`, whose output is unchanged. For new
-  analyses, `vignette("deconflate")` shows in a few lines of base R how to
-  turn the adjusted aggregate and contributions into a gap and a value.
+  `productivity_gap()`, `value_losses()`, `cm_mc_gap()`,
+  `uk_dairy_2022_economics()`, every `valuation` argument and the
+  `unit_value` of the attributable risk. The gap and value calculation of
+  the 2022 paper moved into `reproduce_rasmussen_2022()`, whose output is
+  unchanged; `vignette("deconflate")` shows the calculation in base R.
+* **Examples return one model.** `example_global_dairy(outcome, inputs)`
+  and `example_uk_dairy_2022(outcome)` return the model of one outcome
+  (`"yield"`, `"fertility"` or `"culling"`).
+* **Sensitivity tools** (`screen_associations()`, `screen_interactions()`,
+  `screen_three_way()`, `sensitivity_oat()`, `cm_threshold()`) use
+  `method = "auto"`, support event impacts (`event_model = TRUE`,
+  `overall_risk`), and run on point estimates. `cm_threshold()` reports the
+  methods it used and accepts the input `"risk"`.
 
 ## Documentation
 
-* Vignettes, README and the five-disease example script use the new
-  interface: the published approximation is shown with `compare_methods()`
-  or `cm_monte_carlo()`, and gaps and values are computed in base R.
+* All vignettes, the README and the five-disease example (its README and
+  `run_all_features.R`) use the new interface. The vignette on hazard ratios
+  is now `vignette("event-impacts")`.
 
 # deconflate 0.3.0
 

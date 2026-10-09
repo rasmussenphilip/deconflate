@@ -2,7 +2,7 @@
 % Please edit documentation in R/inputs.R
 \name{cm_model}
 \alias{cm_model}
-\title{Combine a population with an impact vector}
+\title{Combine a population with an impact table}
 \usage{
 cm_model(
   population,
@@ -10,33 +10,45 @@ cm_model(
   interactions = NULL,
   associations = NULL,
   three_way = NULL,
-  missing_associations = c("independent", "unknown"),
-  adjusted_associations = c("error", "use_as_marginal")
+  adjusted_associations = c("error", "use_as_marginal"),
+  distributions = NULL
 )
 }
 \arguments{
 \item{population}{A \code{\link[=cm_population]{cm_population()}}. For convenience, a \code{\link[=cm_diseases]{cm_diseases()}}
-object can be given instead, together with \code{associations},
-\code{missing_associations} and \code{three_way}.}
+object can be given instead, together with \code{associations} and
+\code{three_way}.}
 
 \item{impacts}{A \code{\link[=cm_impacts]{cm_impacts()}} object with one value per disease.}
 
-\item{interactions}{Optional \code{\link[=cm_interactions]{cm_interactions()}} object.}
+\item{interactions}{Optional \code{\link[=cm_interactions]{cm_interactions()}} object (additive impacts
+only).}
 
-\item{associations, three_way, missing_associations, adjusted_associations}{Used only when \code{population} is a \code{\link[=cm_diseases]{cm_diseases()}} object; see
-\code{\link[=cm_population]{cm_population()}}.}
+\item{associations, three_way, adjusted_associations}{Used only when
+\code{population} is a \code{\link[=cm_diseases]{cm_diseases()}} object; see \code{\link[=cm_population]{cm_population()}}.}
+
+\item{distributions}{Optional named list of distributions (\link{distributions})
+for uncertain inputs, used when \code{\link[=deconflate]{deconflate()}} runs draws. Names are
+keys: \code{"prob:<disease>"} (the disease's \code{value}, on the scale it was
+entered), \code{"assoc:<d1>:<d2>"} (the association, on its own measure),
+\code{"three:<d1>:<d2>:<d3>"}, \code{"impact:<disease>"} and \code{"inter:<d1>:<d2>"}.
+\code{\link[=cm_read_inputs]{cm_read_inputs()}} fills this in from the \code{dist} columns of the tables;
+\code{\link[=cm_dist_table]{cm_dist_table()}} builds it from a table of keys. When \code{population} is a
+model and \code{distributions} is not given, its distributions are kept,
+except those of impacts or interactions that are replaced.}
 }
 \value{
 A \code{cm_model} object (which is also a \code{cm_population}).
 }
 \description{
-Combine a population with an impact vector
+Combine a population with an impact table
 }
 \examples{
 m <- cm_model(
   cm_diseases(c("d1", "d2", "d3"), c(0.10, 0.15, 0.20)),
   cm_impacts(c("d1", "d2", "d3"), c(2.5, 5, 7.5), units = "\%"),
-  associations = cm_associations(c("d1", "d2"), c("d2", "d3"), c(2, 3))
+  associations = cm_associations(c("d1", "d2"), c("d2", "d3"), c(2, 3)),
+  distributions = list("impact:d1" = dist_normal(2.5, 0.5))
 )
 m
 }

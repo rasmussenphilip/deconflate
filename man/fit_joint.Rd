@@ -15,7 +15,8 @@ fit_joint(
   burn_in = 50L,
   fit_iter = 300L,
   calibrate = TRUE,
-  seed = NULL
+  seed = NULL,
+  start = NULL
 )
 }
 \arguments{
@@ -47,6 +48,12 @@ iterations.}
 targets exactly?}
 
 \item{seed}{Optional random seed (sampled backend).}
+
+\item{start}{Optional earlier exact fit to start the IPF from (e.g. the fit
+at the central inputs, when refitting for a draw of the inputs). It is
+used only when it has the same diseases, constrained pairs and three-way
+terms; the result is then the same maximum-entropy distribution, found
+in fewer sweeps.}
 }
 \value{
 A \code{cm_joint} object: \code{cells} (0/1 matrix of combinations), \code{prob}
@@ -63,9 +70,10 @@ the maximum-entropy distribution that matches the disease probabilities
 and every specified pairwise table: a log-linear model with main effects
 and the two-way terms of the constrained pairs, plus any three-way terms
 from \code{\link[=cm_three_way]{cm_three_way()}}. This is an assumption, not something the pairwise
-evidence identifies. Pairs whose measure is \code{"unknown"} are not
-constrained; pairs set to \code{"independent"} are constrained to an odds ratio
-of 1.
+evidence identifies. Pairs without an association (unknown pairs) are not
+constrained: their association is whatever the maximum-entropy fit implies
+given the others. A pair given an odds ratio of 1 is constrained to be
+independent.
 }
 \section{Exact backend}{
 
@@ -103,8 +111,8 @@ remaining Monte Carlo error then affects only higher-order structure.
 
 The result has the same form as the exact one (\code{cells} are the distinct
 sampled combinations, \code{prob} their weights), so the global method,
-interaction offsets, Shapley allocation, the snapshot hazard model and
-\code{\link[=attributable_risk]{attributable_risk()}} work with it. Its \code{diagnostics} give the constraint
+interaction offsets, Shapley allocation and the snapshot hazard model of
+event impacts work with it. Its \code{diagnostics} give the constraint
 residuals of the raw sample and after raking, R-hat and effective sample
 sizes of the fitted probabilities across chains, and the Monte Carlo
 errors. Results are approximations with Monte Carlo error: compare runs

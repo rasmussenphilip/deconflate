@@ -7,27 +7,19 @@
 cm_check_inputs(
   diseases = NULL,
   associations = NULL,
-  three_way = NULL,
   impacts = NULL,
   interactions = NULL,
-  hazard_ratios = NULL,
-  dir = NULL,
-  missing_associations = c("independent", "unknown"),
+  three_way = NULL,
   adjusted_associations = c("error", "use_as_marginal")
 )
 }
 \arguments{
-\item{diseases, associations, three_way, hazard_ratios}{Paths to CSV files or
-data frames.}
+\item{diseases, associations, impacts, interactions, three_way}{Paths to CSV
+files (any names) or data frames. \code{diseases} and \code{impacts} are required;
+\code{associations} can be left out only for the sensitivity tools
+(\code{\link[=deconflate]{deconflate()}} needs at least one association).}
 
-\item{impacts, interactions}{A path or data frame, or a named list of them
-(one per analysis; see Files).}
-
-\item{dir}{Optional folder with CSV files named as in Files. Arguments
-given explicitly take precedence over files.}
-
-\item{missing_associations, adjusted_associations}{Passed to
-\code{\link[=cm_population]{cm_population()}}.}
+\item{adjusted_associations}{Passed to \code{\link[=cm_population]{cm_population()}}.}
 }
 \value{
 A data frame (class \code{cm_problems}) with \code{table}, \code{row}, \code{column},

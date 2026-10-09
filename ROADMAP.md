@@ -42,7 +42,7 @@
 
 ## v0.4 (planned)
 
-Items 3-6 follow a separate design document (October 2026); its reference values come from `inst/validation/prototype_v04_part1.py` to `part3.py`.
+Items 3-6 follow a separate design document (October 2026); its reference values come from `inst/validation/prototype_v04_part1.py` to `part3.py` and `reference_v040.py`.
 
 In this order:
 
@@ -51,7 +51,8 @@ In this order:
    - [ ] Have someone else work through the CSV workflow with their own data, without help.
    - [ ] Optional: a short third review of the 0.3 additions (in-table uncertainty, `cm_threshold()`, the sampled backend).
    - [x] `run_all_features.R`: optional `out_dir` that saves the printed output and a PDF of all plots.
-   - [ ] Rewrite `run_all_features.R` after items 3-6 (one `deconflate()` call per outcome file; no valuation section; the published method only in `compare_methods()`; the new features).
+   - [x] Rewrite `run_all_features.R` for item 3 (one `deconflate()` call per impact table; event impacts; draws inside `deconflate()`; no valuation section; the published method only in `compare_methods()`).
+   - [ ] Update `run_all_features.R` again after items 4-6.
 2. **Slim the interface to de-conflation itself.**
 
    Demote the published method (eq. 16 of Rasmussen et al. 2022, and HR - 1 for hazard ratios):
@@ -66,18 +67,17 @@ In this order:
    - [x] Keep the adjusted aggregate and each disease's contribution, including the Shapley split of interaction effects.
    - [x] Move the gap and valuation code inside `reproduce_rasmussen_2022()` and `reproduce_rasmussen_2024()` as internal helpers, so the published economic tables are still reproduced.
    - [x] A short vignette section showing the gap and value calculation in base R (for percentage impacts, the loss is relative to the disease-free level: observed / (1 - aggregate)).
-3. **One function, one outcome file.** Everything runs through `deconflate()`.
-   - [ ] Each run uses the population files (diseases, associations, three-way) and **one outcome file**, plus that outcome's interactions file if any: `cm_read_inputs(folder, outcome = "impacts_yield.csv")`. Users repeat the call for other outcomes; `cm_analyses()` and multi-analysis reading go.
-   - [ ] `mortality.csv` is an ordinary outcome file (it replaces `hazard_ratios.csv`, no alias): `deconflate()` recognises it and runs the snapshot hazard model (whatever `method` says; the first-order approximation stays only in `compare_methods()`). When the file has an overall-risk row, the result includes the attributable risk, raw and adjusted, with its Shapley split.
-   - [ ] `n_draws` (default 0 = point estimates): `n_draws > 0` runs the Monte Carlo analysis from the distributions in the tables, for either method and either kind of outcome file, returning point estimates with intervals and the stability checks. Latin hypercube sampling becomes an argument.
-   - [ ] Remove from the public interface (kept internally where `reproduce_rasmussen_2024()` needs them): `cm_monte_carlo()`, `cm_sampler()`, `cm_batch_sampler()`, `sampler_global_dairy()`, `deconflate_hr()`, `cm_hr_model()`, `cm_hazard_ratios()`, `attributable_risk()`, `cm_analyses()`.
-   - [ ] Remove scenario reweighting and the separate Monte Carlo diagnostics: `cm_reweight()`, `compare_scenarios()`, `cm_diagnose()`, importance sampling and `cm_suggest_proposal()`.
-   - [ ] Update `compare_methods()`, `cm_threshold()`, the screens, `sensitivity_oat()`, the plots, the examples and the vignettes to the new interface.
+3. **One function, one impact table.** Everything runs through `deconflate()`.
+   - [x] Every input table is a named argument of `cm_read_inputs()` with any file name (`diseases`, `associations`, `impacts`; optionally `interactions` and `three_way`). One impact table per `deconflate()` call; users repeat the call for other outcomes. `cm_analyses()`, multi-analysis reading, `dir` and the fixed file names are removed.
+   - [x] Associations: `deconflate()` needs at least one (the sensitivity tools also run without any). Pairs without a row are unknown by default (filled in by the global fit and listed in `$unknown_pairs`); an odds ratio of 1 means unrelated. `missing_associations` and the measures `independent`, `unknown` and `table` are removed, with messages for old files. Associations keep their uncertainty.
+   - [x] `method = "auto"` (default): simultaneous when it equals global, otherwise global with a note (interactions, three-way terms, unknown pairs); `"simultaneous"` switches the same way; the sampled backend above 20 diseases.
+   - [x] Event impacts through `deconflate(event_model = TRUE, overall_risk = )`: a `measure` column with `HR`, `rate_ratio`, `RR`, `OR` and `RD` (mixable), crude or stratified, all mapped onto the snapshot hazard model; `overall_risk` required (a proportion or a distribution); the attributable risk and its Shapley split in the result. Mismatches between the table and `event_model` are errors. `hazard_ratios.csv` becomes `culling.csv` in the examples.
+   - [x] `n_draws` (default 1000; skipped with a note when no input has a distribution): intervals for additive and event impacts, rejections (not replaced) and stability checks, `seed`, Latin hypercube sampling. Uncertainty of event impacts and of the overall risk.
+   - [x] Removed from the public interface (kept internally where `reproduce_rasmussen_2024()` needs them): `cm_monte_carlo()`, `cm_sampler()`, `cm_batch_sampler()`, `sampler_global_dairy()`, `deconflate_hr()`, `cm_hr_model()`, `cm_hazard_ratios()`, `attributable_risk()`, `example_global_dairy_hr()`, `cm_analyses()`; removed: `cm_reweight()`, `cm_scenario()`, `compare_scenarios()`, `cm_diagnose()`, importance sampling and `cm_suggest_proposal()`.
+   - [x] `compare_methods()` (additive and event impacts, with `n_draws`), `cm_threshold()`, the screens and `sensitivity_oat()` (with `event_model`, point estimates only), the plots, the examples (one model per outcome), the vignettes and `run_all_features.R` updated to the new interface.
 4. **Several estimates per disease and per pair**, each with its own estimand, `adjusted_for` and uncertainty.
-   - [ ] Impact files: several rows per disease (optional `study` label), fitted by weighted least squares with weights 1/SD²; a row without uncertainty is exact. Error only when exact rows contradict each other and the anchor does not let the associations reconcile them.
+   - [ ] Impact tables: several rows per disease (optional `study` label), fitted by weighted least squares with weights 1/SD²; a row without uncertainty is exact. Error only when exact rows contradict each other and the anchor does not let the associations reconcile them. For event impacts, several rows per disease on the snapshot model (all measures already supported, one row per disease, in item 3).
    - [ ] Association tables: several rows per pair, mapped to the marginal log odds ratio and pooled (random effects by default, `pool = "fixed"` as an option; Q, I² and tau² reported). Associations adjusted for diseases in the model (ids or `all`) are exact conditional associations (logistic projection, via a fixed-point mapping to the marginal scale); associations adjusted for other covariates are used as marginal, with a note.
-   - [ ] `mortality.csv`: a `measure` column (`HR`, `rate_ratio`, `RR`, `OR`, `RD`), crude or stratified, all mapped onto the snapshot hazard model; several rows per disease. The overall period risk is a row of the file (`measure = overall_risk`, with optional uncertainty); it is required when risk-based measures are used or for the attributable risk, and risk-based measures must refer to the same period.
-   - [ ] Mortality uncertainty: with `n_draws`, every draw runs the snapshot fit and the attributable risk, with intervals, rejections and stability checks as for impact files.
 5. **The `anchor` argument and constraints.**
    - [ ] `anchor = c("associations", "balanced", "impacts")`: what is held at its input value when the inputs over-determine the model (several impact rows per disease, or constraints). `"associations"` (default, the current behaviour) fits the impacts; `"balanced"` moves both kinds of input in proportion to their SDs; `"impacts"` moves the associations as little as needed. Without over-determination all three give the same results as 0.3.
    - [ ] Diagnostics in the result: a standardised residual for each input row, heterogeneity per disease and pair, and how far each input moved in SD units (shifts of 2 SD or more flagged).

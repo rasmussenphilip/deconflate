@@ -1,2 +1,0 @@
-disease1,disease2,value,source,note
-LAM,SCK,0.5,Illustrative,"Error: there is no impacts_culling.csv (culling hazard ratios go in hazard_ratios.csv, which takes no interactions)"

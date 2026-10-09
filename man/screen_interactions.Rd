@@ -24,5 +24,5 @@ A \code{cm_screen} data frame as in \code{\link[=screen_associations]{screen_ass
 Adds a pairwise interaction of each size in \code{values} to each disease pair,
 one at a time, re-runs the global adjustment and reports the change in
 the aggregate and rankings. The joint distribution is fitted once and
-reused.
+reused. Interactions apply to additive impacts only.
 }

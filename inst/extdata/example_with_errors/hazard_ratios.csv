@@ -1,5 +1,0 @@
-disease,value,estimand,source,dist,p1,p2,p3,p4,note
-LAM,1.74,snapshot_crude,Illustrative,lognormal_ci,1.74,1.40,2.10,,"Note: hazard ratios cannot have distributions; the dist and p1-p4 columns are ignored (reported once for the table)"
-SCK,1.92,snapshot_crude,Illustrative,,,,,,
-MET,0,snapshot_crude,Illustrative,,,,,,"Error: a hazard ratio must be positive (use 1 for no effect)"
-RP,1.60,snapshot_crude,Illustrative,,,,,,

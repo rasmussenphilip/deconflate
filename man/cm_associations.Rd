@@ -7,13 +7,8 @@
 cm_associations(
   disease1,
   disease2,
-  value = NA_real_,
+  value,
   measure = "OR",
-  n11 = NA_real_,
-  n10 = NA_real_,
-  n01 = NA_real_,
-  n00 = NA_real_,
-  zero_cell = c("haldane", "error"),
   adjusted = FALSE,
   adjusted_for = NA_character_,
   source = NA_character_
@@ -22,34 +17,22 @@ cm_associations(
 \arguments{
 \item{disease1, disease2}{Character vectors of disease ids.}
 
-\item{value}{Numeric association values (ignored for \code{"independent"},
-\code{"unknown"} and \code{"table"}).}
+\item{value}{Numeric association values (required).}
 
 \item{measure}{Character, one per row (or recycled). Directional measures
 treat \code{disease1} as the outcome and \code{disease2} as the conditioning
 disease:
 \itemize{
-\item \code{"OR"}: odds ratio (symmetric).
+\item \code{"OR"} (default): odds ratio (symmetric). An odds ratio of 1 means the
+two diseases are independent.
 \item \code{"RR"}: risk ratio \verb{P(d1 | d2) / P(d1 | not d2)}.
 \item \code{"RD"}: risk difference \verb{P(d1 | d2) - P(d1 | not d2)}.
 \item \code{"cond_prob"}: conditional probability \code{P(d1 | d2)}.
 \item \code{"phi"}: binary (phi) correlation coefficient (symmetric).
-\item \code{"table"}: a study contingency table given in \code{n11}, \code{n10}, \code{n01} and
-\code{n00}. The table's odds ratio is used (transported to the modelled
-marginals), because the study's marginal frequencies generally differ
-from the modelled population's.
-\item \code{"independent"}: independence is imposed (odds ratio 1).
-\item \code{"unknown"}: the association is unknown. The pairwise methods reject
-unknown pairs; the global method leaves them unconstrained, so their
-association is implied by the maximum-entropy fit.
-}}
+}
 
-\item{n11, n10, n01, n00}{Counts for \code{measure = "table"}: both diseases, \code{d1}
-only, \code{d2} only and neither.}
-
-\item{zero_cell}{For tables with a zero cell: \code{"haldane"} (default) adds
-0.5 to every cell (Haldane-Anscombe correction) and records it in column
-\code{corrected}; \code{"error"} rejects such tables.}
+For a study's 2x2 table, compute its odds ratio,
+\code{n11 * n00 / (n10 * n01)}, and enter it as an odds ratio.}
 
 \item{adjusted}{Logical: was the measure adjusted for covariates (e.g. an
 odds ratio from multivariable logistic regression)? The 2x2 algebra needs
@@ -64,8 +47,10 @@ unless told to use them as marginal.}
 A \code{cm_associations} data frame.
 }
 \description{
-Each row gives one association measure for one pair. Pairs not listed are
-handled by \code{missing_associations} in \code{\link[=cm_population]{cm_population()}}.
+Each row gives one association measure for one pair of diseases. A pair
+without a row is unknown: the global model (\code{\link[=fit_joint]{fit_joint()}}) fills in its
+association from the others (see \code{\link[=deconflate]{deconflate()}}). To state that two
+diseases are unrelated, give the pair an odds ratio of 1.
 }
 \details{
 Odds ratios (and the other measures) are applied to the modelled
@@ -74,4 +59,6 @@ measure is the same in the source study and in the modelled population.
 }
 \examples{
 cm_associations(c("d1", "d2"), c("d2", "d3"), c(2, 3), measure = "OR")
+# Two diseases stated to be unrelated
+cm_associations("d1", "d3", 1)
 }

@@ -1,11 +1,30 @@
 # Sensitivity and scenario tools ------------------------------------------------
 
-# Metric used by the screening tools: the adjusted aggregate and the
-# contributions (in the impacts' own units).
+# Metric used by the screening tools: the total and each disease's
+# contribution. Additive impacts: the adjusted aggregate and the
+# contributions (in the impacts' own units). Event impacts: the risk
+# attributable to disease and its Shapley allocation.
 burden_metric <- function(result) {
   ids <- result$adjusted$disease
+  if (inherits(result, "cm_event_result")) {
+    by <- result$attributable$by_disease
+    return(list(total = result$attributable$summary$attributable,
+                by_disease = stats::setNames(if (is.null(by)) rep(NA_real_, length(ids)) else by$attributable, ids)))
+  }
   list(total = result$totals$adjusted_total,
        by_disease = stats::setNames(result$contributions$total, ids))
+}
+
+metric_label <- function(event_model) if (isTRUE(event_model)) "attributable risk" else "aggregate"
+
+# Common checks of the sensitivity tools: the model, the kind of impacts, the
+# method and the overall risk (its central value).
+sens_setup <- function(model, method, event_model, overall_risk, fun) {
+  check_model(model)
+  check_event_model(model, event_model)
+  risk <- check_overall_risk(overall_risk, event_model)$value
+  method <- public_method(method, c("auto", "simultaneous", "global"), fun)
+  list(method = method, event_model = event_model, risk = risk)
 }
 
 compare_to_base <- function(m, base) {
@@ -22,24 +41,29 @@ compare_to_base <- function(m, base) {
                                                      method = "spearman")))
 }
 
-# Adjust, returning NULL (with the reason as an attribute) when the scenario
-# fails.
-run_quiet <- function(model, method, joint = NULL) {
+# Adjust a scenario as deconflate() would (point estimates; the method is
+# chosen for the scenario's own inputs), returning an empty list with the
+# reason as an attribute when the scenario fails.
+run_quiet <- function(model, st, joint = NULL) {
   tryCatch(
-    withCallingHandlers(deconflate(model, method = method, joint = joint, warn = FALSE),
-                        deconflate_nonconvergence = function(w) {
-                          if (inherits(w, "warning")) invokeRestart("muffleWarning")
-                        }),
+    withCallingHandlers({
+      plan <- plan_method(model, st$method, st$event_model, given = FALSE)
+      run_point(model, plan, risk = st$risk, joint = joint, warn = FALSE)
+    }, deconflate_nonconvergence = function(w) {
+      if (inherits(w, "warning")) invokeRestart("muffleWarning")
+    }),
     deconflate_error = function(e) structure(list(), reason = condition_type(e))
   )
 }
-failed_run <- function(res) is.null(res) || !inherits(res, "cm_result") || !result_is_finite(res)
+failed_run <- function(res) {
+  is.null(res) || !(inherits(res, "cm_result") || inherits(res, "cm_event_result")) || !result_is_finite(res)
+}
 
 # Metric of a scenario run, or NULL with the reason the scenario failed.
 scenario_metric <- function(res) {
   if (failed_run(res)) {
-    reason <- if (inherits(res, "cm_result")) {
-      sprintf("undefined: non-finite adjusted impacts (%s)", nonfinite_diseases(res))
+    reason <- if (inherits(res, "cm_result") || inherits(res, "cm_event_result")) {
+      sprintf("undefined: non-finite adjusted values (%s)", nonfinite_diseases(res))
     } else {
       attr(res, "reason") %||% "failed"
     }
@@ -59,6 +83,9 @@ screen_row <- function(labels, res, base) {
 # A screen compares scenarios with the baseline, so the baseline itself must
 # be a finite estimate.
 check_baseline <- function(res) {
+  if (!inherits(res, "cm_result") && !inherits(res, "cm_event_result")) {
+    cm_abort(sprintf("The baseline could not be adjusted (%s).", attr(res, "reason") %||% "failed"))
+  }
   if (!result_is_finite(res)) {
     cm_abort(sprintf("The baseline result is undefined (non-finite adjusted impacts for %s); use another method.",
                      nonfinite_diseases(res)), class = "deconflate_nonfinite")
@@ -78,13 +105,20 @@ check_disease_ids <- function(ids, model) {
 #' @param disease1,disease2 Disease ids.
 #' @param value Association value.
 #' @param measure Measure (see [cm_associations()]).
-#' @return The modified object.
+#' @return The modified object. A distribution of the pair's association in
+#'   the model's `distributions` is dropped (the scenario value is fixed).
 #' @export
 set_association <- function(model, disease1, disease2, value, measure = "OR") {
   check_population(model)
   check_disease_ids(c(disease1, disease2), model)
   a <- model$associations
   new <- cm_associations(disease1, disease2, value, measure = measure, source = "scenario")
+  if (!is.null(model$distributions)) {
+    k <- vapply(strsplit(names(model$distributions), ":", fixed = TRUE), function(p) {
+      p[1] == "assoc" && pair_key(p[2], p[3]) == pair_key(disease1, disease2)
+    }, logical(1))
+    model$distributions <- if (any(!k)) model$distributions[!k]
+  }
   if (is.null(a)) {
     model$associations <- new
     return(model)
@@ -104,10 +138,14 @@ set_association <- function(model, disease1, disease2, value, measure = "OR") {
 #' @param model A [cm_model()].
 #' @param disease1,disease2 Disease ids.
 #' @param value Interaction value (same units as the impacts).
-#' @return The modified model.
+#' @return The modified model. A distribution of the pair's interaction in
+#'   the model's `distributions` is dropped (the scenario value is fixed).
 #' @export
 set_interaction <- function(model, disease1, disease2, value) {
   check_model(model)
+  if (impact_kind(model$impacts) == "event") {
+    cm_abort("Interactions apply to additive impacts only.", class = "deconflate_unsupported")
+  }
   check_disease_ids(c(disease1, disease2), model)
   it <- model$interactions
   new <- cm_interactions(disease1, disease2, value, source = "scenario")
@@ -117,6 +155,12 @@ set_interaction <- function(model, disease1, disease2, value) {
     new <- rbind(it, new)
   }
   model$interactions <- new
+  if (!is.null(model$distributions)) {
+    k <- vapply(strsplit(names(model$distributions), ":", fixed = TRUE), function(p) {
+      p[1] == "inter" && pair_key(p[2], p[3]) == pair_key(disease1, disease2)
+    }, logical(1))
+    model$distributions <- if (any(!k)) model$distributions[!k]
+  }
   model
 }
 
@@ -125,7 +169,8 @@ set_interaction <- function(model, disease1, disease2, value) {
 #' @param model A [cm_population()] or [cm_model()].
 #' @param disease1,disease2,disease3 Disease ids.
 #' @param ratio Ratio of conditional odds ratios (see [cm_three_way()]).
-#' @return The modified object.
+#' @return The modified object. A distribution of the triple's ratio in the
+#'   model's `distributions` is dropped (the scenario value is fixed).
 #' @export
 set_three_way <- function(model, disease1, disease2, disease3, ratio) {
   check_population(model)
@@ -138,26 +183,43 @@ set_three_way <- function(model, disease1, disease2, disease3, ratio) {
     new <- rbind(tw, new)
   }
   model$three_way <- new
+  if (!is.null(model$distributions)) {
+    target <- paste(sort(c(disease1, disease2, disease3)), collapse = "|")
+    k <- vapply(strsplit(names(model$distributions), ":", fixed = TRUE), function(p) {
+      p[1] == "three" && length(p) == 4L && paste(sort(p[2:4]), collapse = "|") == target
+    }, logical(1))
+    model$distributions <- if (any(!k)) model$distributions[!k]
+  }
   model
 }
 
 #' Screen disease pairs for influential associations
 #'
 #' Re-runs the adjustment with each disease pair's association changed, one
-#' pair at a time, and reports how much the aggregate and the ranking of
-#' diseases change. Pairs without a specified association (independent by
-#' default, or unknown) are set to each of `or_values`; specified
-#' associations of any measure are multiplied by each of `multipliers`
-#' (contingency tables via their odds ratio). Scenarios whose inputs are
-#' invalid or infeasible are kept, with `NA` results and the reason, so that
-#' no measure is skipped silently. This identifies associations worth
-#' estimating, as in Rasmussen et al. (2022), Fig. 3 and Rasmussen et al.
-#' (2024), Fig. 7C-D.
+#' pair at a time, and reports how much the total and the ranking of
+#' diseases change. Pairs without an association (unknown) are set to each
+#' of `or_values`; given associations of any measure are multiplied by each
+#' of `multipliers`. Scenarios whose inputs are invalid or infeasible are
+#' kept, with `NA` results and the reason, so that no scenario is skipped
+#' silently. This identifies associations worth estimating, as in Rasmussen
+#' et al. (2022), Fig. 3 and Rasmussen et al. (2024), Fig. 7C-D.
+#'
+#' The model needs no associations: with none, the baseline has every
+#' disease independent (adjusted impacts equal the raw ones), and the screen
+#' shows which pairs would matter if they were associated. Each scenario is
+#' adjusted as [deconflate()] would (point estimates; the method is chosen
+#' for the scenario's own inputs, see `method`).
+#'
+#' The total is the adjusted aggregate for additive impacts, and the risk
+#' attributable to disease for event impacts (`event_model = TRUE`); disease
+#' rankings use the contributions to it.
 #'
 #' @param model A [cm_model()].
-#' @param method Adjustment method.
-#' @param or_values Odds ratios tried for unspecified pairs.
-#' @param multipliers Factors applied to specified associations.
+#' @param method As in [deconflate()].
+#' @param event_model,overall_risk As in [deconflate()] (a distribution of
+#'   the overall risk is used at its mean).
+#' @param or_values Odds ratios tried for pairs without an association.
+#' @param multipliers Factors applied to given associations.
 #' @param pairs Optional character vector of pairs (`"d1:d2"`); default all.
 #' @return A `cm_screen` data frame sorted by the absolute relative change in
 #'   the total, with the scenario, total, change, relative change, the
@@ -167,12 +229,16 @@ set_three_way <- function(model, disease1, disease2, disease3, ratio) {
 #' @export
 #' @examples
 #' screen_associations(example_supplement(), or_values = c(0.5, 3))
-screen_associations <- function(model, method = "simultaneous",
+#'
+#' # Without any association estimates: which pairs would matter?
+#' m <- example_supplement()
+#' m$associations <- NULL
+#' screen_associations(m, or_values = c(0.5, 2, 4))
+screen_associations <- function(model, method = "auto", event_model = FALSE, overall_risk = NULL,
                                 or_values = c(0.5, 2), multipliers = c(0.5, 2),
                                 pairs = NULL) {
-  check_model(model)
-  base_res <- deconflate(model, method = method, warn = FALSE)
-  base <- burden_metric(check_baseline(base_res))
+  st <- sens_setup(model, method, event_model, overall_risk, "screen_associations()")
+  base <- burden_metric(check_baseline(run_quiet(model, st)))
   pt <- pair_tables(model)
   if (!is.null(pairs)) {
     check_pair_ids(pairs, model$diseases$id)
@@ -184,10 +250,9 @@ screen_associations <- function(model, method = "simultaneous",
   a <- model$associations
   rows <- list()
   for (r in seq_len(nrow(pt))) {
-    specified <- pt$status[r] == "specified" && !(pt$measure[r] %in% c("independent", "unknown"))
-    if (specified) {
+    if (pt$status[r] == "specified") {
       hit <- match(pair_key(pt$disease1[r], pt$disease2[r]), pair_key(a$disease1, a$disease2))
-      meas <- if (a$measure[hit] == "table") "OR" else a$measure[hit]
+      meas <- a$measure[hit]
       vals <- a$value[hit] * multipliers
       labels <- sprintf("%s x %g", meas, multipliers)
       d1 <- a$disease1[hit]
@@ -202,14 +267,14 @@ screen_associations <- function(model, method = "simultaneous",
     for (v in seq_along(vals)) {
       m2 <- tryCatch(set_association(model, d1, d2, vals[v], meas),
                      deconflate_error = function(e) structure(list(), reason = "invalid value"))
-      res <- if (inherits(m2, "cm_model")) run_quiet(m2, method) else m2
+      res <- if (inherits(m2, "cm_model")) run_quiet(m2, st) else m2
       rows[[length(rows) + 1L]] <- screen_row(
         data.frame(pair = key[r], status = pt$status[r], scenario = labels[v],
                    stringsAsFactors = FALSE),
         res, base)
     }
   }
-  finish_screen(rows, base)
+  finish_screen(rows, base, event_model)
 }
 
 # Pairs given as "d1:d2" must name two different diseases of the model.
@@ -223,20 +288,19 @@ check_pair_ids <- function(pairs, ids) {
   invisible(pairs)
 }
 
-finish_screen <- function(rows, base) {
+finish_screen <- function(rows, base, event_model = FALSE) {
   if (!length(rows)) {
     out <- data.frame(pair = character(0), status = character(0), scenario = character(0),
                       total = numeric(0), change = numeric(0), rel_change = numeric(0),
                       max_rank_shift = integer(0), rank_corr = numeric(0),
                       failed = character(0), stringsAsFactors = FALSE)
-    attr(out, "baseline_total") <- base$total
-    class(out) <- c("cm_screen", "data.frame")
-    return(out)
+  } else {
+    out <- do.call(rbind, rows)
+    out <- out[order(-abs(out$rel_change), na.last = TRUE), , drop = FALSE]
+    rownames(out) <- NULL
   }
-  out <- do.call(rbind, rows)
-  out <- out[order(-abs(out$rel_change), na.last = TRUE), , drop = FALSE]
-  rownames(out) <- NULL
   attr(out, "baseline_total") <- base$total
+  attr(out, "metric") <- metric_label(event_model)
   class(out) <- c("cm_screen", "data.frame")
   out
 }
@@ -246,7 +310,7 @@ finish_screen <- function(rows, base) {
 #' Adds a pairwise interaction of each size in `values` to each disease pair,
 #' one at a time, re-runs the global adjustment and reports the change in
 #' the aggregate and rankings. The joint distribution is fitted once and
-#' reused.
+#' reused. Interactions apply to additive impacts only.
 #'
 #' @param model A [cm_model()].
 #' @param values Interaction sizes (same units as the impacts; positive
@@ -258,11 +322,18 @@ finish_screen <- function(rows, base) {
 #' @export
 screen_interactions <- function(model, values, pairs = NULL, ...) {
   check_model(model)
+  if (!is.null(model$impacts) && impact_kind(model$impacts) == "event") {
+    cm_abort("Interactions apply to additive impacts only; screen_interactions() does not apply to event impacts.",
+             class = "deconflate_unsupported")
+  }
+  st <- sens_setup(model, "global", FALSE, NULL, "screen_interactions()")
   # One joint distribution serves every scenario (interactions do not change
-  # it); `...` goes to fit_joint(), e.g. backend = "sampled".
-  joint <- fit_joint(model, ...)
-  base_res <- deconflate(model, method = "global", joint = joint, warn = FALSE)
-  base <- burden_metric(check_baseline(base_res))
+  # it); `...` goes to fit_joint(), e.g. backend = "sampled" (the default
+  # beyond 20 diseases, as in deconflate()).
+  fa <- list(...)
+  if (nrow(model$diseases) > 20L && is.null(fa$backend)) fa$backend <- "sampled"
+  joint <- do.call(fit_joint, c(list(as_population(model)), fa))
+  base <- burden_metric(check_baseline(run_quiet(model, st, joint = joint)))
   ids <- model$diseases$id
   pr <- if (!is.null(pairs)) {
     check_pair_ids(pairs, ids)
@@ -275,14 +346,14 @@ screen_interactions <- function(model, values, pairs = NULL, ...) {
   rows <- list()
   for (r in seq_len(nrow(pr))) {
     for (v in values) {
-      res <- run_quiet(set_interaction(model, pr[r, 1], pr[r, 2], v), "global", joint = joint)
+      res <- run_quiet(set_interaction(model, pr[r, 1], pr[r, 2], v), st, joint = joint)
       rows[[length(rows) + 1L]] <- screen_row(
         data.frame(pair = paste(pr[r, 1], pr[r, 2], sep = ":"), status = "interaction",
                    scenario = sprintf("delta = %g", v), stringsAsFactors = FALSE),
         res, base)
     }
   }
-  finish_screen(rows, base)
+  finish_screen(rows, base, FALSE)
 }
 
 #' Screen three-way association scenarios
@@ -298,19 +369,20 @@ screen_interactions <- function(model, values, pairs = NULL, ...) {
 #' interactions: without interactions such a scenario reproduces the
 #' baseline. When a pair is unknown (unconstrained), the fitted pairwise
 #' table changes with the three-way term, and additive results can change
-#' even without interactions. Three-way terms also matter for hazard ratios
-#' ([deconflate_hr()]) and [attributable_risk()].
+#' even without interactions. Three-way terms also matter for event impacts
+#' (`event_model = TRUE`).
 #'
 #' @param model A [cm_model()].
+#' @param event_model,overall_risk As in [deconflate()].
 #' @param ratios Ratios of conditional odds ratios to try.
 #' @param triples Optional list of character vectors of three disease ids;
 #'   default all triples (which can be many).
 #' @return A `cm_screen` data frame as in [screen_associations()].
 #' @export
-screen_three_way <- function(model, ratios = c(0.5, 2), triples = NULL) {
-  check_model(model)
-  base_res <- deconflate(model, method = "global", warn = FALSE)
-  base <- burden_metric(check_baseline(base_res))
+screen_three_way <- function(model, ratios = c(0.5, 2), triples = NULL, event_model = FALSE,
+                             overall_risk = NULL) {
+  st <- sens_setup(model, "global", event_model, overall_risk, "screen_three_way()")
+  base <- burden_metric(check_baseline(run_quiet(model, st)))
   ids <- model$diseases$id
   if (is.null(triples)) {
     triples <- if (length(ids) >= 3L) utils::combn(ids, 3, simplify = FALSE) else list()
@@ -327,53 +399,57 @@ screen_three_way <- function(model, ratios = c(0.5, 2), triples = NULL) {
   for (tr in triples) {
     for (rt in ratios) {
       m2 <- set_three_way(model, tr[1], tr[2], tr[3], rt)
-      res <- run_quiet(m2, "global")
+      res <- run_quiet(m2, st)
       rows[[length(rows) + 1L]] <- screen_row(
         data.frame(pair = paste(tr, collapse = ":"), status = "three-way",
                    scenario = sprintf("ratio = %g", rt), stringsAsFactors = FALSE),
         res, base)
     }
   }
-  finish_screen(rows, base)
+  finish_screen(rows, base, event_model)
 }
 
 #' One-at-a-time sensitivity analysis
 #'
 #' Varies each input by `variation` (e.g. +/- 20%) with everything else
 #' fixed, as in Rasmussen et al. (2024), Fig. 7, and reports the resulting
-#' range of the adjusted aggregate.
+#' range of the total: the adjusted aggregate for additive impacts, the risk
+#' attributable to disease for event impacts.
 #'
 #' @param model A [cm_model()].
-#' @param method Adjustment method.
+#' @param method,event_model,overall_risk As in [deconflate()].
 #' @param variation Relative change applied downwards and upwards.
-#' @param inputs Which inputs to vary: `"prob"`, `"assoc"`, `"impact"`.
+#' @param inputs Which inputs to vary: `"prob"`, `"assoc"`, `"impact"`, and
+#'   for event impacts `"risk"` (the overall risk).
 #' @return A `cm_oat` data frame with one row per input: the input key,
 #'   totals at the low and high values and the swing, sorted by swing.
 #' @export
 #' @examples
 #' sensitivity_oat(example_supplement())
-sensitivity_oat <- function(model, method = "simultaneous", variation = 0.2,
-                            inputs = c("prob", "assoc", "impact")) {
-  check_model(model)
+sensitivity_oat <- function(model, method = "auto", event_model = FALSE, overall_risk = NULL,
+                            variation = 0.2, inputs = c("prob", "assoc", "impact", "risk")) {
+  st <- sens_setup(model, method, event_model, overall_risk, "sensitivity_oat()")
   inputs <- match.arg(inputs, several.ok = TRUE)
-  base <- burden_metric(check_baseline(deconflate(model, method = method, warn = FALSE)))
-  vals <- flatten_model(model)
+  base <- burden_metric(check_baseline(run_quiet(model, st)))
+  vals <- model_inputs(model)
+  if (event_model) vals <- c(vals, risk = st$risk)
   keys <- names(vals)
   type <- sub(":.*$", "", keys)
-  keep <- type %in% inputs
-  if ("assoc" %in% inputs && !is.null(model$associations)) {
-    a <- model$associations
-    num <- paste0("assoc:", a$disease1, ":", a$disease2)[!(a$measure %in% c("independent", "unknown", "table"))]
-    keep <- keep & (type != "assoc" | keys %in% num)
-  }
-  keep <- keep & unlist(vals[1, ]) != 0
+  keep <- type %in% inputs & vals != 0
   keys <- keys[keep]
   rows <- lapply(keys, function(k) {
     x <- vals[[k]]
     tot <- vapply(c(1 - variation, 1 + variation), function(f) {
-      m2 <- tryCatch(set_input(model, k, x * f), deconflate_error = function(e) NULL)
-      if (is.null(m2)) return(NA_real_)
-      sm <- scenario_metric(run_quiet(m2, method))
+      st2 <- st
+      m2 <- model
+      if (k == "risk") {
+        if (!(x * f > 0 && x * f < 1)) return(NA_real_)
+        st2$risk <- x * f
+      } else {
+        m2 <- tryCatch(set_inputs(model, stats::setNames(x * f, k)), deconflate_error = function(e) NULL)
+        if (is.null(m2)) return(NA_real_)
+      }
+      sm <- scenario_metric(run_quiet(m2, st2))
       if (is.null(sm$met)) NA_real_ else sm$met$total
     }, numeric(1))
     data.frame(input = k, value = x, total_low = tot[1], total_high = tot[2],
@@ -390,72 +466,27 @@ sensitivity_oat <- function(model, method = "simultaneous", variation = 0.2,
   out <- out[order(-out$swing, na.last = TRUE), , drop = FALSE]
   rownames(out) <- NULL
   attr(out, "baseline_total") <- base$total
+  attr(out, "metric") <- metric_label(event_model)
   class(out) <- c("cm_oat", "data.frame")
   out
 }
 
-# Set one input (key as in cm_sampler params) to a value, via a fixed-value sampler.
-set_input <- function(model, key, value) {
-  parts <- strsplit(key, ":", fixed = TRUE)[[1]]
-  d <- list(dist_fixed(value))
-  s <- switch(parts[1],
-    prob = cm_sampler(model, diseases = stats::setNames(d, parts[2])),
-    assoc = cm_sampler(model, associations = stats::setNames(d, paste(parts[2], parts[3], sep = ":"))),
-    impact = cm_sampler(model, impacts = stats::setNames(d, parts[2])),
-    inter = cm_sampler(model, interactions = stats::setNames(d, paste(parts[2], parts[3], sep = ":"))),
-    three = cm_sampler(model, three_way = stats::setNames(d, paste(parts[2], parts[3], parts[4], sep = ":"))),
-    cm_abort(sprintf("Unknown input key '%s'.", key))
-  )
-  # Pass the value directly, so that no random number is drawn.
-  s(1, values = stats::setNames(value, names(attr(s, "specs"))))
-}
-
-#' Compare scenarios
-#'
-#' Adjusts several versions of a model (e.g. with different association,
-#' three-way or interaction assumptions) and tabulates the aggregate and
-#' disease rankings side by side.
-#'
-#' @param ... Named [cm_model()] objects.
-#' @param method Adjustment method (`"global"` is used automatically for
-#'   models with interactions or three-way terms).
-#' @return A list with `totals` (one row per scenario, with the reason in
-#'   `failed` when a scenario could not be adjusted or gave an undefined
-#'   result) and `by_disease` (contribution and rank per disease and
-#'   scenario).
-#' @export
-#' @examples
-#' base <- example_supplement()
-#' strong <- set_association(base, "d1", "d3", 3)
-#' compare_scenarios(base = base, strong_d1_d3 = strong)
-compare_scenarios <- function(..., method = "simultaneous") {
-  method <- public_method(method, c("simultaneous", "global"), "compare_scenarios()")
-  models <- list(...)
-  if (is.null(names(models)) || any(!nzchar(names(models)))) {
-    cm_abort("Scenarios must be named, e.g. compare_scenarios(base = m1, alt = m2).")
+# The numeric inputs of a model, keyed as in cm_model(distributions = ).
+model_inputs <- function(model) {
+  v <- stats::setNames(model$diseases$value, paste0("prob:", model$diseases$id))
+  a <- model$associations
+  if (!is.null(a) && nrow(a)) {
+    v <- c(v, stats::setNames(a$value, paste0("assoc:", a$disease1, ":", a$disease2)))
   }
-  not_model <- names(models)[!vapply(models, inherits, logical(1), "cm_model")]
-  if (length(not_model)) {
-    cm_abort(sprintf("Scenarios must be cm_model() objects (not: %s).", paste(not_model, collapse = ", ")))
+  i <- model$impacts
+  if (!is.null(i) && nrow(i)) v <- c(v, stats::setNames(i$value, paste0("impact:", i$disease)))
+  x <- model$interactions
+  if (!is.null(x) && nrow(x)) {
+    v <- c(v, stats::setNames(x$value, paste0("inter:", x$disease1, ":", x$disease2)))
   }
-  sms <- lapply(models, function(m) {
-    needs_global <- (!is.null(m$interactions) && nrow(m$interactions)) ||
-      (!is.null(m$three_way) && nrow(m$three_way))
-    scenario_metric(run_quiet(m, if (needs_global) "global" else method))
-  })
-  mets <- lapply(sms, `[[`, "met")
-  totals <- data.frame(scenario = names(models),
-                       total = vapply(mets, function(x) if (is.null(x)) NA_real_ else x$total, numeric(1)),
-                       failed = vapply(sms, function(x) x$reason, character(1)),
-                       stringsAsFactors = FALSE)
-  totals$rel_to_first <- if (isTRUE(abs(totals$total[1]) > 0)) totals$total / totals$total[1] - 1 else NA_real_
-  by <- do.call(rbind, lapply(names(mets), function(nm) {
-    x <- mets[[nm]]
-    if (is.null(x)) return(NULL)
-    data.frame(scenario = nm, disease = names(x$by_disease), contribution = unname(x$by_disease),
-               rank = rank(-x$by_disease, ties.method = "min"), stringsAsFactors = FALSE)
-  }))
-  rownames(totals) <- NULL
-  if (!is.null(by)) rownames(by) <- NULL
-  list(totals = totals, by_disease = by)
+  tw <- model$three_way
+  if (!is.null(tw) && nrow(tw)) {
+    v <- c(v, stats::setNames(tw$ratio, paste0("three:", tw$disease1, ":", tw$disease2, ":", tw$disease3)))
+  }
+  v
 }

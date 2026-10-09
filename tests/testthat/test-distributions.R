@@ -127,3 +127,61 @@ test_that("distributions print", {
   expect_output(print(dist_mixture(dist_normal(0, 1), dist_uniform(0, 1))),
                 "mixture of 2 components")
 })
+
+test_that("a model's distributions are keyed by its inputs", {
+  m <- example_supplement()
+  d <- cm_model(m, m$impacts,
+                distributions = list("impact:d1" = dist_normal(2.5, 0.5),
+                                     "assoc:d3:d2" = dist_lognormal_ci(3, 2, 4.5),
+                                     "prob:d1" = dist_beta(10, 90)))
+  # Keys are put in canonical form (associations as listed in their table).
+  expect_setequal(names(d$distributions), c("impact:d1", "assoc:d2:d3", "prob:d1"))
+  expect_true(all(vapply(d$distributions, inherits, logical(1), "cm_dist")))
+  expect_output(print(d), "Uncertain inputs \\(with a distribution\\): 3")
+  expect_null(m$distributions)
+  bad <- function(dists) cm_model(m, m$impacts, distributions = dists)
+  expect_error(bad(list(dist_normal(0, 1))), "named list")
+  expect_error(bad(list("impact:d1" = 1)), "named list")
+  expect_error(bad(list("impact:d1" = dist_fixed(1), "impact:d1" = dist_fixed(2))), "more than once")
+  expect_error(bad(list("assoc:d2:d3" = dist_fixed(3), "assoc:d3:d2" = dist_fixed(3))), "more than once")
+  expect_error(bad(list("assoc:d1" = dist_fixed(1))), "assoc:<d1>:<d2>")
+  expect_error(bad(list("inter:d1:d2" = dist_fixed(1))), "no interaction")
+  expect_error(bad(list("three:d1:d2:d3" = dist_fixed(1))), "no three-way terms")
+  expect_error(bad(list("prob:zz" = dist_fixed(0.1))), "unknown disease")
+  expect_error(bad(list("foo:d1" = dist_fixed(1))), "unknown input type")
+  # A pair without an association has no association to be uncertain about.
+  m2 <- m
+  m2$associations <- m$associations[-2, ]
+  expect_error(cm_model(m2, m2$impacts, distributions = list("assoc:d1:d3" = dist_fixed(1))),
+               "no association row")
+  # Interactions and three-way terms are keyed in their tables' order.
+  mi <- cm_model(cm_population(m$diseases, m$associations, cm_three_way("d3", "d1", "d2", 2)),
+                 m$impacts, cm_interactions("d2", "d1", 0.5),
+                 distributions = list("inter:d1:d2" = dist_normal(0.5, 0.1),
+                                      "three:d1:d2:d3" = dist_lognormal(log(2), 0.3)))
+  expect_setequal(names(mi$distributions), c("inter:d2:d1", "three:d3:d1:d2"))
+  # Setting an association to a scenario value drops its distribution.
+  d2 <- set_association(d, "d2", "d3", 1.5)
+  expect_setequal(names(d2$distributions), c("impact:d1", "prob:d1"))
+})
+
+test_that("the overall risk can be a distribution within (0, 1), used at its mean", {
+  expect_equal(check_overall_risk(NULL, FALSE), list(value = NULL, dist = NULL))
+  r <- check_overall_risk(0.25, TRUE)
+  expect_equal(r$value, 0.25)
+  expect_null(r$dist)
+  b <- dist_beta(250, 750)
+  rb <- check_overall_risk(b, TRUE)
+  expect_equal(rb$value, 0.25)
+  expect_identical(rb$dist, b)
+  expect_equal(check_overall_risk(dist_uniform(0.2, 0.3), TRUE)$value, 0.25)
+  expect_equal(check_overall_risk(dist_pert(0.1, 0.2, 0.6), TRUE)$value, (0.1 + 4 * 0.2 + 0.6) / 6)
+  # The support must lie in [0, 1].
+  expect_error(check_overall_risk(dist_normal(0.25, 0.1), TRUE), "between 0 and 1")
+  expect_error(check_overall_risk(dist_uniform(0.5, 1.5), TRUE), "between 0 and 1")
+  expect_error(check_overall_risk(dist_mixture(dist_uniform(0.1, 0.2), dist_uniform(0.9, 1.2)), TRUE),
+               "\\[0.9, 1.2\\]")
+  expect_silent(check_overall_risk(dist_normal(0.25, 0.1, lower = 0, upper = 1), TRUE))
+  expect_error(check_overall_risk(dist_fixed(1), TRUE), "strictly between 0 and 1")
+  expect_error(check_overall_risk(0.25, FALSE), class = "deconflate_unsupported")
+})

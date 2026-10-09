@@ -8,20 +8,17 @@ cm_population(
   diseases,
   associations = NULL,
   three_way = NULL,
-  missing_associations = c("independent", "unknown"),
   adjusted_associations = c("error", "use_as_marginal")
 )
 }
 \arguments{
 \item{diseases}{A \code{\link[=cm_diseases]{cm_diseases()}} object.}
 
-\item{associations}{Optional \code{\link[=cm_associations]{cm_associations()}} object.}
+\item{associations}{Optional \code{\link[=cm_associations]{cm_associations()}} object. \code{\link[=deconflate]{deconflate()}}
+needs at least one association; the sensitivity tools (e.g.
+\code{\link[=screen_associations]{screen_associations()}}) also run without any.}
 
-\item{three_way}{Optional \code{\link[=cm_three_way]{cm_three_way()}} object (global model only).}
-
-\item{missing_associations}{How to treat pairs without an association:
-\code{"independent"} (default; odds ratio 1, as in Rasmussen et al. 2022) or
-\code{"unknown"} (unconstrained). These are different assumptions.}
+\item{three_way}{Optional \code{\link[=cm_three_way]{cm_three_way()}} object.}
 
 \item{adjusted_associations}{Covariate-adjusted association measures are
 not marginal 2x2 associations. \code{"error"} (default) rejects them;
@@ -32,10 +29,13 @@ approximation, and records this.}
 A \code{cm_population} object.
 }
 \description{
-A population holds everything that is shared by all impact analyses: the
-disease probabilities, the pairwise associations and, optionally,
-three-way association scenarios. Combine it with an impact vector in
-\code{\link[=cm_model]{cm_model()}}, or with several in \code{\link[=cm_analyses]{cm_analyses()}}.
+A population holds the disease probabilities, the pairwise associations
+and, optionally, three-way association scenarios. Combine it with one
+impact table in \code{\link[=cm_model]{cm_model()}}.
+}
+\details{
+Pairs without an association are unknown: the global model fills in
+their association from the others (see \code{\link[=fit_joint]{fit_joint()}}).
 }
 \examples{
 pop <- cm_population(

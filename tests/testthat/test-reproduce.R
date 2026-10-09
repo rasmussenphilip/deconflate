@@ -6,13 +6,13 @@ ids <- c("CO", "DA", "DYS", "FAS", "GIN", "LAM", "MAS", "MET", "MF", "NEO", "PTB
 
 test_that("hazard ratios treated as odds ratios give the 2022 excess culling risks", {
   uk <- uk_dairy_2022_analyses(3.05, culling = TRUE)
-  cu <- uk$models$culling$impacts
+  cu <- uk$culling$impacts
   expect_equal(cu$disease, ids)
   expect_equal(cu$value,
                c(0, 0.3138414572, 0.1420512995, 0, 0, 0.2556484949, 0.2130688027,
                  0.173857642, 0.2056704258, 0.0988932697, 0.1963730607, 0, 0.1572642738),
                tolerance = 1e-8)
-  expect_s3_class(attr(uk, "hazard_ratios"), "cm_hazard_ratios")
+  expect_equal(names(attr(uk, "hazard_ratios")), ids)
 })
 
 test_that("reproduce_rasmussen_2022() recomputes the published gaps and values", {
@@ -66,7 +66,7 @@ test_that("the simultaneous method on the 2022 inputs matches the reference", {
   uk <- uk_dairy_2022_analyses(3.05, culling = TRUE)
   eco <- uk_dairy_2022_economics()
   eco$valuation$culling <- uk_dairy_2022_culling_valuation()
-  res <- suppressWarnings(deconflate(uk))
+  res <- suppressWarnings(lapply(uk, deconflate, n_draws = 0))
   df <- vapply(names(res), function(nm) {
     v <- eco$valuation[[nm]]
     legacy_gap(res[[nm]], v$observed, v$direction, v$effect)$summary$disease_free

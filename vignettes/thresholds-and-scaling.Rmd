@@ -15,9 +15,10 @@ knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
 library(deconflate)
 ```
 
-This vignette covers two extensions: threshold searches, which find the
-input values at which a conclusion changes, and the sampled backend of the
-global model, for more diseases than can be enumerated.
+This vignette covers two extensions: threshold searches and screens, which
+show how much the conclusions depend on single inputs (including inputs
+that have not been estimated), and the sampled backend of the global model,
+for more diseases than can be enumerated.
 
 ## Threshold searches
 
@@ -27,25 +28,32 @@ There are four kinds of conclusion:
 
 * `"rank"`: two diseases swap places, ranked by their contribution to the
   aggregate (`by = "adjusted"` ranks by adjusted impact instead);
-* `"sign"`: a disease's adjusted impact crosses zero. This is a sign change
-  implied by the model and its inputs; it is not by itself evidence of a
-  protective effect;
+* `"sign"`: a disease's adjusted impact crosses zero (for event impacts,
+  its adjusted hazard ratio crosses 1). This is a sign change implied by the
+  model and its inputs; it is not by itself evidence of a protective effect;
 * `"total"`: the aggregate crosses `target`, in the units of the impacts;
 * `"change"`: the aggregate departs from its value at the model's own input
   by the relative amount `target` (e.g. `-0.1` for a 10% reduction). This
   answers questions such as "what association strength would reduce the
-  total by 10%?", which is useful for pairs that are unknown or not listed.
+  total by 10%?", which is useful for pairs without an association.
 
-The input is keyed as in `cm_sampler()`: `"assoc:<d1>:<d2>"`,
-`"inter:<d1>:<d2>"`, `"prob:<disease>"`, `"impact:<disease>"`, or
-`"three:<d1>:<d2>:<d3>"` for a three-way ratio. A pair without a numeric
-measure (independent, unknown or not listed) is varied as an odds ratio.
-By default, models with interactions or three-way terms, and interaction or
-three-way inputs, use the global method; otherwise the method is
-`"simultaneous"` (set `method` to override). Interactions and interaction or
-three-way inputs need the global method. With the global method, when the
-input is an impact or an interaction (which do not change the joint
-distribution), the joint distribution is fitted once and reused, or a
+For event impacts (`event_model = TRUE`), the aggregate is the risk
+attributable to disease and the contributions are its Shapley allocation
+(`vignette("event-impacts")`).
+
+The input is keyed as in the `distributions` of `cm_model()`:
+`"assoc:<d1>:<d2>"`, `"inter:<d1>:<d2>"`, `"prob:<disease>"`,
+`"impact:<disease>"`, `"three:<d1>:<d2>:<d3>"` for a three-way ratio, or
+`"risk"` for the overall risk of event impacts. A pair without an
+association (unknown) is varied as an odds ratio.
+
+Each point is adjusted as `deconflate()` would adjust it, with point
+estimates. With `method = "auto"` (the default), the method is chosen for
+the point's own inputs: the simultaneous method when every pair has an
+association and there are no interactions or three-way terms, the global
+method otherwise. When the input is an impact, an interaction or the
+overall risk (which do not change the joint distribution) and the
+adjustment uses the joint distribution, it is fitted once and reused, or a
 `joint` from `fit_joint()` can be passed; other inputs change the joint
 distribution, so it is refitted at every point.
 
@@ -72,8 +80,8 @@ refined by bisection. As a result:
 
 Thresholds are deterministic: they refer to the model's input values, one
 input at a time. Statements such as "the probability that d1 ranks first"
-need the Monte Carlo tools (`vignette("uncertainty")`); probabilistic
-thresholds are not implemented.
+need the draws of `deconflate()` (`n_draws`; `vignette("uncertainty")`);
+probabilistic thresholds are not implemented.
 
 ### A relative change in the aggregate
 
@@ -82,7 +90,7 @@ and the adjusted aggregate is about 2.109 percent:
 
 ```{r}
 m <- example_supplement()
-deconflate(m)$totals
+deconflate(m, n_draws = 0)$totals
 th <- cm_threshold(m, "assoc:d1:d3", c(1, 50), conclusion = "change", target = -0.1)
 th
 ```
@@ -105,25 +113,27 @@ disease:
 cm_threshold(m, "assoc:d2:d3", c(0.2, 20), conclusion = "change", target = 0.1)$thresholds
 ```
 
-For an unknown pair, the simultaneous method cannot compute the baseline, but
-the global method can: it leaves the pair unconstrained in the
-maximum-entropy fit. The change is then relative to that fit. Here the
-fitted distribution implies an odds ratio of about 1.14 for d1 and d3, and
-an odds ratio of about 6.4 would reduce the aggregate by 10%:
+For a pair without an association, the baseline is the global method, which
+fills the pair in from the maximum-entropy fit; the change is relative to
+that fit. Here the pair d1:d3 is left out. The fitted distribution gives it
+an odds ratio of about 1.14, and an odds ratio of about 6.4 would reduce the
+aggregate by 10%:
 
 ```{r}
 m_unk <- cm_model(
   cm_diseases(c("d1", "d2", "d3"), c(0.10, 0.15, 0.20)),
   cm_impacts(c("d1", "d2", "d3"), c(2.5, 5, 7.5), units = "%"),
-  associations = cm_associations(c("d1", "d2"), c("d2", "d3"), c(2, 3)),
-  missing_associations = "unknown"
+  associations = cm_associations(c("d1", "d2"), c("d2", "d3"), c(2, 3))
 )
-th_unk <- cm_threshold(m_unk, "assoc:d1:d3", c(1, 50), conclusion = "change",
-                       target = -0.1, method = "global")
+deconflate(m_unk, n_draws = 0)$unknown_pairs
+th_unk <- cm_threshold(m_unk, "assoc:d1:d3", c(1, 50), conclusion = "change", target = -0.1)
 th_unk$thresholds[, c("item", "status", "threshold", "description")]
 ```
 
-The baseline value of an unknown input is `NA` (`th_unk$baseline`).
+The baseline value of an unknown input is `NA` (`th_unk$baseline`). At the
+grid points the pair has a value, so every pair has an association and the
+simultaneous method is used there; it gives the same answer as the global
+method would.
 
 ### Rankings
 
@@ -161,20 +171,23 @@ diseases alone would produce under the additive model. This says that the
 inputs are inconsistent with the model there (or the estimands are not what
 they were assumed to be), not that d1 is protective.
 
-`cm_threshold()` searches with the methods of `deconflate()`
-(`"simultaneous"` or `"global"`). The published approximation,
-`m^2 / (m + c)`, kept for comparison only, behaves differently: it has a
-pole where its denominator is zero, here at a raw impact of d1 of about
--0.527, and its adjusted impact changes sign there by jumping through
-infinity. `compare_methods()` shows this on either side of the pole:
+`cm_threshold()` searches with the methods of `deconflate()`. The published
+approximation, `m^2 / (m + c)`, kept for comparison only, behaves
+differently: it has a pole where its denominator is zero, and its adjusted
+impact changes sign there by jumping through infinity. For d1, `c` is the
+part of the raw impact that the conflation matrix `A` attributes to the
+other diseases, so the pole is at a raw impact of d1 of about -0.527:
 
 ```{r}
-pop_s <- cm_population(
-  cm_diseases(c("d1", "d2", "d3"), c(0.10, 0.15, 0.20)),
-  cm_associations(c("d1", "d2"), c("d2", "d3"), c(2, 3), measure = "OR")
-)
+A <- deconflate(m, n_draws = 0)$conflation$A
+-sum(A["d1", c("d2", "d3")] * c(5, 7.5))
+```
+
+`compare_methods()` shows this on either side of the pole:
+
+```{r}
 sapply(c(-0.60, -0.45), function(v) {
-  mv <- cm_model(pop_s, cm_impacts(c("d1", "d2", "d3"), c(v, 5, 7.5)))
+  mv <- cm_model(m, cm_impacts(c("d1", "d2", "d3"), c(v, 5, 7.5)))
   unlist(compare_methods(mv, methods = c("published", "simultaneous"))$impacts[1, -1])
 })
 ```
@@ -203,22 +216,104 @@ th_prob
 th_prob$summary
 ```
 
+### Event impacts
+
+With `event_model = TRUE` and `overall_risk`, the search uses the snapshot
+model of event impacts. The joint distribution is refitted at every point
+when the input is an association, so these searches take longer. With
+culling hazard ratios on the same population, the adjusted hazard ratio of
+d3 falls below 1 when the odds ratio of d2 and d3 exceeds about 8.09:
+
+```{r}
+cull <- cm_model(m, cm_impacts(c("d1", "d2", "d3"), c(1.5, 2.0, 1.3), measure = "HR",
+                               estimand = "snapshot_crude", label = "culling"))
+th_ev <- cm_threshold(cull, "assoc:d2:d3", c(1, 100), conclusion = "sign",
+                      event_model = TRUE, overall_risk = 0.25)
+th_ev$thresholds[, c("item", "status", "threshold", "description")]
+```
+
+The overall risk itself can be searched with the input `"risk"`.
+
+## Screens
+
+The screens re-run the adjustment over a set of scenarios, one input at a
+time, and report how much the aggregate and the ranking of diseases
+change. Like `cm_threshold()`, they report point estimates, adjust each
+scenario as `deconflate()` would (`method = "auto"`), and take
+`event_model = TRUE` with `overall_risk`:
+
+* `screen_associations()` multiplies each given association by each of
+  `multipliers`, and sets each pair without an association to each of
+  `or_values`;
+* `screen_interactions()` adds an interaction of each size in `values` to
+  each pair (additive impacts only; always the global method, with the joint
+  distribution fitted once);
+* `screen_three_way()` sets a three-way term for each triple (always the
+  global method);
+* `sensitivity_oat()` varies every input by `variation` (20% by default).
+
+```{r}
+screen_associations(m, or_values = c(0.5, 3))
+sensitivity_oat(m)
+```
+
+A three-way term keeps the pairwise tables of its triple fixed, so for
+additive impacts without interactions it changes nothing when every pair of
+the triple has an association; with an unknown pair it can:
+
+```{r}
+screen_three_way(m, ratios = c(0.5, 2))[, c("pair", "scenario", "total", "rel_change")]
+screen_three_way(m_unk, ratios = c(0.5, 2))[, c("pair", "scenario", "total", "rel_change")]
+```
+
+### Without association estimates
+
+`deconflate()` needs at least one association; without any, there is
+nothing to de-conflate:
+
+```{r}
+m0 <- m
+m0$associations <- NULL
+tryCatch(deconflate(m0), deconflate_error = function(e) conditionMessage(e))
+```
+
+The screens and `cm_threshold()` work without associations. The baseline
+then has every pair unknown, and the maximum-entropy fit with no pairwise
+constraints makes the diseases independent, so the baseline aggregate is
+the raw one. `screen_associations()` shows which pairs would matter if they
+were associated, and `cm_threshold()` how strong an association would have
+to be to change the aggregate by a given amount:
+
+```{r}
+screen_associations(m0, or_values = c(0.5, 2, 4))
+th0 <- cm_threshold(m0, "assoc:d2:d3", c(1, 50), conclusion = "change", target = -0.1)
+th0$thresholds[, c("item", "status", "threshold", "description")]
+```
+
+An odds ratio of about 2.24 between d2 and d3 (with the other pairs
+unknown) would reduce the aggregate by 10%. Such results show which
+associations are worth estimating; they are not estimates themselves. Tables
+read with `cm_read_inputs()` can leave out `associations` for this purpose.
+
 ## Many diseases
 
 ### What limits the number of diseases
 
-The `"simultaneous"` method (and the published approximation in
+The simultaneous method (and the published approximation in
 `compare_methods()`) uses the pairwise 2x2 tables only. It never enumerates
-combinations of diseases, so it works for any
-number of diseases (the default triple screen checks n(n-1)(n-2)/6 triples;
-the exact LP feasibility check is limited to 14 diseases).
+combinations of diseases, so it works for any number of diseases (the
+default triple screen checks n(n-1)(n-2)/6 triples; the exact LP
+feasibility check is limited to 14 diseases).
 
-The `"global"` method needs the joint distribution of disease combinations,
-for interactions, unknown pairs and three-way terms, and so do the snapshot
-hazard-ratio model and `attributable_risk()`. The exact backend of
-`fit_joint()` enumerates all 2^n combinations, which limits it to about 20
-diseases (`max_diseases`). For more, `fit_joint(backend = "sampled")` fits
-the same maximum-entropy model without enumeration.
+The global method needs the joint distribution of disease combinations,
+for interactions, unknown pairs and three-way terms, and so does the
+snapshot model of event impacts. The exact backend of `fit_joint()`
+enumerates all 2^n combinations, which limits it to about 20 diseases
+(`max_diseases`). For more, the sampled backend fits the same
+maximum-entropy model without enumeration. `deconflate()` uses it
+automatically when a model with more than 20 diseases needs the joint
+distribution, and says so in a note; `fit_joint(backend = "sampled")` runs
+it directly.
 
 ### The sampled backend
 
@@ -241,12 +336,12 @@ The sampled backend works in three steps:
    combinations are adjusted by iterative proportional fitting so that the
    disease probabilities and pairwise tables match the targets exactly on the
    sample. The remaining Monte Carlo error affects only the higher-order
-   structure (triples and beyond).
+   structure (triples and beyond), and the odds ratios of unknown pairs.
 
 The result has the same form as an exact fit (the distinct sampled
 combinations and their weights), so the global method, interaction offsets,
-Shapley allocation, the snapshot hazard model and `attributable_risk()` use
-it unchanged. Its `diagnostics` report:
+Shapley allocation and the snapshot model of event impacts use it
+unchanged. Its `diagnostics` report:
 
 * the constraint residual of the raw sample and after raking;
 * R-hat and effective sample sizes of the fitted probabilities and pairwise
@@ -290,15 +385,14 @@ triples, which the sampled fit approximates:
 
 ```{r}
 mi <- set_interaction(m, "d1", "d2", 1)
-rbind(exact = deconflate(mi, method = "global", joint = je)$adjusted$adjusted,
-      sampled = deconflate(mi, method = "global", joint = js)$adjusted$adjusted)
+rbind(exact = deconflate(mi, n_draws = 0, joint = je)$adjusted$adjusted,
+      sampled = deconflate(mi, n_draws = 0, joint = js)$adjusted$adjusted)
 ```
 
-A fitted joint can be passed to `deconflate()`, `deconflate_hr()`,
-`compare_methods()` and `attributable_risk()` with `joint`. Alternatively,
-the fitting arguments can be passed through `...`, e.g.
-`deconflate(m, method = "global", backend = "sampled", n_samples = 20000,
-seed = 1)`.
+A fitted joint can be passed to `deconflate()`, `compare_methods()` and
+`cm_threshold()` with `joint`. Alternatively, the fitting arguments can be
+passed through `...`, e.g. `deconflate(m, method = "global", backend =
+"sampled", n_samples = 20000)`.
 
 ### Unresolved is not infeasible
 
@@ -323,7 +417,8 @@ check_feasibility(bad, method = "triples")
 
 A synthetic population of 24 diseases with prevalences from 0.05 to 0.3, an
 odds ratio of 2 between consecutive diseases (x01 with x02, x02 with x03,
-and so on; all other pairs independent) and raw impacts from 1 to 5 percent:
+and so on; the other 253 pairs are unknown) and raw impacts from 1 to 5
+percent:
 
 ```{r}
 ids <- sprintf("x%02d", 1:24)
@@ -341,38 +436,39 @@ refuses:
 tryCatch(fit_joint(pop24), deconflate_error = function(e) conditionMessage(e))
 ```
 
-The sampled fit:
+The unknown pairs need the global method, and with 24 diseases
+`deconflate()` fits the joint distribution with the sampled backend (with
+the default `n_samples` and `n_chains` of `fit_joint()`). The `seed`
+argument of `deconflate()` is for its draws; to make the sampled fit
+reproducible, set the random seed before the call, or fit it with
+`fit_joint(..., seed = )` and pass it with `joint`:
 
 ```{r}
-j24 <- fit_joint(pop24, backend = "sampled", n_samples = 20000, n_chains = 500, seed = 3)
-j24
-j24$diagnostics$summary
-by_n(j24)
+set.seed(3)
+r24 <- deconflate(m24, n_draws = 0)
+r24$notes
+r24$joint
+r24$totals
 ```
 
-Without interactions, the global method uses the pairwise tables only.
-Raking matches every pairwise table exactly on the sample (including the
-independent pairs, which are constrained to an odds ratio of 1), so the
-global result equals the simultaneous one up to the raking tolerance:
+The odds ratios the fit gives the unknown pairs come from the sample, so
+they carry Monte Carlo error (see the raking step above), and so do the
+adjusted impacts that depend on them:
 
 ```{r}
-r_sim <- deconflate(m24)
-r_glob <- deconflate(m24, method = "global", joint = j24)
-max(abs(r_glob$adjusted$adjusted - r_sim$adjusted$adjusted))
-c(simultaneous = r_sim$totals$adjusted_total, global = r_glob$totals$adjusted_total)
+summary(r24$unknown_pairs$fitted_or)
 ```
 
-An interaction (1 percentage point when x12 and x13 occur together) needs
-the probabilities of disease triples, so it uses the sampled distribution
-beyond its pairwise tables:
+An interaction (1 percentage point when x12 and x13 occur together) does
+not change the joint distribution, so the fit is reused:
 
 ```{r}
 m24i <- set_interaction(m24, "x12", "x13", 1)
-r_int <- deconflate(m24i, method = "global", joint = j24)
+r_int <- deconflate(m24i, n_draws = 0, joint = r24$joint)
 near <- ids[10:15]
 data.frame(disease = near,
-           raw = r_glob$adjusted$raw[match(near, ids)],
-           no_interaction = r_glob$adjusted$adjusted[match(near, ids)],
+           raw = r24$adjusted$raw[match(near, ids)],
+           no_interaction = r24$adjusted$adjusted[match(near, ids)],
            interaction = r_int$adjusted$adjusted[match(near, ids)])
 r_int$totals
 ```
@@ -384,6 +480,7 @@ analysis, refit the joint distribution with another seed (or more samples)
 and check that the conclusions do not change.
 
 The run time of a sampled fit grows with `n_samples` and `n_chains`, and
-that of the raking step with the number of constrained pairs (every pair
-that is specified or independent by default) times the number of distinct
-sampled combinations.
+that of the raking step with the number of constrained pairs (the pairs
+with an association) times the number of distinct sampled combinations.
+Draws (`n_draws`) refit the joint distribution for every draw, which is
+slow with the sampled backend; check the run time on a few draws first.

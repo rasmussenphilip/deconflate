@@ -15,7 +15,7 @@ A named list of \code{cm_dist} objects (names = keys).
 \description{
 Converts a table with columns \code{key}, \code{dist} and \code{p1}-\code{p4} (distributions
 as in the Uncertainty section of \code{\link[=cm_read_inputs]{cm_read_inputs()}}) into a named list of
-\code{cm_dist} objects, e.g. to build the arguments of \code{\link[=cm_sampler]{cm_sampler()}} in R.
+\code{cm_dist} objects, e.g. for the \code{distributions} argument of \code{\link[=cm_model]{cm_model()}}.
 Keys are kept as given.
 }
 \examples{

@@ -71,9 +71,14 @@ check_ids <- function(id) {
 # is kept for inspection but never counts as a successful estimate. Used by
 # Monte Carlo, method comparisons, sensitivity screens and threshold searches.
 result_is_finite <- function(r) {
-  if (inherits(r, "cm_hr_result")) {
+  if (inherits(r, "cm_event_result")) {
     a <- r$adjusted$adjusted
-    return(length(a) > 0 && all(is.finite(a)) && all(a > 0))
+    ok <- length(a) > 0 && all(is.finite(a)) && all(a > 0)
+    if (ok && !is.null(r$attributable)) {
+      ok <- is.finite(r$attributable$summary$attributable) &&
+        (is.null(r$attributable$by_disease) || all(is.finite(r$attributable$by_disease$attributable)))
+    }
+    return(ok)
   }
   inherits(r, "cm_result") && all(is.finite(r$adjusted$adjusted)) &&
     all(is.finite(r$contributions$total)) && is.finite(r$totals$adjusted_total)
@@ -146,8 +151,38 @@ weighted_quantile <- function(x, w, probs) {
 # approximation is no longer one of their methods.
 public_method <- function(method, choices, fun) {
   if (is.character(method) && "published" %in% method && !identical(method, choices)) {
-    cm_abort(sprintf("The published approximation is not a method of %s. It is kept for comparison and reproduction: use compare_methods(), cm_monte_carlo(method = \"published\") or the reproduce_*() functions.",
+    cm_abort(sprintf("The published approximation is not a method of %s. It is kept for comparison and reproduction: use compare_methods() or the reproduce_*() functions.",
                      fun), class = "deconflate_unsupported")
   }
   match.arg(method, choices)
+}
+
+# Check the overall risk of an event model: a proportion in (0, 1), or a
+# distribution (cm_dist) whose support lies in (0, 1). Returns the central
+# value (the distribution's mean) and the distribution (or NULL).
+check_overall_risk <- function(overall_risk, event_model) {
+  if (!isTRUE(event_model)) {
+    if (!is.null(overall_risk)) {
+      cm_abort("`overall_risk` is used only with event_model = TRUE.", class = "deconflate_unsupported")
+    }
+    return(list(value = NULL, dist = NULL))
+  }
+  if (is.null(overall_risk)) {
+    cm_abort("event_model = TRUE needs `overall_risk`: the overall risk of the event in the population over the period of the estimates (a proportion, e.g. 0.25, or a distribution such as dist_beta(250, 750)).")
+  }
+  if (inherits(overall_risk, "cm_dist")) {
+    sp <- dist_support(overall_risk)
+    if (min(sp[, 1]) < 0 || max(sp[, 2]) > 1) {
+      cm_abort(sprintf("The distribution of `overall_risk` must lie between 0 and 1 (its support is %s).",
+                       format_support(overall_risk)))
+    }
+    v <- overall_risk$mean
+    if (!is.finite(v) || v <= 0 || v >= 1) cm_abort("The mean of the `overall_risk` distribution must lie strictly between 0 and 1.")
+    return(list(value = v, dist = overall_risk))
+  }
+  if (!is.numeric(overall_risk) || length(overall_risk) != 1L || !is.finite(overall_risk) ||
+      overall_risk <= 0 || overall_risk >= 1) {
+    cm_abort("`overall_risk` must be a single proportion strictly between 0 and 1, or a distribution.")
+  }
+  list(value = overall_risk, dist = NULL)
 }

@@ -1,0 +1,13 @@
+disease,value,measure,estimand,label,source,dist,p1,p2,p3,p4,note
+CK,1.5001,HR,snapshot_crude,culling,"Rasmussen et al. 2024, analysis inputs",normal,1.5001,0.10000976530231317,,,"hazard ratio; mean, sd"
+CM,2.3,HR,snapshot_crude,culling,"Rasmussen et al. 2024, analysis inputs",normal,2.3,0.17342740434782608,,,"hazard ratio; mean, sd"
+DA,2.851179,HR,snapshot_crude,culling,"Rasmussen et al. 2024, analysis inputs",pert,1,2.851179,7.9,,"hazard ratio; min, mode, max"
+DYS,1.258143,HR,snapshot_crude,culling,"Rasmussen et al. 2024, analysis inputs",pert,0.6,1.258143,2.1,,"hazard ratio; min, mode, max"
+LAM,1.744976,HR,snapshot_crude,culling,"Rasmussen et al. 2024, analysis inputs",normal,1.744976,0.07449644729921788,,,"hazard ratio; mean, sd"
+MET,1.116444,HR,snapshot_crude,culling,"Rasmussen et al. 2024, analysis inputs",pert,0.6,1.116444,1.5,,"hazard ratio; min, mode, max"
+MF,2.999886,HR,snapshot_crude,culling,"Rasmussen et al. 2024, analysis inputs",normal,2.999886,0.6012380424926813,,,"hazard ratio; mean, sd"
+OC,1.62,HR,snapshot_crude,culling,"Rasmussen et al. 2024, analysis inputs",normal,1.62,0.1591395716049383,,,"hazard ratio; mean, sd"
+PTB,2.310508,HR,snapshot_crude,culling,"Rasmussen et al. 2024, analysis inputs",normal,2.310508,0.2011405862857865,,,"hazard ratio; mean, sd"
+RP,1.599928,HR,snapshot_crude,culling,"Rasmussen et al. 2024, analysis inputs",normal,1.599928,0.11954628295273287,,,"hazard ratio; mean, sd"
+SCK,1.92,HR,snapshot_crude,culling,"Rasmussen et al. 2024, analysis inputs",normal,1.92,0.0855654625,,,"hazard ratio; mean, sd"
+SCM,1.449996,HR,snapshot_crude,culling,"Rasmussen et al. 2024, analysis inputs",normal,1.449996,0.07758647609400302,,,"hazard ratio; mean, sd"

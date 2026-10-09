@@ -1,0 +1,6 @@
+disease,value,measure,estimand,adjusted_for,label,source,dist,p1,p2,p3,p4,note
+LAM,1.74,HR,snapshot_crude,,culling,Illustrative,lognormal_ci,1.74,1.40,2.16,,"hazard ratio; entering a published hazard ratio as a snapshot estimand is an assumption; lognormal_ci(estimate, lower, upper)"
+MAS,1.6,HR,snapshot_stratified,LAM;SCK,culling,Illustrative,,,,,,"hazard ratio stratified by LAM and SCK; point value"
+MET,1.23,RR,snapshot_crude,,culling,Illustrative,pert,1.05,1.23,1.50,,"risk ratio of culling within the lactation (needs overall_risk for the same period); pert(min, mode, max)"
+SCK,1.45,OR,snapshot_crude,,culling,Illustrative,,,,,,"odds ratio of culling within the lactation; point value"
+RP,0.10,RD,snapshot_stratified,all,culling,Illustrative,normal,0.10,0.03,,,"risk difference of culling within the lactation, stratified by all other diseases; normal(mean, sd)"

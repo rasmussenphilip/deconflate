@@ -14,7 +14,8 @@ set_interaction(model, disease1, disease2, value)
 \item{value}{Interaction value (same units as the impacts).}
 }
 \value{
-The modified model.
+The modified model. A distribution of the pair's interaction in
+the model's \code{distributions} is dropped (the scenario value is fixed).
 }
 \description{
 Set or replace one pairwise interaction

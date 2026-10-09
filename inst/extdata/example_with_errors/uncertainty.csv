@@ -1,2 +1,0 @@
-key,dist,p1,p2,p3,p4,note
-impact:yield:LAM,normal,4.81,0.87,,,"Error: uncertainty files are no longer read (deconflate 0.3). Give the distribution in the row of the value itself: impacts_yield.csv, row LAM, columns dist and p1-p4"

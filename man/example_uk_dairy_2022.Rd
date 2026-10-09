@@ -4,29 +4,37 @@
 \alias{example_uk_dairy_2022}
 \title{UK dairy example from Rasmussen et al. (2022)}
 \usage{
-example_uk_dairy_2022(yield_sck = 3.05)
+example_uk_dairy_2022(
+  outcome = c("yield", "fertility", "culling"),
+  yield_sck = 3.05
+)
 }
 \arguments{
+\item{outcome}{\code{"yield"}, \code{"fertility"} or \code{"culling"}.}
+
 \item{yield_sck}{Raw yield impact of subclinical ketosis, in percent (the
 printed 3.05, or 100 * 340 / 8737 = 3.89 from note i of Table 4).}
 }
 \value{
-A \code{\link[=cm_analyses]{cm_analyses()}} object with analyses \code{yield} and \code{fertility}, and
-attribute \code{"hazard_ratios"} (a \code{\link[=cm_hazard_ratios]{cm_hazard_ratios()}}).
+A \code{\link[=cm_model]{cm_model()}}.
 }
 \description{
 Thirteen endemic diseases and conditions of UK dairy cattle, with cow-level
-prevalence (Table 2), inter-disease odds ratios (Table 3, all other pairs
-independent), and two analyses: milk yield (Table 4, \% decrease) and
-calving interval (Table 5, \% increase). Use \code{\link[=reproduce_rasmussen_2022]{reproduce_rasmussen_2022()}}
-for the published tables, including the economic values.
+prevalence (Table 2), inter-disease odds ratios (Table 3), and the raw
+impacts of one outcome: milk yield (Table 4, \% decrease), calving interval
+(Table 5, \% increase) or culling (Table 6, hazard ratios, as event impacts
+with estimand \code{"snapshot_crude"}, an assumption; use
+\code{deconflate(..., event_model = TRUE, overall_risk = 0.27)}, the annual
+culling rate of the paper). Use \code{\link[=reproduce_rasmussen_2022]{reproduce_rasmussen_2022()}} for the
+published tables, including the economic values.
 }
 \details{
-The culling hazard ratios of Table 6 are attached as attribute
-\code{"hazard_ratios"} (with estimand \code{"snapshot_crude"}, an assumption) for
-\code{\link[=deconflate_hr]{deconflate_hr()}}. The paper converted them to excess annual culling risks
-by treating them as odds ratios; that historical calculation is only
-available inside \code{\link[=reproduce_rasmussen_2022]{reproduce_rasmussen_2022()}}.
+Pairs not in Table 3 are unknown, as for any input in this package, so
+\code{\link[=deconflate]{deconflate()}} uses the global method. The paper treated them as
+independent; \code{\link[=reproduce_rasmussen_2022]{reproduce_rasmussen_2022()}} does the same. The paper
+converted the hazard ratios to excess annual culling risks by treating
+them as odds ratios; that historical calculation is only available inside
+\code{\link[=reproduce_rasmussen_2022]{reproduce_rasmussen_2022()}}.
 
 Disease ids: CO cystic ovary, DA displaced abomasum, DYS dystocia, FAS
 fasciolosis, GIN gastrointestinal nematodes, LAM lameness, MAS mastitis,

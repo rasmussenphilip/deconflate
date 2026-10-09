@@ -7,8 +7,7 @@
 association_to_joint(measure, value, p1, p2)
 }
 \arguments{
-\item{measure}{One of the measures in \code{\link[=cm_associations]{cm_associations()}} other than
-\code{"unknown"} (\code{"table"} rows store the table's odds ratio in \code{value}).}
+\item{measure}{One of the measures in \code{\link[=cm_associations]{cm_associations()}}.}
 
 \item{value}{Association value.}
 

@@ -4,21 +4,32 @@
 \alias{example_global_dairy}
 \title{Global dairy inputs from Rasmussen et al. (2024)}
 \usage{
-example_global_dairy(inputs = c("analysis", "tables"))
+example_global_dairy(
+  outcome = c("yield", "fertility", "culling"),
+  inputs = c("analysis", "tables")
+)
 }
 \arguments{
+\item{outcome}{\code{"yield"}, \code{"fertility"} or \code{"culling"}.}
+
 \item{inputs}{\code{"analysis"} or \code{"tables"}.}
 }
 \value{
-A \code{\link[=cm_analyses]{cm_analyses()}} object.
+A \code{\link[=cm_model]{cm_model()}}.
 }
 \description{
 The 12 diseases of Rasmussen et al. (2024): global (herd-size weighted)
 lactational incidence (prevalence for PTB), pooled inter-disease odds
-ratios (Table 3; pairs not listed are independent), and raw impacts on
-yield (\% decrease) and fertility (\% increase in calving interval), at
-their central values (means of normal distributions, modes of PERT
-distributions). Each impact type is one analysis.
+ratios (Table 3), and the raw impacts of one outcome: milk yield (\%
+decrease), fertility (\% increase in calving interval) or culling (hazard
+ratios, event impacts). The model includes the input distributions of
+the analysis, so \code{\link[=deconflate]{deconflate()}} reports intervals (use \code{n_draws = 0} for
+point estimates only).
+}
+\details{
+Pairs not in Table 3 are unknown, as for any input in this package, so
+\code{\link[=deconflate]{deconflate()}} uses the global method. The 2024 analysis treated them as
+independent; \code{\link[=reproduce_rasmussen_2024]{reproduce_rasmussen_2024()}} does the same.
 }
 \section{Two versions of the inputs}{
 
@@ -29,21 +40,29 @@ probabilities fixed at \code{1 - exp(-incidence)} at the unrounded global
 means, except subclinical mastitis (entered without conversion, 0.4094
 rather than 0.3360, as in the analysis), and unrounded impacts.
 \item \code{inputs = "tables"} uses Tables 2-4 as printed, with incidence converted
-for every disease except PTB.
+for every disease except PTB; disease probabilities are uncertain too.
 }
+
+Central values are the means of normal distributions and the modes of
+PERT distributions; normal distributions of odds ratios are truncated at
+zero.
 }
 
 \section{Culling}{
 
-The culling hazard ratios are available as a hazard-ratio model from
-\code{\link[=example_global_dairy_hr]{example_global_dairy_hr()}} (see \code{\link[=deconflate_hr]{deconflate_hr()}}). The 2024 analysis
-adjusted hazard ratios minus 1 as if they were additive impacts; that
-historical calculation is only available inside
-\code{\link[=reproduce_rasmussen_2024]{reproduce_rasmussen_2024()}}.
+\code{outcome = "culling"} gives the hazard ratios as event impacts (estimand
+\code{"snapshot_crude"}, an assumption), for
+\code{deconflate(..., event_model = TRUE, overall_risk = 0.2366)} (the global
+culling risk of the 2024 analysis). The 2024 analysis adjusted hazard
+ratios minus 1 as if they were additive impacts; that historical
+calculation is only available inside \code{\link[=reproduce_rasmussen_2024]{reproduce_rasmussen_2024()}}.
 }
 
 \examples{
 gd <- example_global_dairy()
-deconflate(gd)$yield$adjusted
-compare_methods(gd$models$yield)$totals
+deconflate(gd, n_draws = 0)
+\donttest{
+deconflate(example_global_dairy("culling"), event_model = TRUE,
+           overall_risk = 0.2366, n_draws = 0)
+}
 }

@@ -2,9 +2,12 @@
 % Please edit documentation in R/report.R
 \name{summary.cm_result}
 \alias{summary.cm_result}
+\alias{summary.cm_event_result}
 \title{Summarise an adjustment result}
 \usage{
 \method{summary}{cm_result}(object, ...)
+
+\method{summary}{cm_event_result}(object, ...)
 }
 \arguments{
 \item{object}{A \code{\link[=deconflate]{deconflate()}} result.}
@@ -13,8 +16,9 @@
 }
 \value{
 A \code{summary.cm_result} list with \code{method}, \code{label}, \code{units},
-\code{totals} (naive and adjusted aggregate and the reduction),
-\code{diagnostics} and \code{contributions}.
+\code{totals} (additive impacts: naive and adjusted aggregate and the
+reduction; event impacts: overall, disease-free and attributable risk),
+\code{diagnostics}, \code{contributions} (see \code{\link[=contribution_table]{contribution_table()}}) and \code{notes}.
 }
 \description{
 Summarise an adjustment result

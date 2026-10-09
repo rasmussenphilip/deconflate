@@ -6,7 +6,9 @@
 \usage{
 screen_associations(
   model,
-  method = "simultaneous",
+  method = "auto",
+  event_model = FALSE,
+  overall_risk = NULL,
   or_values = c(0.5, 2),
   multipliers = c(0.5, 2),
   pairs = NULL
@@ -15,11 +17,14 @@ screen_associations(
 \arguments{
 \item{model}{A \code{\link[=cm_model]{cm_model()}}.}
 
-\item{method}{Adjustment method.}
+\item{method}{As in \code{\link[=deconflate]{deconflate()}}.}
 
-\item{or_values}{Odds ratios tried for unspecified pairs.}
+\item{event_model, overall_risk}{As in \code{\link[=deconflate]{deconflate()}} (a distribution of
+the overall risk is used at its mean).}
 
-\item{multipliers}{Factors applied to specified associations.}
+\item{or_values}{Odds ratios tried for pairs without an association.}
+
+\item{multipliers}{Factors applied to given associations.}
 
 \item{pairs}{Optional character vector of pairs (\code{"d1:d2"}); default all.}
 }
@@ -32,16 +37,30 @@ could not be run).
 }
 \description{
 Re-runs the adjustment with each disease pair's association changed, one
-pair at a time, and reports how much the aggregate and the ranking of
-diseases change. Pairs without a specified association (independent by
-default, or unknown) are set to each of \code{or_values}; specified
-associations of any measure are multiplied by each of \code{multipliers}
-(contingency tables via their odds ratio). Scenarios whose inputs are
-invalid or infeasible are kept, with \code{NA} results and the reason, so that
-no measure is skipped silently. This identifies associations worth
-estimating, as in Rasmussen et al. (2022), Fig. 3 and Rasmussen et al.
-(2024), Fig. 7C-D.
+pair at a time, and reports how much the total and the ranking of
+diseases change. Pairs without an association (unknown) are set to each
+of \code{or_values}; given associations of any measure are multiplied by each
+of \code{multipliers}. Scenarios whose inputs are invalid or infeasible are
+kept, with \code{NA} results and the reason, so that no scenario is skipped
+silently. This identifies associations worth estimating, as in Rasmussen
+et al. (2022), Fig. 3 and Rasmussen et al. (2024), Fig. 7C-D.
+}
+\details{
+The model needs no associations: with none, the baseline has every
+disease independent (adjusted impacts equal the raw ones), and the screen
+shows which pairs would matter if they were associated. Each scenario is
+adjusted as \code{\link[=deconflate]{deconflate()}} would (point estimates; the method is chosen
+for the scenario's own inputs, see \code{method}).
+
+The total is the adjusted aggregate for additive impacts, and the risk
+attributable to disease for event impacts (\code{event_model = TRUE}); disease
+rankings use the contributions to it.
 }
 \examples{
 screen_associations(example_supplement(), or_values = c(0.5, 3))
+
+# Without any association estimates: which pairs would matter?
+m <- example_supplement()
+m$associations <- NULL
+screen_associations(m, or_values = c(0.5, 2, 4))
 }

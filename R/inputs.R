@@ -66,37 +66,29 @@ cm_diseases <- function(id, value, type = "prevalence",
 
 #' Describe statistical associations between disease pairs
 #'
-#' Each row gives one association measure for one pair. Pairs not listed are
-#' handled by `missing_associations` in [cm_population()].
+#' Each row gives one association measure for one pair of diseases. A pair
+#' without a row is unknown: the global model ([fit_joint()]) fills in its
+#' association from the others (see [deconflate()]). To state that two
+#' diseases are unrelated, give the pair an odds ratio of 1.
 #'
 #' Odds ratios (and the other measures) are applied to the modelled
 #' population's own marginal probabilities ("transported"). This assumes the
 #' measure is the same in the source study and in the modelled population.
 #'
 #' @param disease1,disease2 Character vectors of disease ids.
-#' @param value Numeric association values (ignored for `"independent"`,
-#'   `"unknown"` and `"table"`).
+#' @param value Numeric association values (required).
 #' @param measure Character, one per row (or recycled). Directional measures
 #'   treat `disease1` as the outcome and `disease2` as the conditioning
 #'   disease:
-#'   * `"OR"`: odds ratio (symmetric).
+#'   * `"OR"` (default): odds ratio (symmetric). An odds ratio of 1 means the
+#'     two diseases are independent.
 #'   * `"RR"`: risk ratio `P(d1 | d2) / P(d1 | not d2)`.
 #'   * `"RD"`: risk difference `P(d1 | d2) - P(d1 | not d2)`.
 #'   * `"cond_prob"`: conditional probability `P(d1 | d2)`.
 #'   * `"phi"`: binary (phi) correlation coefficient (symmetric).
-#'   * `"table"`: a study contingency table given in `n11`, `n10`, `n01` and
-#'     `n00`. The table's odds ratio is used (transported to the modelled
-#'     marginals), because the study's marginal frequencies generally differ
-#'     from the modelled population's.
-#'   * `"independent"`: independence is imposed (odds ratio 1).
-#'   * `"unknown"`: the association is unknown. The pairwise methods reject
-#'     unknown pairs; the global method leaves them unconstrained, so their
-#'     association is implied by the maximum-entropy fit.
-#' @param n11,n10,n01,n00 Counts for `measure = "table"`: both diseases, `d1`
-#'   only, `d2` only and neither.
-#' @param zero_cell For tables with a zero cell: `"haldane"` (default) adds
-#'   0.5 to every cell (Haldane-Anscombe correction) and records it in column
-#'   `corrected`; `"error"` rejects such tables.
+#'
+#'   For a study's 2x2 table, compute its odds ratio,
+#'   `n11 * n00 / (n10 * n01)`, and enter it as an odds ratio.
 #' @param adjusted Logical: was the measure adjusted for covariates (e.g. an
 #'   odds ratio from multivariable logistic regression)? The 2x2 algebra needs
 #'   marginal (crude) measures, so [cm_population()] rejects adjusted measures
@@ -108,45 +100,27 @@ cm_diseases <- function(id, value, type = "prevalence",
 #' @export
 #' @examples
 #' cm_associations(c("d1", "d2"), c("d2", "d3"), c(2, 3), measure = "OR")
-cm_associations <- function(disease1, disease2, value = NA_real_,
-                            measure = "OR",
-                            n11 = NA_real_, n10 = NA_real_,
-                            n01 = NA_real_, n00 = NA_real_,
-                            zero_cell = c("haldane", "error"),
+#' # Two diseases stated to be unrelated
+#' cm_associations("d1", "d3", 1)
+cm_associations <- function(disease1, disease2, value, measure = "OR",
                             adjusted = FALSE, adjusted_for = NA_character_,
                             source = NA_character_) {
-  zero_cell <- match.arg(zero_cell)
   disease1 <- as.character(disease1)
   disease2 <- as.character(disease2)
   n <- length(disease1)
   if (length(disease2) != n) cm_abort("`disease1` and `disease2` must have equal length.")
   if (any(disease1 == disease2)) cm_abort("An association must involve two different diseases.")
   measure <- as.character(recycle_arg(measure, n, "measure"))
-  check_choices(measure, c("OR", "RR", "RD", "cond_prob", "phi", "table",
-                           "independent", "unknown"), "measure")
+  old <- intersect(measure, names(retired_measures))
+  if (length(old)) cm_abort(retired_measures[[old[1]]], class = "deconflate_unsupported")
+  check_choices(measure, association_measures, "measure")
+  if (missing(value)) cm_abort("Give each association a `value`.")
   value <- as.numeric(recycle_arg(value, n, "value"))
-  tab <- cbind(n11 = recycle_arg(n11, n, "n11"), n10 = recycle_arg(n10, n, "n10"),
-               n01 = recycle_arg(n01, n, "n01"), n00 = recycle_arg(n00, n, "n00"))
-  corrected <- rep(FALSE, n)
-
-  is_tab <- measure == "table"
-  if (any(is_tab)) {
-    tt <- tab[is_tab, , drop = FALSE]
-    if (anyNA(tt) || any(tt < 0)) cm_abort("Contingency tables need non-negative n11, n10, n01 and n00.")
-    if (any(rowSums(tt) == 0)) cm_abort("A contingency table is empty (all counts are zero).")
-    zero <- apply(tt == 0, 1, any)
-    if (any(zero) && zero_cell == "error") {
-      cm_abort("A contingency table has a zero cell; use zero_cell = 'haldane' to add 0.5 to every cell.")
-    }
-    tt[zero, ] <- tt[zero, ] + 0.5
-    value[is_tab] <- (tt[, "n11"] * tt[, "n00"]) / (tt[, "n10"] * tt[, "n01"])
-    corrected[is_tab] <- zero
+  if (anyNA(value)) {
+    cm_abort("Association `value` is missing for some rows. Leave a pair out (no row) if its association is unknown.")
   }
-  value[measure == "independent"] <- 1
-  needs_value <- !(measure %in% c("unknown", "independent", "table"))
-  if (anyNA(value[needs_value])) cm_abort("Association `value` is missing for some rows.")
-  if (any(!is.finite(value[needs_value]))) cm_abort("Association values must be finite.")
-  if (any(value[measure %in% c("OR", "RR", "table")] <= 0)) {
+  if (any(!is.finite(value))) cm_abort("Association values must be finite.")
+  if (any(value[measure %in% c("OR", "RR")] <= 0)) {
     cm_abort("Odds ratios and risk ratios must be positive.", class = "deconflate_infeasible")
   }
   key <- pair_key(disease1, disease2)
@@ -159,13 +133,20 @@ cm_associations <- function(disease1, disease2, value = NA_real_,
     adjusted = as.logical(recycle_arg(adjusted, n, "adjusted")),
     adjusted_for = as.character(recycle_arg(adjusted_for, n, "adjusted_for")),
     source = as.character(recycle_arg(source, n, "source")),
-    corrected = corrected,
     stringsAsFactors = FALSE
   )
-  out <- cbind(out, as.data.frame(tab))
   class(out) <- c("cm_associations", "data.frame")
   out
 }
+
+# Association measures, and the measures of earlier versions with what to do
+# instead.
+association_measures <- c("OR", "RR", "RD", "cond_prob", "phi")
+retired_measures <- c(
+  independent = "measure = 'independent' is no longer used: give the pair an odds ratio of 1 (value 1, measure OR).",
+  unknown = "measure = 'unknown' is no longer used: leave the pair out. Pairs without a row are unknown, and the global model fills in their association.",
+  table = "measure = 'table' is no longer used: compute the odds ratio from the counts, n11 * n00 / (n10 * n01), and enter it with measure OR."
+)
 
 #' Describe three-way disease associations (scenarios)
 #'
@@ -182,14 +163,14 @@ cm_associations <- function(disease1, disease2, value = NA_real_,
 #' maximum-entropy assumption. Pairwise evidence cannot identify `ratio`, so
 #' three-way terms are sensitivity scenarios unless there is direct evidence.
 #'
-#' When every pair in the triple is constrained (an association is given, or
-#' the pair is independent by default), a three-way term leaves the pairwise
-#' tables unchanged, so additive results without interactions do not change;
-#' it affects only results that depend on the joint distribution: the global
-#' method with interactions, the hazard-ratio snapshot model and
-#' [attributable_risk()]. When a pair is unknown (`missing_associations =
-#' "unknown"`), the global fit determines its table, and a three-way term can
-#' change it, and with it the additive results.
+#' When every pair in the triple has an association, a three-way term leaves
+#' the pairwise tables unchanged, so additive results without interactions
+#' do not change; it affects only results that depend on the joint
+#' distribution: additive impacts with interactions, and event impacts
+#' (`event_model = TRUE` in [deconflate()]). When a pair is unknown (no
+#' association given), the global fit determines its table, and a three-way
+#' term can change it, and with it the additive results. A model with
+#' three-way terms is always adjusted with the global method.
 #'
 #' @param disease1,disease2,disease3 Character vectors of disease ids.
 #' @param ratio Positive ratio of conditional odds ratios (see Details).
@@ -218,17 +199,18 @@ cm_three_way <- function(disease1, disease2, disease3, ratio, source = NA_charac
 
 #' Describe the population: diseases and their associations
 #'
-#' A population holds everything that is shared by all impact analyses: the
-#' disease probabilities, the pairwise associations and, optionally,
-#' three-way association scenarios. Combine it with an impact vector in
-#' [cm_model()], or with several in [cm_analyses()].
+#' A population holds the disease probabilities, the pairwise associations
+#' and, optionally, three-way association scenarios. Combine it with one
+#' impact table in [cm_model()].
+#'
+#' Pairs without an association are unknown: the global model fills in
+#' their association from the others (see [fit_joint()]).
 #'
 #' @param diseases A [cm_diseases()] object.
-#' @param associations Optional [cm_associations()] object.
-#' @param three_way Optional [cm_three_way()] object (global model only).
-#' @param missing_associations How to treat pairs without an association:
-#'   `"independent"` (default; odds ratio 1, as in Rasmussen et al. 2022) or
-#'   `"unknown"` (unconstrained). These are different assumptions.
+#' @param associations Optional [cm_associations()] object. [deconflate()]
+#'   needs at least one association; the sensitivity tools (e.g.
+#'   [screen_associations()]) also run without any.
+#' @param three_way Optional [cm_three_way()] object.
 #' @param adjusted_associations Covariate-adjusted association measures are
 #'   not marginal 2x2 associations. `"error"` (default) rejects them;
 #'   `"use_as_marginal"` uses them as if they were marginal, which is an
@@ -242,9 +224,7 @@ cm_three_way <- function(disease1, disease2, disease3, ratio, source = NA_charac
 #' )
 #' pop
 cm_population <- function(diseases, associations = NULL, three_way = NULL,
-                          missing_associations = c("independent", "unknown"),
                           adjusted_associations = c("error", "use_as_marginal")) {
-  missing_associations <- match.arg(missing_associations)
   adjusted_associations <- match.arg(adjusted_associations)
   if (!inherits(diseases, "cm_diseases")) cm_abort("`diseases` must be created with cm_diseases().")
   ids <- diseases$id
@@ -268,52 +248,87 @@ cm_population <- function(diseases, associations = NULL, three_way = NULL,
     if (length(unk)) cm_abort(sprintf("Three-way terms refer to unknown diseases: %s.", paste(unk, collapse = ", ")))
   }
   structure(list(diseases = diseases, associations = associations, three_way = three_way,
-                 missing_associations = missing_associations,
                  adjusted_associations = adjusted_associations),
             class = "cm_population")
 }
 
-#' Describe raw impact estimates (one impact vector)
+#' Describe raw impact estimates
 #'
-#' One analysis adjusts one set of compatible, additive impact estimates:
-#' one value per disease, all in the same units (e.g. kg of milk per cow,
-#' percent of yield, days, euros, welfare scores). The engine does not
-#' convert units; results come back in the units supplied. For several
-#' types of impact, use one impact vector each ([cm_analyses()]).
+#' One impact table holds one raw estimate per disease for one outcome. There
+#' are two kinds:
 #'
-#' @section Estimands:
-#' Each value must be one of the supported estimands:
-#' * `"crude"`: the difference in the outcome between animals with and
-#'   without the disease (unadjusted for other diseases).
+#' * **Additive impacts** (no `measure`): amounts in the outcome's own units,
+#'   the same for every row (e.g. kg of milk, percent of yield, days, a
+#'   welfare score). The package does not convert units; results come back
+#'   in the units supplied. Adjust them with [deconflate()].
+#' * **Event impacts** (`measure` given): comparisons of the risk of an event
+#'   (e.g. death or culling) between animals with and without the disease,
+#'   as hazard ratios, rate ratios, risk ratios, odds ratios or risk
+#'   differences. Adjust them with `deconflate(..., event_model = TRUE)`,
+#'   which uses the snapshot hazard model.
+#'
+#' For several outcomes, make one impact table each and adjust each in turn.
+#'
+#' @section Estimands of additive impacts:
+#' * `"crude"` (default): the difference in the outcome between animals with
+#'   and without the disease (unadjusted for other diseases).
 #' * `"adjusted_linear"`: the coefficient of the disease in an additive
 #'   (linear) regression of the outcome on the disease and the diseases in
 #'   `adjusted_for`, in the same source population. The adjustment then uses
 #'   the population projection of the omitted diseases (see [deconflate()]).
 #'   `adjusted_for = "all"` means every other disease in the model.
 #'
-#' `adjusted_for` is only used with `estimand = "adjusted_linear"`; it is never
-#' used to infer the estimand. Other adjusted estimands (e.g. matched or
-#' propensity-score estimates) are not supported. The probabilities and
-#' associations must describe the population the estimates come from.
+#' Other adjusted estimands (e.g. matched or propensity-score estimates) are
+#' not supported. The probabilities and associations must describe the
+#' population the estimates come from.
+#'
+#' @section Event impacts:
+#' `measure` is one of `"HR"` (hazard ratio), `"rate_ratio"`, `"RR"` (risk
+#' ratio over the period), `"OR"` (odds ratio of the event over the period)
+#' or `"RD"` (risk difference over the period); measures can be mixed. The
+#' estimand must be stated (there is no default, because it is an
+#' assumption):
+#' * `"snapshot_crude"`: the comparison of animals with and without the
+#'   disease at the start of the period, in the population described by the
+#'   probabilities and associations (unadjusted for other diseases);
+#' * `"snapshot_stratified"`: the same comparison within strata of the
+#'   diseases in `adjusted_for`, combined across strata with
+#'   Mantel-Haenszel-type weights; with `adjusted_for = "all"` a hazard
+#'   ratio is the disease's own hazard multiplier.
+#'
+#' A Cox hazard ratio estimated over follow-up is not exactly a snapshot
+#' estimand (see [deconflate()], "Event impacts"); entering one as such is an
+#' approximation and the user's assumption. Risk ratios, odds ratios and
+#' risk differences refer to the period of the overall risk given to
+#' [deconflate()].
 #'
 #' @param disease Character vector of disease ids (one row per disease).
 #' @param value Numeric raw impacts. Every disease in the model needs a value
-#'   (use 0 for no impact).
-#' @param estimand `"crude"` (default) or `"adjusted_linear"`, one per row or
-#'   recycled.
-#' @param adjusted_for For `"adjusted_linear"`: the diseases the estimate was
-#'   adjusted for, separated by `";"` (e.g. `"LAM; CM"`), or `"all"`.
+#'   (for no effect: 0 for additive impacts and risk differences, 1 for
+#'   ratios).
+#' @param estimand Additive impacts: `"crude"` (default) or
+#'   `"adjusted_linear"`. Event impacts: `"snapshot_crude"` or
+#'   `"snapshot_stratified"` (required). One per row or recycled.
+#' @param adjusted_for For `"adjusted_linear"` and `"snapshot_stratified"`:
+#'   the diseases the estimate was adjusted for, separated by `";"` (e.g.
+#'   `"LAM; CM"`), or `"all"`.
 #' @param source Optional citation.
-#' @param label,units Optional analysis-level metadata (e.g.
+#' @param label,units Optional table-level metadata (e.g.
 #'   `label = "milk yield loss"`, `units = "% of yield"`), carried into the
 #'   results.
+#' @param measure `NULL` (default) for additive impacts; for event impacts,
+#'   one measure per row or recycled (see Event impacts).
 #'
-#' @return A `cm_impacts` data frame (attributes `label` and `units`).
+#' @return A `cm_impacts` data frame (attributes `label`, `units` and
+#'   `kind`, `"additive"` or `"event"`).
 #' @export
 #' @examples
 #' cm_impacts(c("d1", "d2", "d3"), c(2.5, 5, 7.5), label = "yield", units = "%")
-cm_impacts <- function(disease, value, estimand = "crude", adjusted_for = NA_character_,
-                       source = NA_character_, label = NULL, units = NULL) {
+#' # Event impacts: culling, with mixed measures
+#' cm_impacts(c("d1", "d2", "d3"), c(1.5, 1.3, 0.04), measure = c("HR", "RR", "RD"),
+#'            estimand = "snapshot_crude", label = "culling")
+cm_impacts <- function(disease, value, estimand = NULL, adjusted_for = NA_character_,
+                       source = NA_character_, label = NULL, units = NULL, measure = NULL) {
   disease <- as.character(disease)
   n <- length(disease)
   if (!n) cm_abort("At least one impact is required.")
@@ -323,29 +338,67 @@ cm_impacts <- function(disease, value, estimand = "crude", adjusted_for = NA_cha
     cm_abort(sprintf("Each disease may have only one impact (duplicated: %s).",
                      paste(unique(disease[duplicated(disease)]), collapse = ", ")))
   }
-  estimand <- as.character(recycle_arg(estimand, n, "estimand"))
-  check_choices(estimand, c("crude", "adjusted_linear"), "estimand")
+  event <- !is.null(measure)
+  if (event) {
+    measure <- as.character(recycle_arg(measure, n, "measure"))
+    check_choices(measure, event_measures, "measure")
+    if (is.null(estimand)) {
+      cm_abort("State the estimand of event impacts: estimand = \"snapshot_crude\" or \"snapshot_stratified\" (see ?cm_impacts).")
+    }
+    estimand <- as.character(recycle_arg(estimand, n, "estimand"))
+    check_choices(estimand, c("snapshot_crude", "snapshot_stratified"), "estimand")
+    bad <- measure != "RD" & value <= 0
+    if (any(bad)) {
+      cm_abort(sprintf("Ratios must be positive (check: %s).", paste(disease[bad], collapse = ", ")))
+    }
+    bad <- measure == "RD" & (value <= -1 | value >= 1)
+    if (any(bad)) {
+      cm_abort(sprintf("Risk differences must lie between -1 and 1 (check: %s).", paste(disease[bad], collapse = ", ")))
+    }
+    adj_estimand <- "snapshot_stratified"
+  } else {
+    estimand <- as.character(recycle_arg(estimand %||% "crude", n, "estimand"))
+    if (any(estimand %in% c("snapshot_crude", "snapshot_stratified"))) {
+      cm_abort("Snapshot estimands belong to event impacts: give the `measure` of each row (e.g. \"HR\") and use event_model = TRUE in deconflate().",
+               class = "deconflate_unsupported")
+    }
+    check_choices(estimand, c("crude", "adjusted_linear"), "estimand")
+    measure <- rep(NA_character_, n)
+    adj_estimand <- "adjusted_linear"
+  }
   adjusted_for <- as.character(recycle_arg(adjusted_for, n, "adjusted_for"))
   has_adj <- vapply(adjusted_for, function(x) length(split_ids(x)) > 0, logical(1))
-  bad <- estimand == "crude" & has_adj
+  bad <- estimand != adj_estimand & has_adj
   if (any(bad)) {
     cm_abort(sprintf(
-      "`adjusted_for` is given for crude estimates (%s). Set estimand = 'adjusted_linear' if these are coefficients from an additive regression adjusted for those diseases; other adjusted estimands are not supported.",
-      paste(disease[bad], collapse = ", ")), class = "deconflate_unsupported")
+      "`adjusted_for` is given for %s estimates (%s). Set estimand = '%s' if these estimates are adjusted for those diseases; other adjusted estimands are not supported.",
+      estimand[bad][1], paste(disease[bad], collapse = ", "), adj_estimand), class = "deconflate_unsupported")
   }
-  bad <- estimand == "adjusted_linear" & !has_adj
+  bad <- estimand == adj_estimand & !has_adj
   if (any(bad)) {
-    cm_abort(sprintf("estimand = 'adjusted_linear' needs `adjusted_for` (check: %s).",
+    cm_abort(sprintf("estimand = '%s' needs `adjusted_for` (check: %s).", adj_estimand,
                      paste(disease[bad], collapse = ", ")))
   }
   out <- data.frame(disease = disease, value = value, estimand = estimand,
-                    adjusted_for = adjusted_for,
+                    adjusted_for = adjusted_for, measure = measure,
                     source = as.character(recycle_arg(source, n, "source")),
                     stringsAsFactors = FALSE)
   attr(out, "label") <- label
   attr(out, "units") <- units
+  attr(out, "kind") <- if (event) "event" else "additive"
   class(out) <- c("cm_impacts", "data.frame")
   out
+}
+
+# Measures of event impacts.
+event_measures <- c("HR", "rate_ratio", "RR", "OR", "RD")
+
+# Kind of an impact table: "event" when it has measures, else "additive".
+impact_kind <- function(impacts) {
+  if (is.null(impacts)) return("additive")
+  k <- attr(impacts, "kind")
+  if (!is.null(k)) return(k)
+  if (!is.null(impacts$measure) && any(!is.na(impacts$measure))) "event" else "additive"
 }
 
 #' Describe pairwise impact interactions
@@ -354,8 +407,9 @@ cm_impacts <- function(disease, value, estimand = "crude", adjusted_for = NA_cha
 #' present, in the same units as the impact vector: positive values are
 #' synergistic (more than the sum), negative values antagonistic.
 #' Interactions cannot be inferred from associations and must come from
-#' evidence or explicit scenarios. They require `method = "global"` in
-#' [deconflate()].
+#' evidence or explicit scenarios. A model with interactions is always
+#' adjusted with the global method (see [deconflate()]). Interactions apply
+#' to additive impacts only.
 #'
 #' @param disease1,disease2 Character vectors of disease ids.
 #' @param value Numeric interaction values (same units as the impacts).
@@ -382,32 +436,41 @@ cm_interactions <- function(disease1, disease2, value, source = NA_character_) {
   out
 }
 
-#' Combine a population with an impact vector
+#' Combine a population with an impact table
 #'
 #' @param population A [cm_population()]. For convenience, a [cm_diseases()]
-#'   object can be given instead, together with `associations`,
-#'   `missing_associations` and `three_way`.
+#'   object can be given instead, together with `associations` and
+#'   `three_way`.
 #' @param impacts A [cm_impacts()] object with one value per disease.
-#' @param interactions Optional [cm_interactions()] object.
-#' @param associations,three_way,missing_associations,adjusted_associations
-#'   Used only when `population` is a [cm_diseases()] object; see
-#'   [cm_population()].
+#' @param interactions Optional [cm_interactions()] object (additive impacts
+#'   only).
+#' @param associations,three_way,adjusted_associations Used only when
+#'   `population` is a [cm_diseases()] object; see [cm_population()].
+#' @param distributions Optional named list of distributions ([distributions])
+#'   for uncertain inputs, used when [deconflate()] runs draws. Names are
+#'   keys: `"prob:<disease>"` (the disease's `value`, on the scale it was
+#'   entered), `"assoc:<d1>:<d2>"` (the association, on its own measure),
+#'   `"three:<d1>:<d2>:<d3>"`, `"impact:<disease>"` and `"inter:<d1>:<d2>"`.
+#'   [cm_read_inputs()] fills this in from the `dist` columns of the tables;
+#'   [cm_dist_table()] builds it from a table of keys. When `population` is a
+#'   model and `distributions` is not given, its distributions are kept,
+#'   except those of impacts or interactions that are replaced.
 #' @return A `cm_model` object (which is also a `cm_population`).
 #' @export
 #' @examples
 #' m <- cm_model(
 #'   cm_diseases(c("d1", "d2", "d3"), c(0.10, 0.15, 0.20)),
 #'   cm_impacts(c("d1", "d2", "d3"), c(2.5, 5, 7.5), units = "%"),
-#'   associations = cm_associations(c("d1", "d2"), c("d2", "d3"), c(2, 3))
+#'   associations = cm_associations(c("d1", "d2"), c("d2", "d3"), c(2, 3)),
+#'   distributions = list("impact:d1" = dist_normal(2.5, 0.5))
 #' )
 #' m
 cm_model <- function(population, impacts = NULL, interactions = NULL,
                      associations = NULL, three_way = NULL,
-                     missing_associations = c("independent", "unknown"),
-                     adjusted_associations = c("error", "use_as_marginal")) {
+                     adjusted_associations = c("error", "use_as_marginal"),
+                     distributions = NULL) {
   if (inherits(population, "cm_diseases")) {
     population <- cm_population(population, associations, three_way,
-                                missing_associations = match.arg(missing_associations),
                                 adjusted_associations = match.arg(adjusted_associations))
   }
   if (!inherits(population, "cm_population")) {
@@ -418,10 +481,12 @@ cm_model <- function(population, impacts = NULL, interactions = NULL,
     if (!inherits(impacts, "cm_impacts")) cm_abort("`impacts` must be created with cm_impacts().")
     unk <- setdiff(impacts$disease, ids)
     if (length(unk)) cm_abort(sprintf("Impacts refer to unknown diseases: %s.", paste(unk, collapse = ", ")))
+    kind <- impact_kind(impacts)
     miss <- setdiff(ids, impacts$disease)
     if (length(miss)) {
-      cm_abort(sprintf("No impact for: %s. Every disease needs a value (use 0 for no impact).",
-                       paste(miss, collapse = ", ")))
+      cm_abort(sprintf("No impact for: %s. Every disease needs a value (for no effect: %s).",
+                       paste(miss, collapse = ", "),
+                       if (kind == "event") "1 for ratios, 0 for risk differences" else "0"))
     }
     for (r in seq_len(nrow(impacts))) {
       s <- split_ids(impacts$adjusted_for[r])
@@ -438,12 +503,17 @@ cm_model <- function(population, impacts = NULL, interactions = NULL,
     rownames(impacts) <- NULL
     attr(impacts, "label") <- lab
     attr(impacts, "units") <- un
+    attr(impacts, "kind") <- kind
   }
   if (!is.null(interactions)) {
     if (!inherits(interactions, "cm_interactions")) {
       cm_abort("`interactions` must be created with cm_interactions().")
     }
-    if (is.null(impacts)) cm_abort("Interactions need an impact vector.")
+    if (is.null(impacts)) cm_abort("Interactions need an impact table.")
+    if (impact_kind(impacts) == "event") {
+      cm_abort("Interactions apply to additive impacts only, not to event impacts.",
+               class = "deconflate_unsupported")
+    }
     unk <- setdiff(c(interactions$disease1, interactions$disease2), ids)
     if (length(unk)) cm_abort(sprintf("Interactions refer to unknown diseases: %s.", paste(unk, collapse = ", ")))
   }
@@ -451,52 +521,86 @@ cm_model <- function(population, impacts = NULL, interactions = NULL,
   out$impacts <- impacts
   out$interactions <- interactions
   class(out) <- c("cm_model", "cm_population")
+  if (is.null(distributions)) {
+    # Distributions carried over from a model belong to its tables: those of
+    # replaced impacts or interactions are dropped.
+    distributions <- population$distributions
+    if (length(distributions) && inherits(population, "cm_model")) {
+      type <- vapply(strsplit(names(distributions), ":", fixed = TRUE), `[`, character(1), 1)
+      drop <- (type == "impact" & !identical(impacts, population$impacts)) |
+        (type == "inter" & !identical(interactions, population$interactions))
+      distributions <- distributions[!drop]
+    }
+  }
+  out$distributions <- check_distributions(distributions, out)
   out
 }
 
-#' Several impact analyses on one population
-#'
-#' Bundles several impact vectors (e.g. milk yield, calving interval and
-#' welfare) that share the same diseases and associations. Each is adjusted
-#' separately; Monte Carlo runs on a batch sampler ([cm_batch_sampler()])
-#' reuse the same disease and association draws for every analysis.
-#'
-#' @param population A [cm_population()] (or a [cm_model()], whose impacts
-#'   are dropped).
-#' @param ... Named [cm_impacts()] objects, one per analysis.
-#' @param interactions Optional named list of [cm_interactions()] objects,
-#'   with names matching the analyses.
-#' @return A `cm_analyses` object with `population` and `models` (a named
-#'   list of [cm_model()] objects).
-#' @export
-#' @examples
-#' pop <- example_supplement()
-#' a <- cm_analyses(pop,
-#'   yield = cm_impacts(c("d1", "d2", "d3"), c(2.5, 5, 7.5), units = "%"),
-#'   fertility = cm_impacts(c("d1", "d2", "d3"), c(1, 2, 0), units = "%"))
-#' deconflate(a)
-cm_analyses <- function(population, ..., interactions = list()) {
-  if (!inherits(population, "cm_population")) cm_abort("`population` must come from cm_population().")
-  imps <- list(...)
-  if (!length(imps) || is.null(names(imps)) || any(!nzchar(names(imps)))) {
-    cm_abort("Give each impact vector a name, e.g. cm_analyses(pop, yield = imp1, fertility = imp2).")
+# Check the distributions of a model: a named list of cm_dist objects whose
+# keys match the model's inputs. Returns the list in canonical key form
+# (associations and interactions as listed in their tables, three-way terms
+# in their table's order).
+check_distributions <- function(d, model) {
+  if (is.null(d) || !length(d)) return(NULL)
+  if (!is.list(d) || is.null(names(d)) || any(!nzchar(names(d))) ||
+      !all(vapply(d, inherits, logical(1), "cm_dist"))) {
+    cm_abort("`distributions` must be a named list of distributions (see ?distributions).")
   }
-  if (anyDuplicated(names(imps))) cm_abort("Analysis names must be unique.")
-  if (length(interactions) && (is.null(names(interactions)) ||
-                               length(setdiff(names(interactions), names(imps))))) {
-    cm_abort("`interactions` must be a list named after the analyses.")
+  if (anyDuplicated(names(d))) {
+    cm_abort(sprintf("`distributions` names an input more than once: %s.",
+                     paste(unique(names(d)[duplicated(names(d))]), collapse = ", ")))
   }
-  pop <- population
-  pop$impacts <- NULL
-  pop$interactions <- NULL
-  class(pop) <- "cm_population"
-  models <- lapply(names(imps), function(nm) {
-    imp <- imps[[nm]]
-    if (is.null(attr(imp, "label"))) attr(imp, "label") <- nm
-    cm_model(pop, imp, interactions[[nm]])
-  })
-  names(models) <- names(imps)
-  structure(list(population = pop, models = models), class = "cm_analyses")
+  out <- list()
+  for (k in names(d)) {
+    ck <- canonical_key(k, model)
+    if (!is.null(out[[ck]])) cm_abort(sprintf("The input '%s' is given more than once in `distributions`.", k))
+    out[[ck]] <- d[[k]]
+  }
+  out
+}
+
+# Canonical form of an input key, checked against the model.
+canonical_key <- function(key, model) {
+  parts <- strsplit(key, ":", fixed = TRUE)[[1]]
+  type <- parts[1]
+  ids <- model$diseases$id
+  bad <- function(why) cm_abort(sprintf("Distribution '%s': %s.", key, why))
+  pair_row <- function(tab, what) {
+    if (length(parts) != 3L) bad(sprintf("use '%s:<d1>:<d2>'", type))
+    if (is.null(tab) || !nrow(tab)) bad(sprintf("the model has no %s", what))
+    r <- match(pair_key(parts[2], parts[3]), pair_key(tab$disease1, tab$disease2))
+    if (is.na(r)) bad(sprintf("no %s row for this pair", what))
+    r
+  }
+  switch(type,
+    prob = {
+      if (length(parts) != 2L || !(parts[2] %in% ids)) bad("unknown disease")
+      key
+    },
+    impact = {
+      if (length(parts) != 2L || !(parts[2] %in% ids)) bad("unknown disease")
+      if (is.null(model$impacts)) bad("the model has no impacts")
+      key
+    },
+    assoc = {
+      r <- pair_row(model$associations, "association")
+      paste0("assoc:", model$associations$disease1[r], ":", model$associations$disease2[r])
+    },
+    inter = {
+      r <- pair_row(model$interactions, "interaction")
+      paste0("inter:", model$interactions$disease1[r], ":", model$interactions$disease2[r])
+    },
+    three = {
+      tw <- model$three_way
+      if (length(parts) != 4L) bad("use 'three:<d1>:<d2>:<d3>'")
+      if (is.null(tw) || !nrow(tw)) bad("the model has no three-way terms")
+      tkey <- apply(tw[, c("disease1", "disease2", "disease3")], 1, function(x) paste(sort(x), collapse = "|"))
+      r <- match(paste(sort(parts[2:4]), collapse = "|"), tkey)
+      if (is.na(r)) bad("no three-way row for this triple")
+      paste0("three:", tw$disease1[r], ":", tw$disease2[r], ":", tw$disease3[r])
+    },
+    bad("unknown input type (use prob:, assoc:, three:, impact: or inter:)")
+  )
 }
 
 check_population <- function(x) {

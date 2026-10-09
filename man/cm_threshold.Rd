@@ -12,7 +12,9 @@ cm_threshold(
   target = NULL,
   diseases = NULL,
   by = c("contribution", "adjusted"),
-  method = NULL,
+  method = "auto",
+  event_model = FALSE,
+  overall_risk = NULL,
   n_grid = 101L,
   log_scale = NULL,
   tol = 1e-08,
@@ -22,30 +24,29 @@ cm_threshold(
 \arguments{
 \item{model}{A \code{\link[=cm_model]{cm_model()}}.}
 
-\item{input}{The input to vary, keyed as in \code{\link[=cm_sampler]{cm_sampler()}}:
-\code{"assoc:<d1>:<d2>"} (the pair's association; a pair without a numeric
-measure is varied as an odds ratio, so unknown or unlisted pairs can be
-explored), \code{"inter:<d1>:<d2>"} (an interaction), \code{"prob:<disease>"} (the
-disease's \code{value}, on the scale it was entered), \code{"impact:<disease>"}
-(a raw impact), or \code{"three:<d1>:<d2>:<d3>"} (a three-way ratio).}
+\item{input}{The input to vary, keyed as in \code{\link[=cm_model]{cm_model()}}
+(\code{distributions}): \code{"assoc:<d1>:<d2>"} (the pair's association, on its
+measure; a pair without an association is varied as an odds ratio, so
+unknown pairs can be explored), \code{"inter:<d1>:<d2>"} (an interaction),
+\code{"prob:<disease>"} (the disease's \code{value}, on the scale it was entered),
+\code{"impact:<disease>"} (a raw impact), \code{"three:<d1>:<d2>:<d3>"} (a
+three-way ratio), or, for event impacts, \code{"risk"} (the overall risk).}
 
 \item{range}{Two numbers: the range of the input to search.}
 
 \item{conclusion}{\code{"rank"}, \code{"sign"}, \code{"total"} or \code{"change"}.}
 
-\item{target}{For \code{"total"}, the value of the aggregate; for \code{"change"},
-the relative change from the baseline aggregate (e.g. \code{0.1}, or \code{-0.1}).}
+\item{target}{For \code{"total"}, the value of the aggregate (for event
+impacts, of the attributable risk); for \code{"change"}, the relative change
+from the baseline (e.g. \code{0.1}, or \code{-0.1}).}
 
 \item{diseases}{Optional disease ids to restrict \code{"rank"} (pairs among
 them) and \code{"sign"}.}
 
 \item{by}{For \code{"rank"}: \code{"contribution"} (default) or \code{"adjusted"}.}
 
-\item{method}{Adjustment method; by default \code{"global"} for models with
-interactions or three-way terms (and for \code{"inter:"} and \code{"three:"}
-inputs), otherwise \code{"simultaneous"}. The simultaneous method is rejected
-(class \code{deconflate_unsupported}) for \code{"inter:"} and \code{"three:"} inputs and
-for models with interactions.}
+\item{method, event_model, overall_risk}{As in \code{\link[=deconflate]{deconflate()}} (a
+distribution of the overall risk is used at its mean).}
 
 \item{n_grid}{Number of grid points.}
 
@@ -57,8 +58,8 @@ narrowed to at most 1e-6 of the grid spacing, so that the continuity
 test is reliable.) Because of this argument, the \code{tol} of \code{\link[=fit_joint]{fit_joint()}}
 cannot be passed through \code{...}.}
 
-\item{...}{Passed to \code{\link[=deconflate]{deconflate()}} (e.g. \code{feasibility}, \code{joint}, or
-arguments of \code{\link[=fit_joint]{fit_joint()}} for the global method).}
+\item{...}{\code{joint}, or arguments of \code{\link[=fit_joint]{fit_joint()}} (e.g.
+\code{backend = "sampled"}).}
 }
 \value{
 A \code{cm_threshold} object: \code{thresholds} (one row per crossing:
@@ -76,18 +77,22 @@ Varies one input over a range, with everything else fixed at the model's
 values, and finds the input values at which a conclusion changes:
 \itemize{
 \item \code{"rank"}: two diseases swap places, ranked by their contribution to the
-aggregate (including interaction shares; \code{by = "adjusted"} ranks by
+total (including interaction shares; \code{by = "adjusted"} ranks by
 adjusted impact instead);
-\item \code{"sign"}: a disease's adjusted impact crosses zero. This is a sign
-change implied by the model and its inputs, not by itself evidence of a
-protective effect;
-\item \code{"total"}: the aggregate adjusted burden crosses \code{target} (in the units
-of the impacts);
-\item \code{"change"}: the aggregate departs from its value at the model's own
-input by the relative amount \code{target} (e.g. \code{0.1} for +10\%), which
-answers questions such as "what association strength would increase the
-total by 10\%?".
+\item \code{"sign"}: a disease's adjusted impact crosses zero (for event impacts,
+its adjusted hazard ratio crosses 1). This is a sign change implied by
+the model and its inputs, not by itself evidence of a protective effect;
+\item \code{"total"}: the total crosses \code{target};
+\item \code{"change"}: the total departs from its value at the model's own input
+by the relative amount \code{target} (e.g. \code{0.1} for +10\%), which answers
+questions such as "what association strength would increase the total
+by 10\%?".
 }
+}
+\details{
+The total is the adjusted aggregate (in the units of the impacts) for
+additive impacts, and the risk attributable to disease for event impacts
+(\code{event_model = TRUE}), whose contributions are its Shapley allocation.
 }
 \section{Method}{
 
@@ -114,13 +119,13 @@ crossing found" can be told apart from "part of the range could not be
 evaluated". A sign change between usable points separated by unusable
 ones is not reported as a crossing; such stretches appear in \code{regions}.
 
-With the global method, when the input is an impact or an interaction
-(which do not change the joint distribution), the joint distribution is
+Each point is adjusted as \code{\link[=deconflate]{deconflate()}} would (point estimates; the
+method is chosen for the point's own inputs). When the input is an
+impact, an interaction or the overall risk (which do not change the joint
+distribution) and the adjustment uses the joint distribution, it is
 fitted once and reused (or the \code{joint} passed through \code{...} is used).
 
 Thresholds are deterministic: they are for the model's input values.
-Probabilistic statements (e.g. the probability that a disease ranks
-first) need the Monte Carlo tools.
 }
 
 \examples{
@@ -128,7 +133,7 @@ m <- example_supplement()
 # At what odds ratio between d1 and d2 does the ranking change?
 th <- cm_threshold(m, "assoc:d1:d2", c(0.2, 20), conclusion = "rank")
 th
-# What odds ratio between d1 and d3 (independent in the example) would
-# reduce the aggregate by 10\%?
+# What odds ratio between d1 and d3 (an odds ratio of 1 in the example)
+# would reduce the aggregate by 10\%?
 cm_threshold(m, "assoc:d1:d3", c(1, 50), conclusion = "change", target = -0.1)$thresholds
 }

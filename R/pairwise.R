@@ -44,8 +44,7 @@ joint_to_or <- function(p11, p1, p2) {
 
 #' Joint probability of a disease pair from any supported measure
 #'
-#' @param measure One of the measures in [cm_associations()] other than
-#'   `"unknown"` (`"table"` rows store the table's odds ratio in `value`).
+#' @param measure One of the measures in [cm_associations()].
 #' @param value Association value.
 #' @param p1,p2 Marginal probabilities of `disease1` and `disease2`.
 #' @return `P(d1 and d2)`. Errors with class `deconflate_infeasible` if the
@@ -53,9 +52,7 @@ joint_to_or <- function(p11, p1, p2) {
 #' @export
 association_to_joint <- function(measure, value, p1, p2) {
   p11 <- switch(measure,
-    independent = p1 * p2,
-    OR = ,
-    table = return(or_to_joint(value, p1, p2)),
+    OR = return(or_to_joint(value, p1, p2)),
     RR = value * p1 / (1 - p2 + value * p2) * p2,
     RD = (value * (1 - p2) + p1) * p2,
     cond_prob = value * p2,
@@ -74,11 +71,11 @@ association_to_joint <- function(measure, value, p1, p2) {
 #' Pairwise 2x2 tables for every disease pair
 #'
 #' @param model A [cm_population()] or [cm_model()].
-#' @return A data frame with one row per unordered pair: the measure used,
-#'   whether it was specified or defaulted, the joint probability `p11`
-#'   (`NA` for unknown pairs), the implied odds ratio, and the excess
-#'   probabilities `ep_2_given_1 = P(d2 | d1) - P(d2 | not d1)` and
-#'   `ep_1_given_2`.
+#' @return A data frame with one row per unordered pair: the measure used
+#'   (`NA` for a pair without an association), its `status` (`"specified"`
+#'   or `"unknown"`), the joint probability `p11` (`NA` for unknown pairs),
+#'   the implied odds ratio, and the excess probabilities
+#'   `ep_2_given_1 = P(d2 | d1) - P(d2 | not d1)` and `ep_1_given_2`.
 #' @export
 pair_tables <- function(model) {
   check_population(model)
@@ -99,10 +96,10 @@ pair_tables <- function(model) {
   akey <- if (is.null(assoc)) character(0) else pair_key(assoc$disease1, assoc$disease2)
   hit <- match(pair_key(d1, d2), akey)
 
-  default <- if (model$missing_associations == "independent") "independent" else "unknown"
-  measure <- rep(default, np)
-  status <- rep(paste0(default, " (default)"), np)
-  p11 <- if (default == "independent") p[d1] * p[d2] else rep(NA_real_, np)
+  # Pairs without an association are unknown.
+  measure <- rep(NA_character_, np)
+  status <- rep("unknown", np)
+  p11 <- rep(NA_real_, np)
   spec <- which(!is.na(hit))
   if (length(spec)) {
     a <- assoc[hit[spec], , drop = FALSE]
@@ -110,7 +107,6 @@ pair_tables <- function(model) {
     status[spec] <- "specified"
     # Directional measures are defined with the row's own orientation.
     p11[spec] <- vapply(seq_along(spec), function(j) {
-      if (a$measure[j] == "unknown") return(NA_real_)
       association_to_joint(a$measure[j], a$value[j], p[[a$disease1[j]]], p[[a$disease2[j]]])
     }, numeric(1))
   }
@@ -133,7 +129,8 @@ pair_tables <- function(model) {
 #' @return An n x n matrix `E` with `E[k, i] = P(k | i) - P(k | not i)`, the
 #'   excess probability of disease `k` among animals with disease `i`
 #'   (`ep_ki` in Rasmussen et al. 2022, eq. 14). The diagonal is 0. Errors if
-#'   any pair is `"unknown"`: pairwise methods need every pair specified.
+#'   any pair is unknown (has no association): pairwise tables need every
+#'   pair.
 #' @export
 excess_matrix <- function(model) {
   pt <- pair_tables(model)
@@ -141,7 +138,7 @@ excess_matrix <- function(model) {
   if (anyNA(pt$p11)) {
     unk <- paste(pt$disease1, pt$disease2, sep = "-")[is.na(pt$p11)]
     cm_abort(sprintf(
-      "Unknown associations for %s. Specify them, set missing_associations = 'independent', or use method = 'global'.",
+      "No association for %s: the excess matrix needs every pair. Give these pairs an association (an odds ratio of 1 if they are unrelated), or use deconflate(), which fills them in with the global method.",
       paste(unk, collapse = ", ")), class = c("deconflate_unknown_pairs", "deconflate_unsupported"))
   }
   E <- matrix(0, length(ids), length(ids), dimnames = list(ids, ids))

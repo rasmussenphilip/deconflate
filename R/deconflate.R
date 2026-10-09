@@ -2,8 +2,15 @@
 #'
 #' Raw impact estimates (comparisons of animals with and without a disease)
 #' are treated as conflations of the disease's own impact and the impacts of
-#' associated diseases. For one vector of additive impacts `b` (in any
-#' units), the raw estimates satisfy
+#' associated diseases. `deconflate()` removes the part of each estimate that
+#' belongs to other diseases, for one impact table at a time: additive
+#' impacts (the default), or event impacts (`event_model = TRUE`). When
+#' inputs have distributions, it also runs draws (`n_draws`) and reports
+#' intervals.
+#'
+#' @section Additive impacts:
+#' For one vector of additive impacts `b` (in any units), the raw estimates
+#' satisfy
 #'
 #' `raw = A %*% b + offset`,
 #'
@@ -11,7 +18,6 @@
 #' each estimate's estimand), and `offset` holds the contribution of any
 #' pairwise interactions. Results are in the units of the impacts supplied.
 #'
-#' @section Estimands and the conflation matrix:
 #' For a crude estimate of disease `i`, `A[i, k] = P(k | i) - P(k | not i)`
 #' (the excess probability; Rasmussen et al. 2022, eq. 14). For a coefficient
 #' from an additive regression adjusted for the diseases `S`
@@ -22,76 +28,146 @@
 #' the population the estimates come from. An adjustment set that is
 #' collinear with the disease is not identifiable and is rejected.
 #'
-#' With interactions `delta` (global method), the offset of disease `i` is
-#' the corresponding regression coefficient of the interaction burden
+#' With interactions `delta`, the offset of disease `i` is the corresponding
+#' regression coefficient of the interaction burden
 #' `sum_{j<k} delta[j, k] D_j D_k`, which needs the joint distribution of
 #' disease combinations.
 #'
-#' @section Aggregate and contributions:
 #' The expected aggregate impact per animal is
 #' `sum_i p_i b_i + sum_{j<k} P(j and k) delta[j, k]`. Each disease's
 #' contribution is its own term plus half of each interaction term it is
 #' involved in (the closed-form Shapley value); contributions add up to the
 #' aggregate. Shares are `NA` when the aggregate is zero.
 #'
-#' @section Number of diseases:
-#' The `"simultaneous"` method uses the pairwise tables only, so it works
-#' for any number of diseases (the triple screen checks
-#' n(n-1)(n-2)/6 triples). The `"global"` method needs the joint
-#' distribution: the exact backend of [fit_joint()] enumerates 2^n
-#' combinations (about 20 diseases at most); the sampled backend fits the
-#' same model by Monte Carlo for more. The exact LP feasibility check is
-#' limited to 14 diseases.
+#' @section Methods:
+#' * The simultaneous method solves `raw = A b` exactly from the pairwise
+#'   2x2 tables. No joint distribution is needed, so it works for any number
+#'   of diseases.
+#' * The global method fits the maximum-entropy distribution of disease
+#'   combinations ([fit_joint()]; the "iterative" model) and solves the same
+#'   equations, including any interactions. Pairs without an association are
+#'   unknown: the fit fills them in from the other associations.
+#'
+#' The two give the same results when every pair has an association, there
+#' are no interactions and no three-way terms. `method = "auto"` (the
+#' default) uses the simultaneous method then, and the global method
+#' otherwise, with a note giving the reason; `"simultaneous"` behaves the
+#' same way (the global method is used when it is needed), and `"global"`
+#' always uses the global method. The global method's exact backend
+#' enumerates 2^n combinations; with more than 20 diseases the sampled
+#' backend is used (see [fit_joint()]).
+#'
+#' The proportional approximation of Rasmussen et al. (2022, eq. 16) is not a
+#' method here: it is kept for comparison and reproduction in
+#' [compare_methods()] and the `reproduce_*()` functions.
+#'
+#' @section Event impacts:
+#' With `event_model = TRUE`, the impact table holds event impacts (hazard
+#' ratios, rate ratios, risk ratios, odds ratios or risk differences; see
+#' [cm_impacts()]), which are adjusted with the snapshot hazard model. Within
+#' the period of the overall risk, an animal with disease combination `d` has
+#' a constant hazard `h0 * exp(sum_i beta_i d_i)`, so its risk over the
+#' period is `R(d) = 1 - exp(-h0 * exp(sum_i beta_i d_i))`; `h0` is set so
+#' that the population risk, averaged over the joint distribution of disease
+#' combinations, equals `overall_risk`. The `beta`s are solved so that each
+#' raw estimate is reproduced:
+#' * a hazard ratio or rate ratio by the ratio of the average hazard
+#'   multipliers among animals with and without the disease;
+#' * a risk ratio, odds ratio or risk difference by the ratio, odds ratio or
+#'   difference of the average risks `R` among animals with and without the
+#'   disease;
+#'
+#' at the start of the period (crude), or within strata of the estimate's
+#' adjustment set, combined with Mantel-Haenszel-type weights (stratified).
+#' The adjusted hazard ratios `exp(beta)` are each disease's own hazard
+#' multiplier. The risk attributable to disease is `overall_risk` minus the
+#' disease-free risk `1 - exp(-h0)`; an animal's risk cannot exceed 1, so it
+#' is smaller than the sum of per-disease excess risks when diseases
+#' co-occur. It is allocated to diseases by Shapley values over disease
+#' combinations ([shapley_by_cell()]).
+#'
+#' What the snapshot model is not: a Cox hazard ratio estimated over
+#' follow-up is not, in general, the snapshot ratio, because animals with
+#' high hazards leave first and the mixture of disease combinations among
+#' survivors changes. The model is exact for its own estimands and a
+#' reasonable approximation when follow-up is short relative to the hazards
+#' or the diseases are rare. Risk-based estimates (risk ratios, odds ratios,
+#' risk differences) must refer to the same period as `overall_risk`.
+#'
+#' @section Uncertainty:
+#' Inputs with a distribution (the `dist` columns of the input tables, or
+#' `distributions` in [cm_model()]; and `overall_risk` given as a
+#' distribution) are drawn `n_draws` times; each draw is adjusted in the same
+#' way as the central estimate. The central estimate uses the point values
+#' (`value`, and the mean of an `overall_risk` distribution); the draws give
+#' 95% intervals (2.5% and 97.5% quantiles), means, Monte Carlo standard
+#' errors and stability checks (`$draws$summary`). Draws whose values cannot
+#' hold together (e.g. associations that no population can have at once) are
+#' rejected and counted (`$draws$rejections`), not replaced; notes in
+#' `$notes` report a high rejection share and limited Monte Carlo precision.
+#' Without distributions, no draws are run.
 #'
 #' @section Feasibility:
 #' Pairwise tables can each be valid while no population has all of them
-#' (an invertible `A` does not mean the inputs are feasible). By default the
-#' pairwise methods screen every triple of diseases (a necessary condition;
-#' see [check_feasibility()]); `feasibility = "lp"` runs the exact check. The
-#' global method fits the joint distribution, and stops if it does not
-#' converge.
+#' (an invertible `A` does not mean the inputs are feasible). The
+#' simultaneous method screens every triple of diseases (a necessary
+#' condition; see [check_feasibility()]); `feasibility = "lp"` runs the exact
+#' check. The global method fits the joint distribution, and stops if it
+#' does not converge.
 #'
-#' @param model A [cm_model()], or a [cm_analyses()] object (each analysis is
-#'   adjusted in turn).
-#' @param method
-#'   * `"simultaneous"` (default): solves `raw = A b` exactly using the
-#'     pairwise 2x2 tables. No joint distribution is needed.
-#'   * `"global"`: fits the maximum-entropy joint distribution
-#'     ([fit_joint()]; the "iterative" model) and solves the equations
-#'     including any interactions. Unknown pairs are left unconstrained.
-#'     Without interactions and unknown pairs, it equals `"simultaneous"`.
-#'     For more than about 20 diseases, pass `backend = "sampled"` (through
-#'     `...`, or fit the joint with [fit_joint()] and pass it as `joint`).
-#'
-#'   Use `"simultaneous"` when impacts are additive and every pair has an
-#'   association estimate or a defensible independence assumption; otherwise
-#'   (interactions, unknown pairs) use `"global"`. The proportional
-#'   approximation of Rasmussen et al. (2022, eq. 16) is not a method here: it
-#'   is kept for comparison and reproduction in [compare_methods()],
-#'   [cm_monte_carlo()] and the `reproduce_*()` functions.
-#' @param joint Optional [fit_joint()] result for `method = "global"`. It is
-#'   checked against the model (diseases, probabilities, associations and
-#'   three-way terms); impact-only changes do not require a refit.
+#' @param model A [cm_model()] (e.g. from [cm_read_inputs()]) with at least
+#'   one association.
+#' @param method `"auto"` (default), `"simultaneous"` or `"global"` (see
+#'   Methods). Not used for event impacts, which always use the snapshot
+#'   model.
+#' @param event_model `FALSE` (default) for additive impacts; `TRUE` for
+#'   event impacts (an impact table with a `measure` column).
+#' @param overall_risk With `event_model = TRUE` (required): the overall risk
+#'   of the event in the population over the period, as a proportion (e.g.
+#'   `0.25`), or a distribution (e.g. `dist_beta(250, 750)`).
+#' @param n_draws Number of draws for the uncertainty (default 1000; 0 for
+#'   point estimates only; otherwise at least 2). Used only when some input has a distribution.
+#' @param seed Optional random seed for the draws and for a sampled joint
+#'   distribution (one is chosen and stored
+#'   in the result otherwise).
+#' @param sampling `"random"` (default) or `"lhs"` (Latin hypercube, in
+#'   `lhs_replicates` independent blocks; the Monte Carlo error is then
+#'   estimated from the block means).
+#' @param lhs_replicates Number of Latin hypercube blocks (at least 2; at
+#'   most `n_draws / 2` are used).
+#' @param joint Optional [fit_joint()] result for the global method or the
+#'   event model. It is checked against the model (diseases, probabilities,
+#'   associations and three-way terms).
 #' @param warn Logical: warn when adjusted impacts change sign or are not
 #'   finite?
-#' @param feasibility For the pairwise methods: `"screen"` (default; triple
-#'   screen), `"lp"` (exact check, needs `lpSolve`) or `"none"`.
-#' @param ... Passed to [fit_joint()] (method `"global"`), or to the method
-#'   for each analysis.
+#' @param feasibility For the simultaneous method: `"screen"` (default;
+#'   triple screen), `"lp"` (exact check, needs `lpSolve`) or `"none"`.
+#' @param ... Passed to [fit_joint()] (e.g. `backend = "sampled"`).
 #'
-#' @return A `cm_result` with elements:
-#'   * `adjusted`: raw and adjusted impacts, relative change and estimand;
+#' @return For additive impacts, a `cm_result` with elements:
+#'   * `adjusted`: raw and adjusted impacts, relative change and estimand
+#'     (with draws, also `lower` and `upper`);
 #'   * `totals`: the sum of `p_i * raw_i` (the naive aggregate), the adjusted
 #'     aggregate and its interaction part;
 #'   * `contributions`: per disease, main and interaction contributions,
 #'     their total and share;
 #'   * `diagnostics`: reconstruction residual, rank and condition number of
 #'     `A`, sign changes and the feasibility check;
-#'   * `conflation` (`A` and `offset`), `interactions` (matrix of `delta`),
-#'     `joint_pairs` (matrix of `P(j and k)`), `model`, `joint`, `method`,
-#'     `label` and `units`.
-#'   For a [cm_analyses()] object, a named list of results (class
-#'   `cm_results`).
+#'   * `unknown_pairs`: pairs without an association and the odds ratios the
+#'     global fit gave them;
+#'   * `draws`: the uncertainty (summary, accepted draws, rejections, seed),
+#'     or `NULL`;
+#'   * `notes`, `conflation` (`A` and `offset`), `interactions` (matrix of
+#'     `delta`), `joint_pairs` (matrix of `P(j and k)`), `model`, `joint`,
+#'     `method`, `label` and `units`.
+#'
+#'   For event impacts, a `cm_event_result` with `adjusted` (raw estimates
+#'   and adjusted hazard ratios), `attributable` (`summary`: overall,
+#'   disease-free and attributable risk and the attributable fraction;
+#'   `by_disease`: the Shapley allocation; `baseline_hazard`), `diagnostics`,
+#'   `unknown_pairs`, `draws`, `notes`, `joint`, `model`, `method` and
+#'   `overall_risk`. Risks are proportions of animals with the event during
+#'   the period.
 #' @export
 #' @examples
 #' res <- deconflate(example_supplement())
@@ -104,32 +180,179 @@
 #'                         estimand = c("adjusted_linear", "crude", "crude"),
 #'                         adjusted_for = c("d2", NA, NA), units = "%")
 #' deconflate(m)$adjusted
+#'
+#' # Uncertain inputs
+#' m2 <- cm_model(example_supplement(), example_supplement()$impacts,
+#'                distributions = list("impact:d1" = dist_normal(2.5, 0.5),
+#'                                     "assoc:d2:d3" = dist_lognormal_ci(3, 2, 4.5)))
+#' deconflate(m2, n_draws = 200, seed = 1)
+#'
+#' # Event impacts (culling): hazard ratios and a risk ratio
+#' cull <- cm_model(example_supplement(),
+#'                  cm_impacts(c("d1", "d2", "d3"), c(1.5, 2.0, 1.2), measure = c("HR", "HR", "RR"),
+#'                             estimand = "snapshot_crude", label = "culling"))
+#' deconflate(cull, event_model = TRUE, overall_risk = 0.25)
 deconflate <- function(model, ...) UseMethod("deconflate")
 
 #' @export
 deconflate.default <- function(model, ...) {
-  cm_abort("`model` must be created with cm_model() or cm_analyses().")
+  cm_abort("`model` must be created with cm_model() or cm_read_inputs().")
 }
 
 #' @rdname deconflate
 #' @export
-deconflate.cm_model <- function(model, method = c("simultaneous", "global"),
+deconflate.cm_model <- function(model, method = c("auto", "simultaneous", "global"),
+                                event_model = FALSE, overall_risk = NULL, n_draws = 1000,
+                                seed = NULL, sampling = c("random", "lhs"), lhs_replicates = 10L,
                                 joint = NULL, warn = TRUE,
                                 feasibility = c("screen", "lp", "none"), ...) {
-  method <- public_method(method, c("simultaneous", "global"), "deconflate()")
-  adjust_impacts(model, method = method, joint = joint, warn = warn, feasibility = feasibility, ...)
+  given <- !missing(method)
+  method <- public_method(method, c("auto", "simultaneous", "global"), "deconflate()")
+  sampling <- match.arg(sampling)
+  feasibility <- match.arg(feasibility)
+  check_draw_args(n_draws, seed, sampling, lhs_replicates)
+  n_draws <- as.integer(n_draws)
+  check_event_model(model, event_model)
+  risk <- check_overall_risk(overall_risk, event_model)
+  a <- model$associations
+  if (is.null(a) || !nrow(a)) {
+    cm_abort("No association estimates were given, so there is nothing to de-conflate (the diseases would be treated as independent). To see how much associations could change the results, use screen_associations() or cm_threshold().",
+             class = "deconflate_unsupported")
+  }
+  dots <- list(...)
+  plan <- plan_method(model, method, event_model, given, dots, has_joint = !is.null(joint))
+  # The seed also makes a sampled joint distribution reproducible.
+  if (!is.null(seed) && identical(plan$fit_args$backend %||% dots$backend, "sampled") && is.null(dots$seed)) {
+    plan$fit_args$seed <- seed
+  }
+  res <- run_point(model, plan, risk = risk$value, joint = joint, warn = warn,
+                   feasibility = feasibility, dots = dots)
+  res$notes <- plan$notes
+  res$unknown_pairs <- unknown_pairs_table(model, res$joint)
+  specs <- draw_specs(model, risk$dist)
+  if (n_draws > 0L) {
+    if (!length(specs)) {
+      res$notes <- c(res$notes, "No input has a distribution, so no draws were run: the results are point estimates.")
+    } else {
+      res$draws <- deconflate_draws(model, specs, plan, res, risk$value, n_draws, seed, sampling,
+                                    lhs_replicates, feasibility, dots)
+      res <- attach_intervals(res)
+      res$notes <- c(res$notes, draw_notes(res$draws))
+    }
+  }
+  res
+}
+
+# Additive or event impacts, as the call says? A mismatch is an error.
+check_event_model <- function(model, event_model) {
+  if (!is.logical(event_model) || length(event_model) != 1L || is.na(event_model)) {
+    cm_abort("`event_model` must be TRUE or FALSE.")
+  }
+  if (is.null(model$impacts)) cm_abort("The model has no impacts to adjust.")
+  kind <- impact_kind(model$impacts)
+  if (event_model && kind != "event") {
+    cm_abort("event_model = TRUE needs event impacts: an impact table with a measure column (HR, rate_ratio, RR, OR or RD) and snapshot estimands (see ?cm_impacts).",
+             class = "deconflate_unsupported")
+  }
+  if (!event_model && kind == "event") {
+    cm_abort("These are event impacts (the impact table has a measure column): use event_model = TRUE, with overall_risk.",
+             class = "deconflate_unsupported")
+  }
+  invisible(TRUE)
+}
+
+# Choose how to adjust: the method actually used, the arguments for the
+# joint fit, and notes saying why.
+plan_method <- function(model, method, event_model, given = TRUE, dots = list(), has_joint = FALSE) {
+  n <- nrow(model$diseases)
+  notes <- character(0)
+  fit_args <- list()
+  sampled_note <- if (has_joint) character(0) else
+    sprintf("With %d diseases, the joint distribution was fitted with the sampled backend (see ?fit_joint).", n)
+  if (n > 20L && is.null(dots$backend)) {
+    fit_args$backend <- "sampled"
+  }
+  if (event_model) {
+    if (given && method == "simultaneous") {
+      notes <- c(notes, "Event impacts are always adjusted with the snapshot model, which uses the joint distribution of disease combinations; `method` was not used.")
+    }
+    if (!is.null(fit_args$backend)) notes <- c(notes, sampled_note)
+    return(list(method = "snapshot", event = TRUE, notes = notes, fit_args = fit_args))
+  }
+  reasons <- global_reasons(model)
+  use <- if (method == "global" || length(reasons)) "global" else "simultaneous"
+  if (length(reasons) && method != "global") {
+    notes <- c(notes, sprintf("%s because of %s.",
+                              if (method == "simultaneous") "The global method was used instead of the simultaneous method" else "The global method was used",
+                              join_and(reasons)))
+  }
+  if (use == "global" && !is.null(fit_args$backend)) notes <- c(notes, sampled_note)
+  list(method = use, event = FALSE, notes = notes, fit_args = fit_args)
+}
+
+# "a", "a and b", "a, b and c".
+join_and <- function(x) {
+  if (length(x) <= 1L) return(paste(x, collapse = ""))
+  paste(paste(x[-length(x)], collapse = ", "), "and", x[length(x)])
+}
+
+# What needs the global method: interactions, three-way terms, unknown pairs.
+global_reasons <- function(model) {
+  out <- character(0)
+  if (!is.null(model$interactions) && nrow(model$interactions)) out <- c(out, "interactions")
+  if (!is.null(model$three_way) && nrow(model$three_way)) out <- c(out, "three-way terms")
+  pt <- pair_tables(model)
+  k <- sum(pt$status == "unknown")
+  if (k) out <- c(out, sprintf("%d pair%s without an association (unknown)", k, if (k == 1L) "" else "s"))
+  out
+}
+
+# One adjustment of a model, as planned.
+run_point <- function(model, plan, risk = NULL, joint = NULL, warn = TRUE,
+                      feasibility = "screen", dots = list(), joint_start = NULL, start = NULL) {
+  fj <- utils::modifyList(dots[intersect(names(dots), joint_arg_names)], plan$fit_args)
+  if (isTRUE(plan$event)) {
+    do.call(adjust_event, c(list(model, method = "snapshot", overall_risk = risk, joint = joint,
+                                 warn = warn, start = start, joint_start = joint_start), fj))
+  } else {
+    do.call(adjust_impacts, c(list(model, method = plan$method, joint = joint, warn = warn,
+                                   feasibility = feasibility, joint_start = joint_start), fj))
+  }
+}
+
+# Pairs without an association and the odds ratios the global fit gave them.
+unknown_pairs_table <- function(model, joint) {
+  pt <- pair_tables(model)
+  pt <- pt[pt$status == "unknown", , drop = FALSE]
+  if (!nrow(pt) || is.null(joint)) {
+    return(data.frame(disease1 = pt$disease1, disease2 = pt$disease2,
+                      fitted_or = rep(NA_real_, nrow(pt)), stringsAsFactors = FALSE))
+  }
+  ids <- joint$diseases
+  J <- crossprod(joint$cells * joint$prob, joint$cells)
+  i1 <- match(pt$disease1, ids)
+  i2 <- match(pt$disease2, ids)
+  p11 <- J[cbind(i1, i2)]
+  out <- data.frame(disease1 = pt$disease1, disease2 = pt$disease2,
+                    fitted_or = unname(joint_to_or(p11, diag(J)[i1], diag(J)[i2])), stringsAsFactors = FALSE)
+  rownames(out) <- NULL
+  out
 }
 
 # The adjustment itself, including the published approximation (eq. 16 of
-# Rasmussen et al. 2022), which is kept for compare_methods(),
-# cm_monte_carlo() and the reproduce_*() functions only.
+# Rasmussen et al. 2022), which is kept for compare_methods() and the
+# reproduce_*() functions only.
 adjust_impacts <- function(model, method = c("simultaneous", "published", "global"),
                            joint = NULL, warn = TRUE,
-                           feasibility = c("screen", "lp", "none"), ...) {
+                           feasibility = c("screen", "lp", "none"), joint_start = NULL, ...) {
   method <- match.arg(method)
   feasibility <- match.arg(feasibility)
   imp <- model$impacts
   if (is.null(imp)) cm_abort("The model has no impacts to adjust.")
+  if (impact_kind(imp) == "event") {
+    cm_abort("These are event impacts (the impact table has a measure column): use event_model = TRUE, with overall_risk.",
+             class = "deconflate_unsupported")
+  }
   ids <- model$diseases$id
   if (!identical(imp$disease, ids)) {
     # Impacts replaced after cm_model() (e.g. `m$impacts <- ...`): validate
@@ -146,14 +369,14 @@ adjust_impacts <- function(model, method = c("simultaneous", "published", "globa
              class = "deconflate_unsupported")
   }
   if (has_int && method != "global") {
-    cm_abort("Interactions require method = 'global' (they need probabilities of disease triples).",
+    cm_abort("Interactions need the global method (they need probabilities of disease combinations).",
              class = "deconflate_unsupported")
   }
 
   cells <- NULL
   if (method == "global") {
     if (is.null(joint)) {
-      joint <- withCallingHandlers(fit_joint(model, ...),
+      joint <- withCallingHandlers(fit_joint(as_population(model), start = joint_start, ...),
                                    deconflate_nonconvergence = function(w) invokeRestart("muffleWarning"))
     } else {
       validate_joint(joint, model)
@@ -176,7 +399,7 @@ adjust_impacts <- function(model, method = c("simultaneous", "published", "globa
     if (anyNA(pt$p11)) {
       unk <- paste(pt$disease1, pt$disease2, sep = "-")[is.na(pt$p11)]
       cm_abort(sprintf(
-        "Unknown associations for %s. Specify them, set missing_associations = 'independent', or use method = 'global'.",
+        "No association for %s: the pairwise methods need every pair. The global method fills unknown pairs in (deconflate() uses it automatically); to treat a pair as unrelated, give it an odds ratio of 1.",
         paste(unk, collapse = ", ")), class = c("deconflate_unknown_pairs", "deconflate_unsupported"))
     }
     J <- diag(P, nrow = n)
@@ -273,31 +496,6 @@ adjust_impacts <- function(model, method = c("simultaneous", "published", "globa
   ), class = "cm_result")
 }
 
-#' @rdname deconflate
-#' @export
-deconflate.cm_analyses <- function(model, method = c("simultaneous", "global"),
-                                   joint = NULL, ...) {
-  method <- public_method(method, c("simultaneous", "global"), "deconflate()")
-  adjust_analyses(model, method = method, joint = joint, ...)
-}
-
-# All analyses of a cm_analyses object (any method, including the published
-# approximation for internal use).
-adjust_analyses <- function(model, method = c("simultaneous", "published", "global"),
-                            joint = NULL, ...) {
-  method <- match.arg(method)
-  if (method == "global" && is.null(joint)) {
-    # One joint distribution serves every analysis (it depends on the
-    # population only).
-    dots <- list(...)
-    fj <- dots[intersect(names(dots), joint_arg_names)]
-    joint <- withCallingHandlers(do.call(fit_joint, c(list(model$population), fj)),
-                                 deconflate_nonconvergence = function(w) invokeRestart("muffleWarning"))
-  }
-  out <- lapply(model$models, adjust_impacts, method = method, joint = joint, ...)
-  structure(out, class = "cm_results")
-}
-
 # Regression coefficient of D_i for the interaction burden g, given the
 # estimand of each impact (crude: difference in means; adjusted_linear: the
 # coefficient in a population regression on D_i and D_S).
@@ -329,23 +527,20 @@ projection_offset <- function(cells, prob, g, impacts, ids) {
 #' in. The shares add up to the aggregate. This is the `contributions` table
 #' of [deconflate()].
 #'
+#' For event impacts, it is the Shapley allocation of the risk attributable
+#' to disease (`$attributable$by_disease`).
+#'
 #' @param result A [deconflate()] result.
 #' @return A data frame with, per disease, the main contribution, the share
 #'   of interaction terms, the total and the share of the aggregate (`NA`
-#'   when the aggregate is zero).
+#'   when the aggregate is zero); for event impacts, the attributable risk
+#'   and its share.
 #' @export
 attribute_burden <- function(result) {
+  if (inherits(result, "cm_event_result")) {
+    if (is.null(result$attributable$by_disease)) cm_abort("The result has no allocation of the attributable risk.")
+    return(result$attributable$by_disease)
+  }
   if (!inherits(result, "cm_result")) cm_abort("`result` must come from deconflate().")
   result$contributions
-}
-
-#' @export
-print.cm_results <- function(x, ...) {
-  cat(sprintf("<cm_results> %d analyses: %s\n\n", length(x), paste(names(x), collapse = ", ")))
-  for (nm in names(x)) {
-    cat(sprintf("== %s ==\n", nm))
-    print(x[[nm]])
-    cat("\n")
-  }
-  invisible(x)
 }

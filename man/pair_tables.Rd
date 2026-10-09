@@ -10,11 +10,11 @@ pair_tables(model)
 \item{model}{A \code{\link[=cm_population]{cm_population()}} or \code{\link[=cm_model]{cm_model()}}.}
 }
 \value{
-A data frame with one row per unordered pair: the measure used,
-whether it was specified or defaulted, the joint probability \code{p11}
-(\code{NA} for unknown pairs), the implied odds ratio, and the excess
-probabilities \verb{ep_2_given_1 = P(d2 | d1) - P(d2 | not d1)} and
-\code{ep_1_given_2}.
+A data frame with one row per unordered pair: the measure used
+(\code{NA} for a pair without an association), its \code{status} (\code{"specified"}
+or \code{"unknown"}), the joint probability \code{p11} (\code{NA} for unknown pairs),
+the implied odds ratio, and the excess probabilities
+\verb{ep_2_given_1 = P(d2 | d1) - P(d2 | not d1)} and \code{ep_1_given_2}.
 }
 \description{
 Pairwise 2x2 tables for every disease pair

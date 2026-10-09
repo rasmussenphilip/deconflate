@@ -12,15 +12,16 @@ Description: Adjusts ("de-conflates") single-disease impact estimates for
     <doi:10.1016/j.prevetmed.2022.105617> for crude estimates and for
     coefficients of additive regressions with recorded adjustment sets
     (the published proportional approximation is kept for comparison and
-    reproduction), and a global model that fits a
-    maximum-entropy distribution of disease combinations by iterative
-    proportional fitting and incorporates specified pairwise impact
-    interactions and three-way association scenarios. Hazard ratios are
-    adjusted with a separate multiplicative adapter, with attributable risk.
-    Includes Shapley attribution, feasibility checks, Monte Carlo propagation
-    of input uncertainty with stability diagnostics, Latin hypercube and
-    importance sampling, sensitivity screening and reproduction of the
-    published analyses.
+    reproduction), and a global model that fits a maximum-entropy
+    distribution of disease combinations by iterative proportional fitting,
+    fills in pairs without an association estimate, and incorporates
+    specified pairwise impact interactions and three-way association
+    scenarios. Event impacts (hazard ratios, rate ratios, risk ratios, odds
+    ratios and risk differences of, e.g., culling) are adjusted with a
+    snapshot hazard model, with the risk attributable to disease. Includes
+    Shapley attribution, feasibility checks, propagation of input
+    uncertainty with stability diagnostics, threshold searches, sensitivity
+    screening and reproduction of the published analyses.
 License: MIT + file LICENSE
 Encoding: UTF-8
 Depends:

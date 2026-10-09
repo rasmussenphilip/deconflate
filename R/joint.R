@@ -7,9 +7,10 @@
 #' and every specified pairwise table: a log-linear model with main effects
 #' and the two-way terms of the constrained pairs, plus any three-way terms
 #' from [cm_three_way()]. This is an assumption, not something the pairwise
-#' evidence identifies. Pairs whose measure is `"unknown"` are not
-#' constrained; pairs set to `"independent"` are constrained to an odds ratio
-#' of 1.
+#' evidence identifies. Pairs without an association (unknown pairs) are not
+#' constrained: their association is whatever the maximum-entropy fit implies
+#' given the others. A pair given an odds ratio of 1 is constrained to be
+#' independent.
 #'
 #' @section Exact backend:
 #' `backend = "exact"` enumerates all 2^n combinations. Starting from
@@ -42,8 +43,8 @@
 #'
 #' The result has the same form as the exact one (`cells` are the distinct
 #' sampled combinations, `prob` their weights), so the global method,
-#' interaction offsets, Shapley allocation, the snapshot hazard model and
-#' [attributable_risk()] work with it. Its `diagnostics` give the constraint
+#' interaction offsets, Shapley allocation and the snapshot hazard model of
+#' event impacts work with it. Its `diagnostics` give the constraint
 #' residuals of the raw sample and after raking, R-hat and effective sample
 #' sizes of the fitted probabilities across chains, and the Monte Carlo
 #' errors. Results are approximations with Monte Carlo error: compare runs
@@ -74,6 +75,11 @@
 #' @param calibrate Sampled backend: adjust the sample weights to match the
 #'   targets exactly?
 #' @param seed Optional random seed (sampled backend).
+#' @param start Optional earlier exact fit to start the IPF from (e.g. the fit
+#'   at the central inputs, when refitting for a draw of the inputs). It is
+#'   used only when it has the same diseases, constrained pairs and three-way
+#'   terms; the result is then the same maximum-entropy distribution, found
+#'   in fewer sweeps.
 #'
 #' @return A `cm_joint` object: `cells` (0/1 matrix of combinations), `prob`
 #'   (probability of each combination), `converged`, `iterations`,
@@ -90,7 +96,8 @@
 #' }
 fit_joint <- function(model, tol = 1e-10, max_iter = 10000L, max_diseases = 20L,
                       backend = c("exact", "sampled"), n_samples = 50000L, n_chains = 1000L,
-                      burn_in = 50L, fit_iter = 300L, calibrate = TRUE, seed = NULL) {
+                      burn_in = 50L, fit_iter = 300L, calibrate = TRUE, seed = NULL,
+                      start = NULL) {
   check_population(model)
   backend <- match.arg(backend)
   ids <- model$diseases$id
@@ -120,6 +127,7 @@ fit_joint <- function(model, tol = 1e-10, max_iter = 10000L, max_diseases = 20L,
   }
   prob <- exp(logp - max(logp))
   prob <- prob / sum(prob)
+  if (warm_start_ok(start, ids, cons, tw)) prob <- start$prob
   fit <- ipf_cells(cells, prob, p, cons, ids, tol, max_iter)
   if (!fit$converged) {
     cm_warn(sprintf(
@@ -136,6 +144,28 @@ fit_joint <- function(model, tol = 1e-10, max_iter = 10000L, max_diseases = 20L,
 # Arguments of fit_joint() that may be passed through `...`.
 joint_arg_names <- c("tol", "max_iter", "max_diseases", "backend", "n_samples", "n_chains",
                      "burn_in", "fit_iter", "calibrate", "seed")
+
+# Can an earlier exact fit be the start of the IPF? IPF keeps the log-linear
+# terms of its start that the constraints do not fix, so the start must be a
+# converged fit of the same family: the same diseases, the same constrained
+# pairs and the same three-way terms (only the targets may differ).
+warm_start_ok <- function(start, ids, cons, tw) {
+  if (is.null(start)) return(FALSE)
+  if (!inherits(start, "cm_joint") || !identical(start$backend, "exact") || !isTRUE(start$converged) ||
+      !identical(start$diseases, ids) || length(start$prob) != 2^length(ids) || any(start$prob <= 0)) {
+    return(FALSE)
+  }
+  tg <- start$targets$pairs
+  if (is.null(tg) || !setequal(pair_key(tg$disease1, tg$disease2), pair_key(cons$disease1, cons$disease2))) {
+    return(FALSE)
+  }
+  sig <- function(t) {
+    if (is.null(t) || !nrow(t)) return(character(0))
+    sort(paste(apply(t[, c("disease1", "disease2", "disease3")], 1,
+                     function(x) paste(sort(x), collapse = "|")), signif(t$ratio, 12)))
+  }
+  identical(sig(tw), sig(start$targets$three_way))
+}
 
 # Iterative proportional fitting of the weights `prob` of the combinations
 # `cells` to the marginals `p` and the constrained pairwise tables `cons`.

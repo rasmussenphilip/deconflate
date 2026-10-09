@@ -33,7 +33,7 @@ test_that("a model-implied sign change of an adjusted impact is found", {
   expect_equal(th$thresholds$status, "threshold")
   expect_equal(th$thresholds$threshold, 0.37414199213982113, tolerance = 1e-6)
   expect_match(th$thresholds$description, "model-implied")
-  expect_match(th$thresholds$description, "becomes positive")
+  expect_match(th$thresholds$description, "moves above no effect")
 })
 
 test_that("varying a probability or an impact draws no random numbers", {
@@ -198,18 +198,24 @@ test_that("interaction inputs use the global method", {
   skip_on_cran()
   th <- cm_threshold(example_supplement(), "inter:d1:d2", c(-1, 1), conclusion = "total",
                      target = 2.12, n_grid = 11)
-  expect_equal(th$method, "global")
+  # The baseline has no interaction (simultaneous); every varied point has one (global).
+  expect_equal(th$method, "simultaneous, global")
   expect_equal(th$baseline, 0)
   # The aggregate falls as the interaction grows (crude impacts absorb it).
   expect_equal(th$thresholds$status, "threshold")
   expect_equal(th$thresholds$threshold, -0.5347852259874342, tolerance = 1e-5)
   expect_match(th$thresholds$description, "falls below")
+  # "simultaneous" switches to the global method where it is needed, as in deconflate().
+  ths <- cm_threshold(example_supplement(), "inter:d1:d2", c(-1, 1), conclusion = "total",
+                      target = 2.12, n_grid = 11, method = "simultaneous")
+  expect_equal(ths$thresholds$threshold, th$thresholds$threshold, tolerance = 1e-8)
   expect_error(cm_threshold(example_supplement(), "inter:d1:d2", c(-1, 1), conclusion = "total",
-                            target = 2.12, method = "simultaneous"),
-               class = "deconflate_unsupported")
-  expect_error(cm_threshold(example_supplement(), "three:d1:d2:d3", c(0.5, 2), conclusion = "total",
-                            target = 2.12, method = "simultaneous"),
-               class = "deconflate_unsupported")
+                            target = 2.12, method = "published"), class = "deconflate_unsupported")
+})
+
+test_that("descriptions of relative changes give the level", {
+  th <- cm_threshold(example_supplement(), "assoc:d2:d3", c(0.2, 20), conclusion = "change", target = 0.1)
+  expect_match(th$thresholds$description, "the aggregate (rises above|falls below) the baseline \\+ 10%")
 })
 
 test_that("inputs are validated", {

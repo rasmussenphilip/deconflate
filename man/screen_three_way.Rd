@@ -4,7 +4,13 @@
 \alias{screen_three_way}
 \title{Screen three-way association scenarios}
 \usage{
-screen_three_way(model, ratios = c(0.5, 2), triples = NULL)
+screen_three_way(
+  model,
+  ratios = c(0.5, 2),
+  triples = NULL,
+  event_model = FALSE,
+  overall_risk = NULL
+)
 }
 \arguments{
 \item{model}{A \code{\link[=cm_model]{cm_model()}}.}
@@ -13,6 +19,8 @@ screen_three_way(model, ratios = c(0.5, 2), triples = NULL)
 
 \item{triples}{Optional list of character vectors of three disease ids;
 default all triples (which can be many).}
+
+\item{event_model, overall_risk}{As in \code{\link[=deconflate]{deconflate()}}.}
 }
 \value{
 A \code{cm_screen} data frame as in \code{\link[=screen_associations]{screen_associations()}}.
@@ -30,6 +38,6 @@ their tables fixed, so it changes additive results only through
 interactions: without interactions such a scenario reproduces the
 baseline. When a pair is unknown (unconstrained), the fitted pairwise
 table changes with the three-way term, and additive results can change
-even without interactions. Three-way terms also matter for hazard ratios
-(\code{\link[=deconflate_hr]{deconflate_hr()}}) and \code{\link[=attributable_risk]{attributable_risk()}}.
+even without interactions. Three-way terms also matter for event impacts
+(\code{event_model = TRUE}).
 }

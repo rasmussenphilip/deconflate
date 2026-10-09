@@ -1,9 +1,11 @@
-#' Input distributions for Monte Carlo analysis
+#' Input distributions
 #'
-#' Constructors for the distributions used by [cm_sampler()]. Each returns a
-#' `cm_dist` object with a quantile function (used for sampling and for
-#' correlated draws), a distribution function and a log-density (used for
-#' importance reweighting in [cm_scenario()]).
+#' Constructors for the distributions of uncertain inputs, drawn by
+#' [deconflate()] (`n_draws`): for the `distributions` of [cm_model()] and
+#' for `overall_risk`. (The input tables give the same distributions in
+#' their `dist` and `p1`-`p4` columns; see [cm_read_inputs()].) Each returns
+#' a `cm_dist` object with a quantile function (used for sampling, including
+#' Latin hypercube sampling), a distribution function and a log-density.
 #'
 #' * `dist_fixed()`: a constant.
 #' * `dist_normal()`: normal, optionally truncated to `[lower, upper]`
@@ -15,8 +17,8 @@
 #'   one from a mean instead of a mode. Note: in Rasmussen et al. (2024),
 #'   Tables 2-4, the central value of PERT distributions is the mode.
 #' * `dist_uniform()`: uniform.
-#' * `dist_mixture()`: a finite mixture, e.g. a defensive mixture of a base
-#'   distribution and a wider one, so that scenario reweighting has support.
+#' * `dist_mixture()`: a finite mixture of distributions (e.g. two pooled
+#'   sources of evidence).
 #'
 #' @param value Constant value.
 #' @param mean,sd Normal mean and standard deviation.

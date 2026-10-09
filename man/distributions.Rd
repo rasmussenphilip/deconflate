@@ -11,7 +11,7 @@
 \alias{dist_pert_mean}
 \alias{dist_uniform}
 \alias{dist_mixture}
-\title{Input distributions for Monte Carlo analysis}
+\title{Input distributions}
 \usage{
 dist_fixed(value)
 
@@ -64,10 +64,12 @@ point masses. The support of a mixture is the union of the supports of
 its components with positive weight, so it can have gaps.
 }
 \description{
-Constructors for the distributions used by \code{\link[=cm_sampler]{cm_sampler()}}. Each returns a
-\code{cm_dist} object with a quantile function (used for sampling and for
-correlated draws), a distribution function and a log-density (used for
-importance reweighting in \code{\link[=cm_scenario]{cm_scenario()}}).
+Constructors for the distributions of uncertain inputs, drawn by
+\code{\link[=deconflate]{deconflate()}} (\code{n_draws}): for the \code{distributions} of \code{\link[=cm_model]{cm_model()}} and
+for \code{overall_risk}. (The input tables give the same distributions in
+their \code{dist} and \code{p1}-\code{p4} columns; see \code{\link[=cm_read_inputs]{cm_read_inputs()}}.) Each returns
+a \code{cm_dist} object with a quantile function (used for sampling, including
+Latin hypercube sampling), a distribution function and a log-density.
 }
 \details{
 \itemize{
@@ -81,8 +83,8 @@ point estimate and confidence interval (e.g. a published odds ratio).
 one from a mean instead of a mode. Note: in Rasmussen et al. (2024),
 Tables 2-4, the central value of PERT distributions is the mode.
 \item \code{dist_uniform()}: uniform.
-\item \code{dist_mixture()}: a finite mixture, e.g. a defensive mixture of a base
-distribution and a wider one, so that scenario reweighting has support.
+\item \code{dist_mixture()}: a finite mixture of distributions (e.g. two pooled
+sources of evidence).
 }
 }
 \examples{

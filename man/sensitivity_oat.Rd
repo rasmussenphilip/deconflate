@@ -6,19 +6,22 @@
 \usage{
 sensitivity_oat(
   model,
-  method = "simultaneous",
+  method = "auto",
+  event_model = FALSE,
+  overall_risk = NULL,
   variation = 0.2,
-  inputs = c("prob", "assoc", "impact")
+  inputs = c("prob", "assoc", "impact", "risk")
 )
 }
 \arguments{
 \item{model}{A \code{\link[=cm_model]{cm_model()}}.}
 
-\item{method}{Adjustment method.}
+\item{method, event_model, overall_risk}{As in \code{\link[=deconflate]{deconflate()}}.}
 
 \item{variation}{Relative change applied downwards and upwards.}
 
-\item{inputs}{Which inputs to vary: \code{"prob"}, \code{"assoc"}, \code{"impact"}.}
+\item{inputs}{Which inputs to vary: \code{"prob"}, \code{"assoc"}, \code{"impact"}, and
+for event impacts \code{"risk"} (the overall risk).}
 }
 \value{
 A \code{cm_oat} data frame with one row per input: the input key,
@@ -27,7 +30,8 @@ totals at the low and high values and the swing, sorted by swing.
 \description{
 Varies each input by \code{variation} (e.g. +/- 20\%) with everything else
 fixed, as in Rasmussen et al. (2024), Fig. 7, and reports the resulting
-range of the adjusted aggregate.
+range of the total: the adjusted aggregate for additive impacts, the risk
+attributable to disease for event impacts.
 }
 \examples{
 sensitivity_oat(example_supplement())

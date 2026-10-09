@@ -13,7 +13,8 @@ excess_matrix(model)
 An n x n matrix \code{E} with \verb{E[k, i] = P(k | i) - P(k | not i)}, the
 excess probability of disease \code{k} among animals with disease \code{i}
 (\code{ep_ki} in Rasmussen et al. 2022, eq. 14). The diagonal is 0. Errors if
-any pair is \code{"unknown"}: pairwise methods need every pair specified.
+any pair is unknown (has no association): pairwise tables need every
+pair.
 }
 \description{
 Excess-probability matrix from pairwise tables

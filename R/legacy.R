@@ -1,7 +1,7 @@
 # Legacy conversions used only to reproduce published results ----------------
 #
-# They are not supported for new analyses (see deconflate_hr() and
-# attributable_risk()) and are not exported. The gap and valuation helpers
+# They are not supported for new analyses (see event impacts,
+# deconflate(..., event_model = TRUE)) and are not exported. The gap and valuation helpers
 # below reproduce the economic tables of 2022; the package itself does not
 # value impacts. reproduce_rasmussen_2022() uses
 # the hazard ratio as an odds ratio (uk_dairy_2022_analyses(culling = TRUE))

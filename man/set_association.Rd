@@ -16,7 +16,8 @@ set_association(model, disease1, disease2, value, measure = "OR")
 \item{measure}{Measure (see \code{\link[=cm_associations]{cm_associations()}}).}
 }
 \value{
-The modified object.
+The modified object. A distribution of the pair's association in
+the model's \code{distributions} is dropped (the scenario value is fixed).
 }
 \description{
 Set or replace one association

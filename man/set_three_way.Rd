@@ -14,7 +14,8 @@ set_three_way(model, disease1, disease2, disease3, ratio)
 \item{ratio}{Ratio of conditional odds ratios (see \code{\link[=cm_three_way]{cm_three_way()}}).}
 }
 \value{
-The modified object.
+The modified object. A distribution of the triple's ratio in the
+model's \code{distributions} is dropped (the scenario value is fixed).
 }
 \description{
 Set or replace one three-way association term

@@ -4,12 +4,10 @@
 \alias{cm_template}
 \title{Write a template set of input files}
 \usage{
-cm_template(dir, type = c("single", "analyses"), overwrite = FALSE)
+cm_template(dir, overwrite = FALSE)
 }
 \arguments{
 \item{dir}{Folder to write to (created if needed).}
-
-\item{type}{\code{"single"} or \code{"analyses"}.}
 
 \item{overwrite}{Overwrite existing files?}
 }
@@ -20,40 +18,32 @@ The file paths, invisibly.
 Writes an example set of input files to a folder, to edit and read back
 with \code{\link[=cm_read_inputs]{cm_read_inputs()}}. The values are illustrative. Some values have a
 distribution in their row (columns \code{dist} and \code{p1}-\code{p4}); the others are
-point values.
+point values. The files are:
 }
 \details{
 \itemize{
-\item \code{type = "single"} (default): one analysis, the standard workflow. Three
-dairy diseases (\code{diseases.csv}) and their associations
-(\code{associations.csv}), one impact vector (\code{impacts.csv}, in percent of
-yield; any units can be used), an empty \code{interactions.csv} (pairwise
-interactions in the same units) and an empty \code{three_way.csv}. Read
-back, it gives a \code{\link[=cm_model]{cm_model()}} and a \code{\link[=cm_sampler]{cm_sampler()}}, which supports Latin
-hypercube and importance sampling.
-\item \code{type = "analyses"}: two analyses on one population
-(\code{impacts_yield.csv} in percent of yield and
-\code{impacts_calving_interval.csv} in days), with \code{interactions_yield.csv}.
-Read back, it gives a \code{\link[=cm_analyses]{cm_analyses()}} object and a \code{\link[=cm_batch_sampler]{cm_batch_sampler()}}
-(shared population draws; simple random sampling only).
+\item \code{diseases.csv}: three dairy diseases;
+\item \code{associations.csv}: their associations (odds ratios);
+\item \code{yield.csv}: additive impacts on milk yield, in percent of yield (any
+units can be used);
+\item \code{yield_interactions.csv}: an empty interactions table for the yield
+impacts (pairwise interactions in the same units);
+\item \code{culling.csv}: event impacts on culling (hazard ratios and a risk ratio),
+for \code{deconflate(..., event_model = TRUE, overall_risk = ...)};
+\item \code{three_way.csv}: an empty three-way table.
 }
 
-Hazard ratios are a separate model (\code{\link[=deconflate_hr]{deconflate_hr()}}) and are not part of
-either template; see \code{\link[=cm_read_inputs]{cm_read_inputs()}} for the \code{hazard_ratios.csv}
-columns. The folder \code{system.file("extdata", "five_diseases", package = "deconflate")} has a fuller example that uses every feature.
+The folder \code{system.file("extdata", "five_diseases", package = "deconflate")} has a fuller example that uses every feature.
 }
 \examples{
 dir <- file.path(tempdir(), "my-inputs")
 cm_template(dir, overwrite = TRUE)
-inp <- cm_read_inputs(dir = dir)
-deconflate(inp$model)
-\donttest{
-# Importance sampling of the lameness yield impact, with a defensive
-# mixture that covers its whole support
-specs <- attr(inp$sampler, "specs")
-prop <- list("impact:LAM" = dist_mixture(specs[["impact:LAM"]], dist_normal(6, 1.5),
-                                         weights = c(0.5, 0.5)))
-mc <- cm_monte_carlo(inp$sampler, 200, proposal = prop, seed = 1)
-summary(mc, diagnose = FALSE)
-}
+yield <- cm_read_inputs(diseases = file.path(dir, "diseases.csv"),
+                        associations = file.path(dir, "associations.csv"),
+                        impacts = file.path(dir, "yield.csv"))
+deconflate(yield, n_draws = 200, seed = 1)
+culling <- cm_read_inputs(diseases = file.path(dir, "diseases.csv"),
+                          associations = file.path(dir, "associations.csv"),
+                          impacts = file.path(dir, "culling.csv"))
+deconflate(culling, event_model = TRUE, overall_risk = 0.25, n_draws = 0)
 }

@@ -4,15 +4,17 @@
 #' (2024) with the published (eq. 16) method and the conversions used in the
 #' papers, and set them beside the printed values.
 #'
-#' These functions exist to document and check the published numbers. Two of
-#' the conversions they use are not offered for new analyses:
+#' These functions exist to document and check the published numbers. They
+#' use the assumptions of the papers, which are not the package defaults:
+#' * pairs without a published odds ratio are independent (the package
+#'   treats them as unknown);
 #' * 2022: culling hazard ratios were converted to excess annual culling
 #'   risks by treating them as odds ratios, and adjusted hazard ratios were
 #'   recovered by rescaling (eq. 23);
 #' * 2024: hazard ratios minus 1 were adjusted as additive impacts.
 #'
-#' For new analyses of hazard ratios use [deconflate_hr()] and
-#' [attributable_risk()].
+#' For new analyses of hazard ratios use event impacts
+#' (`deconflate(..., event_model = TRUE)`).
 #'
 #' @section 2022 (Tables 8-10):
 #' `reproduce_rasmussen_2022()` adjusts yield and calving interval for the UK
@@ -27,10 +29,11 @@
 #' `vignette("reproducing-published")`).
 #'
 #' @section 2024 (Table 5):
-#' `reproduce_rasmussen_2024()` runs [cm_monte_carlo()] with the samplers of
-#' [sampler_global_dairy()] plus the historical culling analysis (HR - 1,
-#' named `culling_hr_minus_1`) and the published method, and
-#' reports the means beside Table 5. Culling is reported on the hazard-ratio
+#' `reproduce_rasmussen_2024()` draws the input distributions of the 2024
+#' analysis (those of [example_global_dairy()], with shared draws of the odds
+#' ratios for every outcome), adds the historical culling analysis (HR - 1,
+#' named `culling_hr_minus_1`), adjusts every draw with the published method
+#' and reports the means beside Table 5. Culling is reported on the hazard-ratio
 #' scale (1 + adjusted HR - 1). Table 5 used 50,000 draws; use at least
 #' several thousand for stable means. Some fertility means are unstable for
 #' the published method (see the `stability` column).
@@ -42,8 +45,8 @@
 #' @param inputs `"analysis"` or `"tables"` (see [example_global_dairy()]).
 #' @return A `cm_reproduction` object: a list with `adjusted` (adjusted
 #'   values per disease), `comparison` (package beside the published values),
-#'   and for 2022 `gaps`, `values` and `total`, or for 2024 the Monte Carlo
-#'   run `mc`.
+#'   and for 2022 `gaps`, `values` and `total`, or for 2024 the summary of
+#'   the draws (`summary`) and the number of draws.
 #' @name reproduce
 #' @examples
 #' r22 <- reproduce_rasmussen_2022()
@@ -60,15 +63,15 @@ reproduce_rasmussen_2022 <- function(yield_sck = 3.05) {
   uk <- uk_dairy_2022_analyses(yield_sck, culling = TRUE)
   eco <- uk_dairy_2022_economics()
   eco$valuation$culling <- uk_dairy_2022_culling_valuation()
-  res <- adjust_analyses(uk, method = "published", warn = FALSE)
-  ids <- uk$population$diseases$id
-  nms <- names(uk$models)
+  res <- lapply(uk, adjust_impacts, method = "published", warn = FALSE)
+  ids <- uk[[1]]$diseases$id
+  nms <- names(uk)
 
   adjusted <- data.frame(disease = ids, stringsAsFactors = FALSE)
   for (nm in nms) adjusted[[nm]] <- res[[nm]]$adjusted$adjusted
   hr <- attr(uk, "hazard_ratios")
   cu <- res$culling$adjusted
-  adjusted$culling_hr <- legacy_eq23(hr$value[match(ids, hr$disease)], cu$raw, cu$adjusted)
+  adjusted$culling_hr <- legacy_eq23(unname(hr[ids]), cu$raw, cu$adjusted)
 
   gaps <- lapply(nms, function(nm) {
     v <- eco$valuation[[nm]]
@@ -99,7 +102,7 @@ reproduce_rasmussen_2022 <- function(yield_sck = 3.05) {
                            package = pkg, stringsAsFactors = FALSE)
   table8_hr <- c(CO = 1, DA = 2.68, DYS = 1.60, FAS = 1, GIN = 1, LAM = 3.00, MAS = 2.22,
                  MET = 1.55, MF = 1.89, NEO = 1.60, PTB = 1.64, RP = 1, SCK = 1.29)
-  hr_comparison <- data.frame(disease = ids, hr = hr$value[match(ids, hr$disease)],
+  hr_comparison <- data.frame(disease = ids, hr = unname(hr[ids]),
                               table8 = unname(table8_hr[ids]),
                               package = adjusted$culling_hr, stringsAsFactors = FALSE)
 
@@ -116,9 +119,9 @@ reproduce_rasmussen_2022 <- function(yield_sck = 3.05) {
 reproduce_rasmussen_2024 <- function(n_draws = 5000, seed = 2024,
                                      inputs = c("analysis", "tables")) {
   inputs <- match.arg(inputs)
-  mc <- cm_monte_carlo(global_dairy_sampler(inputs, culling = TRUE), n_draws,
-                       method = "published", seed = seed)
-  s <- summary(mc, diagnose = FALSE)
+  mc <- mc_batch(global_dairy_sampler(inputs, culling = TRUE), n_draws,
+                 method = "published", seed = seed)
+  s <- mc_batch_summary(mc)
   ids <- c("CK", "CM", "DA", "DYS", "LAM", "MET", "MF", "OC", "PTB", "RP", "SCK", "SCM")
   table5 <- list(
     yield = c(0.03, 1.36, 1.18, 3.48, 2.62, 2.87, 0.07, 2.59, 3.37, 2.30, 7.11, 5.58),
@@ -135,10 +138,11 @@ reproduce_rasmussen_2024 <- function(n_draws = 5000, seed = 2024,
   }))
   comparison$analysis[comparison$analysis == "culling_hr_minus_1"] <- "culling_hr"
   rownames(comparison) <- NULL
-  adjusted <- adjust_analyses(global_dairy_analyses(inputs, culling = TRUE),
-                              method = "published", warn = FALSE)
+  adjusted <- lapply(global_dairy_analyses(inputs, culling = TRUE), adjust_impacts,
+                     method = "published", warn = FALSE)
   structure(list(study = "Rasmussen et al. (2024)", comparison = comparison,
-                 central = adjusted, mc = mc, n_draws = n_draws, inputs = inputs),
+                 central = adjusted, summary = s, n_rejected = vapply(mc$analyses, `[[`, numeric(1), "n_rejected"),
+                 n_draws = n_draws, inputs = inputs),
             class = "cm_reproduction")
 }
 

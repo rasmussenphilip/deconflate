@@ -2,79 +2,73 @@
 % Please edit documentation in R/compare.R
 \name{compare_methods}
 \alias{compare_methods}
-\alias{compare_methods.cm_model}
-\alias{compare_methods.cm_analyses}
-\alias{compare_methods.cm_hr_model}
-\alias{compare_methods.cm_mc}
 \title{Compare adjustment methods}
 \usage{
-compare_methods(x, ...)
-
-\method{compare_methods}{cm_model}(x, methods = c("published", "simultaneous", "global"), ...)
-
-\method{compare_methods}{cm_analyses}(x, methods = c("published", "simultaneous", "global"), ...)
-
-\method{compare_methods}{cm_hr_model}(
-  x,
-  methods = c("published", "first_order", "snapshot"),
+compare_methods(
+  model,
+  methods = NULL,
+  event_model = FALSE,
   overall_risk = NULL,
+  n_draws = 0,
+  seed = NULL,
   ...
 )
-
-\method{compare_methods}{cm_mc}(x, stat = c("mean", "median", "trimmed_mean"), ...)
 }
 \arguments{
-\item{x}{A \code{\link[=cm_model]{cm_model()}}, \code{\link[=cm_analyses]{cm_analyses()}}, \code{\link[=cm_hr_model]{cm_hr_model()}}, or a \code{cm_mc}
-object from \code{\link[=cm_monte_carlo]{cm_monte_carlo()}} run with more than one method.}
+\item{model}{A \code{\link[=cm_model]{cm_model()}}.}
+
+\item{methods}{Methods to compare (default: all for the kind of impacts).}
+
+\item{event_model, overall_risk}{As in \code{\link[=deconflate]{deconflate()}}.}
+
+\item{n_draws}{Number of draws (default 0: point estimates only).}
+
+\item{seed}{Optional random seed for the draws.}
 
 \item{...}{Passed to the adjustment (e.g. \code{joint}, \code{feasibility}, or
-arguments of \code{\link[=fit_joint]{fit_joint()}}); for Monte Carlo runs, to \code{\link[=summary.cm_mc]{summary.cm_mc()}}.}
-
-\item{methods}{Methods to compare.}
-
-\item{overall_risk}{For hazard-ratio models: optional overall risk, adding
-the attributable risk per method (see \code{\link[=attributable_risk]{attributable_risk()}}).}
-
-\item{stat}{For Monte Carlo runs: \code{"mean"}, \code{"median"} or
-\code{"trimmed_mean"}.}
+arguments of \code{\link[=fit_joint]{fit_joint()}}).}
 }
 \value{
 A \code{cm_comparison} object with \code{impacts} (raw and adjusted values,
 one column per method), \code{change} (relative change from raw), \code{long}
-(long format with sign-change flags, or the Monte Carlo summaries),
-\code{totals} (naive and adjusted aggregate per method; attributable risk for
-hazard-ratio models with \code{overall_risk}), \code{diagnostics}, \code{failed}
-(methods that could not be run, gave an undefined (non-finite) result,
-or whose attributable risk could not be computed, with reasons) and
-\code{methods}. For a
-model, \code{undefined} keeps the results with non-finite values for
-inspection; they are not among the estimates.
+(long format with sign-change flags), \code{totals} (naive and adjusted
+aggregate per method; for event impacts, the attributable risk),
+\code{diagnostics}, \code{failed} (methods that could not be run, or gave an
+undefined result, with reasons), \code{undefined}, \code{methods}, \code{results} and,
+with draws, \code{draws} (summary of each quantity by method, rejections).
 }
 \description{
 Runs several adjustment methods on the same inputs and tabulates the
-results side by side:
+results side by side. For additive impacts:
 \itemize{
-\item \code{"simultaneous"}: the exact solution of the system of equations;
-\item \code{"global"}: the iterative (maximum-entropy) model of disease
-combinations, which can also include interactions;
+\item \code{"simultaneous"}: the exact solution from the pairwise tables;
+\item \code{"global"}: the exact solution from the maximum-entropy distribution of
+disease combinations, which also handles interactions, three-way terms
+and unknown pairs;
 \item \code{"published"}: the proportional approximation used in Rasmussen et al.
 (2022, 2024) (eq. 16 of the 2022 paper). It is not a method of
-\code{\link[=deconflate]{deconflate()}}; it is kept here (and in \code{\link[=cm_monte_carlo]{cm_monte_carlo()}} and the
-\verb{reproduce_*()} functions) to compare earlier results with the exact
-solution. It applies to crude estimates only, can mask incompatible
-inputs, and is undefined when its denominator is zero.
+\code{\link[=deconflate]{deconflate()}}; it is kept here (and in the \verb{reproduce_*()} functions)
+to compare earlier results with the exact solution. It applies to crude
+estimates only, can mask incompatible inputs, and is undefined when its
+denominator is zero.
 }
 }
 \details{
-For a model, every method is run on the model's inputs; methods that
-cannot be run (e.g. the published approximation for adjusted estimands)
-are reported with the reason. For \code{\link[=cm_analyses]{cm_analyses()}}, each analysis is
-compared and the tables are stacked. For a hazard-ratio model, the
-methods of \code{\link[=deconflate_hr]{deconflate_hr()}} (\code{"snapshot"}, \code{"first_order"}) are compared
-with the published approach of Rasmussen et al. (2024) (\code{"published"}:
-\code{HR - 1} adjusted with eq. 16). For a Monte Carlo run made with several
-methods, the methods were applied to identical draws, and their summaries
-are compared.
+For event impacts (\code{event_model = TRUE}): \code{"snapshot"} (the model of
+\code{\link[=deconflate]{deconflate()}}), \code{"first_order"} (its log-linear approximation, from the
+pairwise tables) and \code{"published"} (the approach of Rasmussen et al.
+2024: \code{HR - 1} adjusted with eq. 16), each with the attributable risk at
+\code{overall_risk}. The first-order and published methods need hazard (or
+rate) ratios.
+
+Methods run exactly as asked (there is no automatic switch): methods that
+cannot be run (e.g. a pairwise method with unknown pairs, or the published
+approximation for adjusted estimands) are reported with the reason, and
+results with non-finite values are kept apart in \code{undefined}.
+
+With \code{n_draws}, the methods are also applied to the same draws of the
+uncertain inputs (a draw is rejected if any method fails on it), and the
+means and 95\% intervals are reported in \code{draws}.
 }
 \examples{
 compare_methods(example_supplement())

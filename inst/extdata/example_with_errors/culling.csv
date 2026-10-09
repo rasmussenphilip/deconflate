@@ -1,0 +1,5 @@
+disease,value,measure,estimand,adjusted_for,label,source,dist,p1,p2,p3,p4,note
+LAM,1.74,HR,snapshot_crude,,culling,Illustrative,lognormal_ci,1.74,1.40,2.10,,"hazard ratio; lognormal_ci(estimate, lower, upper)"
+SCK,1.92,HR,,,culling,Illustrative,,,,,,"Error: event impacts need an estimand (snapshot_crude or snapshot_stratified)"
+MET,0,HR,snapshot_crude,,culling,Illustrative,,,,,,"Error: a hazard ratio must be positive (use 1 for no effect)"
+RP,0.12,RD,snapshot_stratified,,culling,Illustrative,,,,,,"Error: snapshot_stratified needs adjusted_for (disease ids or all)"
