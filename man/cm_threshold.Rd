@@ -43,7 +43,7 @@ them) and \code{"sign"}.}
 
 \item{method}{Adjustment method; by default \code{"global"} for models with
 interactions or three-way terms (and for \code{"inter:"} and \code{"three:"}
-inputs), otherwise \code{"simultaneous"}. The pairwise methods are rejected
+inputs), otherwise \code{"simultaneous"}. The simultaneous method is rejected
 (class \code{deconflate_unsupported}) for \code{"inter:"} and \code{"three:"} inputs and
 for models with interactions.}
 
@@ -104,9 +104,10 @@ such points) is a crossing only if the quantity has opposite signs at the
 usable points on either side; the threshold is then the first zero point.
 A refined crossing is reported as a \code{"threshold"} only if the quantity
 being compared is close to zero on both sides of the final bracket
-(continuity); a jump across a pole of the published approximation, or
-across a nearly singular system, is reported as a \code{"discontinuity"}, never
-as a threshold. If a bisection step lands on an unusable point, the
+(continuity); a jump across a pole (e.g. where the system becomes
+singular) is reported as a \code{"discontinuity"}, never as a threshold; so is
+a bracket whose bisection reaches a singular point. If a bisection step
+lands on any other unusable point, the
 crossing is \code{"unresolved"}. All crossings in the range are reported;
 stretches of unusable grid points are listed in \code{regions}, so that "no
 crossing found" can be told apart from "part of the range could not be

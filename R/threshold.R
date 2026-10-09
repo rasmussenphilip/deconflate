@@ -29,9 +29,10 @@
 #' usable points on either side; the threshold is then the first zero point.
 #' A refined crossing is reported as a `"threshold"` only if the quantity
 #' being compared is close to zero on both sides of the final bracket
-#' (continuity); a jump across a pole of the published approximation, or
-#' across a nearly singular system, is reported as a `"discontinuity"`, never
-#' as a threshold. If a bisection step lands on an unusable point, the
+#' (continuity); a jump across a pole (e.g. where the system becomes
+#' singular) is reported as a `"discontinuity"`, never as a threshold; so is
+#' a bracket whose bisection reaches a singular point. If a bisection step
+#' lands on any other unusable point, the
 #' crossing is `"unresolved"`. All crossings in the range are reported;
 #' stretches of unusable grid points are listed in `regions`, so that "no
 #' crossing found" can be told apart from "part of the range could not be
@@ -62,7 +63,7 @@
 #' @param by For `"rank"`: `"contribution"` (default) or `"adjusted"`.
 #' @param method Adjustment method; by default `"global"` for models with
 #'   interactions or three-way terms (and for `"inter:"` and `"three:"`
-#'   inputs), otherwise `"simultaneous"`. The pairwise methods are rejected
+#'   inputs), otherwise `"simultaneous"`. The simultaneous method is rejected
 #'   (class `deconflate_unsupported`) for `"inter:"` and `"three:"` inputs and
 #'   for models with interactions.
 #' @param n_grid Number of grid points.
@@ -132,9 +133,9 @@ cm_threshold <- function(model, input, range, conclusion = c("rank", "sign", "to
       setter$type %in% c("inter", "three")
     method <- if (needs_global) "global" else "simultaneous"
   }
-  method <- match.arg(method, c("simultaneous", "published", "global"))
+  method <- public_method(method, c("simultaneous", "global"), "cm_threshold()")
   if (method != "global" && (has_inter || setter$type %in% c("inter", "three"))) {
-    # The pairwise methods reject interactions and ignore three-way terms,
+    # The pairwise method rejects interactions and ignores three-way terms,
     # so the search would fail at every point or find nothing.
     cm_abort(sprintf("%s needs method = 'global'.",
                      if (setter$type %in% c("inter", "three")) sprintf("Varying '%s'", input) else "A model with interactions"),
@@ -256,7 +257,10 @@ cm_threshold <- function(model, input, range, conclusion = c("rank", "sign", "to
           mid <- if (log_scale) sqrt(lo * hi) else (lo + hi) / 2
           e <- evaluate(mid)
           if (!identical(e$status, "ok")) {
-            st <- "unresolved"
+            # A singular point between values of opposite sign is a pole of
+            # the system (not a threshold); any other failure leaves the
+            # crossing unresolved.
+            st <- if (identical(e$status, "singular")) "discontinuity" else "unresolved"
             break
           }
           fm <- metric(e$res)[[k]]

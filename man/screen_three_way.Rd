@@ -4,7 +4,7 @@
 \alias{screen_three_way}
 \title{Screen three-way association scenarios}
 \usage{
-screen_three_way(model, ratios = c(0.5, 2), triples = NULL, valuation = NULL)
+screen_three_way(model, ratios = c(0.5, 2), triples = NULL)
 }
 \arguments{
 \item{model}{A \code{\link[=cm_model]{cm_model()}}.}
@@ -13,8 +13,6 @@ screen_three_way(model, ratios = c(0.5, 2), triples = NULL, valuation = NULL)
 
 \item{triples}{Optional list of character vectors of three disease ids;
 default all triples (which can be many).}
-
-\item{valuation}{Optional valuation list.}
 }
 \value{
 A \code{cm_screen} data frame as in \code{\link[=screen_associations]{screen_associations()}}.

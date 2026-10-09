@@ -96,7 +96,10 @@ below.
 
 Give several methods to `cm_monte_carlo()` and every accepted draw is
 adjusted with each of them (a draw is rejected if any method fails on it).
-`compare_methods()` then tabulates the results:
+Besides the methods of `deconflate()`, `"published"` (the approximation of
+Rasmussen et al. 2022, eq. 16) is accepted here, for comparison with and
+reproduction of earlier analyses only. `compare_methods()` then tabulates
+the results:
 
 ```{r}
 mc2 <- cm_monte_carlo(s, 400, method = c("published", "simultaneous"), seed = 1)
@@ -237,16 +240,26 @@ cond$ess
 summary(cond, diagnose = FALSE)[, c("disease", "mean", "q0.5")]
 ```
 
-## Productivity gaps over the draws
+## Gaps and values over the draws
 
-`cm_mc_gap()` applies `productivity_gap()` to every accepted draw. The
-observed mean and the unit value can be fixed or drawn:
+The package reports impacts in their own units. A gap or a value per draw
+is computed from `mc$totals` (one row per accepted draw and method) in base
+R, as in `vignette("deconflate")`. Here the impacts are percent losses of an
+observed level of 10,000 units, and the unit value is drawn per draw:
 
 ```{r}
-g <- cm_mc_gap(mc, observed = 10000, direction = "decrease", effect = "percent",
-               unit_value = dist_uniform(0.25, 0.35), seed = 5)
-g$summary
+tt <- mc$totals
+w <- mc$weights[match(tt$draw, mc$params$draw)]
+tt$gap <- 10000 / (1 - tt$adjusted_total / 100) - 10000
+set.seed(5)
+tt$value <- tt$gap * runif(nrow(tt), 0.25, 0.35)
+sapply(tt[c("gap", "value")], function(x) c(mean = sum(w * x) / sum(w),
+                                             quantile(x, c(0.025, 0.975))))
 ```
+
+The quantiles are unweighted, which is right for this run (simple random
+sampling, equal weights); after importance sampling or `cm_reweight()`, use
+weighted quantiles.
 
 ## Sensitivity
 

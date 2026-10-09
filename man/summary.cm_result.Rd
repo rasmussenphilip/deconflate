@@ -4,19 +4,17 @@
 \alias{summary.cm_result}
 \title{Summarise an adjustment result}
 \usage{
-\method{summary}{cm_result}(object, valuation = NULL, ...)
+\method{summary}{cm_result}(object, ...)
 }
 \arguments{
 \item{object}{A \code{\link[=deconflate]{deconflate()}} result.}
-
-\item{valuation}{Optional valuation list (see \code{\link[=contribution_table]{contribution_table()}}).}
 
 \item{...}{Unused.}
 }
 \value{
 A \code{summary.cm_result} list with \code{method}, \code{label}, \code{units},
-\code{totals} (naive and adjusted aggregate, their difference, and the gap
-and value with \code{valuation}), \code{diagnostics} and \code{contributions}.
+\code{totals} (naive and adjusted aggregate and the reduction),
+\code{diagnostics} and \code{contributions}.
 }
 \description{
 Summarise an adjustment result

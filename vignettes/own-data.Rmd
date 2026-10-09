@@ -229,12 +229,17 @@ cmp <- compare_methods(gd$analyses, methods = c("published", "simultaneous"))
 cmp$impacts[cmp$impacts$analysis == "yield", ]
 ```
 
-The simultaneous solution changes the sign of several adjusted impacts (see
+The `"published"` column (the approximation of the paper, kept for
+comparison only) and the simultaneous solution differ; the simultaneous
+solution changes the sign of several adjusted impacts (see
 `vignette("reproducing-published")`). The culling hazard ratios are adjusted
-separately (`vignette("culling-hazard-ratios")`):
+separately with the snapshot model (`vignette("culling-hazard-ratios")`), and
+`compare_methods()` sets the paper's approach beside it:
 
 ```{r}
-deconflate_hr(gd$hr_model, method = "published")
+hr_gd <- deconflate_hr(gd$hr_model)
+hr_gd
+compare_methods(gd$hr_model, methods = c("published", "snapshot"), joint = hr_gd$joint)$impacts
 ```
 
 ## Tables typed in R

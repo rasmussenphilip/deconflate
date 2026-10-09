@@ -60,6 +60,9 @@ hr
 compare_methods(hr)
 ```
 
+`deconflate_hr()` has two methods; the snapshot model (the default) is the
+one to use for hazard ratios:
+
 * `"snapshot"` (the default) is a snapshot hazard-multiplier model. A cow's
   hazard is `h0 * exp(sum_i beta_i * D_i)`, and the raw HR of disease `i` is
   taken to be the ratio of the average hazard multiplier among cows with and
@@ -69,8 +72,10 @@ compare_methods(hr)
 * `"first_order"` is the log-linear approximation `log(HR_raw) = A beta`,
   with the conflation matrix `A` of `deconflate()`. It needs only the
   pairwise tables.
-* `"published"` is the approach of Rasmussen et al. (2024): HR - 1 adjusted
-  with eq. 16 and 1 added back. It is kept for reproduction and comparison.
+
+The `"published"` column of `compare_methods()` is the approach of Rasmussen
+et al. (2024): HR - 1 adjusted with eq. 16 and 1 added back. It is not a
+method of `deconflate_hr()`; it is kept for comparison and reproduction only.
 
 ```{r}
 deconflate_hr(hr)
@@ -124,11 +129,12 @@ disease combinations (`shapley_by_cell()`); the allocation adds up to the
 attributable risk.
 
 ```{r}
-attributable_risk(deconflate_hr(hr), overall_risk = 0.25, unit_value = 1300)
+attributable_risk(deconflate_hr(hr), overall_risk = 0.25)
 ```
 
-`unit_value` is the value of a cow removed (e.g. replacement price less
-salvage value).
+The risks are proportions of animals culled in the period. Converting them
+into numbers of animals or a value (e.g. times the replacement price less
+salvage value) is left to the user.
 
 ## The global dairy example
 
@@ -156,12 +162,9 @@ diseases alone would produce. `deconflate_hr()` warns about this:
 
 ```{r}
 glob <- deconflate_hr(hr_gd, joint = j_gd)
-ar <- attributable_risk(glob, overall_risk = 0.2366, unit_value = 1299.33 - 785.86)
+ar <- attributable_risk(glob, overall_risk = 0.2366)
 ar
 ```
-
-(`unit_value` is the replacement price less the culled-cow price, Rasmussen
-et al. 2024, Table 1.)
 
 The model attributes about 11.7 percentage points of the 23.7% culling rate
 to disease. The 2024 paper instead converted each adjusted HR to an excess
@@ -172,17 +175,25 @@ cows with several diseases more than once.
 
 ## Culling alongside the additive analyses
 
-Hazard ratios are kept out of `deconflate()`, `productivity_gap()` and the
-contribution tables. Values from the two routes can be put side by side.
-Here the yield analysis follows the paper (published method; global average
-yield of 5013 kg and milk price of 0.5981 per kg, Rasmussen et al. 2024,
-Table 1):
+Hazard ratios are kept out of `deconflate()` and the contribution tables:
+the additive analyses return impacts in their own units, and
+`attributable_risk()` returns a proportion of cows. To set them side by side,
+convert both to a common unit, here a value per cow and year with the
+global average yield of 5013 kg, a milk price of 0.5981 per kg, and a
+replacement price less culled-cow price of 1299.33 - 785.86 (Rasmussen et al.
+2024, Table 1). The yield impacts are percent losses, so the gap is computed
+as in `vignette("deconflate")`:
 
 ```{r}
-yres <- deconflate(example_global_dairy()$models$yield, method = "published")
-yv <- value_losses(productivity_gap(yres, 5013, "decrease", "percent"), unit_value = 0.5981)
-c(yield = yv$value, culling = ar$summary$value)
+yres <- deconflate(example_global_dairy()$models$yield)
+yield_gap <- 5013 / (1 - yres$totals$adjusted_total / 100) - 5013
+c(yield = yield_gap * 0.5981,
+  culling = ar$summary$attributable * (1299.33 - 785.86))
 ```
+
+The yield analysis here uses the simultaneous method; the paper's figures
+(published approximation, Monte Carlo means) are recomputed by
+`reproduce_rasmussen_2024()` (`vignette("reproducing-published")`).
 
 ## Methods that are not available for new analyses
 
@@ -207,8 +218,8 @@ These conversions are used only inside `reproduce_rasmussen_2022()` and
   disease status changes during the lactation.
 * Hazard ratios are not collapsible: even without confounding, an average HR
   differs from the HR within subgroups. The snapshot model accounts for this
-  given the distribution of disease combinations; the first-order and
-  published methods do not.
+  given the distribution of disease combinations; the first-order method and
+  the published approach do not.
 * The snapshot model and `attributable_risk()` use the whole distribution of
   disease combinations, so they depend on the maximum-entropy assumption and
   on any three-way terms (`vignette("interactions")`).

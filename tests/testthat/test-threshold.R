@@ -46,25 +46,87 @@ test_that("varying a probability or an impact draws no random numbers", {
   expect_equal(stats::runif(1), r1)
 })
 
-test_that("a pole of the published approximation is a discontinuity, not a threshold", {
-  th <- cm_threshold(example_supplement(), "impact:d1", c(-3, 3), conclusion = "sign",
-                     diseases = "d1", method = "published")
+# p = 0.5 for a, b and c with phi(a, b) = phi(a, c) = 0.8: the conflation
+# matrix is the correlation matrix, singular where phi(b, c) = 2 * 0.8^2 - 1
+# = 0.28, i.e. at OR(b, c) = (1.28 / 0.72)^2 = 256 / 81. With raw impacts
+# 1, 2, 3 the adjusted impact of a is (s - 3) / (s - 0.28) (s = phi(b, c)),
+# which changes sign only at the pole. Below OR(b, c) = 16 (phi 0.6) the
+# pairs are jointly infeasible, so the pole lies in the infeasible region.
+# Reference values: python emulation of cm_threshold() with R's LINPACK
+# rank check (qr tolerance 1e-7).
+singular_pole_model <- function() {
+  cm_model(cm_population(cm_diseases(c("a", "b", "c"), c(0.5, 0.5, 0.5)),
+                         cm_associations(c("a", "a", "b"), c("b", "c", "c"), c(0.8, 0.8, 20),
+                                         measure = c("phi", "phi", "OR"))),
+           cm_impacts(c("a", "b", "c"), c(1, 2, 3)))
+}
+
+test_that("a pole of a nearly singular system is a discontinuity, not a threshold", {
+  m <- singular_pole_model()
+  pole <- 256 / 81
+  # The triple screen reports the region below the pole as infeasible.
+  th0 <- cm_threshold(m, "assoc:b:c", c(0.05, 100), conclusion = "sign", diseases = "a",
+                      n_grid = 3)
+  expect_equal(th0$scan$status, c("infeasible", "infeasible", "ok"))
+  expect_equal(nrow(th0$thresholds), 0)
+  expect_equal(th0$regions$n_points, 2L)
+
+  # With the screen switched off, the scan crosses the pole. A coarse grid
+  # and a looser tolerance stop the bisection (width 1e-6 of the bracket)
+  # before the system becomes numerically singular, so both ends of the
+  # final bracket are usable and far from zero.
+  th <- cm_threshold(m, "assoc:b:c", c(0.05, 100), conclusion = "sign", diseases = "a",
+                     n_grid = 3, tol = 1e-4, feasibility = "none")
+  expect_equal(th$method, "simultaneous")
+  expect_true(th$log_scale)
+  expect_equal(th$baseline, 20)
+  expect_equal(th$scan$status, rep("ok", 3))
+  expect_equal(unname(th$values[, "a"]), c(3.9742638542864936, 34.37785173773611, -4.054054054054057),
+               tolerance = 1e-8)
   st <- th$thresholds
-  # Exactly one crossing: the pole. Touching zero at m1 = 0 (the grid point
-  # 0 is exact; the published value is 0 there and positive on both sides)
-  # is not a crossing.
   expect_equal(nrow(st), 1)
   expect_equal(st$status, "discontinuity")
-  expect_lt(st$lower, -0.5266329181546854)
-  expect_gt(st$upper, -0.5266329181546854)
-  expect_lt(st$upper - st$lower, 1e-6)
+  expect_match(st$description, "nearly singular")
   expect_true(is.na(st$threshold))
-  expect_lt(st$below, 0)
-  expect_gt(st$above, 0)
+  expect_lt(st$lower, pole)
+  expect_gt(st$upper, pole)
+  expect_lt(st$upper - st$lower, 1e-4)
+  expect_gt(st$below, 1e4)
+  expect_lt(st$above, -1e4)
   expect_equal(th$summary$n_thresholds, 0L)
   expect_equal(th$summary$result, "no threshold; see discontinuities or unresolved crossings")
-  expect_equal(th$scan$status[th$scan$value == 0], "ok")
-  expect_equal(unname(th$values[th$scan$value == 0, "d1"]), 0)
+  expect_equal(nrow(th$regions), 0)
+
+  # With the default grid and tolerance the bisection reaches points where
+  # the system is numerically singular: still a discontinuity, never a
+  # threshold.
+  thd <- cm_threshold(m, "assoc:b:c", c(0.05, 100), conclusion = "sign", diseases = "a",
+                      feasibility = "none")
+  expect_equal(nrow(thd$thresholds), 1)
+  expect_equal(thd$thresholds$status, "discontinuity")
+  expect_true(is.na(thd$thresholds$threshold))
+  expect_lt(thd$thresholds$lower, pole)
+  expect_gt(thd$thresholds$upper, pole)
+  expect_equal(thd$summary$n_thresholds, 0L)
+})
+
+test_that("the published approximation is not a method of cm_threshold", {
+  m <- example_supplement()
+  expect_error(cm_threshold(m, "impact:d1", c(-3, 3), conclusion = "sign", diseases = "d1",
+                            method = "published"),
+               class = "deconflate_unsupported")
+  expect_error(cm_threshold(m, "impact:d1", c(-3, 3), conclusion = "sign", diseases = "d1",
+                            method = "published"),
+               "compare_methods")
+  # Its pole (eq. 16 divides by zero at impact:d1 = -0.5266329181546854) is
+  # still a property of the internal approximation.
+  pole <- -0.5266329181546854
+  pub <- function(m1) adjust_impacts(supp_model(c(m1, 5, 7.5)), method = "published",
+                                     warn = FALSE)$adjusted$adjusted[1]
+  expect_lt(pub(pole - 1e-6), 0)
+  expect_gt(pub(pole + 1e-6), 0)
+  expect_equal(pub(0), 0)
+  expect_true(all(is.finite(deconflate(supp_model(c(pole, 5, 7.5)), warn = FALSE)$adjusted$adjusted)))
 })
 
 test_that("exact zeros on the grid count only when the sign differs on both sides", {

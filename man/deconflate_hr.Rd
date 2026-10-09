@@ -6,7 +6,7 @@
 \usage{
 deconflate_hr(
   model,
-  method = c("snapshot", "first_order", "published"),
+  method = c("snapshot", "first_order"),
   joint = NULL,
   warn = TRUE,
   ...
@@ -15,7 +15,7 @@ deconflate_hr(
 \arguments{
 \item{model}{A \code{\link[=cm_hr_model]{cm_hr_model()}}.}
 
-\item{method}{\code{"snapshot"}, \code{"first_order"} or \code{"published"}.}
+\item{method}{\code{"snapshot"} (default) or \code{"first_order"}.}
 
 \item{joint}{Optional \code{\link[=fit_joint]{fit_joint()}} result, checked against the
 population. The snapshot method uses it; the other methods keep it in
@@ -50,10 +50,11 @@ weights; with \code{adjusted_for = "all"} the hazard ratio is used as it is.
 \item \code{"first_order"}: the log-linear approximation,
 \verb{log(HR_raw) = A beta}, with \code{A} as in \code{\link[=deconflate]{deconflate()}} (pairwise tables
 only).
-\item \code{"published"}: Rasmussen et al. (2024): \code{HR - 1} adjusted with eq. 16
-(\code{"snapshot_crude"} hazard ratios only). For reproduction and
-comparison.
 }
+
+The approach of Rasmussen et al. (2024), \code{HR - 1} adjusted with eq. 16 of
+Rasmussen et al. (2022), is not a method here; it is kept for comparison
+in \code{\link[=compare_methods]{compare_methods()}} and in \code{\link[=reproduce_rasmussen_2024]{reproduce_rasmussen_2024()}}.
 }
 
 \section{What the snapshot model is not}{

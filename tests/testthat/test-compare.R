@@ -2,10 +2,8 @@
 # they summarise. Reference values from inst/validation/reference_v02.py and
 # reference_v020_tests.py (supplement impacts in percent: 2.5, 5, 7.5).
 
-supp_valuation <- list(observed = 10000, direction = "decrease", effect = "percent", unit_value = 0.3)
-
-test_that("compare_methods tabulates the methods for a model, with valuation", {
-  cmp <- compare_methods(example_supplement(), valuation = supp_valuation)
+test_that("compare_methods tabulates the methods for a model", {
+  cmp <- compare_methods(example_supplement())
   expect_s3_class(cmp, "cm_comparison")
   expect_equal(cmp$methods, c("published", "simultaneous", "global"))
   expect_equal(cmp$source, "model")
@@ -28,19 +26,35 @@ test_that("compare_methods tabulates the methods for a model, with valuation", {
   expect_equal(cmp$diagnostics$method, cmp$methods)
   expect_equal(names(cmp$results), cmp$methods)
 
+  # Totals: naive and adjusted aggregates only (no gap or value).
   tt <- cmp$totals
-  expect_equal(names(tt), c("method", "raw_sum", "adjusted_total", "gap", "value"))
+  expect_equal(names(tt), c("method", "raw_sum", "adjusted_total"))
   expect_equal(tt$method, cmp$methods)
   expect_equal(tt$raw_sum, rep(2.5, 3))
   expect_equal(tt$adjusted_total[1:2], c(2.1110887443997908, 2.109228876453694), tolerance = 1e-10)
-  expect_equal(tt$gap[1:2], c(215.6616839763883, 215.46759232202567), tolerance = 1e-9)
-  expect_equal(tt$value, 0.3 * tt$gap)
-  expect_equal(tt$gap[3], tt$gap[2], tolerance = 1e-8)
-  # Without valuation there is no gap or value.
-  expect_equal(names(compare_methods(example_supplement())$totals), c("method", "raw_sum", "adjusted_total"))
+  expect_equal(tt$adjusted_total[3], tt$adjusted_total[2], tolerance = 1e-8)
   expect_equal(compare_methods(example_supplement(), methods = "published")$methods, "published")
   expect_output(print(cmp), "Adjusted values")
   expect_output(print(cmp), "Totals")
+})
+
+test_that("the published approximation is not a method of deconflate()", {
+  m <- example_supplement()
+  expect_error(deconflate(m, method = "published"), class = "deconflate_unsupported")
+  expect_error(deconflate(m, method = "published"), "compare_methods")
+  a <- cm_analyses(supp_population(),
+                   yield = cm_impacts(ids3, c(2.5, 5, 7.5), units = "%"),
+                   fertility = cm_impacts(ids3, c(1, 2, 0), units = "%"))
+  expect_error(deconflate(a, method = "published"), class = "deconflate_unsupported")
+  expect_equal(deconflate(m)$method, "simultaneous")
+  # compare_methods() still includes it by default, through the internal
+  # adjust_impacts().
+  cmp <- compare_methods(m)
+  expect_true("published" %in% cmp$methods)
+  expect_equal(cmp$results$published$adjusted$adjusted,
+               adjust_impacts(m, method = "published")$adjusted$adjusted)
+  expect_true("published" %in% compare_methods(a)$methods)
+  expect_equal(compare_methods(a)$impacts$published[1:3], cmp$impacts$published)
 })
 
 test_that("methods that cannot be run are reported in `failed`", {
@@ -77,9 +91,7 @@ test_that("compare_methods stacks the analyses of a cm_analyses object", {
   a <- cm_analyses(supp_population(),
                    yield = cm_impacts(ids3, c(2.5, 5, 7.5), units = "%"),
                    fertility = cm_impacts(ids3, c(1, 2, 0), units = "%"))
-  val <- list(yield = supp_valuation,
-              fertility = list(observed = 400, direction = "increase", effect = "percent", unit_value = 4))
-  cmp <- compare_methods(a, valuation = val)
+  cmp <- compare_methods(a)
   expect_s3_class(cmp, "cm_comparison")
   expect_equal(cmp$source, "analyses")
   expect_equal(cmp$methods, c("published", "simultaneous", "global"))
@@ -89,31 +101,19 @@ test_that("compare_methods stacks the analyses of a cm_analyses object", {
   expect_equal(names(cmp$comparisons), c("yield", "fertility"))
   expect_length(cmp$failed, 0)
   tt <- cmp$totals
-  expect_equal(names(tt), c("analysis", "method", "raw_sum", "adjusted_total", "gap", "value"))
+  expect_equal(names(tt), c("analysis", "method", "raw_sum", "adjusted_total"))
   expect_equal(nrow(tt), 6)
-  y <- compare_methods(a$models$yield, valuation = val$yield)
-  expect_equal(tt$gap[tt$analysis == "yield"], y$totals$gap)
-  expect_equal(tt$gap[tt$analysis == "yield" & tt$method == "simultaneous"], 215.46759232202567,
-               tolerance = 1e-9)
+  y <- compare_methods(a$models$yield)
+  expect_equal(tt$adjusted_total[tt$analysis == "yield"], y$totals$adjusted_total)
+  expect_equal(tt$adjusted_total[tt$analysis == "yield" & tt$method == "simultaneous"], 2.109228876453694,
+               tolerance = 1e-10)
   f <- tt[tt$analysis == "fertility", ]
-  expect_equal(f$value, 4 * f$gap)
-  expect_true(all(f$gap > 0))
+  expect_equal(f$raw_sum, rep(0.1 * 1 + 0.15 * 2, 3))
+  expect_equal(f$adjusted_total[f$method == "simultaneous"],
+               deconflate(a)$fertility$totals$adjusted_total, tolerance = 1e-12)
   # A zero raw impact has no relative change.
   expect_true(is.na(cmp$change$published[cmp$change$analysis == "fertility" & cmp$change$disease == "d3"]))
   expect_output(print(cmp), "Adjusted values")
-})
-
-test_that("valuations are checked, and one that fails for a method is reported", {
-  expect_error(compare_methods(example_supplement(), valuation = list(observed = 10000)), "direction")
-  # Impacts in percent read as proportions: an aggregate loss above 100%.
-  bad <- list(observed = 10000, direction = "decrease", effect = "proportion")
-  cmp <- compare_methods(example_supplement(), valuation = bad)
-  expect_equal(cmp$methods, c("published", "simultaneous", "global"))
-  expect_equal(names(cmp$failed), cmp$methods)
-  expect_match(cmp$failed[["simultaneous"]], "^valuation: ")
-  expect_equal(names(cmp$totals), c("method", "raw_sum", "adjusted_total", "gap"))
-  expect_true(all(is.na(cmp$totals$gap)))
-  expect_equal(cmp$impacts, compare_methods(example_supplement())$impacts)
 })
 
 test_that("stacked analyses fill columns that only some analyses have", {
@@ -121,8 +121,8 @@ test_that("stacked analyses fill columns that only some analyses have", {
                    yield = cm_impacts(ids3, c(2.5, 5, 7.5)),
                    fertility = cm_impacts(ids3, c(1, 2, 0.5), estimand = c("adjusted_linear", "crude", "crude"),
                                           adjusted_for = c("d2", NA, NA)))
-  # Valuation for one analysis only; the published method fails for the other.
-  cmp <- compare_methods(a, valuation = list(yield = supp_valuation))
+  # The published method fails for the adjusted analysis only.
+  cmp <- compare_methods(a)
   expect_equal(cmp$methods, c("published", "simultaneous", "global"))
   expect_equal(names(cmp$failed), "fertility: published")
   expect_equal(names(cmp$impacts), c("analysis", "disease", "raw", "published", "simultaneous", "global"))
@@ -130,29 +130,33 @@ test_that("stacked analyses fill columns that only some analyses have", {
   expect_true(all(is.finite(cmp$impacts$published[cmp$impacts$analysis == "yield"])))
   expect_equal(nrow(cmp$long), 3 * 3 + 2 * 3)
   tt <- cmp$totals
-  expect_equal(names(tt), c("analysis", "method", "raw_sum", "adjusted_total", "gap", "value"))
+  expect_equal(names(tt), c("analysis", "method", "raw_sum", "adjusted_total"))
   expect_equal(nrow(tt), 5)
-  expect_true(all(is.na(tt$gap[tt$analysis == "fertility"])))
-  expect_equal(tt$gap[tt$analysis == "yield" & tt$method == "simultaneous"], 215.46759232202567,
-               tolerance = 1e-9)
+  expect_equal(tt$method[tt$analysis == "fertility"], c("simultaneous", "global"))
+  expect_equal(tt$adjusted_total[tt$analysis == "yield" & tt$method == "simultaneous"], 2.109228876453694,
+               tolerance = 1e-10)
   expect_output(print(cmp), "fertility: published")
-  # A single valuation list (not one per analysis) is an error, not ignored.
-  expect_error(compare_methods(a, valuation = supp_valuation), "named after the analyses")
 })
 
-test_that("compare_methods reproduces the UK dairy totals (Rasmussen et al. 2022)", {
+test_that("compare_methods on the UK dairy example (Rasmussen et al. 2022)", {
   skip_on_cran()
-  eco <- uk_dairy_2022_economics()
-  eco$valuation$culling <- uk_dairy_2022_culling_valuation()
-  cmp <- compare_methods(uk_dairy_2022_analyses(3.05, culling = TRUE), valuation = eco$valuation)
+  uk <- example_uk_dairy_2022()
+  cmp <- compare_methods(uk)
   expect_equal(cmp$methods, c("published", "simultaneous", "global"))
-  expect_equal(nrow(cmp$impacts), 3 * 13)
-  expect_equal(nrow(cmp$long), 3 * 3 * 13)
+  expect_equal(nrow(cmp$impacts), 2 * 13)
+  expect_equal(nrow(cmp$long), 2 * 3 * 13)
   expect_equal(cmp$impacts$global, cmp$impacts$simultaneous, tolerance = 1e-6)
   tt <- cmp$totals
-  total <- vapply(c("published", "simultaneous"), function(m) sum(tt$value[tt$method == m]), numeric(1))
-  expect_equal(unname(total) + sum(eco$additional), c(402.2475530293503, 393.1318185491835),
-               tolerance = 1e-9)
+  expect_equal(names(tt), c("analysis", "method", "raw_sum", "adjusted_total"))
+  expect_equal(nrow(tt), 2 * 3)
+  pub <- adjust_analyses(uk, method = "published", warn = FALSE)
+  sim <- suppressWarnings(deconflate(uk))
+  for (nm in c("yield", "fertility")) {
+    expect_equal(tt$adjusted_total[tt$analysis == nm & tt$method == "published"],
+                 pub[[nm]]$totals$adjusted_total, tolerance = 1e-12)
+    expect_equal(tt$adjusted_total[tt$analysis == nm & tt$method == "simultaneous"],
+                 sim[[nm]]$totals$adjusted_total, tolerance = 1e-12)
+  }
 })
 
 test_that("compare_methods compares the hazard-ratio methods", {

@@ -4,15 +4,13 @@
 \alias{compare_scenarios}
 \title{Compare scenarios}
 \usage{
-compare_scenarios(..., method = "simultaneous", valuation = NULL)
+compare_scenarios(..., method = "simultaneous")
 }
 \arguments{
 \item{...}{Named \code{\link[=cm_model]{cm_model()}} objects.}
 
 \item{method}{Adjustment method (\code{"global"} is used automatically for
 models with interactions or three-way terms).}
-
-\item{valuation}{Optional valuation list (see \code{\link[=screen_associations]{screen_associations()}}).}
 }
 \value{
 A list with \code{totals} (one row per scenario, with the reason in

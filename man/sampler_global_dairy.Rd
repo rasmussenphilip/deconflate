@@ -27,8 +27,9 @@ distributions of Table 2 and Tables 3-4 are used as printed. (The 2024
 culling analysis, HR - 1 adjusted as an additive impact, is sampled only
 inside \code{\link[=reproduce_rasmussen_2024]{reproduce_rasmussen_2024()}}.)
 
-With \code{method = "published"}, Monte Carlo means reproduce Table 5 (see
-\code{\link[=reproduce_rasmussen_2024]{reproduce_rasmussen_2024()}} and \code{vignette("reproducing-published")}).
+With \code{method = "published"} in \code{\link[=cm_monte_carlo]{cm_monte_carlo()}}, Monte Carlo means
+reproduce Table 5 (see \code{\link[=reproduce_rasmussen_2024]{reproduce_rasmussen_2024()}} and
+\code{vignette("reproducing-published")}).
 }
 \examples{
 \donttest{

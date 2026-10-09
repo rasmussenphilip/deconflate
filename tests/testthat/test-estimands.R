@@ -76,7 +76,10 @@ test_that("unsupported estimands are rejected", {
                "unknown")
   m <- supp_model(truth, estimand = c("adjusted_linear", "crude", "crude"),
                   adjusted_for = c("d2", NA, NA))
-  expect_error(deconflate(m, method = "published"), class = "deconflate_unsupported")
+  # The published approximation (internal adjust_impacts()) is for crude
+  # estimates only.
+  expect_error(adjust_impacts(m, method = "published"), class = "deconflate_unsupported")
+  expect_error(adjust_impacts(m, method = "published"), "crude estimates only")
 })
 
 test_that("a non-identifiable adjustment set is rejected", {
@@ -97,10 +100,12 @@ test_that("zero impacts give a zero aggregate with undefined shares", {
   expect_equal(res$totals$adjusted_total, 0)
   expect_true(all(is.na(res$contributions$share)))
   expect_true(all(is.na(res$adjusted$change)))
-  pg <- productivity_gap(res, 100, "decrease", "percent")
+  expect_equal(contribution_table(res)$contribution, c(0, 0, 0))
+  # The legacy gap (reproduce_rasmussen_2022() only) of a zero aggregate.
+  pg <- legacy_gap(res, 100, "decrease", "percent")
   expect_equal(pg$summary$gap, 0)
   expect_equal(pg$attribution$gap, c(0, 0, 0))
-  pub <- deconflate(supp_model(c(0, 0, 0)), method = "published")
+  pub <- adjust_impacts(supp_model(c(0, 0, 0)), method = "published")
   expect_equal(pub$adjusted$adjusted, c(0, 0, 0))
 })
 
@@ -110,20 +115,24 @@ test_that("cancelling signed impacts are handled without dividing by the total",
   expect_equal(res$adjusted$adjusted, c(5, -5))
   expect_equal(res$totals$adjusted_total, 0)
   expect_true(all(is.na(res$contributions$share)))
-  pg <- productivity_gap(res, 1000, "decrease", "absolute")
+  ct <- contribution_table(res)
+  expect_equal(ct$contribution, c(1.5, -1.5))
+  expect_true(all(is.na(ct$share)))
+  # The legacy gap and value (reproduce_rasmussen_2022() only) attribute
+  # the gap without dividing by the zero total.
+  pg <- legacy_gap(res, 1000, "decrease", "absolute")
   expect_equal(pg$summary$disease_free, 1000)
   expect_equal(pg$attribution$gap, c(1.5, -1.5))
-  ct <- contribution_table(res, list(observed = 1000, direction = "decrease",
-                                     effect = "absolute", unit_value = 2))
-  expect_equal(ct$value, c(3, -3))
+  expect_equal(legacy_value(pg, 2)$by_disease$value, c(3, -3))
+  expect_equal(legacy_value(pg, 2)$value, 0)
 })
 
 test_that("a published denominator of zero gives a non-finite result and a warning", {
   pop <- cm_population(cm_diseases(c("a", "b"), c(0.1, 0.15)), cm_associations("a", "b", 2))
   E <- excess_matrix(pop)
   m <- cm_model(pop, cm_impacts(c("a", "b"), c(1, -1 / E["b", "a"])))
-  expect_warning(deconflate(m, method = "published"))
-  res <- suppressWarnings(deconflate(m, method = "published"))
+  expect_warning(adjust_impacts(m, method = "published"))
+  res <- suppressWarnings(adjust_impacts(m, method = "published"))
   x <- res$adjusted$adjusted[1]
   expect_true(!is.finite(x) || abs(x) > 1e10)
 })
@@ -131,7 +140,7 @@ test_that("a published denominator of zero gives a non-finite result and a warni
 test_that("jointly infeasible pairs are rejected although A is well conditioned", {
   m <- cm_model(bad_population(), cm_impacts(c("a", "b", "c"), c(1, 2, 3)))
   expect_error(deconflate(m), class = "deconflate_infeasible")
-  expect_error(deconflate(m, method = "published"), class = "deconflate_infeasible")
+  expect_error(adjust_impacts(m, method = "published"), class = "deconflate_infeasible")
   # Unchecked, the infeasible inputs flip the signs of b and c (warn = FALSE).
   res <- deconflate(m, feasibility = "none", warn = FALSE)
   expect_equal(res$diagnostics$sign_changes, "b, c")
@@ -163,7 +172,7 @@ test_that("interactions: the global method recovers the truth", {
   int <- cm_interactions(c("d1", "d2"), c("d2", "d3"), c(0.01, 0.015))
   m <- supp_model(raw, interactions = int)
   expect_error(deconflate(m), class = "deconflate_unsupported")
-  expect_error(deconflate(m, method = "published"), class = "deconflate_unsupported")
+  expect_error(adjust_impacts(m, method = "published"), class = "deconflate_unsupported")
   res <- deconflate(m, method = "global")
   expect_equal(res$adjusted$adjusted, truth, tolerance = 1e-8)
   expect_equal(res$totals$adjusted_total, 0.021095698976771753, tolerance = 1e-9)

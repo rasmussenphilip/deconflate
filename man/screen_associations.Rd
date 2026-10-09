@@ -9,8 +9,7 @@ screen_associations(
   method = "simultaneous",
   or_values = c(0.5, 2),
   multipliers = c(0.5, 2),
-  pairs = NULL,
-  valuation = NULL
+  pairs = NULL
 )
 }
 \arguments{
@@ -23,9 +22,6 @@ screen_associations(
 \item{multipliers}{Factors applied to specified associations.}
 
 \item{pairs}{Optional character vector of pairs (\code{"d1:d2"}); default all.}
-
-\item{valuation}{Optional valuation list (see \code{\link[=contribution_table]{contribution_table()}}) to
-use the gap's value as the metric; otherwise the adjusted aggregate.}
 }
 \value{
 A \code{cm_screen} data frame sorted by the absolute relative change in

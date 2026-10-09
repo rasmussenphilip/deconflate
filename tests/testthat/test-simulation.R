@@ -27,7 +27,7 @@ test_that("simultaneous and global methods recover the truth; published does not
   expect_equal(deconflate(m)$adjusted$adjusted, unname(supp_truth), tolerance = 1e-8)
   expect_equal(deconflate(m, method = "global")$adjusted$adjusted, unname(supp_truth), tolerance = 1e-8)
   expect_lt(deconflate(m)$diagnostics$max_reconstruction_residual, 1e-10)
-  pub <- deconflate(m, method = "published")
+  pub <- adjust_impacts(m, method = "published")
   expect_gt(max(abs(pub$adjusted$adjusted - supp_truth)), 0.1)
 })
 
@@ -73,8 +73,8 @@ test_that("results are in the units entered and rescale with them", {
   expect_equal(res_k$adjusted$adjusted, 1000 * unname(supp_truth), tolerance = 1e-8)
   expect_equal(res_k$totals$adjusted_total, 1000 * res$totals$adjusted_total, tolerance = 1e-10)
   expect_equal(res_k$units, "kg")
-  pub <- deconflate(cm_model(pop, raw), method = "published")
-  pub_k <- deconflate(cm_model(pop, raw_k), method = "published")
+  pub <- adjust_impacts(cm_model(pop, raw), method = "published")
+  pub_k <- adjust_impacts(cm_model(pop, raw_k), method = "published")
   expect_equal(pub_k$adjusted$adjusted, 1000 * pub$adjusted$adjusted, tolerance = 1e-10)
 })
 
@@ -92,6 +92,9 @@ test_that("the global method recovers the truth with interactions", {
   expect_equal(sum(res$contributions$total), res$totals$adjusted_total)
   expect_error(deconflate(m_int), class = "deconflate_unsupported")
   expect_error(deconflate(m_int, method = "published"), class = "deconflate_unsupported")
+  # The internal approximation rejects interactions too.
+  expect_error(adjust_impacts(m_int, method = "published"), "Interactions require",
+               class = "deconflate_unsupported")
 
   # With an adjusted estimand as well.
   raw_adj <- simulate_raw_impacts(pop, supp_truth, interactions = ints,

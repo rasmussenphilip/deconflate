@@ -98,13 +98,17 @@ test_that("association screening reports influential pairs", {
   expect_equal(sc$pair[1], "d2:d3")
   expect_true(all(diff(abs(sc$rel_change)) <= 0))
   expect_output(print(sc), "cm_screen")
-  # Restricting to pairs, and valuing the scenarios.
+  # Restricting to pairs (in either order).
   sp <- screen_associations(example_supplement(), pairs = "d3:d1")
   expect_equal(unique(sp$pair), "d1:d3")
-  sv <- screen_associations(example_supplement(), pairs = "d1:d3",
-                            valuation = list(observed = 10000, direction = "decrease",
-                                             effect = "percent", unit_value = 0.3))
-  expect_equal(attr(sv, "baseline_total"), 0.3 * 215.46759232202567, tolerance = 1e-9)
+  expect_equal(nrow(sp), 2)
+  expect_equal(attr(sp, "baseline_total"), supp_base_total, tolerance = 1e-10)
+  expect_equal(sp$total[sp$scenario == "OR x 2"], 2.0128810813034628, tolerance = 1e-10)
+  # The metric is always the adjusted aggregate: there is no valuation.
+  expect_false("valuation" %in% names(formals(screen_associations)))
+  expect_error(screen_associations(example_supplement(), pairs = "d1:d3",
+                                   valuation = list(observed = 10000)),
+               "unused argument")
 })
 
 test_that("association screening keeps failed scenarios with the reason", {
@@ -127,26 +131,26 @@ test_that("association screening keeps failed scenarios with the reason", {
   expect_true(all(!is.na(sc$failed[4:6])))
 })
 
-test_that("scenarios whose valuation cannot be evaluated are kept with the reason", {
-  # Impacts 45 times the supplement's (percent): the baseline aggregate loss
-  # is 94.9%, and halving the d2:d3 odds ratio takes it to 103.8%
-  # (reference_v020_tests.py screen values, scaled).
+test_that("screens report the adjusted aggregate, whatever its size", {
+  # Impacts 45 times the supplement's (percent): an aggregate of 94.9%, and
+  # 103.8% when the d2:d3 odds ratio is halved (reference_v020_tests.py
+  # screen values, scaled). The aggregate is linear in the impacts and is
+  # not converted into anything else, so every scenario is kept.
   m <- supp_model(45 * c(2.5, 5, 7.5))
-  val <- list(observed = 10000, direction = "decrease", effect = "percent")
-  sc <- screen_associations(m, valuation = val)
+  sc <- screen_associations(m)
   expect_equal(nrow(sc), 6)
-  expect_equal(attr(sc, "baseline_total"), 10000 / (1 - 0.45 * supp_base_total) - 10000, tolerance = 1e-9)
-  bad <- sc$pair == "d2:d3" & sc$scenario == "OR x 0.5"
-  expect_equal(sum(bad), 1)
-  expect_match(sc$failed[bad], "^valuation: ")
-  expect_true(is.na(sc$total[bad]))
-  expect_true(all(is.na(sc$failed[!bad])))
-  expect_true(all(is.finite(sc$total[!bad])))
-  # The same scenario is NA in a scenario comparison.
-  cs <- compare_scenarios(base = m, weak = set_association(m, "d2", "d3", 1.5), valuation = val)
-  expect_true(is.finite(cs$totals$total[1]))
-  expect_true(is.na(cs$totals$total[2]))
-  expect_error(compare_scenarios(base = m, valuation = list(observed = 10000)), "direction")
+  expect_true(all(is.na(sc$failed)))
+  expect_true(all(is.finite(sc$total)))
+  expect_equal(attr(sc, "baseline_total"), 45 * supp_base_total, tolerance = 1e-9)
+  big <- sc$pair == "d2:d3" & sc$scenario == "OR x 0.5"
+  expect_equal(sum(big), 1)
+  expect_equal(sc$total[big], 45 * 2.306649129926649, tolerance = 1e-9)
+  expect_gt(sc$total[big], 100)
+  # The same scenario in a scenario comparison.
+  cs <- compare_scenarios(base = m, weak = set_association(m, "d2", "d3", 1.5))
+  expect_true(all(is.na(cs$totals$failed)))
+  expect_equal(cs$totals$total, 45 * c(supp_base_total, 2.306649129926649), tolerance = 1e-9)
+  expect_false("valuation" %in% names(formals(compare_scenarios)))
 })
 
 test_that("screens without scenarios return an empty screen", {
@@ -247,10 +251,12 @@ test_that("one-at-a-time sensitivity varies every input", {
   expect_true(all(imp$total_high > imp$total_low))
   # The aggregate is linear in the impacts: low and high are symmetric.
   expect_equal((imp$total_low + imp$total_high) / 2, rep(supp_base_total, 3), tolerance = 1e-10)
-  expect_equal(nrow(sensitivity_oat(example_supplement(), inputs = "impact")), 3)
-  ov <- sensitivity_oat(example_supplement(), inputs = "impact",
-                        valuation = list(observed = 10000, direction = "decrease", effect = "percent"))
-  expect_equal(attr(ov, "baseline_total"), 215.46759232202567, tolerance = 1e-9)
+  ov <- sensitivity_oat(example_supplement(), inputs = "impact")
+  expect_equal(nrow(ov), 3)
+  expect_equal(attr(ov, "baseline_total"), supp_base_total, tolerance = 1e-10)
+  expect_error(sensitivity_oat(example_supplement(), inputs = "impact",
+                               valuation = list(observed = 10000)),
+               "unused argument")
 })
 
 test_that("scenario comparison tabulates totals and rankings", {
@@ -267,6 +273,8 @@ test_that("scenario comparison tabulates totals and rankings", {
   cs2 <- compare_scenarios(int = int, tw = set_three_way(int, "d1", "d2", "d3", 2))
   expect_equal(cs2$totals$total, c(supp_int_total, supp_int_tw_total[["2"]]), tolerance = 1e-7)
   expect_error(compare_scenarios(base, alt), "named")
+  # Every scenario must be a model (e.g. an old `valuation` list is rejected).
+  expect_error(compare_scenarios(base = base, valuation = list(observed = 10000)), "cm_model")
   # A scenario that cannot be run is kept with NA.
   bad <- set_association(base, "d1", "d2", 1.5, measure = "cond_prob")
   cs3 <- compare_scenarios(base = base, bad = bad)

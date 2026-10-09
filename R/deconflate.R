@@ -35,8 +35,8 @@
 #' aggregate. Shares are `NA` when the aggregate is zero.
 #'
 #' @section Number of diseases:
-#' The `"simultaneous"` and `"published"` methods use the pairwise tables
-#' only, so they work for any number of diseases (the triple screen checks
+#' The `"simultaneous"` method uses the pairwise tables only, so it works
+#' for any number of diseases (the triple screen checks
 #' n(n-1)(n-2)/6 triples). The `"global"` method needs the joint
 #' distribution: the exact backend of [fit_joint()] enumerates 2^n
 #' combinations (about 20 diseases at most); the sampled backend fits the
@@ -56,17 +56,19 @@
 #' @param method
 #'   * `"simultaneous"` (default): solves `raw = A b` exactly using the
 #'     pairwise 2x2 tables. No joint distribution is needed.
-#'   * `"published"`: the proportional approximation of Rasmussen et al.
-#'     (2022), eq. 16: `b[i] = raw[i]^2 / (raw[i] + sum_{k != i} A[i, k] raw[k])`,
-#'     for crude estimates only. Provided for reproduction and comparison;
-#'     it can mask incompatible inputs, and its value is undefined when the
-#'     denominator is zero.
 #'   * `"global"`: fits the maximum-entropy joint distribution
 #'     ([fit_joint()]; the "iterative" model) and solves the equations
 #'     including any interactions. Unknown pairs are left unconstrained.
 #'     Without interactions and unknown pairs, it equals `"simultaneous"`.
 #'     For more than about 20 diseases, pass `backend = "sampled"` (through
 #'     `...`, or fit the joint with [fit_joint()] and pass it as `joint`).
+#'
+#'   Use `"simultaneous"` when impacts are additive and every pair has an
+#'   association estimate or a defensible independence assumption; otherwise
+#'   (interactions, unknown pairs) use `"global"`. The proportional
+#'   approximation of Rasmussen et al. (2022, eq. 16) is not a method here: it
+#'   is kept for comparison and reproduction in [compare_methods()],
+#'   [cm_monte_carlo()] and the `reproduce_*()` functions.
 #' @param joint Optional [fit_joint()] result for `method = "global"`. It is
 #'   checked against the model (diseases, probabilities, associations and
 #'   three-way terms); impact-only changes do not require a refit.
@@ -111,9 +113,19 @@ deconflate.default <- function(model, ...) {
 
 #' @rdname deconflate
 #' @export
-deconflate.cm_model <- function(model, method = c("simultaneous", "published", "global"),
+deconflate.cm_model <- function(model, method = c("simultaneous", "global"),
                                 joint = NULL, warn = TRUE,
                                 feasibility = c("screen", "lp", "none"), ...) {
+  method <- public_method(method, c("simultaneous", "global"), "deconflate()")
+  adjust_impacts(model, method = method, joint = joint, warn = warn, feasibility = feasibility, ...)
+}
+
+# The adjustment itself, including the published approximation (eq. 16 of
+# Rasmussen et al. 2022), which is kept for compare_methods(),
+# cm_monte_carlo() and the reproduce_*() functions only.
+adjust_impacts <- function(model, method = c("simultaneous", "published", "global"),
+                           joint = NULL, warn = TRUE,
+                           feasibility = c("screen", "lp", "none"), ...) {
   method <- match.arg(method)
   feasibility <- match.arg(feasibility)
   imp <- model$impacts
@@ -263,8 +275,16 @@ deconflate.cm_model <- function(model, method = c("simultaneous", "published", "
 
 #' @rdname deconflate
 #' @export
-deconflate.cm_analyses <- function(model, method = c("simultaneous", "published", "global"),
+deconflate.cm_analyses <- function(model, method = c("simultaneous", "global"),
                                    joint = NULL, ...) {
+  method <- public_method(method, c("simultaneous", "global"), "deconflate()")
+  adjust_analyses(model, method = method, joint = joint, ...)
+}
+
+# All analyses of a cm_analyses object (any method, including the published
+# approximation for internal use).
+adjust_analyses <- function(model, method = c("simultaneous", "published", "global"),
+                            joint = NULL, ...) {
   method <- match.arg(method)
   if (method == "global" && is.null(joint)) {
     # One joint distribution serves every analysis (it depends on the
@@ -274,7 +294,7 @@ deconflate.cm_analyses <- function(model, method = c("simultaneous", "published"
     joint <- withCallingHandlers(do.call(fit_joint, c(list(model$population), fj)),
                                  deconflate_nonconvergence = function(w) invokeRestart("muffleWarning"))
   }
-  out <- lapply(model$models, deconflate, method = method, joint = joint, ...)
+  out <- lapply(model$models, adjust_impacts, method = method, joint = joint, ...)
   structure(out, class = "cm_results")
 }
 

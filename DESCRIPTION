@@ -7,11 +7,12 @@ Authors@R:
            role = c("aut", "cre"))
 Description: Adjusts ("de-conflates") single-disease impact estimates for
     statistical associations between diseases, so that impacts can be
-    aggregated without double counting. Implements the published proportional
-    approximation of Rasmussen et al. (2022) <doi:10.1016/j.prevetmed.2022.105617>,
-    an exact simultaneous solution of the underlying additive impact
-    equations for crude estimates and for coefficients of additive regressions
-    with recorded adjustment sets, and a global model that fits a
+    aggregated without double counting. Implements an exact simultaneous
+    solution of the additive impact equations of Rasmussen et al. (2022)
+    <doi:10.1016/j.prevetmed.2022.105617> for crude estimates and for
+    coefficients of additive regressions with recorded adjustment sets
+    (the published proportional approximation is kept for comparison and
+    reproduction), and a global model that fits a
     maximum-entropy distribution of disease combinations by iterative
     proportional fitting and incorporates specified pairwise impact
     interactions and three-way association scenarios. Hazard ratios are

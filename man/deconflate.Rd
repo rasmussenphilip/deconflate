@@ -10,19 +10,14 @@ deconflate(model, ...)
 
 \method{deconflate}{cm_model}(
   model,
-  method = c("simultaneous", "published", "global"),
+  method = c("simultaneous", "global"),
   joint = NULL,
   warn = TRUE,
   feasibility = c("screen", "lp", "none"),
   ...
 )
 
-\method{deconflate}{cm_analyses}(
-  model,
-  method = c("simultaneous", "published", "global"),
-  joint = NULL,
-  ...
-)
+\method{deconflate}{cm_analyses}(model, method = c("simultaneous", "global"), joint = NULL, ...)
 }
 \arguments{
 \item{model}{A \code{\link[=cm_model]{cm_model()}}, or a \code{\link[=cm_analyses]{cm_analyses()}} object (each analysis is
@@ -34,17 +29,21 @@ for each analysis.}
 \item{method}{\itemize{
 \item \code{"simultaneous"} (default): solves \verb{raw = A b} exactly using the
 pairwise 2x2 tables. No joint distribution is needed.
-\item \code{"published"}: the proportional approximation of Rasmussen et al.
-(2022), eq. 16: \verb{b[i] = raw[i]^2 / (raw[i] + sum_\{k != i\} A[i, k] raw[k])},
-for crude estimates only. Provided for reproduction and comparison;
-it can mask incompatible inputs, and its value is undefined when the
-denominator is zero.
+\itemize{
 \item \code{"global"}: fits the maximum-entropy joint distribution
 (\code{\link[=fit_joint]{fit_joint()}}; the "iterative" model) and solves the equations
 including any interactions. Unknown pairs are left unconstrained.
 Without interactions and unknown pairs, it equals \code{"simultaneous"}.
 For more than about 20 diseases, pass \code{backend = "sampled"} (through
 \code{...}, or fit the joint with \code{\link[=fit_joint]{fit_joint()}} and pass it as \code{joint}).
+}
+
+Use \code{"simultaneous"} when impacts are additive and every pair has an
+association estimate or a defensible independence assumption; otherwise
+(interactions, unknown pairs) use \code{"global"}. The proportional
+approximation of Rasmussen et al. (2022, eq. 16) is not a method here: it
+is kept for comparison and reproduction in \code{\link[=compare_methods]{compare_methods()}},
+\code{\link[=cm_monte_carlo]{cm_monte_carlo()}} and the \verb{reproduce_*()} functions.
 }}
 
 \item{joint}{Optional \code{\link[=fit_joint]{fit_joint()}} result for \code{method = "global"}. It is
@@ -116,8 +115,8 @@ aggregate. Shares are \code{NA} when the aggregate is zero.
 
 \section{Number of diseases}{
 
-The \code{"simultaneous"} and \code{"published"} methods use the pairwise tables
-only, so they work for any number of diseases (the triple screen checks
+The \code{"simultaneous"} method uses the pairwise tables only, so it works
+for any number of diseases (the triple screen checks
 n(n-1)(n-2)/6 triples). The \code{"global"} method needs the joint
 distribution: the exact backend of \code{\link[=fit_joint]{fit_joint()}} enumerates 2^n
 combinations (about 20 diseases at most); the sampled backend fits the

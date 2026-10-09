@@ -24,7 +24,9 @@ test_that("the LP check agrees and identifies the conflict", {
 test_that("the pairwise methods screen triples by default", {
   m <- cm_model(bad_population(), cm_impacts(c("a", "b", "c"), c(1, 2, 3)))
   expect_error(deconflate(m), class = "deconflate_infeasible")
-  expect_error(deconflate(m, method = "published"), class = "deconflate_infeasible")
+  # The published approximation (internal; compare_methods() and reproduce)
+  # is screened too.
+  expect_error(adjust_impacts(m, method = "published"), class = "deconflate_infeasible")
   expect_warning(res <- deconflate(m, feasibility = "none"), class = "deconflate_sign_change")
   expect_s3_class(res, "cm_result")
   skip_if_not_installed("lpSolve")

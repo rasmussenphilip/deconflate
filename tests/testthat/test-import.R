@@ -116,8 +116,8 @@ test_that("a single impact table typed in R is the analysis 'impacts'", {
   expect_null(inp$hr_model)
   expect_equal(deconflate(inp$model)$adjusted$adjusted,
                deconflate(supp_model(c(2.5, 5, 7.5)))$adjusted$adjusted)
-  expect_equal(deconflate(inp$model, method = "published")$adjusted$adjusted,
-               deconflate(example_supplement(), method = "published")$adjusted$adjusted)
+  expect_equal(adjust_impacts(inp$model, method = "published")$adjusted$adjusted,
+               adjust_impacts(example_supplement(), method = "published")$adjusted$adjusted)
 })
 
 test_that("a named list of impact tables gives one analysis each", {
@@ -212,8 +212,8 @@ test_that("the shipped global dairy files reproduce example_global_dairy()", {
   expect_equal(inp$population$diseases$type, ref$population$diseases$type)
   expect_equal(inp$population$diseases$prob, ref$population$diseases$prob, tolerance = 1e-12)
 
-  res <- deconflate(inp$analyses, method = "published", warn = FALSE)
-  ref_res <- deconflate(ref, method = "published", warn = FALSE)
+  res <- adjust_analyses(inp$analyses, method = "published", warn = FALSE)
+  ref_res <- adjust_analyses(ref, method = "published", warn = FALSE)
   for (nm in names(ref$models)) {
     expect_equal(res[[nm]]$adjusted$disease, ref_res[[nm]]$adjusted$disease)
     expect_equal(res[[nm]]$adjusted$raw, ref_res[[nm]]$adjusted$raw, tolerance = 1e-12)
@@ -227,8 +227,8 @@ test_that("the shipped global dairy files reproduce example_global_dairy()", {
   expect_s3_class(inp$hr_model, "cm_hr_model")
   expect_equal(inp$hr_model$hazard_ratios$disease, ref_hr$hazard_ratios$disease)
   expect_equal(inp$hr_model$hazard_ratios$value, ref_hr$hazard_ratios$value, tolerance = 1e-12)
-  expect_equal(deconflate_hr(inp$hr_model, method = "published", warn = FALSE)$adjusted$adjusted,
-               deconflate_hr(ref_hr, method = "published", warn = FALSE)$adjusted$adjusted,
+  expect_equal(adjust_hr(inp$hr_model, method = "published", warn = FALSE)$adjusted$adjusted,
+               adjust_hr(ref_hr, method = "published", warn = FALSE)$adjusted$adjusted,
                tolerance = 1e-10)
 
   # The distributions in the tables match sampler_global_dairy().
@@ -687,7 +687,7 @@ test_that("the five-disease example reads without problems and matches the refer
   expect_equal(r$adjusted$adjusted,
                c(4.13927424, 2.35580211, 4.5140575, 1.36629496, 2.66542027), tolerance = 1e-7)
   expect_equal(r$totals$adjusted_total, 2.7349337441102657, tolerance = 1e-9)
-  rp <- deconflate(m$yield, method = "published")
+  rp <- adjust_impacts(m$yield, method = "published")
   expect_equal(rp$adjusted$adjusted,
                c(3.97507962, 2.37379544, 4.36087399, 1.58917725, 2.84352728), tolerance = 1e-7)
   expect_equal(deconflate(m$yield, method = "global")$adjusted$adjusted, r$adjusted$adjusted,
@@ -695,13 +695,13 @@ test_that("the five-disease example reads without problems and matches the refer
   rc <- deconflate(m$calving_interval)
   expect_equal(rc$adjusted$adjusted, c(10.27962506, 4.40963526, 15.61622693, 4, 5.06713035),
                tolerance = 1e-7)
-  expect_error(deconflate(m$calving_interval, method = "published"), class = "deconflate_unsupported")
+  expect_error(adjust_impacts(m$calving_interval, method = "published"), class = "deconflate_unsupported")
   rw <- deconflate(m$welfare, method = "global")
   expect_equal(rw$adjusted$adjusted, c(8.77541245, 4.00171284, 3.18388605, 1.02183469, 2.14413033),
                tolerance = 1e-7)
   expect_equal(rw$totals$adjusted_total, 4.182930749703578, tolerance = 1e-8)
   expect_error(deconflate(m$welfare), class = "deconflate_unsupported")
-  expect_error(deconflate_hr(inp$hr_model, method = "published"), class = "deconflate_unsupported")
+  expect_error(adjust_hr(inp$hr_model, method = "published"), class = "deconflate_unsupported")
   expect_s3_class(deconflate_hr(inp$hr_model), "cm_hr_result")
 
   # Thresholds used in run_all_features.R.
@@ -717,11 +717,24 @@ test_that("the five-disease example reads without problems and matches the refer
                      diseases = c("MET", "SCK"), method = "simultaneous")
   expect_equal(th$thresholds$threshold[th$thresholds$status == "threshold"], 0.33002218486278845,
                tolerance = 1e-6)
-  th <- cm_threshold(m$yield, "impact:SCK", c(-4, 2.5), conclusion = "sign", diseases = "SCK",
-                     method = "published")
-  expect_equal(th$thresholds$status, "discontinuity")
-  expect_lt(th$thresholds$lower, -1.4328526785573266)
-  expect_gt(th$thresholds$upper, -1.4328526785573266)
+  # The published approximation is not a method of cm_threshold(); its pole
+  # for SCK (reference_five_diseases.py) is checked on the internal
+  # adjust_impacts() instead.
+  expect_error(cm_threshold(m$yield, "impact:SCK", c(-4, 2.5), conclusion = "sign", diseases = "SCK",
+                            method = "published"),
+               class = "deconflate_unsupported")
+  pole <- -1.4328526785573266
+  A <- rp$conflation$A
+  expect_equal(-as.vector((A - diag(nrow(A))) %*% rp$adjusted$raw)[rp$adjusted$disease == "SCK"], pole,
+               tolerance = 1e-8)
+  sck_published <- function(v) {
+    my <- m$yield
+    my$impacts$value[my$impacts$disease == "SCK"] <- v
+    r <- adjust_impacts(my, method = "published", warn = FALSE)
+    r$adjusted$adjusted[r$adjusted$disease == "SCK"]
+  }
+  expect_lt(sck_published(pole - 1e-3), -1000)
+  expect_gt(sck_published(pole + 1e-3), 1000)
   skip_on_cran()
   th <- cm_threshold(m$welfare, "inter:LAM:MAS", c(-5, 20), conclusion = "change", target = -0.1)
   expect_equal(th$thresholds$threshold[th$thresholds$status == "threshold"], 7.607122195588001,

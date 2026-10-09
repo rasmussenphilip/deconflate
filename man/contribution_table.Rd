@@ -4,14 +4,10 @@
 \alias{contribution_table}
 \title{Contribution table}
 \usage{
-contribution_table(result, valuation = NULL)
+contribution_table(result)
 }
 \arguments{
 \item{result}{A \code{\link[=deconflate]{deconflate()}} result.}
-
-\item{valuation}{Optional list with \code{observed}, \code{direction}, \code{effect} and
-(optionally) \code{unit_value}, passed to \code{\link[=productivity_gap]{productivity_gap()}} and
-\code{\link[=value_losses]{value_losses()}}.}
 }
 \value{
 A data frame.
@@ -19,11 +15,8 @@ A data frame.
 \description{
 One row per disease with raw and adjusted impacts and the disease's
 contribution to the aggregate (its Shapley share, including any
-interaction share). With \code{valuation}, the attributed gap and its value are
-added (see \code{\link[=productivity_gap]{productivity_gap()}} and \code{\link[=value_losses]{value_losses()}}).
+interaction share), in the units of the impacts.
 }
 \examples{
-contribution_table(deconflate(example_supplement()),
-                   list(observed = 10000, direction = "decrease", effect = "percent",
-                        unit_value = 0.3))
+contribution_table(deconflate(example_supplement()))
 }

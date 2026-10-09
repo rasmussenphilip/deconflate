@@ -19,7 +19,7 @@
 - [x] Review the reproduction vignette against the original analysis files (2024: 1st-revision code and inputs; 2022: original files unavailable, corrigendum checked).
 - [x] Tag v0.1.0.
 
-## v0.2 (in progress)
+## v0.2 (released as 0.2.0)
 
 - [x] Culling hazard ratios: a separate multiplicative adapter (`deconflate_hr()`: snapshot, first-order and published) with stratified adjustment sets.
 - [x] `attributable_risk()`: culling attributable to disease without double counting, with Shapley allocation.
@@ -42,20 +42,63 @@
 
 ## v0.4 (planned)
 
+Items 3-6 follow a separate design document (October 2026); its reference values come from `inst/validation/prototype_v04_part1.py` to `part3.py`.
+
 In this order:
 
 1. **Test 0.3.0 in use.**
    - [ ] Run `run_all_features.R` end to end and review every printed result as a new user would.
    - [ ] Have someone else work through the CSV workflow with their own data, without help.
    - [ ] Optional: a short third review of the 0.3 additions (in-table uncertainty, `cm_threshold()`, the sampled backend).
-2. **Probabilistic thresholds** (the one new feature): combine `cm_threshold()` with Monte Carlo runs, e.g. the input value at which a disease ranks first (or the aggregate exceeds a target) in a given share of draws, with Monte Carlo error.
-3. **Simpler, more intuitive input tables.**
+   - [x] `run_all_features.R`: optional `out_dir` that saves the printed output and a PDF of all plots.
+   - [ ] Rewrite `run_all_features.R` after items 3-6 (one `deconflate()` call per outcome file; no valuation section; the published method only in `compare_methods()`; the new features).
+2. **Slim the interface to de-conflation itself.**
+
+   Demote the published method (eq. 16 of Rasmussen et al. 2022, and HR - 1 for hazard ratios):
+   - [x] Keep it in `compare_methods()`, `cm_monte_carlo()` (to reproduce the 2024 Monte Carlo) and the `reproduce_*()` functions only.
+   - [x] Remove it from the method choices of `deconflate()` and `deconflate_hr()`, from `cm_threshold()` and from the screens; simplify the pole handling that exists mainly for it.
+   - [x] Documentation: use the simultaneous method when every pair has an association estimate or a defensible independence assumption and impacts are additive; otherwise the global method; the snapshot model for hazards.
+
+   Remove valuation; users compute gaps and values from the adjusted impacts themselves:
+   - [x] Remove `productivity_gap()`, `value_losses()`, `cm_mc_gap()` and the exported `uk_dairy_2022_economics()`.
+   - [x] Remove every `valuation` argument (`contribution_table()`, `summary()`, `compare_methods()`, `sensitivity_oat()`, the screens, `compare_scenarios()`, `plot_burden()`); sensitivity tools use the adjusted aggregate in the impacts' own units.
+   - [x] Remove `unit_value` from `attributable_risk()` (keep the attributable risk itself: it needs the joint distribution).
+   - [x] Keep the adjusted aggregate and each disease's contribution, including the Shapley split of interaction effects.
+   - [x] Move the gap and valuation code inside `reproduce_rasmussen_2022()` and `reproduce_rasmussen_2024()` as internal helpers, so the published economic tables are still reproduced.
+   - [x] A short vignette section showing the gap and value calculation in base R (for percentage impacts, the loss is relative to the disease-free level: observed / (1 - aggregate)).
+3. **One function, one outcome file.** Everything runs through `deconflate()`.
+   - [ ] Each run uses the population files (diseases, associations, three-way) and **one outcome file**, plus that outcome's interactions file if any: `cm_read_inputs(folder, outcome = "impacts_yield.csv")`. Users repeat the call for other outcomes; `cm_analyses()` and multi-analysis reading go.
+   - [ ] `mortality.csv` is an ordinary outcome file (it replaces `hazard_ratios.csv`, no alias): `deconflate()` recognises it and runs the snapshot hazard model (whatever `method` says; the first-order approximation stays only in `compare_methods()`). When the file has an overall-risk row, the result includes the attributable risk, raw and adjusted, with its Shapley split.
+   - [ ] `n_draws` (default 0 = point estimates): `n_draws > 0` runs the Monte Carlo analysis from the distributions in the tables, for either method and either kind of outcome file, returning point estimates with intervals and the stability checks. Latin hypercube sampling becomes an argument.
+   - [ ] Remove from the public interface (kept internally where `reproduce_rasmussen_2024()` needs them): `cm_monte_carlo()`, `cm_sampler()`, `cm_batch_sampler()`, `sampler_global_dairy()`, `deconflate_hr()`, `cm_hr_model()`, `cm_hazard_ratios()`, `attributable_risk()`, `cm_analyses()`.
+   - [ ] Remove scenario reweighting and the separate Monte Carlo diagnostics: `cm_reweight()`, `compare_scenarios()`, `cm_diagnose()`, importance sampling and `cm_suggest_proposal()`.
+   - [ ] Update `compare_methods()`, `cm_threshold()`, the screens, `sensitivity_oat()`, the plots, the examples and the vignettes to the new interface.
+4. **Several estimates per disease and per pair**, each with its own estimand, `adjusted_for` and uncertainty.
+   - [ ] Impact files: several rows per disease (optional `study` label), fitted by weighted least squares with weights 1/SD²; a row without uncertainty is exact. Error only when exact rows contradict each other and the anchor does not let the associations reconcile them.
+   - [ ] Association tables: several rows per pair, mapped to the marginal log odds ratio and pooled (random effects by default, `pool = "fixed"` as an option; Q, I² and tau² reported). Associations adjusted for diseases in the model (ids or `all`) are exact conditional associations (logistic projection, via a fixed-point mapping to the marginal scale); associations adjusted for other covariates are used as marginal, with a note.
+   - [ ] `mortality.csv`: a `measure` column (`HR`, `rate_ratio`, `RR`, `OR`, `RD`), crude or stratified, all mapped onto the snapshot hazard model; several rows per disease. The overall period risk is a row of the file (`measure = overall_risk`, with optional uncertainty); it is required when risk-based measures are used or for the attributable risk, and risk-based measures must refer to the same period.
+   - [ ] Mortality uncertainty: with `n_draws`, every draw runs the snapshot fit and the attributable risk, with intervals, rejections and stability checks as for impact files.
+5. **The `anchor` argument and constraints.**
+   - [ ] `anchor = c("associations", "balanced", "impacts")`: what is held at its input value when the inputs over-determine the model (several impact rows per disease, or constraints). `"associations"` (default, the current behaviour) fits the impacts; `"balanced"` moves both kinds of input in proportion to their SDs; `"impacts"` moves the associations as little as needed. Without over-determination all three give the same results as 0.3.
+   - [ ] Diagnostics in the result: a standardised residual for each input row, heterogeneity per disease and pair, and how far each input moved in SD units (shifts of 2 SD or more flagged).
+   - [ ] Constraints on adjusted impacts as a `deconflate()` argument only (e.g. `constraints = list(lower = 0)` or `list(lower = c(CM = 0, DA = 0))`; no CSV columns), applied probabilistically with `n_draws`: draw combinations that break them are dropped and the rest weighted according to `anchor`. Reports means and intervals (never exactly at the bound), how often each constraint was broken without it, and the input shifts.
+   - [ ] When few draws satisfy the constraints, return the results anyway with a warning, together with the best-fit diagnostic in the result (`$conflict`): the smallest shift of the inputs, in SD units, that satisfies the constraints, and the inputs that have to move most.
+6. **Probabilistic machinery** (MCMC or directed importance sampling), for where too few draw combinations satisfy the constraints, constraints on the mortality model, and `anchor = "impacts"` with several impact rows per disease.
+   - [ ] Probabilistic thresholds: combine `cm_threshold()` with the Monte Carlo draws, e.g. the input value at which a disease ranks first (or the aggregate exceeds a target) in a given share of draws, with Monte Carlo error.
+7. **Revised 2024 inputs**, separate from `reproduce_rasmussen_2024()`, which stays a faithful reproduction.
+   - [ ] `example_global_dairy(inputs = "revised")`, using the features of items 4-5.
+   - [ ] A vignette section documenting each correction: the SCK conversion from kg to percent, the milk fever and ketosis estimates of Bareille et al. (2003) as direct effects, the adjusted SCK estimates and odds ratios of Raboisson et al. (2014), the clinical mastitis sources by estimand, and the displaced abomasum sources. Unit and measurement-window corrections are made here only, not in the main pipeline.
+8. **Simpler, more intuitive input tables.**
    - [ ] Accept missing optional columns everywhere with sensible defaults, and fewer required columns.
    - [ ] Disease labels (full names) next to the short ids, used in printed tables and plots.
-   - [ ] Clearer column names and messages; review the template and the example folders accordingly.
-4. **Clearer output and summary tables.** Consistent column names and order across `deconflate()`, `compare_methods()`, `summary()`, `contribution_table()` and the Monte Carlo summaries; readable rounding and units; labels.
-5. **Better plots.** A consistent look across plot methods, labels and units on axes, and plots for uncertainty and thresholds.
-6. **Dependencies.** Keep the package on base R (see the Dependencies section of the README); list any new dependency there with its reason.
+   - [ ] Clearer column names and messages; review the template and the example folders accordingly (more important now that tables hold several estimates).
+   - [ ] Make uncertainty visible: `deconflate()` notes when the inputs have distributions but `n_draws = 0`.
+9. **Clearer output and summary tables.** The package assumes no species, outcome or unit: tables show the user's own labels and units, and the reference population and time horizon from the diseases table when given (otherwise "per average individual in the population").
+   - [ ] Consistent column names, order, rounding and layout across `deconflate()`, `compare_methods()`, `summary()` and `contribution_table()`, with and without draws; wide tables do not wrap into several blocks.
+   - [ ] Raw vs adjusted attributable risk for mortality files (the same calculation with the raw estimates), so that the double counting removed is visible, as with the raw and adjusted aggregates of impact files.
+10. **Better plots.** The same rule as for tables (the user's labels and units only); a consistent look across plot methods, and plots for uncertainty, thresholds and the estimate diagnostics.
+    - [ ] Documentation examples from more than dairy cattle (e.g. another livestock system and a human-health example), so that the generality is visible.
+11. **Dependencies.** Keep the package on base R (see the Dependencies section of the README); list any new dependency there with its reason (the MCMC in item 6 is the most likely candidate).
 
 Afterwards: a Zenodo DOI for each release, and possibly a CRAN submission and a short software paper.
 

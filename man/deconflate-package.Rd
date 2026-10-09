@@ -20,23 +20,26 @@ optionally, three-way scenarios (\code{\link[=cm_three_way]{cm_three_way()}}), c
 with \code{\link[=cm_model]{cm_model()}}, or several with \code{\link[=cm_analyses]{cm_analyses()}}. Or read the same
 tables from CSV files or data frames with \code{\link[=cm_read_inputs]{cm_read_inputs()}} (see
 \code{\link[=cm_template]{cm_template()}}).
-\item Adjust impacts with \code{\link[=deconflate]{deconflate()}}, using one of three methods:
+\item Adjust impacts with \code{\link[=deconflate]{deconflate()}}, using one of two methods:
 \itemize{
 \item \code{"simultaneous"} (default): the exact solution of the additive impact
 equations, built from pairwise 2x2 tables. Crude estimates and
 coefficients from additive regressions with a recorded adjustment set
-(\code{estimand = "adjusted_linear"}) are supported.
-\item \code{"published"}: the proportional approximation of Rasmussen et al.
-(2022), eq. 16, for crude estimates, for reproduction and comparison.
+(\code{estimand = "adjusted_linear"}) are supported. Use it when impacts
+are additive and every pair has an association estimate or a
+defensible independence assumption.
 \item \code{"global"}: fits a maximum-entropy distribution of disease
 combinations with \code{\link[=fit_joint]{fit_joint()}}, then solves the impact equations
-including pairwise interactions (\code{\link[=cm_interactions]{cm_interactions()}}).
+including pairwise interactions (\code{\link[=cm_interactions]{cm_interactions()}}) and unknown
+pairs.
 }
 \item Inspect each disease's contribution to the aggregate
-(\code{\link[=attribute_burden]{attribute_burden()}}, \code{\link[=contribution_table]{contribution_table()}}); optionally turn the
-aggregate into a productivity gap and a value with
-\code{\link[=productivity_gap]{productivity_gap()}} and \code{\link[=value_losses]{value_losses()}}. \code{\link[=compare_methods]{compare_methods()}}
-tabulates the methods side by side.
+(\code{\link[=attribute_burden]{attribute_burden()}}, \code{\link[=contribution_table]{contribution_table()}}), in the units of the
+impacts. Converting the results into other quantities (e.g. a
+productivity gap or a monetary value) is left to the user.
+\code{\link[=compare_methods]{compare_methods()}} sets the methods side by side, including the
+proportional approximation of Rasmussen et al. (2022, eq. 16), which is
+kept for comparison and reproduction only.
 \item Hazard ratios (e.g. of culling) combine multiplicatively and have their
 own adapter: \code{\link[=cm_hazard_ratios]{cm_hazard_ratios()}}, \code{\link[=cm_hr_model]{cm_hr_model()}}, \code{\link[=deconflate_hr]{deconflate_hr()}}
 and \code{\link[=attributable_risk]{attributable_risk()}}.

@@ -7,7 +7,6 @@
 attributable_risk(
   result,
   overall_risk,
-  unit_value = NULL,
   joint = NULL,
   allocate = TRUE,
   max_present = Inf
@@ -18,9 +17,6 @@ attributable_risk(
 
 \item{overall_risk}{Overall period risk of the event, as a proportion
 (e.g. \code{0.25} for an annual culling rate of 25\%).}
-
-\item{unit_value}{Optional value per animal removed (e.g. replacement
-cost less salvage value); adds \code{value} columns.}
 
 \item{joint}{Optional \code{\link[=fit_joint]{fit_joint()}} result; by default the result's own
 joint distribution or a new (exact) fit. It is checked against the
@@ -34,8 +30,9 @@ population. For more than about 20 diseases, fit it with
 }
 \value{
 A \code{cm_attributable} list with \code{summary} (overall, disease-free and
-attributable risk, attributable fraction, value, and any unallocated
-part), \code{by_disease} and \code{baseline_hazard}.
+attributable risk, attributable fraction, and any unallocated part),
+\code{by_disease} and \code{baseline_hazard}. Risks are proportions of animals
+experiencing the event during the period.
 }
 \description{
 Converts adjusted hazard ratios into the part of an event's overall risk
@@ -65,5 +62,5 @@ of diseases over the period).
 hr <- cm_hr_model(example_supplement(),
                   cm_hazard_ratios(c("d1", "d2", "d3"), c(1.5, 2.0, 1.3),
                                    estimand = "snapshot_crude"))
-attributable_risk(deconflate_hr(hr), overall_risk = 0.25, unit_value = 1300)
+attributable_risk(deconflate_hr(hr), overall_risk = 0.25)
 }

@@ -2,40 +2,43 @@
 #'
 #' Runs several adjustment methods on the same inputs and tabulates the
 #' results side by side:
-#' * `"published"`: the simple proportional approximation used in Rasmussen
-#'   et al. (2022, 2024) (eq. 16);
 #' * `"simultaneous"`: the exact solution of the system of equations;
 #' * `"global"`: the iterative (maximum-entropy) model of disease
-#'   combinations, which can also include interactions.
+#'   combinations, which can also include interactions;
+#' * `"published"`: the proportional approximation used in Rasmussen et al.
+#'   (2022, 2024) (eq. 16 of the 2022 paper). It is not a method of
+#'   [deconflate()]; it is kept here (and in [cm_monte_carlo()] and the
+#'   `reproduce_*()` functions) to compare earlier results with the exact
+#'   solution. It applies to crude estimates only, can mask incompatible
+#'   inputs, and is undefined when its denominator is zero.
 #'
 #' For a model, every method is run on the model's inputs; methods that
 #' cannot be run (e.g. the published approximation for adjusted estimands)
 #' are reported with the reason. For [cm_analyses()], each analysis is
 #' compared and the tables are stacked. For a hazard-ratio model, the
-#' methods of [deconflate_hr()] are compared. For a Monte Carlo run made with
-#' several methods, the methods were applied to identical draws, and their
-#' summaries are compared.
+#' methods of [deconflate_hr()] (`"snapshot"`, `"first_order"`) are compared
+#' with the published approach of Rasmussen et al. (2024) (`"published"`:
+#' `HR - 1` adjusted with eq. 16). For a Monte Carlo run made with several
+#' methods, the methods were applied to identical draws, and their summaries
+#' are compared.
 #'
 #' @param x A [cm_model()], [cm_analyses()], [cm_hr_model()], or a `cm_mc`
 #'   object from [cm_monte_carlo()] run with more than one method.
 #' @param methods Methods to compare.
-#' @param valuation Optional valuation list for models (see
-#'   [contribution_table()]), or a named list of them (one per analysis) for
-#'   [cm_analyses()] (analyses without one are not valued); adds the gap and
-#'   value per method to `totals`.
 #' @param overall_risk For hazard-ratio models: optional overall risk, adding
 #'   the attributable risk per method (see [attributable_risk()]).
 #' @param stat For Monte Carlo runs: `"mean"`, `"median"` or
 #'   `"trimmed_mean"`.
-#' @param ... Passed to [deconflate()] or [deconflate_hr()] (for Monte Carlo
-#'   runs, to [summary.cm_mc()]).
+#' @param ... Passed to the adjustment (e.g. `joint`, `feasibility`, or
+#'   arguments of [fit_joint()]); for Monte Carlo runs, to [summary.cm_mc()].
 #' @return A `cm_comparison` object with `impacts` (raw and adjusted values,
 #'   one column per method), `change` (relative change from raw), `long`
 #'   (long format with sign-change flags, or the Monte Carlo summaries),
-#'   `totals` (aggregate per method, with gap and value if requested),
-#'   `diagnostics`, `failed` (methods that could not be run, gave an undefined
-#'   (non-finite) result, or whose valuation or attributable risk could not be
-#'   computed, with reasons; their `totals` are `NA`) and `methods`. For a
+#'   `totals` (naive and adjusted aggregate per method; attributable risk for
+#'   hazard-ratio models with `overall_risk`), `diagnostics`, `failed`
+#'   (methods that could not be run, gave an undefined (non-finite) result,
+#'   or whose attributable risk could not be computed, with reasons) and
+#'   `methods`. For a
 #'   model, `undefined` keeps the results with non-finite values for
 #'   inspection; they are not among the estimates.
 #' @export
@@ -45,14 +48,13 @@ compare_methods <- function(x, ...) UseMethod("compare_methods")
 
 #' @rdname compare_methods
 #' @export
-compare_methods.cm_model <- function(x, methods = c("published", "simultaneous", "global"),
-                                     valuation = NULL, ...) {
+compare_methods.cm_model <- function(x, methods = c("published", "simultaneous", "global"), ...) {
   methods <- unique(match.arg(methods, c("published", "simultaneous", "global"), several.ok = TRUE))
   res <- list()
   undefined <- list()
   failed <- character(0)
   for (m in methods) {
-    r <- tryCatch(deconflate(x, method = m, warn = FALSE, ...), deconflate_error = function(e) e)
+    r <- tryCatch(adjust_impacts(x, method = m, warn = FALSE, ...), deconflate_error = function(e) e)
     if (inherits(r, "condition")) {
       failed[m] <- conditionMessage(r)
     } else if (!result_is_finite(r)) {
@@ -65,20 +67,6 @@ compare_methods.cm_model <- function(x, methods = c("published", "simultaneous",
   }
   if (!length(res)) {
     cm_abort(sprintf("All methods failed: %s", paste(names(failed), failed, sep = ": ", collapse = "; ")))
-  }
-  # A valuation that cannot be evaluated for a method (e.g. an aggregate loss
-  # of 100% or more) is reported, not fatal.
-  vals <- list()
-  if (!is.null(valuation)) {
-    check_valuation(valuation)
-    for (m in names(res)) {
-      ev <- tryCatch(evaluate_valuation(res[[m]], valuation), deconflate_error = function(e) e)
-      if (inherits(ev, "condition")) {
-        failed[m] <- paste("valuation:", conditionMessage(ev))
-      } else {
-        vals[[m]] <- ev
-      }
-    }
   }
   ok <- names(res)
   base <- res[[1]]$adjusted
@@ -98,14 +86,8 @@ compare_methods.cm_model <- function(x, methods = c("published", "simultaneous",
   }))
   totals <- do.call(rbind, lapply(ok, function(m) {
     r <- res[[m]]
-    tt <- data.frame(method = m, raw_sum = r$totals$raw_sum, adjusted_total = r$totals$adjusted_total,
-                     stringsAsFactors = FALSE)
-    if (!is.null(valuation)) {
-      ev <- vals[[m]]
-      tt$gap <- if (is.null(ev)) NA_real_ else ev$gap$summary$gap
-      if (!is.null(valuation$unit_value)) tt$value <- if (is.null(ev)) NA_real_ else ev$value$value
-    }
-    tt
+    data.frame(method = m, raw_sum = r$totals$raw_sum, adjusted_total = r$totals$adjusted_total,
+               stringsAsFactors = FALSE)
   }))
   diagnostics <- do.call(rbind, lapply(ok, function(m) res[[m]]$diagnostics))
   rownames(totals) <- NULL
@@ -119,16 +101,8 @@ compare_methods.cm_model <- function(x, methods = c("published", "simultaneous",
 
 #' @rdname compare_methods
 #' @export
-compare_methods.cm_analyses <- function(x, methods = c("published", "simultaneous", "global"),
-                                        valuation = NULL, ...) {
+compare_methods.cm_analyses <- function(x, methods = c("published", "simultaneous", "global"), ...) {
   nms <- names(x$models)
-  # One valuation per analysis: a single valuation list would otherwise be
-  # ignored silently (its elements are not named after analyses).
-  if (!is.null(valuation) && (!is.list(valuation) || is.null(names(valuation)) ||
-                              length(setdiff(names(valuation), nms)))) {
-    cm_abort(sprintf("For cm_analyses, `valuation` must be a list named after the analyses (%s), each element a valuation list.",
-                     paste(nms, collapse = ", ")))
-  }
   # The global method needs one joint distribution for all analyses.
   dots <- list(...)
   if ("global" %in% methods && is.null(dots$joint)) {
@@ -139,12 +113,11 @@ compare_methods.cm_analyses <- function(x, methods = c("published", "simultaneou
     if (!is.null(j)) dots$joint <- j
   }
   cmps <- lapply(nms, function(nm) {
-    do.call(compare_methods, c(list(x$models[[nm]], methods = methods, valuation = valuation[[nm]]),
-                               dots))
+    do.call(compare_methods, c(list(x$models[[nm]], methods = methods), dots))
   })
   names(cmps) <- nms
   # Analyses can have different columns (e.g. a method that failed in one
-  # analysis only, or a valuation for some analyses): fill with NA.
+  # analysis only): fill with NA.
   stack <- function(el) {
     parts <- lapply(nms, function(nm) {
       d <- cmps[[nm]][[el]]
@@ -188,7 +161,7 @@ compare_methods.cm_hr_model <- function(x, methods = c("published", "first_order
   res <- list()
   failed <- character(0)
   for (m in methods) {
-    r <- tryCatch(deconflate_hr(x, method = m, warn = FALSE, ...), deconflate_error = function(e) e)
+    r <- tryCatch(adjust_hr(x, method = m, warn = FALSE, ...), deconflate_error = function(e) e)
     if (inherits(r, "condition")) {
       failed[m] <- conditionMessage(r)
     } else if (!result_is_finite(r)) {
@@ -307,7 +280,7 @@ print.cm_comparison <- function(x, digits = 3, ...) {
     print(tt, row.names = FALSE)
   }
   if (length(x$failed)) {
-    cat("\nNot run (or not valued):\n")
+    cat("\nNot run:\n")
     for (m in names(x$failed)) cat(sprintf("  %s: %s\n", m, x$failed[[m]]))
   }
   invisible(x)

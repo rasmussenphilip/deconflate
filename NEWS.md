@@ -1,5 +1,49 @@
 # deconflate (development version)
 
+## Breaking changes
+
+* **The published approximation is no longer a method of `deconflate()` or
+  `deconflate_hr()`.** `deconflate()` (for `cm_model` and `cm_analyses`) has
+  the methods `"simultaneous"` (default) and `"global"`; `deconflate_hr()`
+  has `"snapshot"` (default) and `"first_order"`. `method = "published"`
+  now gives an error of class `deconflate_unsupported` that points to the
+  alternatives. The approximation of Rasmussen et al. (2022, eq. 16), and
+  the HR - 1 approach of Rasmussen et al. (2024), are kept for comparison
+  and reproduction only: in `compare_methods()` (whose default methods
+  still include `"published"`), `cm_monte_carlo(method = ...)` and
+  `reproduce_rasmussen_2022()` / `reproduce_rasmussen_2024()`.
+  `cm_threshold()` accepts `"simultaneous"` and `"global"` only, and
+  `sensitivity_oat()`, the `screen_*()` functions and `compare_scenarios()`
+  inherit the methods of `deconflate()`. Method guidance: use
+  `"simultaneous"` when impacts are additive and every pair has an
+  association estimate or a defensible independence assumption; `"global"`
+  otherwise (interactions, unknown pairs); the snapshot model for hazard
+  ratios.
+* **Valuation is removed from the package.** The package reports adjusted
+  impacts and contributions in the units of the impacts. Removed:
+  * the exported functions `productivity_gap()`, `value_losses()`,
+    `cm_mc_gap()` and `uk_dairy_2022_economics()`;
+  * the `valuation` argument of `contribution_table()`,
+    `summary.cm_result()`, `compare_methods()` (for `cm_model` and
+    `cm_analyses`; `totals` now has `raw_sum` and `adjusted_total` per
+    method), `sensitivity_oat()`, `screen_associations()`,
+    `screen_interactions()`, `screen_three_way()`, `compare_scenarios()`
+    and `plot_burden()` (which now plots shares of the aggregate); the
+    screens use the adjusted aggregate as their metric;
+  * the `unit_value` argument of `attributable_risk()` and its `value`
+    columns.
+
+  The gap and value calculation of the 2022 paper moved into
+  `reproduce_rasmussen_2022()`, whose output is unchanged. For new
+  analyses, `vignette("deconflate")` shows in a few lines of base R how to
+  turn the adjusted aggregate and contributions into a gap and a value.
+
+## Documentation
+
+* Vignettes, README and the five-disease example script use the new
+  interface: the published approximation is shown with `compare_methods()`
+  or `cm_monte_carlo()`, and gaps and values are computed in base R.
+
 # deconflate 0.3.0
 
 This version responds to a second external review of 0.2.0 and adds

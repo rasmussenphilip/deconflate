@@ -125,9 +125,10 @@ cm_hr_model <- function(population, hazard_ratios) {
 #' * `"first_order"`: the log-linear approximation,
 #'   `log(HR_raw) = A beta`, with `A` as in [deconflate()] (pairwise tables
 #'   only).
-#' * `"published"`: Rasmussen et al. (2024): `HR - 1` adjusted with eq. 16
-#'   (`"snapshot_crude"` hazard ratios only). For reproduction and
-#'   comparison.
+#'
+#' The approach of Rasmussen et al. (2024), `HR - 1` adjusted with eq. 16 of
+#' Rasmussen et al. (2022), is not a method here; it is kept for comparison
+#' in [compare_methods()] and in [reproduce_rasmussen_2024()].
 #'
 #' @section What the snapshot model is not:
 #' A Cox hazard ratio estimated over follow-up is not, in general, the
@@ -141,7 +142,7 @@ cm_hr_model <- function(population, hazard_ratios) {
 #' attributable to disease with [attributable_risk()].
 #'
 #' @param model A [cm_hr_model()].
-#' @param method `"snapshot"`, `"first_order"` or `"published"`.
+#' @param method `"snapshot"` (default) or `"first_order"`.
 #' @param joint Optional [fit_joint()] result, checked against the
 #'   population. The snapshot method uses it; the other methods keep it in
 #'   the result for [attributable_risk()].
@@ -157,8 +158,16 @@ cm_hr_model <- function(population, hazard_ratios) {
 #'                                    estimand = "snapshot_crude"))
 #' deconflate_hr(hr)$adjusted
 #' deconflate_hr(hr, method = "first_order")$adjusted
-deconflate_hr <- function(model, method = c("snapshot", "first_order", "published"),
+deconflate_hr <- function(model, method = c("snapshot", "first_order"),
                           joint = NULL, warn = TRUE, ...) {
+  method <- public_method(method, c("snapshot", "first_order"), "deconflate_hr()")
+  adjust_hr(model, method = method, joint = joint, warn = warn, ...)
+}
+
+# The hazard-ratio adjustment, including the published approach (HR - 1 with
+# eq. 16), which is kept for compare_methods() only.
+adjust_hr <- function(model, method = c("snapshot", "first_order", "published"),
+                      joint = NULL, warn = TRUE, ...) {
   if (!inherits(model, "cm_hr_model")) cm_abort("`model` must be created with cm_hr_model().")
   method <- match.arg(method)
   pop <- model$population
@@ -351,8 +360,6 @@ solve_snapshot <- function(b_raw, cells, prob, estimands, ids, start, tol = 1e-1
 #' @param result A [deconflate_hr()] result.
 #' @param overall_risk Overall period risk of the event, as a proportion
 #'   (e.g. `0.25` for an annual culling rate of 25%).
-#' @param unit_value Optional value per animal removed (e.g. replacement
-#'   cost less salvage value); adds `value` columns.
 #' @param joint Optional [fit_joint()] result; by default the result's own
 #'   joint distribution or a new (exact) fit. It is checked against the
 #'   population. For more than about 20 diseases, fit it with
@@ -361,15 +368,16 @@ solve_snapshot <- function(b_raw, cells, prob, estimands, ids, start, tol = 1e-1
 #' @param allocate Logical: allocate the attributable risk to diseases?
 #' @param max_present Passed to [shapley_by_cell()] (default: no skipping).
 #' @return A `cm_attributable` list with `summary` (overall, disease-free and
-#'   attributable risk, attributable fraction, value, and any unallocated
-#'   part), `by_disease` and `baseline_hazard`.
+#'   attributable risk, attributable fraction, and any unallocated part),
+#'   `by_disease` and `baseline_hazard`. Risks are proportions of animals
+#'   experiencing the event during the period.
 #' @export
 #' @examples
 #' hr <- cm_hr_model(example_supplement(),
 #'                   cm_hazard_ratios(c("d1", "d2", "d3"), c(1.5, 2.0, 1.3),
 #'                                    estimand = "snapshot_crude"))
-#' attributable_risk(deconflate_hr(hr), overall_risk = 0.25, unit_value = 1300)
-attributable_risk <- function(result, overall_risk, unit_value = NULL, joint = NULL,
+#' attributable_risk(deconflate_hr(hr), overall_risk = 0.25)
+attributable_risk <- function(result, overall_risk, joint = NULL,
                               allocate = TRUE, max_present = Inf) {
   if (!inherits(result, "cm_hr_result")) cm_abort("`result` must come from deconflate_hr().")
   check_numeric(overall_risk, "overall_risk")
@@ -402,7 +410,6 @@ attributable_risk <- function(result, overall_risk, unit_value = NULL, joint = N
                      attributable = overall_risk - r0,
                      attributable_fraction = (overall_risk - r0) / overall_risk,
                      unallocated = NA_real_, stringsAsFactors = FALSE)
-  if (!is.null(unit_value)) summ$value <- summ$attributable * unit_value
   by <- NULL
   if (allocate) {
     loss <- function(x) 1 - exp(-h0 * exp(sum(beta * x[ids]))) - r0
@@ -410,7 +417,6 @@ attributable_risk <- function(result, overall_risk, unit_value = NULL, joint = N
                               deconflate_incomplete_allocation = function(w) invokeRestart("muffleWarning"))
     by <- data.frame(disease = ids, hr_adjusted = unname(exp(beta)),
                      attributable = sh$shapley, share = sh$share, stringsAsFactors = FALSE)
-    if (!is.null(unit_value)) by$value <- by$attributable * unit_value
     summ$unallocated <- summ$attributable - attr(sh, "allocated")
     if (attr(sh, "skipped_mass") > 0) {
       cm_warn(sprintf("%.3g of the attributable risk is not allocated (combinations with more than %g diseases were skipped).",
@@ -427,7 +433,6 @@ print.cm_attributable <- function(x, ...) {
   cat("<cm_attributable> snapshot hazard-multiplier model\n")
   cat(sprintf("  Overall risk %.4g; disease-free risk %.4g; attributable %.4g (%.1f%% of the overall risk)\n",
               s$overall_risk, s$disease_free_risk, s$attributable, 100 * s$attributable_fraction))
-  if (!is.null(s$value)) cat(sprintf("  Value: %.4g\n", s$value))
   if (!is.null(x$by_disease)) {
     cat("\n")
     print(x$by_disease, row.names = FALSE, digits = 4)

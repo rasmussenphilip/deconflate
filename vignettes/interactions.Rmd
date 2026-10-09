@@ -73,7 +73,11 @@ check_feasibility(bad, method = "triples")
 
 Setting an association to an odds ratio of 1 imposes independence. Leaving
 it unknown lets the maximum-entropy fit imply an association through the
-other diseases. Only the global method accepts unknown pairs:
+other diseases. Use the simultaneous method when every pair has an
+association estimate or a defensible independence assumption; with unknown
+pairs (or interactions, below), use the global method, the only one that
+accepts them. `compare_methods()` reports why the others fail (the
+`"published"` approximation is listed for comparison only):
 
 ```{r}
 d <- cm_diseases(c("a", "b", "c"), c(0.2, 0.3, 0.25))

@@ -38,12 +38,15 @@ A **population** holds the disease probabilities and their associations. Each **
 | Method | What it does |
 |---|---|
 | `"simultaneous"` (default) | Exact solution of the additive impact equations `raw = A b`, using pairwise 2×2 tables. Reports sign changes, reconstruction residuals and the conditioning of `A`, and screens the pairs for joint feasibility. |
-| `"published"` | Proportional approximation of Rasmussen et al. (2022), eq. 16, for crude estimates. Use it to reproduce the published results and to compare methods. |
 | `"global"` | Maximum-entropy distribution of disease combinations fitted by iterative proportional fitting, then the full equations including specified pairwise interactions (and optional three-way scenarios). |
 
-Hazard ratios (e.g. of culling) combine multiplicatively and have their own model, the snapshot hazard-multiplier model (`deconflate_hr()`, with explicitly named estimands), with `attributable_risk()`.
+Use `"simultaneous"` when impacts are additive and every pair of diseases has an association estimate or a defensible independence assumption; use `"global"` otherwise (impact interactions, unknown pairs). The proportional approximation of Rasmussen et al. (2022, eq. 16) is not a method of `deconflate()`: it is kept as `"published"` in `compare_methods()`, `cm_monte_carlo()` and the `reproduce_*()` functions, for comparison and reproduction only.
 
-The pairwise methods work for any number of diseases. The global method enumerates disease combinations up to about 20 diseases; beyond that, `fit_joint(backend = "sampled")` fits the same model by Monte Carlo.
+The package reports adjusted impacts and contributions in the units of the impacts. Converting them into a productivity gap or a monetary value is a few lines of base R (see `vignette("deconflate")`).
+
+Hazard ratios (e.g. of culling) combine multiplicatively and have their own model, the snapshot hazard-multiplier model (`deconflate_hr()`, with explicitly named estimands; the default and recommended method), with `attributable_risk()`.
+
+The simultaneous method works for any number of diseases. The global method enumerates disease combinations up to about 20 diseases; beyond that, `fit_joint(backend = "sampled")` fits the same model by Monte Carlo.
 
 ## Example
 
@@ -55,7 +58,7 @@ library(deconflate)
 gd <- example_global_dairy()
 res <- deconflate(gd)
 res$yield$contributions
-compare_methods(gd)
+compare_methods(gd)   # includes the published approximation, for comparison
 
 # At what odds ratio between d2 and d3 does the ranking of d1 and d2 change?
 cm_threshold(example_supplement(), "assoc:d2:d3", c(0.1, 100), conclusion = "rank")
@@ -71,7 +74,7 @@ inp <- cm_read_inputs(dir = dir)
 deconflate(inp$model)
 
 # Uncertainty, with shared population draws across analyses
-mc <- cm_monte_carlo(sampler_global_dairy(), 1000, method = "published", seed = 1)
+mc <- cm_monte_carlo(sampler_global_dairy(), 1000, seed = 1)
 summary(mc)
 
 # The published tables
@@ -82,14 +85,14 @@ reproduce_rasmussen_2022()
 
 - **Inputs:** `cm_diseases()`, `cm_associations()` (OR, RR, RD, conditional probability, phi, contingency tables, independent, unknown), `cm_three_way()`, `cm_population()`, `cm_impacts()`, `cm_interactions()`, `cm_model()` and `cm_analyses()`.
 - **Your own data:** `cm_read_inputs()` reads CSV files or data frames and reports every problem at once; uncertain values carry their distribution in their own row (`dist`, `p1`-`p4`), mixed freely with point values. `cm_template()` writes example files, and `system.file("extdata", "five_diseases", package = "deconflate")` holds a five-disease example that uses every feature, with a script (`run_all_features.R`) that runs them all.
-- **Adjustment:** `deconflate()` and `compare_methods()`; contributions of each disease (closed-form Shapley values) in `attribute_burden()` and `contribution_table()`.
+- **Adjustment:** `deconflate()` and `compare_methods()` (which also shows the published approximation, for comparison); contributions of each disease (closed-form Shapley values) in `attribute_burden()` and `contribution_table()`.
 - **Joint distribution and feasibility:** `fit_joint()` (exact, or sampled for many diseases), `combination_probs()` and `check_feasibility()`.
-- **Optional helpers:** `productivity_gap()` and `value_losses()` turn an aggregate into a gap and a value; `shapley_by_cell()` attributes non-additive losses.
+- **Attribution of non-additive losses:** `shapley_by_cell()`.
 - **Hazard ratios:** `cm_hazard_ratios()`, `cm_hr_model()`, `deconflate_hr()` and `attributable_risk()`.
-- **Uncertainty:** `dist_*()` distributions, `cm_sampler()` and `cm_batch_sampler()`, `cm_monte_carlo()` (several methods on the same draws, rejection reporting, Latin hypercube and importance sampling), stability checks with suggestions (`cm_diagnose()`, `cm_suggest_proposal()`), reweighting (`cm_scenario()`, `cm_reweight()`) and `cm_mc_gap()`.
+- **Uncertainty:** `dist_*()` distributions, `cm_sampler()` and `cm_batch_sampler()`, `cm_monte_carlo()` (several methods on the same draws, rejection reporting, Latin hypercube and importance sampling), stability checks with suggestions (`cm_diagnose()`, `cm_suggest_proposal()`), and reweighting (`cm_scenario()`, `cm_reweight()`).
 - **Sensitivity and thresholds:** `cm_threshold()` (where a ranking, a sign or the aggregate changes as one input varies), `sensitivity_oat()`, `screen_associations()`, `screen_interactions()`, `screen_three_way()` and `compare_scenarios()`.
 - **Reproduction:** `reproduce_rasmussen_2022()` and `reproduce_rasmussen_2024()`.
-- **Plots** (base graphics) and six vignettes. Start with `vignette("deconflate")`.
+- **Plots** (base graphics) and seven vignettes. Start with `vignette("deconflate")`.
 
 ## Development
 

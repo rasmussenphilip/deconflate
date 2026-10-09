@@ -8,8 +8,7 @@ sensitivity_oat(
   model,
   method = "simultaneous",
   variation = 0.2,
-  inputs = c("prob", "assoc", "impact"),
-  valuation = NULL
+  inputs = c("prob", "assoc", "impact")
 )
 }
 \arguments{
@@ -20,8 +19,6 @@ sensitivity_oat(
 \item{variation}{Relative change applied downwards and upwards.}
 
 \item{inputs}{Which inputs to vary: \code{"prob"}, \code{"assoc"}, \code{"impact"}.}
-
-\item{valuation}{Optional valuation list (see \code{\link[=screen_associations]{screen_associations()}}).}
 }
 \value{
 A \code{cm_oat} data frame with one row per input: the input key,
@@ -30,7 +27,7 @@ totals at the low and high values and the swing, sorted by swing.
 \description{
 Varies each input by \code{variation} (e.g. +/- 20\%) with everything else
 fixed, as in Rasmussen et al. (2024), Fig. 7, and reports the resulting
-range of the aggregate (or value).
+range of the adjusted aggregate.
 }
 \examples{
 sensitivity_oat(example_supplement())

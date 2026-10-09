@@ -1,6 +1,8 @@
 # Hazard-ratio adapter (R/hazard.R): cm_hazard_ratios(), cm_hr_model(),
-# deconflate_hr() (snapshot, first_order, published) and attributable_risk(),
-# plus the internal legacy conversions (R/legacy.R). Reference values from
+# deconflate_hr() (snapshot, first_order), the published approach of
+# Rasmussen et al. (2024) (internal adjust_hr(method = "published"), kept for
+# compare_methods()) and attributable_risk(), plus the internal legacy
+# conversions (R/legacy.R). Reference values from
 # inst/validation/reference_v02.py (its "simultaneous" is first_order and its
 # "global" is snapshot) and reference_v020_tests.py.
 
@@ -79,7 +81,8 @@ test_that("hazard ratios and hazard-ratio models are validated", {
 test_that("the three hazard-ratio methods match the reference (supplement)", {
   m <- supp_hr_model()
   for (meth in names(supp_hr_ref)) {
-    r <- deconflate_hr(m, method = meth)
+    # The published approach is internal (adjust_hr()).
+    r <- if (meth == "published") adjust_hr(m, method = meth) else deconflate_hr(m, method = meth)
     expect_s3_class(r, "cm_hr_result")
     expect_equal(r$method, meth)
     expect_equal(r$adjusted$disease, ids3)
@@ -95,6 +98,17 @@ test_that("the three hazard-ratio methods match the reference (supplement)", {
   # The first-order solution solves log(HR_raw) = A beta exactly.
   fo <- deconflate_hr(m, method = "first_order")
   expect_lt(fo$diagnostics$max_reconstruction_residual, 1e-12)
+})
+
+test_that("the published approach is not a method of deconflate_hr()", {
+  h <- supp_hr_model()
+  expect_error(deconflate_hr(h, method = "published"), class = "deconflate_unsupported")
+  expect_error(deconflate_hr(h, method = "published"), "compare_methods")
+  # It is still compared by compare_methods().
+  cmp <- compare_methods(h)
+  expect_true("published" %in% cmp$methods)
+  expect_equal(cmp$impacts$published, supp_hr_ref$published, tolerance = 1e-8)
+  expect_error(deconflate_hr(h, method = "global"))
 })
 
 test_that("the snapshot method reproduces the raw hazard ratios over the fitted joint", {
@@ -116,7 +130,7 @@ test_that("three-way terms change the snapshot method only", {
                     cm_hazard_ratios(ids3, c(1.5, 2.0, 1.3), estimand = "snapshot_crude"))
   expect_equal(deconflate_hr(m3, method = "first_order")$adjusted$adjusted,
                supp_hr_ref$first_order, tolerance = 1e-8)
-  expect_equal(deconflate_hr(m3, method = "published")$adjusted$adjusted,
+  expect_equal(adjust_hr(m3, method = "published")$adjusted$adjusted,
                supp_hr_ref$published, tolerance = 1e-8)
   snap <- deconflate_hr(m3)
   expect_gt(max(abs(snap$adjusted$adjusted - supp_hr_ref$snapshot)), 1e-3)
@@ -142,8 +156,8 @@ test_that("adjusted hazard ratios are matched within strata of their adjustment 
   expect_equal(res$adjusted$adjusted, c(1.504714547766569, 1.8751068533634567, 1.1457314393824285),
                tolerance = 1e-7)
   # The published approach is defined for crude hazard ratios only.
-  expect_error(deconflate_hr(m, method = "published"), class = "deconflate_unsupported")
-  expect_error(deconflate_hr(m, method = "published"), "crude hazard ratios only")
+  expect_error(adjust_hr(m, method = "published"), class = "deconflate_unsupported")
+  expect_error(adjust_hr(m, method = "published"), "crude hazard ratios only")
   # The first-order approximation accepts adjusted estimands.
   fo <- deconflate_hr(m, method = "first_order")
   expect_true(all(is.finite(fo$adjusted$adjusted)))
@@ -157,7 +171,7 @@ test_that("hazard ratios adjusted for all other diseases are used as they are", 
     expect_equal(r$adjusted$adjusted, c(1.5, 2.0, 1.3), tolerance = 1e-10)
     expect_equal(r$adjusted$change, c(0, 0, 0), tolerance = 1e-10)
   }
-  expect_error(deconflate_hr(m, method = "published"), class = "deconflate_unsupported")
+  expect_error(adjust_hr(m, method = "published"), class = "deconflate_unsupported")
   # Mixed: d1 adjusted for all, the others crude. d1 keeps its value.
   hr_mix <- cm_hazard_ratios(ids3, c(1.5, 2.0, 1.3), estimand = c("snapshot_stratified", "snapshot_crude", "snapshot_crude"),
                              adjusted_for = c("all", NA, NA))
@@ -170,7 +184,7 @@ test_that("hazard ratios adjusted for all other diseases are used as they are", 
 test_that("hazard ratios of 1 stay 1 and give no attributable risk", {
   m <- cm_hr_model(supp_population(), cm_hazard_ratios(ids3, c(1, 1, 1), estimand = "snapshot_crude"))
   for (meth in c("snapshot", "first_order", "published")) {
-    r <- deconflate_hr(m, method = meth)
+    r <- if (meth == "published") adjust_hr(m, method = meth) else deconflate_hr(m, method = meth)
     expect_equal(r$adjusted$adjusted, c(1, 1, 1), tolerance = 1e-12)
     expect_equal(r$diagnostics$n_sign_changes, 0)
   }
@@ -183,7 +197,7 @@ test_that("hazard ratios of 1 stay 1 and give no attributable risk", {
 
 test_that("attributable risk and its Shapley allocation match the reference", {
   res <- deconflate_hr(supp_hr_model())
-  ar <- attributable_risk(res, overall_risk = 0.25, unit_value = 1000)
+  ar <- attributable_risk(res, overall_risk = 0.25)
   expect_s3_class(ar, "cm_attributable")
   expect_equal(ar$summary$overall_risk, 0.25)
   expect_equal(ar$summary$disease_free_risk, 0.21335101490465225, tolerance = 1e-8)
@@ -196,8 +210,10 @@ test_that("attributable risk and its Shapley allocation match the reference", {
   expect_equal(sum(ar$by_disease$attributable), ar$summary$attributable, tolerance = 1e-10)
   expect_equal(sum(ar$by_disease$share), 1, tolerance = 1e-12)
   expect_equal(ar$summary$unallocated, 0, tolerance = 1e-10)
-  expect_equal(ar$summary$value, 1000 * ar$summary$attributable)
-  expect_equal(ar$by_disease$value, 1000 * ar$by_disease$attributable)
+  # No valuation: attributable risks only.
+  expect_null(ar$summary$value)
+  expect_null(ar$by_disease$value)
+  expect_equal(names(ar$by_disease), c("disease", "hr_adjusted", "attributable", "share"))
   expect_equal(ar$baseline_hazard, -log(1 - ar$summary$disease_free_risk), tolerance = 1e-12)
   expect_output(print(ar), "attributable")
 
@@ -243,17 +259,17 @@ test_that("a joint supplied to the pairwise methods is checked and kept", {
                attributable_risk(deconflate_hr(supp_hr_model(), method = "first_order"), 0.25)$summary$attributable,
                tolerance = 1e-12)
   j3 <- fit_joint(supp_population(cm_three_way("d1", "d2", "d3", 2)))
-  expect_error(deconflate_hr(supp_hr_model(), method = "published", joint = j3), "three-way terms")
+  expect_error(adjust_hr(supp_hr_model(), method = "published", joint = j3), "three-way terms")
 })
 
-test_that("non-positive published hazard ratios are flagged and cannot be valued", {
+test_that("non-positive published hazard ratios are flagged and have no attributable risk", {
   # HR 0.5 for d1 with a strong d2: the published denominator of d1 is
   # negative (reference_v02.py hr_methods).
   m <- cm_hr_model(supp_population(), cm_hazard_ratios(ids3, c(0.5, 4, 1), estimand = "snapshot_crude"))
-  expect_warning(pub <- deconflate_hr(m, method = "published"), class = "deconflate_nonfinite_warning")
+  expect_warning(pub <- adjust_hr(m, method = "published"), class = "deconflate_nonfinite_warning")
   expect_equal(pub$adjusted$adjusted, c(-0.3585461449, 4.0376405055, 1), tolerance = 1e-8)
   expect_equal(pub$diagnostics$n_sign_changes, 0)
-  expect_silent(deconflate_hr(m, method = "published", warn = FALSE))
+  expect_silent(adjust_hr(m, method = "published", warn = FALSE))
   expect_error(attributable_risk(pub, 0.25), class = "deconflate_nonfinite")
   # The other methods keep the hazard ratios positive.
   expect_equal(deconflate_hr(m, method = "first_order")$adjusted$adjusted,
@@ -268,15 +284,15 @@ test_that("global dairy culling: the three hazard-ratio methods", {
   skip_on_cran()
   m <- example_global_dairy_hr()
   expect_s3_class(m, "cm_hr_model")
-  pub <- deconflate_hr(m, method = "published", warn = FALSE)
+  pub <- adjust_hr(m, method = "published", warn = FALSE)
   expect_equal(pub$adjusted$adjusted,
                c(1.1775803801, 1.9039406263, 2.1979299277, 1.0983766711, 1.3806827011, 1.0124105823,
                  2.6476374499, 1.4586441181, 2.0472349212, 1.2844963465, 1.6752532746, 1.2549275636),
                tolerance = 1e-8)
   # Identical to adjusting HR - 1 additively with the published method, as
   # in Rasmussen et al. (2024).
-  legacy <- deconflate(global_dairy_analyses("analysis", culling = TRUE), method = "published",
-                       warn = FALSE)$culling_hr_minus_1
+  legacy <- adjust_analyses(global_dairy_analyses("analysis", culling = TRUE), method = "published",
+                            warn = FALSE)$culling_hr_minus_1
   expect_equal(pub$adjusted$adjusted, 1 + legacy$adjusted$adjusted, tolerance = 1e-12)
 
   expect_warning(deconflate_hr(m, method = "first_order"), class = "deconflate_sign_change")

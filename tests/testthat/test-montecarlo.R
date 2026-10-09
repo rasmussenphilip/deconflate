@@ -219,7 +219,7 @@ test_that("a non-finite result rejects the whole draw for every method", {
   e <- deconflate(supp_model(c(1, 1, 1)))$conflation$A["d1", "d2"]
   expect_gt(e, 0)
   pole <- supp_model(c(-e, 1, 0))
-  expect_true(is.infinite(deconflate(pole, method = "published", warn = FALSE)$adjusted$adjusted[1]))
+  expect_true(is.infinite(adjust_impacts(pole, method = "published", warn = FALSE)$adjusted$adjusted[1]))
   expect_true(all(is.finite(deconflate(pole, method = "simultaneous", warn = FALSE)$adjusted$adjusted)))
 
   good <- supp_model(c(2.5, 5, 7.5))
@@ -763,45 +763,22 @@ test_that("cm_scenario reweights draws to scenario distributions", {
                "no recorded distributions")
 })
 
-test_that("cm_mc_gap applies the productivity gap to every draw", {
+test_that("each draw's contributions and totals match deconflate() on its own model", {
   s <- mc_smooth_sampler()
   mc <- cm_monte_carlo(s, 50, seed = 17)
-  g <- cm_mc_gap(mc, observed = 10000, direction = "decrease", effect = "percent", unit_value = 0.3)
-  expect_named(g, c("draws", "totals", "summary"))
-  L <- mc$totals$adjusted_total / 100
-  expect_equal(g$totals$gap, 10000 / (1 - L) - 10000, ignore_attr = TRUE)
-  expect_equal(g$totals$value, 0.3 * g$totals$gap, ignore_attr = TRUE)
-  # Disease gaps add up to the total gap of each draw.
-  sums <- tapply(g$draws$gap, g$draws$draw, sum)
-  expect_equal(as.vector(sums[as.character(g$totals$draw)]), g$totals$gap, ignore_attr = TRUE)
-  expect_equal(g$draws$value, 0.3 * g$draws$gap, ignore_attr = TRUE)
-  # Same as productivity_gap() on the draw's own model.
+  # Contributions add up to the adjusted total of each draw.
+  sums <- tapply(mc$draws$contribution, mc$draws$draw, sum)
+  expect_equal(as.vector(sums[as.character(mc$totals$draw)]), mc$totals$adjusted_total,
+               ignore_attr = TRUE)
+  # Same as deconflate() on the draw's own model.
   keys <- names(attr(s, "specs"))
   v1 <- unlist(mc$params[1, keys])
-  pg <- productivity_gap(deconflate(s(1, values = v1)), 10000, "decrease", "percent")
-  expect_equal(g$totals$gap[1], pg$summary$gap, ignore_attr = TRUE)
-  expect_equal(g$draws$gap[g$draws$draw == mc$params$draw[1]], pg$attribution$gap,
+  r1 <- deconflate(s(1, values = v1))
+  expect_equal(mc$totals$adjusted_total[1], r1$totals$adjusted_total, ignore_attr = TRUE)
+  expect_equal(mc$draws$contribution[mc$draws$draw == mc$params$draw[1]], r1$contributions$total,
                ignore_attr = TRUE)
-
-  expect_equal(nrow(g$summary), 1)
-  expect_equal(g$summary$method, "simultaneous")
-  expect_equal(g$summary$gap_mean, mean(g$totals$gap), ignore_attr = TRUE)
-  expect_true(all(c("gap_q0.025", "gap_q0.975", "value_mean", "value_q0.025",
-                    "value_q0.975") %in% names(g$summary)))
-
-  # Uncertain observed means are drawn reproducibly.
-  g1 <- cm_mc_gap(mc, dist_normal(10000, 200), effect = "percent", seed = 1)
-  g2 <- cm_mc_gap(mc, dist_normal(10000, 200), effect = "percent", seed = 1)
-  expect_identical(g1$totals, g2$totals)
-  expect_null(g1$totals$value)
-  expect_false("value_mean" %in% names(g1$summary))
-
-  ga <- cm_mc_gap(mc, 10000, effect = "absolute")
-  expect_equal(ga$totals$gap, mc$totals$adjusted_total, ignore_attr = TRUE)
-  # Impacts in percent read as proportions exceed 1.
-  expect_error(cm_mc_gap(mc, 10000, effect = "proportion"), "outside the valid range")
-  expect_error(cm_mc_gap(list(), 10000), "cm_monte_carlo")
-  expect_error(cm_mc_gap(mc, c(10000, 9000)), "single number")
+  # The Monte Carlo gap helper was removed with valuation.
+  expect_false(exists("cm_mc_gap", envir = asNamespace("deconflate"), inherits = FALSE))
 })
 
 # ---- Reproducibility ----------------------------------------------------------

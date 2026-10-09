@@ -18,9 +18,8 @@ attribute \code{"hazard_ratios"} (a \code{\link[=cm_hazard_ratios]{cm_hazard_rat
 Thirteen endemic diseases and conditions of UK dairy cattle, with cow-level
 prevalence (Table 2), inter-disease odds ratios (Table 3, all other pairs
 independent), and two analyses: milk yield (Table 4, \% decrease) and
-calving interval (Table 5, \% increase). Use \code{\link[=uk_dairy_2022_economics]{uk_dairy_2022_economics()}}
-for the observed means and unit values (Table 1), and
-\code{\link[=reproduce_rasmussen_2022]{reproduce_rasmussen_2022()}} for the published tables.
+calving interval (Table 5, \% increase). Use \code{\link[=reproduce_rasmussen_2022]{reproduce_rasmussen_2022()}}
+for the published tables, including the economic values.
 }
 \details{
 The culling hazard ratios of Table 6 are attached as attribute
@@ -36,5 +35,5 @@ retained placenta, SCK subclinical ketosis.
 }
 \examples{
 uk <- example_uk_dairy_2022()
-deconflate(uk, method = "published")
+deconflate(uk)
 }

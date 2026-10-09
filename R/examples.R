@@ -8,12 +8,13 @@
 #' Note: the published productivity gap (10,225; 20, 61 and 143 units) rounds
 #' the adjusted impacts to 2%, 4% and 7% before computing the gap. Without
 #' rounding, the published method gives 10,215.7 and 21.1, 56.7 and 137.9
-#' units.
+#' units (see `vignette("reproducing-published")`).
 #'
 #' @return A [cm_model()].
 #' @export
 #' @examples
-#' deconflate(example_supplement(), method = "published")
+#' deconflate(example_supplement())
+#' compare_methods(example_supplement())
 example_supplement <- function() {
   pop <- cm_population(
     cm_diseases(c("d1", "d2", "d3"), c(0.10, 0.15, 0.20), type = "prevalence"),
@@ -103,7 +104,8 @@ global_dairy_inputs <- function(inputs) {
 #' @export
 #' @examples
 #' gd <- example_global_dairy()
-#' deconflate(gd, method = "published")$yield$adjusted
+#' deconflate(gd)$yield$adjusted
+#' compare_methods(gd$models$yield)$totals
 example_global_dairy <- function(inputs = c("analysis", "tables")) {
   global_dairy_analyses(match.arg(inputs), culling = FALSE)
 }
@@ -139,7 +141,7 @@ global_dairy_analyses <- function(inputs, culling = FALSE) {
 #' @export
 #' @examples
 #' hr <- example_global_dairy_hr()
-#' deconflate_hr(hr, method = "published")$adjusted
+#' deconflate_hr(hr)$adjusted
 example_global_dairy_hr <- function(inputs = c("analysis", "tables")) {
   inputs <- match.arg(inputs)
   g <- global_dairy_inputs(inputs)
@@ -151,9 +153,8 @@ example_global_dairy_hr <- function(inputs = c("analysis", "tables")) {
 #' Thirteen endemic diseases and conditions of UK dairy cattle, with cow-level
 #' prevalence (Table 2), inter-disease odds ratios (Table 3, all other pairs
 #' independent), and two analyses: milk yield (Table 4, % decrease) and
-#' calving interval (Table 5, % increase). Use [uk_dairy_2022_economics()]
-#' for the observed means and unit values (Table 1), and
-#' [reproduce_rasmussen_2022()] for the published tables.
+#' calving interval (Table 5, % increase). Use [reproduce_rasmussen_2022()]
+#' for the published tables, including the economic values.
 #'
 #' The culling hazard ratios of Table 6 are attached as attribute
 #' `"hazard_ratios"` (with estimand `"snapshot_crude"`, an assumption) for
@@ -173,7 +174,7 @@ example_global_dairy_hr <- function(inputs = c("analysis", "tables")) {
 #' @export
 #' @examples
 #' uk <- example_uk_dairy_2022()
-#' deconflate(uk, method = "published")
+#' deconflate(uk)
 example_uk_dairy_2022 <- function(yield_sck = 3.05) {
   uk_dairy_2022_analyses(yield_sck, culling = FALSE)
 }
@@ -223,23 +224,12 @@ uk_dairy_2022_analyses <- function(yield_sck, culling = FALSE) {
   out
 }
 
-#' Economic inputs for the UK dairy example (Rasmussen et al. 2022, Table 1)
-#'
-#' Valuation inputs for each analysis of [example_uk_dairy_2022()], for
-#' [productivity_gap()] and [value_losses()] (or the `valuation` argument of
-#' [summary.cm_result()] and [compare_methods()]): milk yield 8737 kg/cow/year
-#' valued at GBP 0.3022/kg; calving interval 401 days, each day valued at
-#' lifetime daily yield (13 kg) times the milk price. Veterinary expenditure
-#' of GBP 71.09 per cow per year is a separate lump sum.
-#'
-#' Culling (an annual rate of 27%, and a replacement price of GBP 1335.36)
-#' is not an additive analysis: use the attached hazard ratios with
-#' [attributable_risk()]. The paper's culling valuation belongs to its
-#' historical conversion and is used only inside [reproduce_rasmussen_2022()].
-#'
-#' @return A list with `valuation` (one valuation list per analysis of
-#'   [example_uk_dairy_2022()]) and `additional` (lump-sum costs).
-#' @export
+# Economic inputs of the UK dairy example (Rasmussen et al. 2022, Table 1),
+# used only by reproduce_rasmussen_2022(): milk yield 8737 kg/cow/year valued
+# at GBP 0.3022/kg; calving interval 401 days, each day valued at lifetime
+# daily yield (13 kg) times the milk price; veterinary expenditure of GBP
+# 71.09 per cow per year as a separate lump sum. The paper's culling
+# valuation (historical conversion) is uk_dairy_2022_culling_valuation().
 uk_dairy_2022_economics <- function() {
   price <- 30.22 / 100
   list(valuation = list(
@@ -272,8 +262,9 @@ uk_dairy_2022_culling_valuation <- function() {
 #' culling analysis, HR - 1 adjusted as an additive impact, is sampled only
 #' inside [reproduce_rasmussen_2024()].)
 #'
-#' With `method = "published"`, Monte Carlo means reproduce Table 5 (see
-#' [reproduce_rasmussen_2024()] and `vignette("reproducing-published")`).
+#' With `method = "published"` in [cm_monte_carlo()], Monte Carlo means
+#' reproduce Table 5 (see [reproduce_rasmussen_2024()] and
+#' `vignette("reproducing-published")`).
 #'
 #' @param inputs `"analysis"` or `"tables"`.
 #' @return A [cm_batch_sampler()].

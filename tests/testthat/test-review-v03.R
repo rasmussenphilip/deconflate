@@ -47,7 +47,7 @@ test_that("scenario reweighting checks the support of the scenario", {
 
 test_that("compare_methods reports an undefined published result as failed", {
   pm <- pole_model()
-  expect_true(is.infinite(deconflate(pm, method = "published", warn = FALSE)$adjusted$adjusted[1]))
+  expect_true(is.infinite(adjust_impacts(pm, method = "published", warn = FALSE)$adjusted$adjusted[1]))
   cmp <- compare_methods(pm, methods = c("published", "simultaneous"))
   expect_equal(cmp$methods, "simultaneous")
   expect_match(cmp$failed[["published"]], "^undefined")
@@ -57,13 +57,32 @@ test_that("compare_methods reports an undefined published result as failed", {
 })
 
 test_that("sensitivity tools report undefined scenarios with a reason", {
+  # The published approximation is the only way to get a non-finite result,
+  # and it is not a method of deconflate(), so the scenario helpers are
+  # tested directly on its result.
   pm <- pole_model()
-  cs <- compare_scenarios(base = supp_model(c(1, 1, 1)), pole = pm, method = "published")
-  expect_true(is.na(cs$totals$failed[1]))
-  expect_true(is.na(cs$totals$total[2]))
-  expect_match(cs$totals$failed[2], "^undefined")
-  expect_error(screen_associations(pm, method = "published"), class = "deconflate_nonfinite")
-  expect_true(failed_run(deconflate(pm, method = "published", warn = FALSE)))
+  pub <- adjust_impacts(pm, method = "published", warn = FALSE)
+  expect_true(failed_run(pub))
+  sm <- scenario_metric(pub)
+  expect_null(sm$met)
+  expect_match(sm$reason, "^undefined: non-finite adjusted impacts \\(d1\\)")
+  expect_true(is.na(scenario_metric(deconflate(pm, warn = FALSE))$reason))
+  base <- burden_metric(deconflate(supp_model(c(1, 1, 1))))
+  row <- screen_row(data.frame(scenario = "pole", stringsAsFactors = FALSE), pub, base)
+  expect_true(is.na(row$total))
+  expect_true(is.na(row$rel_change))
+  expect_match(row$failed, "^undefined")
+  # A screen's baseline must be a finite estimate.
+  expect_error(check_baseline(pub), class = "deconflate_nonfinite")
+  # The screens no longer accept the published approximation.
+  expect_error(screen_associations(pm, method = "published"), class = "deconflate_unsupported")
+  expect_error(sensitivity_oat(pm, method = "published"), class = "deconflate_unsupported")
+  expect_error(compare_scenarios(base = supp_model(c(1, 1, 1)), pole = pm, method = "published"),
+               class = "deconflate_unsupported")
+  # With the exact method, the pole model is an ordinary scenario.
+  cs2 <- compare_scenarios(base = supp_model(c(1, 1, 1)), pole = pm)
+  expect_true(all(is.na(cs2$totals$failed)))
+  expect_true(all(is.finite(cs2$totals$total)))
 })
 
 # ---- 3. Unavailable precision is not "ok" -------------------------------------
@@ -180,11 +199,15 @@ test_that("historical conversions are not in the general examples", {
   uk <- example_uk_dairy_2022()
   expect_equal(names(uk$models), c("yield", "fertility"))
   expect_equal(attr(uk, "hazard_ratios")$estimand[1], "snapshot_crude")
-  # The economic inputs value exactly the analyses of the example.
+  # The (internal) economic inputs value exactly the analyses of the example.
   eco <- uk_dairy_2022_economics()
   expect_equal(names(eco$valuation), names(uk$models))
-  expect_equal(compare_methods(uk, methods = "simultaneous", valuation = eco$valuation)$methods,
-               "simultaneous")
+  expect_equal(compare_methods(uk, methods = "simultaneous")$methods, "simultaneous")
+  # Valuation is no longer exported.
+  ex <- getNamespaceExports("deconflate")
+  for (f in c("uk_dairy_2022_economics", "productivity_gap", "value_losses", "cm_mc_gap")) {
+    expect_false(f %in% ex)
+  }
   gd <- example_global_dairy()
   expect_equal(names(gd$models), c("yield", "fertility"))
   expect_equal(names(sampler_global_dairy()$samplers), c("yield", "fertility"))

@@ -19,8 +19,9 @@ observed mean yield in the example is 10,000 units per animal per year.
 Note: the published productivity gap (10,225; 20, 61 and 143 units) rounds
 the adjusted impacts to 2\%, 4\% and 7\% before computing the gap. Without
 rounding, the published method gives 10,215.7 and 21.1, 56.7 and 137.9
-units.
+units (see \code{vignette("reproducing-published")}).
 }
 \examples{
-deconflate(example_supplement(), method = "published")
+deconflate(example_supplement())
+compare_methods(example_supplement())
 }

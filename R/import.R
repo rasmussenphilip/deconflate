@@ -540,7 +540,7 @@ has_columns <- function(tab, spec, label, pc) {
   }
   if (spec == "impacts" && any(c("scale", "direction") %in% extra)) {
     pc$add(label, NA, NA,
-           "Columns scale and direction are no longer used: impacts are adjusted in their own units; give direction and scale to productivity_gap() instead.",
+           "Columns scale and direction are no longer used: impacts are adjusted in their own units; convert the adjusted impacts as needed afterwards.",
            "note")
     extra <- setdiff(extra, c("scale", "direction"))
   }

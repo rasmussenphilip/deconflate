@@ -22,7 +22,10 @@ cm_monte_carlo(
 
 \item{n_draws}{Number of draws.}
 
-\item{method}{Adjustment method(s) passed to \code{\link[=deconflate]{deconflate()}}.}
+\item{method}{Adjustment method(s): \code{"simultaneous"}, \code{"global"}, or
+\code{"published"} (the approximation of Rasmussen et al. 2022, eq. 16, kept
+here to compare with and reproduce earlier analyses; see
+\code{\link[=compare_methods]{compare_methods()}}).}
 
 \item{seed}{Optional random seed, for reproducibility.}
 
@@ -36,7 +39,8 @@ cm_monte_carlo(
 sampling proposals), keyed as in \code{params} (e.g. \code{"impact:SCK"}). Needs a
 \code{\link[=cm_sampler]{cm_sampler()}}.}
 
-\item{...}{Passed to \code{\link[=deconflate]{deconflate()}}.}
+\item{...}{Passed to the adjustment (e.g. \code{joint}, \code{feasibility}, or
+arguments of \code{\link[=fit_joint]{fit_joint()}} for the global method).}
 }
 \value{
 A \code{cm_mc} object (or \code{cm_mc_batch} for a batch sampler) with:

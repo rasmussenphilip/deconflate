@@ -31,6 +31,17 @@ test_that("reproduce_rasmussen_2022() recomputes the published gaps and values",
   # Per-disease values add up to the analysis values.
   expect_equal(sum(r$values$total), sum(r$gaps$value), tolerance = 1e-10)
   expect_output(print(r), "Table 9")
+  # The internal legacy helpers give the same gaps and values.
+  eco <- uk_dairy_2022_economics()
+  eco$valuation$culling <- uk_dairy_2022_culling_valuation()
+  for (i in seq_along(r$gaps$analysis)) {
+    nm <- r$gaps$analysis[i]
+    v <- eco$valuation[[nm]]
+    g <- legacy_gap(r$results[[nm]], v$observed, v$direction, v$effect)
+    expect_equal(g$summary$gap, r$gaps$gap[i])
+    expect_equal(legacy_value(g, v$unit_value)$by_disease$value, r$values[[nm]])
+  }
+  expect_equal(r$results$yield$method, "published")
 })
 
 test_that("adjusted culling hazard ratios (eq. 23) match Table 8", {
@@ -58,12 +69,13 @@ test_that("the simultaneous method on the 2022 inputs matches the reference", {
   res <- suppressWarnings(deconflate(uk))
   df <- vapply(names(res), function(nm) {
     v <- eco$valuation[[nm]]
-    productivity_gap(res[[nm]], v$observed, v$direction, v$effect)$summary$disease_free
+    legacy_gap(res[[nm]], v$observed, v$direction, v$effect)$summary$disease_free
   }, numeric(1))
   expect_equal(unname(df), c(9292.915419609979, 376.70813848633463, 22.61083366279789),
                tolerance = 1e-9)
   val <- sum(vapply(names(res), function(nm) {
-    contribution_table(res[[nm]], eco$valuation[[nm]])$value
+    v <- eco$valuation[[nm]]
+    legacy_value(legacy_gap(res[[nm]], v$observed, v$direction, v$effect), v$unit_value)$by_disease$value
   }, numeric(length(ids)))) + eco$additional
   expect_equal(unname(val), 393.1318185491835, tolerance = 1e-9)
 })

@@ -13,21 +13,24 @@
 #'    with [cm_model()], or several with [cm_analyses()]. Or read the same
 #'    tables from CSV files or data frames with [cm_read_inputs()] (see
 #'    [cm_template()]).
-#' 2. Adjust impacts with [deconflate()], using one of three methods:
+#' 2. Adjust impacts with [deconflate()], using one of two methods:
 #'    * `"simultaneous"` (default): the exact solution of the additive impact
 #'      equations, built from pairwise 2x2 tables. Crude estimates and
 #'      coefficients from additive regressions with a recorded adjustment set
-#'      (`estimand = "adjusted_linear"`) are supported.
-#'    * `"published"`: the proportional approximation of Rasmussen et al.
-#'      (2022), eq. 16, for crude estimates, for reproduction and comparison.
+#'      (`estimand = "adjusted_linear"`) are supported. Use it when impacts
+#'      are additive and every pair has an association estimate or a
+#'      defensible independence assumption.
 #'    * `"global"`: fits a maximum-entropy distribution of disease
 #'      combinations with [fit_joint()], then solves the impact equations
-#'      including pairwise interactions ([cm_interactions()]).
+#'      including pairwise interactions ([cm_interactions()]) and unknown
+#'      pairs.
 #' 3. Inspect each disease's contribution to the aggregate
-#'    ([attribute_burden()], [contribution_table()]); optionally turn the
-#'    aggregate into a productivity gap and a value with
-#'    [productivity_gap()] and [value_losses()]. [compare_methods()]
-#'    tabulates the methods side by side.
+#'    ([attribute_burden()], [contribution_table()]), in the units of the
+#'    impacts. Converting the results into other quantities (e.g. a
+#'    productivity gap or a monetary value) is left to the user.
+#'    [compare_methods()] sets the methods side by side, including the
+#'    proportional approximation of Rasmussen et al. (2022, eq. 16), which is
+#'    kept for comparison and reproduction only.
 #' 4. Hazard ratios (e.g. of culling) combine multiplicatively and have their
 #'    own adapter: [cm_hazard_ratios()], [cm_hr_model()], [deconflate_hr()]
 #'    and [attributable_risk()].

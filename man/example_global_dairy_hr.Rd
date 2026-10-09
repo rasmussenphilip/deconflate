@@ -21,5 +21,5 @@ metritis uses the analysis value (PERT mode 1.116) rather than Table 4
 }
 \examples{
 hr <- example_global_dairy_hr()
-deconflate_hr(hr, method = "published")$adjusted
+deconflate_hr(hr)$adjusted
 }

@@ -44,5 +44,6 @@ historical calculation is only available inside
 
 \examples{
 gd <- example_global_dairy()
-deconflate(gd, method = "published")$yield$adjusted
+deconflate(gd)$yield$adjusted
+compare_methods(gd$models$yield)$totals
 }

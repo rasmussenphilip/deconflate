@@ -3,8 +3,12 @@
 # Reference values computed independently in Python
 # (inst/validation/python_reference.py).
 
-test_that("published method reproduces the de-conflated impacts", {
-  res <- deconflate(example_supplement(), method = "published")
+test_that("the published approximation reproduces the de-conflated impacts", {
+  # Internal: the approximation is not a method of deconflate().
+  expect_error(deconflate(example_supplement(), method = "published"),
+               class = "deconflate_unsupported")
+  res <- adjust_impacts(example_supplement(), method = "published")
+  expect_equal(res$method, "published")
   # Published (rounded): 2.05, 3.70, 6.74 (%)
   expect_equal(res$adjusted$adjusted, c(2.065001, 3.699294, 6.748473), tolerance = 1e-6)
   # The approximation does not reconstruct the raw impacts exactly.
@@ -14,8 +18,8 @@ test_that("published method reproduces the de-conflated impacts", {
 })
 
 test_that("published productivity gap (unrounded) is reproduced", {
-  res <- deconflate(example_supplement(), method = "published")
-  pg <- productivity_gap(res, 10000, direction = "decrease", effect = "percent")
+  res <- adjust_impacts(example_supplement(), method = "published")
+  pg <- legacy_gap(res, 10000, direction = "decrease", effect = "percent")
   expect_equal(pg$summary$disease_free, 10215.661683976388, tolerance = 1e-9)
   expect_equal(pg$attribution$gap, c(21.09535158, 56.68609684, 137.88023556),
                tolerance = 1e-7)
@@ -23,7 +27,7 @@ test_that("published productivity gap (unrounded) is reproduced", {
 })
 
 test_that("the published 10,225 comes from rounding adjusted impacts first", {
-  res <- deconflate(example_supplement(), method = "published")
+  res <- adjust_impacts(example_supplement(), method = "published")
   m <- round(res$adjusted$adjusted / 100, 2)
   P <- c(0.10, 0.15, 0.20)
   xh <- 10000 / (1 - sum(m * P))
@@ -38,7 +42,7 @@ test_that("simultaneous method solves the additive equations exactly", {
                tolerance = 1e-9)
   expect_lt(res$diagnostics$max_reconstruction_residual, 1e-12)
   expect_equal(res$diagnostics$feasibility, "triple screen passed (necessary condition only)")
-  pg <- productivity_gap(res, 10000, "decrease", "percent")
+  pg <- legacy_gap(res, 10000, "decrease", "percent")
   expect_equal(pg$summary$disease_free, 10215.467592322026, tolerance = 1e-9)
   expect_equal(pg$attribution$gap, c(21.8943058, 51.90090266, 141.67238385),
                tolerance = 1e-7)
@@ -57,8 +61,8 @@ test_that("results are in the units supplied and scale with them", {
                tolerance = 1e-9)
   expect_equal(res$units, "kg/cow/year")
   for (meth in c("published", "simultaneous", "global")) {
-    a <- deconflate(supp_model(c(2.5, 5, 7.5)), method = meth)$adjusted$adjusted
-    b <- deconflate(supp_model(1000 * c(2.5, 5, 7.5)), method = meth)$adjusted$adjusted
+    a <- adjust_impacts(supp_model(c(2.5, 5, 7.5)), method = meth)$adjusted$adjusted
+    b <- adjust_impacts(supp_model(1000 * c(2.5, 5, 7.5)), method = meth)$adjusted$adjusted
     expect_equal(b, 1000 * a, tolerance = 1e-10)
   }
 })

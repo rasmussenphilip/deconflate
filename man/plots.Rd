@@ -15,7 +15,7 @@
 
 \method{plot}{cm_results}(x, ...)
 
-plot_burden(result, valuation = NULL, ...)
+plot_burden(result, ...)
 
 \method{plot}{cm_mc}(x, probs = c(0.025, 0.975), method = NULL, ...)
 
@@ -29,9 +29,6 @@ plot_burden(result, valuation = NULL, ...)
 \item{x, result}{The object to plot.}
 
 \item{...}{Passed to the underlying graphics function.}
-
-\item{valuation}{Optional valuation list (see \code{\link[=contribution_table]{contribution_table()}}), or
-for several analyses a list of them named after the analyses.}
 
 \item{probs}{Interval bounds for Monte Carlo plots.}
 
@@ -50,9 +47,9 @@ Base-graphics plots for the main result types:
 \itemize{
 \item \verb{plot(<cm_result>)}: raw and adjusted impacts by disease;
 \verb{plot(<cm_results>)} one panel per analysis.
-\item \code{plot_burden()}: each disease's contribution to the aggregate (main
-effect and interaction share), or its share of the value with
-\code{valuation}; for several analyses, one bar per analysis.
+\item \code{plot_burden()}: each disease's share of the aggregate (including its
+share of interaction effects); for several analyses, one bar per
+analysis.
 \item \verb{plot(<cm_mc>)}: Monte Carlo means and intervals of adjusted impacts.
 \item \verb{plot(<cm_screen>)}: the most influential scenarios from
 \code{\link[=screen_associations]{screen_associations()}}, \code{\link[=screen_interactions]{screen_interactions()}} or
@@ -61,7 +58,7 @@ effect and interaction share), or its share of the value with
 }
 }
 \examples{
-res <- deconflate(example_uk_dairy_2022(), method = "published")
+res <- deconflate(example_uk_dairy_2022())
 plot(res$yield)
 plot_burden(res)
 }

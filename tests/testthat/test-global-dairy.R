@@ -13,8 +13,10 @@ test_that("incidence is converted with 1 - exp(-I)", {
   expect_equal(gd$models$yield$diseases$id, ids)
 })
 
-test_that("published method at the means (Tables 2-4) matches the reference", {
-  res <- deconflate(example_global_dairy(inputs = "tables"), method = "published")
+test_that("published approximation at the means (Tables 2-4) matches the reference", {
+  # The published approximation is internal (adjust_analyses()); it is not a
+  # method of deconflate().
+  res <- adjust_analyses(example_global_dairy(inputs = "tables"), method = "published")
   expect_equal(res$yield$adjusted$disease, ids)
   expect_equal(res$yield$adjusted$adjusted,
                c(0.024548, 1.345727, 0.793385, 3.57018, 2.539522, 2.838661,
@@ -40,7 +42,7 @@ test_that("simultaneous solution flags sign changes the published method hides",
   expect_equal(y$diagnostics$n_sign_changes, 4)
   expect_equal(y$diagnostics$sign_changes, "CK, CM, DA, MF")
   # The aggregate burden is similar across methods.
-  pub <- deconflate(gd, method = "published", warn = FALSE)
+  pub <- adjust_analyses(gd, method = "published", warn = FALSE)
   expect_equal(pub$yield$totals$adjusted_total, 6.855, tolerance = 1e-3)
   expect_equal(y$totals$adjusted_total, 7.015, tolerance = 1e-3)
 })
@@ -71,8 +73,8 @@ test_that("analysis inputs use the fixed de-conflation probabilities", {
   expect_equal(hr$hazard_ratios$value[hr$hazard_ratios$disease == "CK"], 1.5001)
 })
 
-test_that("published method at the analysis central values matches the reference", {
-  res <- deconflate(global_dairy_analyses("analysis", culling = TRUE), method = "published")
+test_that("published approximation at the analysis central values matches the reference", {
+  res <- adjust_analyses(global_dairy_analyses("analysis", culling = TRUE), method = "published")
   expect_equal(res$yield$adjusted$adjusted,
                c(0.024732965, 1.3319499, 0.79378291, 3.568819, 2.5324074,
                  2.8409515, 0.068975316, 2.6385934, 3.2291707, 2.2577111,
@@ -89,8 +91,9 @@ test_that("published method at the analysis central values matches the reference
                  0.012410582, 1.6476374, 0.45864412, 1.0472349, 0.28449635,
                  0.67525327, 0.25492756),
                tolerance = 1e-6)
-  # The same numbers as the published method of the hazard-ratio adapter.
-  hr <- deconflate_hr(example_global_dairy_hr(), method = "published")
+  # The same numbers as the published approach of the hazard-ratio adapter
+  # (internal adjust_hr()).
+  hr <- adjust_hr(example_global_dairy_hr(), method = "published")
   expect_equal(hr$adjusted$adjusted, 1 + res$culling_hr_minus_1$adjusted$adjusted,
                tolerance = 1e-10)
 })

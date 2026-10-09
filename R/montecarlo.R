@@ -41,7 +41,10 @@
 #' @param sampler A function of the draw index returning a [cm_model()]
 #'   (typically from [cm_sampler()]), or a [cm_batch_sampler()].
 #' @param n_draws Number of draws.
-#' @param method Adjustment method(s) passed to [deconflate()].
+#' @param method Adjustment method(s): `"simultaneous"`, `"global"`, or
+#'   `"published"` (the approximation of Rasmussen et al. 2022, eq. 16, kept
+#'   here to compare with and reproduce earlier analyses; see
+#'   [compare_methods()]).
 #' @param seed Optional random seed, for reproducibility.
 #' @param progress Logical: print progress every 10% of draws?
 #' @param sampling `"random"` (default) or `"lhs"` (needs a [cm_sampler()]).
@@ -49,7 +52,8 @@
 #' @param proposal Optional named list of `cm_dist` objects (importance
 #'   sampling proposals), keyed as in `params` (e.g. `"impact:SCK"`). Needs a
 #'   [cm_sampler()].
-#' @param ... Passed to [deconflate()].
+#' @param ... Passed to the adjustment (e.g. `joint`, `feasibility`, or
+#'   arguments of [fit_joint()] for the global method).
 #'
 #' @return A `cm_mc` object (or `cm_mc_batch` for a batch sampler) with:
 #'   * `draws`: raw and adjusted impacts and contributions by draw, method
@@ -161,7 +165,7 @@ run_draw <- function(make_model, method, ...) {
   tryCatch(
     withCallingHandlers({
       model <- make_model()
-      rs <- lapply(method, function(m) deconflate(model, method = m, warn = FALSE, ...))
+      rs <- lapply(method, function(m) adjust_impacts(model, method = m, warn = FALSE, ...))
       bad <- !vapply(rs, result_is_finite, logical(1))
       if (any(bad)) {
         cm_abort(sprintf("Non-finite adjusted impacts (method %s).", paste(method[bad], collapse = ", ")),
@@ -689,76 +693,6 @@ cm_suggest_proposal <- function(mc, disease, method = NULL, top = 0.02, weight =
     key, 100 * (1 - weight), 100 * weight, lo, hi, key, length(top_draws), disease, method)
   message(attr(out, "explanation"))
   out
-}
-
-#' Productivity gaps over Monte Carlo draws (optional helper)
-#'
-#' Applies [productivity_gap()] (and a unit value) to every accepted draw of
-#' a Monte Carlo run, and summarises the gap and its value.
-#'
-#' @param mc A `cm_mc` object.
-#' @param observed Observed mean of the outcome (a number or a `cm_dist`,
-#'   drawn per draw).
-#' @param direction,effect As in [productivity_gap()].
-#' @param unit_value Optional value per unit of gap (a number or a `cm_dist`,
-#'   drawn per draw).
-#' @param seed Optional seed for drawing `observed` and `unit_value`.
-#' @return A list with `draws` (gap and value by draw, method and disease,
-#'   and the totals) and `summary` (weighted mean and quantiles of the total
-#'   gap and value per method).
-#' @export
-cm_mc_gap <- function(mc, observed, direction = c("decrease", "increase"),
-                      effect = c("proportion", "percent", "absolute"), unit_value = NULL,
-                      seed = NULL) {
-  if (!inherits(mc, "cm_mc")) cm_abort("`mc` must come from cm_monte_carlo().")
-  direction <- match.arg(direction)
-  effect <- match.arg(effect)
-  given <- list(observed = observed, unit_value = unit_value)
-  for (nm in names(given)) {
-    v <- given[[nm]]
-    if (is.null(v) || inherits(v, "cm_dist")) next
-    check_numeric(v, nm)
-    if (length(v) != 1L) cm_abort(sprintf("`%s` must be a single number or a cm_dist.", nm))
-  }
-  if (!is.null(seed)) set.seed(seed)
-  draws <- unique(mc$params$draw)
-  pick <- function(v) if (inherits(v, "cm_dist")) v$r(length(draws)) else rep(as.numeric(v), length(draws))
-  obs <- stats::setNames(pick(observed), draws)
-  uv <- if (is.null(unit_value)) NULL else stats::setNames(pick(unit_value), draws)
-  scale <- if (effect == "percent") 100 else 1
-  d <- mc$draws
-  tt <- mc$totals
-  L <- tt$adjusted_total / scale
-  x <- obs[as.character(tt$draw)]
-  factor <- switch(effect, absolute = rep(1, length(L)),
-                   if (direction == "decrease") x / (1 - L) else x / (1 + L))
-  if (effect != "absolute" && any(if (direction == "decrease") L >= 1 else L <= -1)) {
-    cm_abort("Some draws give an aggregate proportional change outside the valid range.")
-  }
-  tt$gap <- unname(if (effect == "absolute") L else if (direction == "decrease") x / (1 - L) - x else x - x / (1 + L))
-  fkey <- paste(tt$draw, tt$method)
-  d$gap <- unname(factor[match(paste(d$draw, d$method), fkey)] * d$contribution / scale)
-  if (!is.null(uv)) {
-    tt$value <- unname(tt$gap * uv[as.character(tt$draw)])
-    d$value <- unname(d$gap * uv[as.character(d$draw)])
-  }
-  w <- stats::setNames(mc$weights, mc$params$draw)
-  summ <- do.call(rbind, lapply(split(tt, tt$method), function(g) {
-    ww <- w[as.character(g$draw)]
-    ww <- ww / sum(ww)
-    out <- data.frame(method = g$method[1], gap_mean = sum(ww * g$gap),
-                      gap_q0.025 = weighted_quantile(g$gap, ww, 0.025),
-                      gap_q0.975 = weighted_quantile(g$gap, ww, 0.975),
-                      stringsAsFactors = FALSE)
-    if (!is.null(g$value)) {
-      out$value_mean <- sum(ww * g$value)
-      out$value_q0.025 <- weighted_quantile(g$value, ww, 0.025)
-      out$value_q0.975 <- weighted_quantile(g$value, ww, 0.975)
-    }
-    out
-  }))
-  rownames(summ) <- NULL
-  list(draws = d, totals = tt, summary = summ)
 }
 
 #' @export

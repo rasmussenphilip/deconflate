@@ -1,19 +1,9 @@
 # Sensitivity and scenario tools ------------------------------------------------
 
-# Metric used by the screening tools: a total and a per-disease vector. With
-# a valuation: the value (or gap) of the analysis; otherwise the adjusted
-# aggregate and the contributions.
-burden_metric <- function(result, valuation = NULL) {
+# Metric used by the screening tools: the adjusted aggregate and the
+# contributions (in the impacts' own units).
+burden_metric <- function(result) {
   ids <- result$adjusted$disease
-  if (!is.null(valuation)) {
-    ev <- evaluate_valuation(result, valuation)
-    if (!is.null(ev$value)) {
-      return(list(total = ev$value$value,
-                  by_disease = stats::setNames(ev$value$by_disease$value, ids)))
-    }
-    return(list(total = ev$gap$summary$gap,
-                by_disease = stats::setNames(ev$gap$attribution$gap, ids)))
-  }
   list(total = result$totals$adjusted_total,
        by_disease = stats::setNames(result$contributions$total, ids))
 }
@@ -45,10 +35,8 @@ run_quiet <- function(model, method, joint = NULL) {
 }
 failed_run <- function(res) is.null(res) || !inherits(res, "cm_result") || !result_is_finite(res)
 
-# Metric of a scenario run, or NULL with the reason the scenario failed
-# (the adjustment, or a valuation that cannot be evaluated for it, e.g. an
-# aggregate loss of 100% or more).
-scenario_metric <- function(res, valuation) {
+# Metric of a scenario run, or NULL with the reason the scenario failed.
+scenario_metric <- function(res) {
   if (failed_run(res)) {
     reason <- if (inherits(res, "cm_result")) {
       sprintf("undefined: non-finite adjusted impacts (%s)", nonfinite_diseases(res))
@@ -57,16 +45,13 @@ scenario_metric <- function(res, valuation) {
     }
     return(list(met = NULL, reason = reason))
   }
-  tryCatch(list(met = burden_metric(res, valuation), reason = NA_character_),
-           deconflate_error = function(e) {
-             list(met = NULL, reason = paste("valuation:", conditionMessage(e)))
-           })
+  list(met = burden_metric(res), reason = NA_character_)
 }
 
 # One row of a screen: the scenario's labels, its comparison with the
 # baseline and the reason it failed (NA if it ran).
-screen_row <- function(labels, res, valuation, base) {
-  sm <- scenario_metric(res, valuation)
+screen_row <- function(labels, res, base) {
+  sm <- scenario_metric(res)
   cbind(labels, compare_to_base(sm$met, base),
         data.frame(failed = sm$reason, stringsAsFactors = FALSE))
 }
@@ -174,8 +159,6 @@ set_three_way <- function(model, disease1, disease2, disease3, ratio) {
 #' @param or_values Odds ratios tried for unspecified pairs.
 #' @param multipliers Factors applied to specified associations.
 #' @param pairs Optional character vector of pairs (`"d1:d2"`); default all.
-#' @param valuation Optional valuation list (see [contribution_table()]) to
-#'   use the gap's value as the metric; otherwise the adjusted aggregate.
 #' @return A `cm_screen` data frame sorted by the absolute relative change in
 #'   the total, with the scenario, total, change, relative change, the
 #'   largest shift in any disease's rank, the Spearman correlation of disease
@@ -186,10 +169,10 @@ set_three_way <- function(model, disease1, disease2, disease3, ratio) {
 #' screen_associations(example_supplement(), or_values = c(0.5, 3))
 screen_associations <- function(model, method = "simultaneous",
                                 or_values = c(0.5, 2), multipliers = c(0.5, 2),
-                                pairs = NULL, valuation = NULL) {
+                                pairs = NULL) {
   check_model(model)
   base_res <- deconflate(model, method = method, warn = FALSE)
-  base <- burden_metric(check_baseline(base_res), valuation)
+  base <- burden_metric(check_baseline(base_res))
   pt <- pair_tables(model)
   if (!is.null(pairs)) {
     check_pair_ids(pairs, model$diseases$id)
@@ -223,7 +206,7 @@ screen_associations <- function(model, method = "simultaneous",
       rows[[length(rows) + 1L]] <- screen_row(
         data.frame(pair = key[r], status = pt$status[r], scenario = labels[v],
                    stringsAsFactors = FALSE),
-        res, valuation, base)
+        res, base)
     }
   }
   finish_screen(rows, base)
@@ -269,19 +252,17 @@ finish_screen <- function(rows, base) {
 #' @param values Interaction sizes (same units as the impacts; positive
 #'   synergistic, negative antagonistic).
 #' @param pairs Optional character vector of pairs (`"d1:d2"`).
-#' @param valuation Optional valuation list; otherwise the adjusted aggregate
-#'   is the metric.
 #' @param ... Passed to [fit_joint()] (e.g. `backend = "sampled"` for many
 #'   diseases).
 #' @return A `cm_screen` data frame as in [screen_associations()].
 #' @export
-screen_interactions <- function(model, values, pairs = NULL, valuation = NULL, ...) {
+screen_interactions <- function(model, values, pairs = NULL, ...) {
   check_model(model)
   # One joint distribution serves every scenario (interactions do not change
   # it); `...` goes to fit_joint(), e.g. backend = "sampled".
   joint <- fit_joint(model, ...)
   base_res <- deconflate(model, method = "global", joint = joint, warn = FALSE)
-  base <- burden_metric(check_baseline(base_res), valuation)
+  base <- burden_metric(check_baseline(base_res))
   ids <- model$diseases$id
   pr <- if (!is.null(pairs)) {
     check_pair_ids(pairs, ids)
@@ -298,7 +279,7 @@ screen_interactions <- function(model, values, pairs = NULL, valuation = NULL, .
       rows[[length(rows) + 1L]] <- screen_row(
         data.frame(pair = paste(pr[r, 1], pr[r, 2], sep = ":"), status = "interaction",
                    scenario = sprintf("delta = %g", v), stringsAsFactors = FALSE),
-        res, valuation, base)
+        res, base)
     }
   }
   finish_screen(rows, base)
@@ -324,13 +305,12 @@ screen_interactions <- function(model, values, pairs = NULL, valuation = NULL, .
 #' @param ratios Ratios of conditional odds ratios to try.
 #' @param triples Optional list of character vectors of three disease ids;
 #'   default all triples (which can be many).
-#' @param valuation Optional valuation list.
 #' @return A `cm_screen` data frame as in [screen_associations()].
 #' @export
-screen_three_way <- function(model, ratios = c(0.5, 2), triples = NULL, valuation = NULL) {
+screen_three_way <- function(model, ratios = c(0.5, 2), triples = NULL) {
   check_model(model)
   base_res <- deconflate(model, method = "global", warn = FALSE)
-  base <- burden_metric(check_baseline(base_res), valuation)
+  base <- burden_metric(check_baseline(base_res))
   ids <- model$diseases$id
   if (is.null(triples)) {
     triples <- if (length(ids) >= 3L) utils::combn(ids, 3, simplify = FALSE) else list()
@@ -351,7 +331,7 @@ screen_three_way <- function(model, ratios = c(0.5, 2), triples = NULL, valuatio
       rows[[length(rows) + 1L]] <- screen_row(
         data.frame(pair = paste(tr, collapse = ":"), status = "three-way",
                    scenario = sprintf("ratio = %g", rt), stringsAsFactors = FALSE),
-        res, valuation, base)
+        res, base)
     }
   }
   finish_screen(rows, base)
@@ -361,23 +341,22 @@ screen_three_way <- function(model, ratios = c(0.5, 2), triples = NULL, valuatio
 #'
 #' Varies each input by `variation` (e.g. +/- 20%) with everything else
 #' fixed, as in Rasmussen et al. (2024), Fig. 7, and reports the resulting
-#' range of the aggregate (or value).
+#' range of the adjusted aggregate.
 #'
 #' @param model A [cm_model()].
 #' @param method Adjustment method.
 #' @param variation Relative change applied downwards and upwards.
 #' @param inputs Which inputs to vary: `"prob"`, `"assoc"`, `"impact"`.
-#' @param valuation Optional valuation list (see [screen_associations()]).
 #' @return A `cm_oat` data frame with one row per input: the input key,
 #'   totals at the low and high values and the swing, sorted by swing.
 #' @export
 #' @examples
 #' sensitivity_oat(example_supplement())
 sensitivity_oat <- function(model, method = "simultaneous", variation = 0.2,
-                            inputs = c("prob", "assoc", "impact"), valuation = NULL) {
+                            inputs = c("prob", "assoc", "impact")) {
   check_model(model)
   inputs <- match.arg(inputs, several.ok = TRUE)
-  base <- burden_metric(check_baseline(deconflate(model, method = method, warn = FALSE)), valuation)
+  base <- burden_metric(check_baseline(deconflate(model, method = method, warn = FALSE)))
   vals <- flatten_model(model)
   keys <- names(vals)
   type <- sub(":.*$", "", keys)
@@ -394,7 +373,7 @@ sensitivity_oat <- function(model, method = "simultaneous", variation = 0.2,
     tot <- vapply(c(1 - variation, 1 + variation), function(f) {
       m2 <- tryCatch(set_input(model, k, x * f), deconflate_error = function(e) NULL)
       if (is.null(m2)) return(NA_real_)
-      sm <- scenario_metric(run_quiet(m2, method), valuation)
+      sm <- scenario_metric(run_quiet(m2, method))
       if (is.null(sm$met)) NA_real_ else sm$met$total
     }, numeric(1))
     data.frame(input = k, value = x, total_low = tot[1], total_high = tot[2],
@@ -440,7 +419,6 @@ set_input <- function(model, key, value) {
 #' @param ... Named [cm_model()] objects.
 #' @param method Adjustment method (`"global"` is used automatically for
 #'   models with interactions or three-way terms).
-#' @param valuation Optional valuation list (see [screen_associations()]).
 #' @return A list with `totals` (one row per scenario, with the reason in
 #'   `failed` when a scenario could not be adjusted or gave an undefined
 #'   result) and `by_disease` (contribution and rank per disease and
@@ -450,16 +428,20 @@ set_input <- function(model, key, value) {
 #' base <- example_supplement()
 #' strong <- set_association(base, "d1", "d3", 3)
 #' compare_scenarios(base = base, strong_d1_d3 = strong)
-compare_scenarios <- function(..., method = "simultaneous", valuation = NULL) {
+compare_scenarios <- function(..., method = "simultaneous") {
+  method <- public_method(method, c("simultaneous", "global"), "compare_scenarios()")
   models <- list(...)
   if (is.null(names(models)) || any(!nzchar(names(models)))) {
     cm_abort("Scenarios must be named, e.g. compare_scenarios(base = m1, alt = m2).")
   }
-  if (!is.null(valuation)) check_valuation(valuation)
+  not_model <- names(models)[!vapply(models, inherits, logical(1), "cm_model")]
+  if (length(not_model)) {
+    cm_abort(sprintf("Scenarios must be cm_model() objects (not: %s).", paste(not_model, collapse = ", ")))
+  }
   sms <- lapply(models, function(m) {
     needs_global <- (!is.null(m$interactions) && nrow(m$interactions)) ||
       (!is.null(m$three_way) && nrow(m$three_way))
-    scenario_metric(run_quiet(m, if (needs_global) "global" else method), valuation)
+    scenario_metric(run_quiet(m, if (needs_global) "global" else method))
   })
   mets <- lapply(sms, `[[`, "met")
   totals <- data.frame(scenario = names(models),

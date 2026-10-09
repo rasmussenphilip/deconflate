@@ -46,13 +46,11 @@ reference:
   - fit_joint
   - combination_probs
   - check_feasibility
-- title: Contributions, gaps and values
+- title: Contributions
   contents:
   - attribute_burden
   - contribution_table
   - summary.cm_result
-  - productivity_gap
-  - value_losses
   - shapley_by_cell
   - loss_functions
 - title: Hazard ratios (culling and mortality)
@@ -68,7 +66,6 @@ reference:
   - cm_batch_sampler
   - cm_monte_carlo
   - summary.cm_mc
-  - cm_mc_gap
   - cm_reweight
   - cm_scenario
   - cm_diagnose
@@ -87,7 +84,6 @@ reference:
   contents:
   - example_supplement
   - example_uk_dairy_2022
-  - uk_dairy_2022_economics
   - example_global_dairy
   - example_global_dairy_hr
   - sampler_global_dairy

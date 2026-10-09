@@ -3,9 +3,9 @@
 #' Base-graphics plots for the main result types:
 #' * `plot(<cm_result>)`: raw and adjusted impacts by disease;
 #'   `plot(<cm_results>)` one panel per analysis.
-#' * `plot_burden()`: each disease's contribution to the aggregate (main
-#'   effect and interaction share), or its share of the value with
-#'   `valuation`; for several analyses, one bar per analysis.
+#' * `plot_burden()`: each disease's share of the aggregate (including its
+#'   share of interaction effects); for several analyses, one bar per
+#'   analysis.
 #' * `plot(<cm_mc>)`: Monte Carlo means and intervals of adjusted impacts.
 #' * `plot(<cm_screen>)`: the most influential scenarios from
 #'   [screen_associations()], [screen_interactions()] or
@@ -13,8 +13,6 @@
 #' * `plot(<cm_oat>)`: tornado plot from [sensitivity_oat()].
 #'
 #' @param x,result The object to plot.
-#' @param valuation Optional valuation list (see [contribution_table()]), or
-#'   for several analyses a list of them named after the analyses.
 #' @param top Number of rows to show.
 #' @param probs Interval bounds for Monte Carlo plots.
 #' @param method For Monte Carlo runs with several methods: the method to
@@ -23,7 +21,7 @@
 #' @return The input, invisibly.
 #' @name plots
 #' @examples
-#' res <- deconflate(example_uk_dairy_2022(), method = "published")
+#' res <- deconflate(example_uk_dairy_2022())
 #' plot(res$yield)
 #' plot_burden(res)
 NULL
@@ -59,33 +57,18 @@ plot.cm_results <- function(x, ...) {
 
 #' @rdname plots
 #' @export
-plot_burden <- function(result, valuation = NULL, ...) {
+plot_burden <- function(result, ...) {
   if (inherits(result, "cm_result")) {
     res <- list(result)
     names(res) <- result$label %||% "impacts"
-    if (!is.null(valuation)) {
-      valuation <- list(valuation)
-      names(valuation) <- names(res)
-    }
   } else if (inherits(result, "cm_results")) {
     res <- unclass(result)
   } else {
     cm_abort("`result` must come from deconflate().")
   }
   ids <- res[[1]]$adjusted$disease
-  if (!is.null(valuation)) {
-    mat <- vapply(names(res), function(nm) {
-      v <- valuation[[nm]]
-      if (is.null(v)) return(rep(0, length(ids)))
-      ct <- contribution_table(res[[nm]], v)
-      if (is.null(ct$value)) cm_abort("Each valuation needs a `unit_value` to plot values.")
-      ct$value
-    }, numeric(length(ids)))
-    ylab <- "Value"
-  } else {
-    mat <- vapply(res, function(r) 100 * r$contributions$share, numeric(length(ids)))
-    ylab <- "Share of the aggregate (%)"
-  }
+  mat <- vapply(res, function(r) 100 * r$contributions$share, numeric(length(ids)))
+  ylab <- "Share of the aggregate (%)"
   mat <- matrix(mat, nrow = length(ids), dimnames = list(ids, names(res)))
   cols <- grDevices::hcl.colors(nrow(mat), "Set 2")
   op <- graphics::par(mar = c(5, 4, 3, 8), xpd = TRUE)

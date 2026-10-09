@@ -141,3 +141,13 @@ weighted_quantile <- function(x, w, probs) {
   cw <- cumsum(w)
   vapply(probs, function(p) x[which(cw >= p - 1e-12)[1]], numeric(1))
 }
+
+# Method argument of the exported adjustment functions: the published
+# approximation is no longer one of their methods.
+public_method <- function(method, choices, fun) {
+  if (is.character(method) && "published" %in% method && !identical(method, choices)) {
+    cm_abort(sprintf("The published approximation is not a method of %s. It is kept for comparison and reproduction: use compare_methods(), cm_monte_carlo(method = \"published\") or the reproduce_*() functions.",
+                     fun), class = "deconflate_unsupported")
+  }
+  match.arg(method, choices)
+}

@@ -17,10 +17,11 @@
 #' @section 2022 (Tables 8-10):
 #' `reproduce_rasmussen_2022()` adjusts yield and calving interval for the UK
 #' example ([example_uk_dairy_2022()]) and the historical culling analysis,
-#' computes the productivity gaps and their values with
-#' [uk_dairy_2022_economics()] (and the paper's culling valuation), adds
-#' veterinary expenditure, and back-converts the culling impacts to hazard
-#' ratios.
+#' computes the productivity gaps and their values with the paper's economic
+#' inputs (Table 1, and its culling valuation), adds veterinary expenditure,
+#' and back-converts the culling impacts to hazard ratios. (The gap and
+#' valuation steps exist only here: the package itself does not value
+#' impacts.)
 #' Fertility and the culling hazard ratios reproduce the paper; yield does not
 #' reproduce exactly from the printed Table 4 (see
 #' `vignette("reproducing-published")`).
@@ -59,7 +60,7 @@ reproduce_rasmussen_2022 <- function(yield_sck = 3.05) {
   uk <- uk_dairy_2022_analyses(yield_sck, culling = TRUE)
   eco <- uk_dairy_2022_economics()
   eco$valuation$culling <- uk_dairy_2022_culling_valuation()
-  res <- deconflate(uk, method = "published", warn = FALSE)
+  res <- adjust_analyses(uk, method = "published", warn = FALSE)
   ids <- uk$population$diseases$id
   nms <- names(uk$models)
 
@@ -71,10 +72,10 @@ reproduce_rasmussen_2022 <- function(yield_sck = 3.05) {
 
   gaps <- lapply(nms, function(nm) {
     v <- eco$valuation[[nm]]
-    productivity_gap(res[[nm]], v$observed, v$direction, v$effect)
+    legacy_gap(res[[nm]], v$observed, v$direction, v$effect)
   })
   names(gaps) <- nms
-  values <- lapply(nms, function(nm) value_losses(gaps[[nm]], eco$valuation[[nm]]$unit_value))
+  values <- lapply(nms, function(nm) legacy_value(gaps[[nm]], eco$valuation[[nm]]$unit_value))
   names(values) <- nms
 
   summary_tab <- do.call(rbind, lapply(nms, function(nm) {
@@ -134,8 +135,8 @@ reproduce_rasmussen_2024 <- function(n_draws = 5000, seed = 2024,
   }))
   comparison$analysis[comparison$analysis == "culling_hr_minus_1"] <- "culling_hr"
   rownames(comparison) <- NULL
-  adjusted <- deconflate(global_dairy_analyses(inputs, culling = TRUE),
-                         method = "published", warn = FALSE)
+  adjusted <- adjust_analyses(global_dairy_analyses(inputs, culling = TRUE),
+                              method = "published", warn = FALSE)
   structure(list(study = "Rasmussen et al. (2024)", comparison = comparison,
                  central = adjusted, mc = mc, n_draws = n_draws, inputs = inputs),
             class = "cm_reproduction")

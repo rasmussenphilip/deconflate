@@ -14,17 +14,32 @@
 # (plain source() runs it silently). Monte Carlo sections use small numbers
 # of draws so that the script runs in a few minutes; use more draws for real
 # analyses.
+#
+# To keep the results, set a folder before running the script:
+#   out_dir <- "C:/Users/me/Desktop/five_diseases_output"
+#   source(..., echo = TRUE, max.deparse.length = Inf)
+# The printed output is then written to run_all_features_output.txt (and
+# still shown in the console) and all plots to run_all_features_plots.pdf in
+# that folder. Messages and warnings appear in the console only. If the
+# script stops with an error, run sink() to close the output file.
 
 library(deconflate)
 
 five <- system.file("extdata", "five_diseases", package = "deconflate")
 if (!nzchar(five)) five <- "."  # running from a copy of this folder
 
-# Draw plots to a PDF file instead of the screen? (Set TRUE when sourcing
-# the script non-interactively.)
-save_plots <- !interactive()
+# Output folder: set `out_dir` before running the script to save the results
+# (see above). Without it, plots go to the screen, or to a PDF in tempdir()
+# when the script runs non-interactively.
+if (!exists("out_dir")) out_dir <- NULL
+if (!is.null(out_dir)) {
+  dir.create(out_dir, showWarnings = FALSE, recursive = TRUE)
+  text_file <- file.path(out_dir, "run_all_features_output.txt")
+  sink(text_file, split = TRUE)
+}
+save_plots <- !is.null(out_dir) || !interactive()
 if (save_plots) {
-  plot_file <- file.path(tempdir(), "deconflate_five_diseases.pdf")
+  plot_file <- file.path(if (is.null(out_dir)) tempdir() else out_dir, "run_all_features_plots.pdf")
   grDevices::pdf(plot_file, width = 9, height = 6)
 }
 
@@ -86,13 +101,14 @@ rbind(exact = n_dis(joint), sampled = n_dis(joint_s))
 # ---- 3. Adjustment: every method, every analysis ----------------------------
 section("3. Adjustment")
 
-# yield: crude impacts, no interactions: all three methods work
-res_yield <- lapply(c(simultaneous = "simultaneous", published = "published", global = "global"),
+# yield: crude impacts, no interactions: both methods of deconflate() work
+res_yield <- lapply(c(simultaneous = "simultaneous", global = "global"),
                     function(mt) deconflate(m_yield, method = mt, joint = joint))
 res_yield$simultaneous
-adj_yield <- sapply(res_yield, function(r) r$adjusted$adjusted)
-rownames(adj_yield) <- m_yield$diseases$id
-adj_yield
+# The published approximation (Rasmussen et al. 2022, eq. 16) is not a method
+# of deconflate(); compare_methods() shows it beside the others, for
+# comparison only
+compare_methods(m_yield, joint = joint)$impacts
 # With all pairs constrained, the three-way term does not change additive
 # results without interactions: global equals simultaneous here.
 all.equal(res_yield$global$adjusted$adjusted, res_yield$simultaneous$adjusted$adjusted)
@@ -100,7 +116,7 @@ all.equal(res_yield$global$adjusted$adjusted, res_yield$simultaneous$adjusted$ad
 # calving_interval: MAS and SCK are regression coefficients (adjusted_linear)
 res_ci <- deconflate(m_ci)
 res_ci$adjusted
-try_show(deconflate(m_ci, method = "published"))   # published: crude estimates only
+compare_methods(m_ci)$failed   # the published approximation: crude estimates only
 
 # welfare: interactions need the global method
 res_welfare <- deconflate(m_welfare, method = "global", joint = joint)
@@ -117,32 +133,31 @@ if (requireNamespace("lpSolve", quietly = TRUE)) {
   deconflate(m_yield, feasibility = "lp")$diagnostics$feasibility
 }
 
-# ---- 4. Reporting and valuation ---------------------------------------------
-section("4. Reporting and valuation")
+# ---- 4. Reporting, gaps and values ------------------------------------------
+section("4. Reporting, gaps and values")
 
-val_yield <- list(observed = 10000, direction = "decrease", effect = "percent", unit_value = 0.35)
-val_ci <- list(observed = 400, direction = "increase", effect = "absolute", unit_value = 3)
-
-contribution_table(res_yield$simultaneous, val_yield)
-summary(res_yield$simultaneous, valuation = val_yield)
+contribution_table(res_yield$simultaneous)
+summary(res_yield$simultaneous)
 attribute_burden(res_welfare)
 
-gap <- productivity_gap(res_yield$simultaneous, observed = 10000, direction = "decrease",
-                        effect = "percent")
-gap$summary
-gap$attribution
-value_losses(gap, unit_value = 0.35, additional = 2500)
-
-gap_ci <- productivity_gap(res_ci, observed = 400, direction = "increase", effect = "absolute")
-value_losses(gap_ci, unit_value = 3)
+# Gaps and values are computed in base R. yield: percent losses of an
+# observed 10,000 kg, valued at 0.35 per kg
+ry <- res_yield$simultaneous
+disease_free <- 10000 / (1 - ry$totals$adjusted_total / 100)
+gap <- disease_free - 10000
+data.frame(disease = ry$contributions$disease, gap = gap * ry$contributions$share,
+           value = gap * ry$contributions$share * 0.35)
+# calving_interval: absolute effects (days), so each contribution is its part
+# of the gap; valued at 3 per day
+data.frame(disease = res_ci$contributions$disease, days = res_ci$contributions$total,
+           value = res_ci$contributions$total * 3)
 
 # ---- 5. Comparing methods ---------------------------------------------------
 section("5. Comparing methods")
 
 # Each analysis with every method; unsupported or undefined methods are
 # reported as failed, not dropped silently.
-cmp <- compare_methods(inp$analyses,
-                       valuation = list(yield = val_yield, calving_interval = val_ci))
+cmp <- compare_methods(inp$analyses)
 cmp$totals
 cmp$failed
 
@@ -153,9 +168,10 @@ inp$hr_model
 hr_snap <- deconflate_hr(inp$hr_model, joint = joint)          # snapshot (default)
 hr_snap$adjusted
 deconflate_hr(inp$hr_model, method = "first_order")$adjusted
-try_show(deconflate_hr(inp$hr_model, method = "published"))     # crude hazard ratios only
+# The published (2024) approach is not a method of deconflate_hr();
+# compare_methods() shows it beside the others
 compare_methods(inp$hr_model, overall_risk = 0.25)
-ar <- attributable_risk(hr_snap, overall_risk = 0.25, unit_value = 1300)
+ar <- attributable_risk(hr_snap, overall_risk = 0.25)
 ar$summary
 ar$by_disease
 
@@ -211,10 +227,15 @@ lr <- function(p) {
 }
 summary(cm_reweight(mc, lr), diagnose = FALSE)[, c("method", "disease", "mean")]
 
-# Uncertain observed yield and price, carried through every draw
-g <- cm_mc_gap(mc, observed = dist_normal(10000, 500), direction = "decrease",
-               effect = "percent", unit_value = dist_uniform(0.30, 0.40), seed = 5)
-g$summary
+# Uncertain observed yield and price, carried through every draw (base R;
+# the draws have equal weights here, so plain means are correct)
+tt <- mc$totals
+set.seed(5)
+i <- match(tt$draw, mc$params$draw)
+obs <- rnorm(nrow(mc$params), 10000, 500)[i]
+tt$gap <- obs / (1 - tt$adjusted_total / 100) - obs
+tt$value <- tt$gap * runif(nrow(mc$params), 0.30, 0.40)[i]
+aggregate(cbind(gap, value) ~ method, data = tt, FUN = mean)
 
 # A sampler built in R, with a three-way ratio among the uncertain inputs
 s_three <- cm_sampler(m_welfare,
@@ -229,7 +250,7 @@ summary(mc_three, diagnose = FALSE)[, c("disease", "mean", "q0.025", "q0.975")]
 # ---- 9. Sensitivity and scenario screens ------------------------------------
 section("9. Sensitivity and screens")
 
-oat <- sensitivity_oat(m_yield, variation = 0.2, valuation = val_yield)
+oat <- sensitivity_oat(m_yield, variation = 0.2)
 head(oat, 10)
 scr_a <- screen_associations(m_yield, or_values = c(0.5, 3))
 scr_a
@@ -275,13 +296,11 @@ th_three$summary
 th_prob <- cm_threshold(m_yield, "prob:SCK", c(0.1, 0.6), conclusion = "rank",
                         diseases = c("MET", "SCK"), method = "simultaneous")
 th_prob$thresholds
-# the published method has a pole where its denominator is zero (for SCK at
-# a raw impact of about -1.43): it is reported as a discontinuity, never as
-# a threshold
-th_pub <- cm_threshold(m_yield, "impact:SCK", c(-4, 2.5), conclusion = "sign",
-                       diseases = "SCK", method = "published")
-th_pub$thresholds
-th_pub$regions
+# A jump through a pole (e.g. of the published approximation, which
+# cm_threshold() no longer runs, or of a nearly singular system) is reported
+# as a discontinuity in `thresholds`, never as a threshold; ranges that
+# cannot be evaluated are listed in `regions`
+th_prob$regions
 
 # ---- 11. Simulation and non-additive losses ---------------------------------
 section("11. Simulation and Shapley values")
@@ -345,7 +364,7 @@ section("13. Plots")
 
 try_plot(plot(res_yield$simultaneous))
 try_plot(plot(res_all))
-try_plot(plot_burden(res_yield$simultaneous, valuation = val_yield))
+try_plot(plot_burden(res_yield$simultaneous))
 try_plot(plot(mc))
 try_plot(plot(oat))
 try_plot(plot(scr_a))
@@ -355,4 +374,8 @@ try_plot(plot(th_change))
 if (save_plots) {
   grDevices::dev.off()
   cat("\nPlots written to", plot_file, "\n")
+}
+if (!is.null(out_dir)) {
+  cat("Printed output written to", text_file, "\n")
+  sink()
 }

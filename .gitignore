@@ -9,3 +9,4 @@ deconflate.Rcheck/
 .quarto
 docs
 inst/doc
+__pycache__/
