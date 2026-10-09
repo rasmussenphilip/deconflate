@@ -159,24 +159,33 @@ list of results.</p>
 <span><span class="co">#&gt;     published     2.5          2.111</span></span>
 <span><span class="co">#&gt;  simultaneous     2.5          2.109</span></span>
 <span><span class="co">#&gt;        global     2.5          2.109</span></span></code></pre></div>
+<p><code><a href="../reference/deconflate.html">deconflate()</a></code> has two methods:</p>
 <ul>
 <li>
 <code>"simultaneous"</code> (the default) solves the system of
-impact equations exactly, using the pairwise 2x2 tables.</li>
-<li>
-<code>"published"</code> is the proportional approximation of
-Rasmussen et al. (2022, 2024), eq. 16, kept for reproduction and
-comparison. It is defined for crude estimates only.</li>
+impact equations exactly, using the pairwise 2x2 tables. Use it when
+impacts are additive and every pair of diseases has an association
+estimate or a defensible independence assumption.</li>
 <li>
 <code>"global"</code> fits the maximum-entropy distribution of
 disease combinations and can include impact interactions
-(<code><a href="../articles/interactions.html">vignette("interactions")</a></code>). Without interactions and
-unknown pairs, it equals <code>"simultaneous"</code>. The pairwise
-methods work for any number of diseases; the global method enumerates
+(<code><a href="../articles/interactions.html">vignette("interactions")</a></code>). Use it otherwise: when impacts
+interact, or when some pairs are unknown. Without interactions and
+unknown pairs, it equals <code>"simultaneous"</code>. The simultaneous
+method works for any number of diseases; the global method enumerates
 combinations up to about 20 diseases, and beyond that uses the sampled
 backend of <code><a href="../reference/fit_joint.html">fit_joint()</a></code>
 (<code><a href="../articles/thresholds-and-scaling.html">vignette("thresholds-and-scaling")</a></code>).</li>
 </ul>
+<p>The <code>"published"</code> row above is the proportional
+approximation of Rasmussen et al. (2022, 2024), eq. 16. It is not a
+method of <code><a href="../reference/deconflate.html">deconflate()</a></code>: it is kept for comparison
+(<code><a href="../reference/compare_methods.html">compare_methods()</a></code>, <code><a href="../reference/cm_monte_carlo.html">cm_monte_carlo()</a></code>) and for
+reproducing the published analyses
+(<code><a href="../articles/reproducing-published.html">vignette("reproducing-published")</a></code>) only. It is defined for
+crude estimates only. (Hazard ratios have their own adapter, with the
+snapshot model as the default; see
+<code><a href="../articles/culling-hazard-ratios.html">vignette("culling-hazard-ratios")</a></code>.)</p>
 <div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">res</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/deconflate.html">deconflate</a></span><span class="op">(</span><span class="va">m</span><span class="op">)</span></span>
 <span><span class="va">res</span></span>
@@ -297,73 +306,63 @@ gives the wrong answer:</p>
 <span><span class="co">#&gt; "The published approximation is defined for crude estimates only; use method = 'simultaneous' or 'global' for adjusted estimands."</span></span></code></pre></div>
 </div>
 <div class="section level2">
-<h2 id="productivity-gaps-and-values-optional">Productivity gaps and values (optional)<a class="anchor" aria-label="anchor" href="#productivity-gaps-and-values-optional"></a>
+<h2 id="from-adjusted-impacts-to-gaps-and-values">From adjusted impacts to gaps and values<a class="anchor" aria-label="anchor" href="#from-adjusted-impacts-to-gaps-and-values"></a>
 </h2>
-<p>The adjustment works on impacts alone. Turning the aggregate into a
-productivity gap needs to know what the impacts mean, so it is a
-separate, optional step. Here the impacts are percent decreases in a
-yield of 10,000 units:</p>
+<p><code><a href="../reference/deconflate.html">deconflate()</a></code> returns impacts and contributions in the
+units of the impacts; it does not convert them into other quantities.
+Turning them into a gap between the observed and the disease-free level
+of an outcome, or into a value, needs to know what the impacts mean, and
+takes a few lines of base R.</p>
+<p>When the impacts are percentage losses relative to the disease-free
+level (as in <code>m</code>, with an observed mean of 10,000 units), the
+disease-free level is <code>observed / (1 - aggregate / 100)</code>, the
+gap is the disease-free level minus the observed level, and each
+disease’s part of the gap is its share of the aggregate:</p>
 <div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">gaps</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/productivity_gap.html">productivity_gap</a></span><span class="op">(</span><span class="va">res</span>, observed <span class="op">=</span> <span class="fl">10000</span>, direction <span class="op">=</span> <span class="st">"decrease"</span>,</span>
-<span>                         effect <span class="op">=</span> <span class="st">"percent"</span><span class="op">)</span></span>
-<span><span class="va">gaps</span><span class="op">$</span><span class="va">summary</span></span>
-<span><span class="co">#&gt;   observed disease_free      gap  aggregate direction  effect</span></span>
-<span><span class="co">#&gt; 1    10000     10215.47 215.4676 0.02109229  decrease percent</span></span>
-<span><span class="va">gaps</span><span class="op">$</span><span class="va">attribution</span></span>
-<span><span class="co">#&gt;   disease       gap  gap_main gap_interaction</span></span>
-<span><span class="co">#&gt; 1      d1  21.89431  21.89431               0</span></span>
-<span><span class="co">#&gt; 2      d2  51.90090  51.90090               0</span></span>
-<span><span class="co">#&gt; 3      d3 141.67238 141.67238               0</span></span></code></pre></div>
-<p><code><a href="../reference/value_losses.html">value_losses()</a></code> values the gap. Lump-sum costs that are
-not part of any adjustment (e.g. veterinary expenditure) can be added
-with <code>additional</code>; they are reported separately and included
-in the total:</p>
+<code class="sourceCode R"><span><span class="va">observed</span> <span class="op">&lt;-</span> <span class="fl">10000</span></span>
+<span><span class="va">aggregate</span> <span class="op">&lt;-</span> <span class="va">res</span><span class="op">$</span><span class="va">totals</span><span class="op">$</span><span class="va">adjusted_total</span>            <span class="co"># in percent</span></span>
+<span><span class="va">disease_free</span> <span class="op">&lt;-</span> <span class="va">observed</span> <span class="op">/</span> <span class="op">(</span><span class="fl">1</span> <span class="op">-</span> <span class="va">aggregate</span> <span class="op">/</span> <span class="fl">100</span><span class="op">)</span></span>
+<span><span class="va">gap</span> <span class="op">&lt;-</span> <span class="va">disease_free</span> <span class="op">-</span> <span class="va">observed</span></span>
+<span><span class="va">ct</span> <span class="op">&lt;-</span> <span class="va">res</span><span class="op">$</span><span class="va">contributions</span></span>
+<span><span class="va">by_disease</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span>disease <span class="op">=</span> <span class="va">ct</span><span class="op">$</span><span class="va">disease</span>, gap <span class="op">=</span> <span class="va">gap</span> <span class="op">*</span> <span class="va">ct</span><span class="op">$</span><span class="va">share</span><span class="op">)</span></span>
+<span><span class="va">by_disease</span></span>
+<span><span class="co">#&gt;   disease       gap</span></span>
+<span><span class="co">#&gt; 1      d1  21.89431</span></span>
+<span><span class="co">#&gt; 2      d2  51.90090</span></span>
+<span><span class="co">#&gt; 3      d3 141.67238</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>disease_free <span class="op">=</span> <span class="va">disease_free</span>, gap <span class="op">=</span> <span class="va">gap</span><span class="op">)</span></span>
+<span><span class="co">#&gt; disease_free          gap </span></span>
+<span><span class="co">#&gt;   10215.4676     215.4676</span></span></code></pre></div>
+<p>A value per unit of outcome turns the gaps into values; any costs
+that are not part of the adjustment are added separately:</p>
 <div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">v</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/value_losses.html">value_losses</a></span><span class="op">(</span><span class="va">gaps</span>, unit_value <span class="op">=</span> <span class="fl">0.30</span>, additional <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>veterinary <span class="op">=</span> <span class="fl">25</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="va">v</span><span class="op">$</span><span class="va">by_disease</span></span>
-<span><span class="co">#&gt;   disease       gap     value</span></span>
-<span><span class="co">#&gt; 1      d1  21.89431  6.568292</span></span>
-<span><span class="co">#&gt; 2      d2  51.90090 15.570271</span></span>
-<span><span class="co">#&gt; 3      d3 141.67238 42.501715</span></span>
-<span><span class="va">v</span><span class="op">$</span><span class="va">total</span></span>
-<span><span class="co">#&gt; [1] 89.64028</span></span></code></pre></div>
-<p>The same valuation can be passed to
-<code><a href="../reference/contribution_table.html">contribution_table()</a></code>, <code><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary()</a></code> and
-<code><a href="../reference/compare_methods.html">compare_methods()</a></code>:</p>
-<div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">val</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>observed <span class="op">=</span> <span class="fl">10000</span>, direction <span class="op">=</span> <span class="st">"decrease"</span>, effect <span class="op">=</span> <span class="st">"percent"</span>,</span>
-<span>            unit_value <span class="op">=</span> <span class="fl">0.30</span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">res</span>, valuation <span class="op">=</span> <span class="va">val</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Comorbidity adjustment (method: simultaneous) - milk yield loss [% of yield]</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt;  raw_sum adjusted_total interaction_total reduction observed disease_free   gap</span></span>
-<span><span class="co">#&gt;      2.5          2.109                 0    0.1563    10000        10215 215.5</span></span>
-<span><span class="co">#&gt;  value</span></span>
-<span><span class="co">#&gt;  64.64</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt;  disease raw adjusted   change contribution   main interaction  share    gap</span></span>
-<span><span class="co">#&gt;       d1 2.5    2.143 -0.14270       0.2143 0.2143           0 0.1016  21.89</span></span>
-<span><span class="co">#&gt;       d2 5.0    3.387 -0.32258       0.5081 0.5081           0 0.2409  51.90</span></span>
-<span><span class="co">#&gt;       d3 7.5    6.934 -0.07544       1.3868 1.3868           0 0.6575 141.67</span></span>
-<span><span class="co">#&gt;   value</span></span>
-<span><span class="co">#&gt;   6.568</span></span>
-<span><span class="co">#&gt;  15.570</span></span>
-<span><span class="co">#&gt;  42.502</span></span>
-<span><span class="co">#&gt; Feasibility: triple screen passed (necessary condition only)</span></span></code></pre></div>
+<code class="sourceCode R"><span><span class="va">unit_value</span> <span class="op">&lt;-</span> <span class="fl">0.30</span></span>
+<span><span class="va">by_disease</span><span class="op">$</span><span class="va">value</span> <span class="op">&lt;-</span> <span class="va">by_disease</span><span class="op">$</span><span class="va">gap</span> <span class="op">*</span> <span class="va">unit_value</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">by_disease</span><span class="op">$</span><span class="va">value</span><span class="op">)</span></span>
+<span><span class="co">#&gt; [1] 64.64028</span></span></code></pre></div>
+<p><code>ct$share</code> is <code>NA</code> when the aggregate is zero;
+<code>disease_free * ct$total / 100</code> gives the same gaps and stays
+defined. For an outcome that disease increases, the disease-free level
+is <code>observed / (1 + aggregate / 100)</code> and the gap is
+<code>observed - disease_free</code>. When the impacts are absolute
+effects (in the outcome’s own units, such as the days of the
+calving-interval analysis above), no conversion is needed: each
+disease’s contribution (<code>ct$total</code>) is its part of the gap,
+and the aggregate is the gap.</p>
 </div>
 <div class="section level2">
 <h2 id="feasibility">Feasibility<a class="anchor" aria-label="anchor" href="#feasibility"></a>
 </h2>
 <p>Each pairwise table can be valid on its own while no population has
-all of them. By default the pairwise methods screen every triple of
+all of them. By default the simultaneous method screens every triple of
 diseases (a necessary condition), and <code>feasibility = "lp"</code>
 runs an exact check (it needs the <code>lpSolve</code> package):</p>
-<div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">res</span><span class="op">$</span><span class="va">diagnostics</span><span class="op">$</span><span class="va">feasibility</span></span>
 <span><span class="co">#&gt; [1] "triple screen passed (necessary condition only)"</span></span></code></pre></div>
 <p>Three diseases with probability 0.5, two strong positive associations
 and one strong negative one cannot coexist:</p>
-<div class="sourceCode" id="cb20"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">bad</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cm_model.html">cm_model</a></span><span class="op">(</span></span>
 <span>  <span class="fu"><a href="../reference/cm_diseases.html">cm_diseases</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"a"</span>, <span class="st">"b"</span>, <span class="st">"c"</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0.5</span>, <span class="fl">0.5</span>, <span class="fl">0.5</span><span class="op">)</span><span class="op">)</span>,</span>
 <span>  <span class="fu"><a href="../reference/cm_impacts.html">cm_impacts</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"a"</span>, <span class="st">"b"</span>, <span class="st">"c"</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">2</span>, <span class="fl">3</span><span class="op">)</span><span class="op">)</span>,</span>
@@ -422,7 +421,7 @@ above)</td>
 <p>All errors also have class <code>deconflate_error</code>, and
 warnings <code>deconflate_warning</code>
 (e.g. <code>deconflate_sign_change</code>).</p>
-<div class="sourceCode" id="cb21"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb20"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">e</span> <span class="op">&lt;-</span> <span class="kw"><a href="https://rdrr.io/r/base/conditions.html" class="external-link">tryCatch</a></span><span class="op">(</span><span class="fu"><a href="../reference/deconflate.html">deconflate</a></span><span class="op">(</span><span class="va">bad</span><span class="op">)</span>, deconflate_error <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">e</span><span class="op">)</span> <span class="va">e</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/class.html" class="external-link">class</a></span><span class="op">(</span><span class="va">e</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [1] "deconflate_infeasible" "deconflate_error"      "error"                </span></span>
@@ -434,8 +433,8 @@ warnings <code>deconflate_warning</code>
 <p><code><a href="../reference/simulate_raw_impacts.html">simulate_raw_impacts()</a></code> computes the raw impacts that
 single-disease studies would report in a herd with known true impacts.
 Adjusting them should recover the truth; the published approximation
-does so only approximately:</p>
-<div class="sourceCode" id="cb22"><pre class="downlit sourceCode r">
+(shown for comparison) does so only approximately:</p>
+<div class="sourceCode" id="cb21"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">m_sim</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cm_model.html">cm_model</a></span><span class="op">(</span><span class="va">pop</span>, <span class="fu"><a href="../reference/simulate_raw_impacts.html">simulate_raw_impacts</a></span><span class="op">(</span><span class="va">pop</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>d1 <span class="op">=</span> <span class="fl">2</span>, d2 <span class="op">=</span> <span class="fl">4</span>, d3 <span class="op">=</span> <span class="fl">6</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="fu"><a href="../reference/compare_methods.html">compare_methods</a></span><span class="op">(</span><span class="va">m_sim</span>, methods <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"published"</span>, <span class="st">"simultaneous"</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt; &lt;cm_comparison&gt; methods: published, simultaneous</span></span>

@@ -4,10 +4,8 @@ Thirteen endemic diseases and conditions of UK dairy cattle, with
 cow-level prevalence (Table 2), inter-disease odds ratios (Table 3, all
 other pairs independent), and two analyses: milk yield (Table 4, %
 decrease) and calving interval (Table 5, % increase). Use
-[`uk_dairy_2022_economics()`](https://rasmussenphilip.github.io/deconflate/reference/uk_dairy_2022_economics.md)
-for the observed means and unit values (Table 1), and
 [`reproduce_rasmussen_2022()`](https://rasmussenphilip.github.io/deconflate/reference/reproduce.md)
-for the published tables.
+for the published tables, including the economic values.
 
 ## Usage
 
@@ -48,49 +46,51 @@ retained placenta, SCK subclinical ketosis.
 
 ``` r
 uk <- example_uk_dairy_2022()
-deconflate(uk, method = "published")
+deconflate(uk)
+#> Warning: Adjusted impacts change sign for MF. The raw impacts are smaller than the associated diseases alone would produce under the additive model; check the estimands, and whether the estimates come from populations with different comorbidity patterns.
+#> Warning: Adjusted impacts change sign for SCK. The raw impacts are smaller than the associated diseases alone would produce under the additive model; check the estimands, and whether the estimates come from populations with different comorbidity patterns.
 #> <cm_results> 2 analyses: yield, fertility
 #> 
 #> == yield ==
-#> <cm_result> method: published; milk yield loss [% decrease]
+#> <cm_result> method: simultaneous; milk yield loss [% decrease]
 #> 
-#>  disease  raw adjusted  change
-#>       CO 0.00  0.00000      NA
-#>       DA 4.04  2.36694 -0.4141
-#>      DYS 4.05  2.93975 -0.2741
-#>      FAS 7.33  7.33000  0.0000
-#>      GIN 3.28  3.28000  0.0000
-#>      LAM 5.54  4.83063 -0.1280
-#>      MAS 4.57  3.76265 -0.1767
-#>      MET 3.95  2.40914 -0.3901
-#>       MF 0.41  0.09989 -0.7564
-#>      NEO 4.20  4.20000  0.0000
-#>      PTB 5.90  4.43066 -0.2490
-#>       RP 7.38  6.10015 -0.1734
-#>      SCK 3.05  1.91867 -0.3709
+#>  disease  raw adjusted   change
+#>       CO 0.00  -0.6059       NA
+#>       DA 4.04   2.2006 -0.45530
+#>      DYS 4.05   2.9495 -0.27174
+#>      FAS 7.33   7.3300  0.00000
+#>      GIN 3.28   3.2800  0.00000
+#>      LAM 5.54   5.0329 -0.09154
+#>      MAS 4.57   4.0846 -0.10622
+#>      MET 3.95   1.8610 -0.52887
+#>       MF 0.41  -0.5145 -2.25479
+#>      NEO 4.20   4.2000  0.00000
+#>      PTB 5.90   4.1323 -0.29962
+#>       RP 7.38   6.5817 -0.10817
+#>      SCK 3.05   1.6425 -0.46148
 #> 
-#> Raw sum: 7.168; adjusted total: 6.046
-#> Diagnostics: residual 6.14e-01, condition number 2.08, sign changes 0
+#> Raw sum: 7.168; adjusted total: 5.982
+#> Diagnostics: residual 4.44e-16, condition number 2.08, sign changes 1 (MF)
 #> 
 #> == fertility ==
-#> <cm_result> method: published; calving interval increase [% increase]
+#> <cm_result> method: simultaneous; calving interval increase [% increase]
 #> 
-#>  disease   raw adjusted   change
-#>       CO 11.26  11.1282 -0.01171
-#>       DA  0.00   0.0000       NA
-#>      DYS  6.96   6.0198 -0.13509
-#>      FAS  0.00   0.0000       NA
-#>      GIN  1.20   1.2000  0.00000
-#>      LAM 12.47  11.8896 -0.04655
-#>      MAS  0.00   0.0000       NA
-#>      MET  4.74   4.0989 -0.13526
-#>       MF  0.00   0.0000       NA
-#>      NEO  7.21   7.2100  0.00000
-#>      PTB  5.79   3.8550 -0.33419
-#>       RP  2.74   1.6765 -0.38815
-#>      SCK  1.50   0.5495 -0.63364
+#>  disease   raw adjusted    change
+#>       CO 11.26  11.4517  0.017022
+#>       DA  0.00  -0.3935        NA
+#>      DYS  6.96   6.0841 -0.125855
+#>      FAS  0.00   0.0000        NA
+#>      GIN  1.20   1.2000  0.000000
+#>      LAM 12.47  12.3725 -0.007815
+#>      MAS  0.00  -0.9409        NA
+#>      MET  4.74   4.6170 -0.025941
+#>       MF  0.00   0.2951        NA
+#>      NEO  7.21   7.2100  0.000000
+#>      PTB  5.79   3.0435 -0.474354
+#>       RP  2.74   1.1739 -0.571558
+#>      SCK  1.50  -0.9642 -1.642802
 #> 
-#> Raw sum: 7.573; adjusted total: 6.907
-#> Diagnostics: residual 1.52e+00, condition number 2.08, sign changes 0
+#> Raw sum: 7.573; adjusted total: 6.448
+#> Diagnostics: residual 8.88e-16, condition number 2.08, sign changes 1 (SCK)
 #> 
 ```

@@ -50,18 +50,25 @@ additive impacts; that historical calculation is only available inside
 
 ``` r
 gd <- example_global_dairy()
-deconflate(gd, method = "published")$yield$adjusted
-#>    disease       raw   adjusted     change estimand adjusted_for
-#> 1       CK 0.4321944 0.02473297 -0.9427735    crude         <NA>
-#> 2       CM 3.2499000 1.33194993 -0.5901566    crude         <NA>
-#> 3       DA 2.8369300 0.79378291 -0.7201965    crude         <NA>
-#> 4      DYS 4.9190880 3.56881898 -0.2744958    crude         <NA>
-#> 5      LAM 4.8061000 2.53240737 -0.4730848    crude         <NA>
-#> 6      MET 5.6130850 2.84095146 -0.4938699    crude         <NA>
-#> 7       MF 0.5365131 0.06897532 -0.8714378    crude         <NA>
-#> 8       OC 3.7478390 2.63859343 -0.2959694    crude         <NA>
-#> 9      PTB 4.3000000 3.22917066 -0.2490301    crude         <NA>
-#> 10      RP 4.1986640 2.25771112 -0.4622787    crude         <NA>
-#> 11     SCK 8.3964720 7.10307185 -0.1540409    crude         <NA>
-#> 12     SCM 6.2931840 5.58961905 -0.1117979    crude         <NA>
+deconflate(gd)$yield$adjusted
+#> Warning: Adjusted impacts change sign for CK, CM, DA, MF. The raw impacts are smaller than the associated diseases alone would produce under the additive model; check the estimands, and whether the estimates come from populations with different comorbidity patterns.
+#> Warning: Adjusted impacts change sign for CK, DA, LAM, SCK, SCM. The raw impacts are smaller than the associated diseases alone would produce under the additive model; check the estimands, and whether the estimates come from populations with different comorbidity patterns.
+#>    disease       raw   adjusted       change estimand adjusted_for
+#> 1       CK 0.4321944 -5.3709141 -13.42707923    crude         <NA>
+#> 2       CM 3.2499000 -0.3380725  -1.10402550    crude         <NA>
+#> 3       DA 2.8369300 -2.6316316  -1.92763360    crude         <NA>
+#> 4      DYS 4.9190880  4.3096749  -0.12388742    crude         <NA>
+#> 5      LAM 4.8061000  1.9792779  -0.58817379    crude         <NA>
+#> 6      MET 5.6130850  2.7909168  -0.50278379    crude         <NA>
+#> 7       MF 0.5365131 -1.5399737  -3.87033758    crude         <NA>
+#> 8       OC 3.7478390  3.2174755  -0.14151181    crude         <NA>
+#> 9      PTB 4.3000000  3.9410642  -0.08347344    crude         <NA>
+#> 10      RP 4.1986640  2.4733053  -0.41093041    crude         <NA>
+#> 11     SCK 8.3964720  8.2785938  -0.01403901    crude         <NA>
+#> 12     SCM 6.2931840  6.5761493   0.04496377    crude         <NA>
+compare_methods(gd$models$yield)$totals
+#>         method  raw_sum adjusted_total
+#> 1    published 9.931174       7.280553
+#> 2 simultaneous 9.931174       7.494192
+#> 3       global 9.931174       7.494192
 ```

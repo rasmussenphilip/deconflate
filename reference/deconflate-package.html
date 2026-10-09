@@ -70,21 +70,24 @@ optionally, three-way scenarios (<code><a href="cm_three_way.html">cm_three_way(
 with <code><a href="cm_model.html">cm_model()</a></code>, or several with <code><a href="cm_analyses.html">cm_analyses()</a></code>. Or read the same
 tables from CSV files or data frames with <code><a href="cm_read_inputs.html">cm_read_inputs()</a></code> (see
 <code><a href="cm_template.html">cm_template()</a></code>).</p></li>
-<li><p>Adjust impacts with <code><a href="deconflate.html">deconflate()</a></code>, using one of three methods:</p><ul><li><p><code>"simultaneous"</code> (default): the exact solution of the additive impact
+<li><p>Adjust impacts with <code><a href="deconflate.html">deconflate()</a></code>, using one of two methods:</p><ul><li><p><code>"simultaneous"</code> (default): the exact solution of the additive impact
 equations, built from pairwise 2x2 tables. Crude estimates and
 coefficients from additive regressions with a recorded adjustment set
-(<code>estimand = "adjusted_linear"</code>) are supported.</p></li>
-<li><p><code>"published"</code>: the proportional approximation of Rasmussen et al.
-(2022), eq. 16, for crude estimates, for reproduction and comparison.</p></li>
+(<code>estimand = "adjusted_linear"</code>) are supported. Use it when impacts
+are additive and every pair has an association estimate or a
+defensible independence assumption.</p></li>
 <li><p><code>"global"</code>: fits a maximum-entropy distribution of disease
 combinations with <code><a href="fit_joint.html">fit_joint()</a></code>, then solves the impact equations
-including pairwise interactions (<code><a href="cm_interactions.html">cm_interactions()</a></code>).</p></li>
+including pairwise interactions (<code><a href="cm_interactions.html">cm_interactions()</a></code>) and unknown
+pairs.</p></li>
 </ul></li>
 <li><p>Inspect each disease's contribution to the aggregate
-(<code><a href="attribute_burden.html">attribute_burden()</a></code>, <code><a href="contribution_table.html">contribution_table()</a></code>); optionally turn the
-aggregate into a productivity gap and a value with
-<code><a href="productivity_gap.html">productivity_gap()</a></code> and <code><a href="value_losses.html">value_losses()</a></code>. <code><a href="compare_methods.html">compare_methods()</a></code>
-tabulates the methods side by side.</p></li>
+(<code><a href="attribute_burden.html">attribute_burden()</a></code>, <code><a href="contribution_table.html">contribution_table()</a></code>), in the units of the
+impacts. Converting the results into other quantities (e.g. a
+productivity gap or a monetary value) is left to the user.
+<code><a href="compare_methods.html">compare_methods()</a></code> sets the methods side by side, including the
+proportional approximation of Rasmussen et al. (2022, eq. 16), which is
+kept for comparison and reproduction only.</p></li>
 <li><p>Hazard ratios (e.g. of culling) combine multiplicatively and have their
 own adapter: <code><a href="cm_hazard_ratios.html">cm_hazard_ratios()</a></code>, <code><a href="cm_hr_model.html">cm_hr_model()</a></code>, <code><a href="deconflate_hr.html">deconflate_hr()</a></code>
 and <code><a href="attributable_risk.html">attributable_risk()</a></code>.</p></li>

@@ -11,7 +11,6 @@ diseases.
 attributable_risk(
   result,
   overall_risk,
-  unit_value = NULL,
   joint = NULL,
   allocate = TRUE,
   max_present = Inf
@@ -30,11 +29,6 @@ attributable_risk(
 
   Overall period risk of the event, as a proportion (e.g. `0.25` for an
   annual culling rate of 25%).
-
-- unit_value:
-
-  Optional value per animal removed (e.g. replacement cost less salvage
-  value); adds `value` columns.
 
 - joint:
 
@@ -59,8 +53,9 @@ attributable_risk(
 ## Value
 
 A `cm_attributable` list with `summary` (overall, disease-free and
-attributable risk, attributable fraction, value, and any unallocated
-part), `by_disease` and `baseline_hazard`.
+attributable risk, attributable fraction, and any unallocated part),
+`by_disease` and `baseline_hazard`. Risks are proportions of animals
+experiencing the event during the period.
 
 ## Details
 
@@ -90,13 +85,12 @@ change in the mixture of diseases over the period).
 hr <- cm_hr_model(example_supplement(),
                   cm_hazard_ratios(c("d1", "d2", "d3"), c(1.5, 2.0, 1.3),
                                    estimand = "snapshot_crude"))
-attributable_risk(deconflate_hr(hr), overall_risk = 0.25, unit_value = 1300)
+attributable_risk(deconflate_hr(hr), overall_risk = 0.25)
 #> <cm_attributable> snapshot hazard-multiplier model
 #>   Overall risk 0.25; disease-free risk 0.2134; attributable 0.03665 (14.7% of the overall risk)
-#>   Value: 47.64
 #> 
-#>  disease hr_adjusted attributable  share  value
-#>       d1       1.383     0.007371 0.2011  9.582
-#>       d2       1.891     0.023488 0.6409 30.534
-#>       d3       1.144     0.005791 0.1580  7.528
+#>  disease hr_adjusted attributable  share
+#>       d1       1.383     0.007371 0.2011
+#>       d2       1.891     0.023488 0.6409
+#>       d3       1.144     0.005791 0.1580
 ```

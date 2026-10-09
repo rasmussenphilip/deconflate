@@ -21,19 +21,35 @@ A
 Note: the published productivity gap (10,225; 20, 61 and 143 units)
 rounds the adjusted impacts to 2%, 4% and 7% before computing the gap.
 Without rounding, the published method gives 10,215.7 and 21.1, 56.7 and
-137.9 units.
+137.9 units (see
+[`vignette("reproducing-published")`](https://rasmussenphilip.github.io/deconflate/articles/reproducing-published.md)).
 
 ## Examples
 
 ``` r
-deconflate(example_supplement(), method = "published")
-#> <cm_result> method: published; yield [%]
+deconflate(example_supplement())
+#> <cm_result> method: simultaneous; yield [%]
 #> 
-#>  disease raw adjusted  change
-#>       d1 2.5    2.065 -0.1740
-#>       d2 5.0    3.699 -0.2601
-#>       d3 7.5    6.748 -0.1002
+#>  disease raw adjusted   change
+#>       d1 2.5    2.143 -0.14270
+#>       d2 5.0    3.387 -0.32258
+#>       d3 7.5    6.934 -0.07544
 #> 
-#> Raw sum: 2.5; adjusted total: 2.111
-#> Diagnostics: residual 2.67e-01, condition number 1.53, sign changes 0
+#> Raw sum: 2.5; adjusted total: 2.109
+#> Diagnostics: residual 8.88e-16, condition number 1.53, sign changes 0
+compare_methods(example_supplement())
+#> <cm_comparison> methods: published, simultaneous, global
+#> Units: %
+#> 
+#> Adjusted values:
+#>  disease raw published simultaneous global
+#>       d1 2.5      2.07         2.14   2.14
+#>       d2 5.0      3.70         3.39   3.39
+#>       d3 7.5      6.75         6.93   6.93
+#> 
+#> Totals:
+#>        method raw_sum adjusted_total
+#>     published     2.5          2.111
+#>  simultaneous     2.5          2.109
+#>        global     2.5          2.109
 ```

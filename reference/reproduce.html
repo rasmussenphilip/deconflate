@@ -108,10 +108,11 @@ recovered by rescaling (eq. 23);</p></li>
 
 <p><code>reproduce_rasmussen_2022()</code> adjusts yield and calving interval for the UK
 example (<code><a href="example_uk_dairy_2022.html">example_uk_dairy_2022()</a></code>) and the historical culling analysis,
-computes the productivity gaps and their values with
-<code><a href="uk_dairy_2022_economics.html">uk_dairy_2022_economics()</a></code> (and the paper's culling valuation), adds
-veterinary expenditure, and back-converts the culling impacts to hazard
-ratios.
+computes the productivity gaps and their values with the paper's economic
+inputs (Table 1, and its culling valuation), adds veterinary expenditure,
+and back-converts the culling impacts to hazard ratios. (The gap and
+valuation steps exist only here: the package itself does not value
+impacts.)
 Fertility and the culling hazard ratios reproduce the paper; yield does not
 reproduce exactly from the printed Table 4 (see
 <code><a href="../articles/reproducing-published.html">vignette("reproducing-published")</a></code>).</p>

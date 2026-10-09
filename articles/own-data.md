@@ -61,7 +61,7 @@ analysis, the standard workflow:
 
 dir <- file.path(tempdir(), "my-inputs")
 cm_template(dir, overwrite = TRUE)
-#> Wrote 5 files to /tmp/RtmpvHQgP8/my-inputs
+#> Wrote 5 files to /tmp/Rtmp9Ghi8s/my-inputs
 list.files(dir)
 #> [1] "associations.csv" "diseases.csv"     "impacts.csv"      "interactions.csv"
 #> [5] "three_way.csv"
@@ -213,7 +213,7 @@ milk yield (in percent) and calving interval (in days):
 
 dir2 <- file.path(tempdir(), "my-analyses")
 cm_template(dir2, type = "analyses", overwrite = TRUE)
-#> Wrote 6 files to /tmp/RtmpvHQgP8/my-analyses
+#> Wrote 6 files to /tmp/Rtmp9Ghi8s/my-analyses
 list.files(dir2)
 #> [1] "associations.csv"             "diseases.csv"                
 #> [3] "impacts_calving_interval.csv" "impacts_yield.csv"           
@@ -428,36 +428,59 @@ cmp$impacts[cmp$impacts$analysis == "yield", ]
 #> 24    yield     SCM 6.2931840 5.58961905    6.5761493
 ```
 
-The simultaneous solution changes the sign of several adjusted impacts
-(see
+The `"published"` column (the approximation of the paper, kept for
+comparison only) and the simultaneous solution differ; the simultaneous
+solution changes the sign of several adjusted impacts (see
 [`vignette("reproducing-published")`](https://rasmussenphilip.github.io/deconflate/articles/reproducing-published.md)).
-The culling hazard ratios are adjusted separately
-([`vignette("culling-hazard-ratios")`](https://rasmussenphilip.github.io/deconflate/articles/culling-hazard-ratios.md)):
+The culling hazard ratios are adjusted separately with the snapshot
+model
+([`vignette("culling-hazard-ratios")`](https://rasmussenphilip.github.io/deconflate/articles/culling-hazard-ratios.md)),
+and
+[`compare_methods()`](https://rasmussenphilip.github.io/deconflate/reference/compare_methods.md)
+sets the paper’s approach beside it:
 
 ``` r
 
-deconflate_hr(gd$hr_model, method = "published")
-#> <cm_hr_result> method: published
+hr_gd <- deconflate_hr(gd$hr_model)
+#> Warning: Adjusted hazard ratios cross 1 for CK, MET. The raw hazard ratios are
+#> smaller than the associated diseases alone would produce; check the estimands
+#> and source populations.
+hr_gd
+#> <cm_hr_result> method: snapshot
 #> 
 #>  disease   raw adjusted   change       estimand
-#>       CK 1.500    1.178 -0.21500 snapshot_crude
-#>       CM 2.300    1.904 -0.17220 snapshot_crude
-#>       DA 2.851    2.198 -0.22912 snapshot_crude
-#>      DYS 1.258    1.098 -0.12699 snapshot_crude
-#>      LAM 1.745    1.381 -0.20877 snapshot_crude
-#>      MET 1.116    1.012 -0.09318 snapshot_crude
-#>       MF 3.000    2.648 -0.11742 snapshot_crude
-#>       OC 1.620    1.459 -0.09960 snapshot_crude
-#>      PTB 2.311    2.047 -0.11395 snapshot_crude
-#>       RP 1.600    1.284 -0.19715 snapshot_crude
-#>      SCK 1.920    1.675 -0.12747 snapshot_crude
-#>      SCM 1.450    1.255 -0.13453 snapshot_crude
+#>       CK 1.500   0.9821 -0.34529 snapshot_crude
+#>       CM 2.300   1.8194 -0.20898 snapshot_crude
+#>       DA 2.851   1.8477 -0.35196 snapshot_crude
+#>      DYS 1.258   1.0505 -0.16500 snapshot_crude
+#>      LAM 1.745   1.2230 -0.29912 snapshot_crude
+#>      MET 1.116   0.7198 -0.35524 snapshot_crude
+#>       MF 3.000   2.6601 -0.11325 snapshot_crude
+#>       OC 1.620   1.5580 -0.03829 snapshot_crude
+#>      PTB 2.311   2.0165 -0.12723 snapshot_crude
+#>       RP 1.600   1.1817 -0.26140 snapshot_crude
+#>      SCK 1.920   1.7107 -0.10900 snapshot_crude
+#>      SCM 1.450   1.2109 -0.16489 snapshot_crude
 #> 
 #> Diagnostics:
 #>  max_reconstruction_residual n_sign_changes condition_number
-#>                         0.49              0             3.25
-#>                                      feasibility
-#>  triple screen passed (necessary condition only)
+#>                      8.1e-15              2             3.75
+#>                                       feasibility
+#>  joint distribution fitted (max residual 4.9e-11)
+compare_methods(gd$hr_model, methods = c("published", "snapshot"), joint = hr_gd$joint)$impacts
+#>    disease      raw published  snapshot
+#> 1       CK 1.500100  1.177580 0.9821306
+#> 2       CM 2.300000  1.903941 1.8193536
+#> 3       DA 2.851179  2.197930 1.8476664
+#> 4      DYS 1.258143  1.098377 1.0505432
+#> 5      LAM 1.744976  1.380683 1.2230210
+#> 6      MET 1.116444  1.012411 0.7198427
+#> 7       MF 2.999886  2.647637 2.6601486
+#> 8       OC 1.620000  1.458644 1.5579660
+#> 9      PTB 2.310508  2.047235 2.0165455
+#> 10      RP 1.599928  1.284496 1.1816995
+#> 11     SCK 1.920000  1.675253 1.7107120
+#> 12     SCM 1.449996  1.254928 1.2109005
 ```
 
 ## Tables typed in R

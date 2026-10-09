@@ -5,9 +5,9 @@ Base-graphics plots for the main result types:
 - `plot(<cm_result>)`: raw and adjusted impacts by disease;
   `plot(<cm_results>)` one panel per analysis.
 
-- `plot_burden()`: each disease's contribution to the aggregate (main
-  effect and interaction share), or its share of the value with
-  `valuation`; for several analyses, one bar per analysis.
+- `plot_burden()`: each disease's share of the aggregate (including its
+  share of interaction effects); for several analyses, one bar per
+  analysis.
 
 - `plot(<cm_mc>)`: Monte Carlo means and intervals of adjusted impacts.
 
@@ -29,7 +29,7 @@ plot(x, ...)
 # S3 method for class 'cm_results'
 plot(x, ...)
 
-plot_burden(result, valuation = NULL, ...)
+plot_burden(result, ...)
 
 # S3 method for class 'cm_mc'
 plot(x, probs = c(0.025, 0.975), method = NULL, ...)
@@ -53,12 +53,6 @@ plot(x, items = NULL, ...)
 - ...:
 
   Passed to the underlying graphics function.
-
-- valuation:
-
-  Optional valuation list (see
-  [`contribution_table()`](https://rasmussenphilip.github.io/deconflate/reference/contribution_table.md)),
-  or for several analyses a list of them named after the analyses.
 
 - probs:
 
@@ -84,7 +78,9 @@ The input, invisibly.
 ## Examples
 
 ``` r
-res <- deconflate(example_uk_dairy_2022(), method = "published")
+res <- deconflate(example_uk_dairy_2022())
+#> Warning: Adjusted impacts change sign for MF. The raw impacts are smaller than the associated diseases alone would produce under the additive model; check the estimands, and whether the estimates come from populations with different comorbidity patterns.
+#> Warning: Adjusted impacts change sign for SCK. The raw impacts are smaller than the associated diseases alone would produce under the additive model; check the estimands, and whether the estimates come from populations with different comorbidity patterns.
 plot(res$yield)
 
 plot_burden(res)

@@ -137,9 +137,8 @@ bisection. As a result:</p>
 “part of the range could not be evaluated”;</li>
 <li>a refined crossing counts as a threshold only if the compared
 quantity is close to zero on both sides of the final bracket. A jump
-across a pole of the published approximation, or across a nearly
-singular system, is reported as a <code>"discontinuity"</code>, never as
-a threshold;</li>
+across a pole, such as a nearly singular system, is reported as a
+<code>"discontinuity"</code>, never as a threshold;</li>
 <li>a crossing whose bisection lands on an unusable point is
 <code>"unresolved"</code>.</li>
 </ul>
@@ -193,7 +192,7 @@ the associated disease:</p>
 <span><span class="co">#&gt; 1     change total threshold  1.433331 1.433331 1.433331 1.134299e-09</span></span>
 <span><span class="co">#&gt;           above                                                 description</span></span>
 <span><span class="co">#&gt; 1 -4.971832e-10 the aggregate falls below the baseline by the target change</span></span></code></pre></div>
-<p>For an unknown pair, the pairwise methods cannot compute the
+<p>For an unknown pair, the simultaneous method cannot compute the
 baseline, but the global method can: it leaves the pair unconstrained in
 the maximum-entropy fit. The change is then relative to that fit. Here
 the fitted distribution implies an odds ratio of about 1.14 for d1 and
@@ -260,29 +259,29 @@ about 0.374 percent:</p>
 diseases alone would produce under the additive model. This says that
 the inputs are inconsistent with the model there (or the estimands are
 not what they were assumed to be), not that d1 is protective.</p>
-<p>The published approximation, <code>m^2 / (m + c)</code>, has a pole
-where its denominator is zero, here at a raw impact of about -0.527. Its
-adjusted impact changes sign there, but by jumping through infinity, so
-the search reports a discontinuity, not a threshold. (At a raw impact of
-0 the published value touches zero without changing sign, which is not a
-crossing.)</p>
+<p><code><a href="../reference/cm_threshold.html">cm_threshold()</a></code> searches with the methods of
+<code><a href="../reference/deconflate.html">deconflate()</a></code> (<code>"simultaneous"</code> or
+<code>"global"</code>). The published approximation,
+<code>m^2 / (m + c)</code>, kept for comparison only, behaves
+differently: it has a pole where its denominator is zero, here at a raw
+impact of d1 of about -0.527, and its adjusted impact changes sign there
+by jumping through infinity. <code><a href="../reference/compare_methods.html">compare_methods()</a></code> shows this
+on either side of the pole:</p>
 <div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">th_pub</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cm_threshold.html">cm_threshold</a></span><span class="op">(</span><span class="va">m</span>, <span class="st">"impact:d1"</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="op">-</span><span class="fl">3</span>, <span class="fl">3</span><span class="op">)</span>, conclusion <span class="op">=</span> <span class="st">"sign"</span>, diseases <span class="op">=</span> <span class="st">"d1"</span>,</span>
-<span>                       method <span class="op">=</span> <span class="st">"published"</span><span class="op">)</span></span>
-<span><span class="va">th_pub</span></span>
-<span><span class="co">#&gt; &lt;cm_threshold&gt; sign over impact:d1 in [-3, 3] (baseline 2.5; method published)</span></span>
-<span><span class="co">#&gt; Fixed: all inputs other than impact:d1 at the model's values.</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Crossings:</span></span>
-<span><span class="co">#&gt;  item        status threshold   lower   upper</span></span>
-<span><span class="co">#&gt;    d1 discontinuity        NA -0.5266 -0.5266</span></span>
-<span><span class="co">#&gt;                                                              description</span></span>
-<span><span class="co">#&gt;  sign change across a pole or a nearly singular system (not a threshold)</span></span>
-<span><span class="va">th_pub</span><span class="op">$</span><span class="va">summary</span></span>
-<span><span class="co">#&gt;   item n_thresholds n_other</span></span>
-<span><span class="co">#&gt; 1   d1            0       1</span></span>
-<span><span class="co">#&gt;                                                      result</span></span>
-<span><span class="co">#&gt; 1 no threshold; see discontinuities or unresolved crossings</span></span></code></pre></div>
+<code class="sourceCode R"><span><span class="va">pop_s</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cm_population.html">cm_population</a></span><span class="op">(</span></span>
+<span>  <span class="fu"><a href="../reference/cm_diseases.html">cm_diseases</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"d1"</span>, <span class="st">"d2"</span>, <span class="st">"d3"</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0.10</span>, <span class="fl">0.15</span>, <span class="fl">0.20</span><span class="op">)</span><span class="op">)</span>,</span>
+<span>  <span class="fu"><a href="../reference/cm_associations.html">cm_associations</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"d1"</span>, <span class="st">"d2"</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"d2"</span>, <span class="st">"d3"</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">2</span>, <span class="fl">3</span><span class="op">)</span>, measure <span class="op">=</span> <span class="st">"OR"</span><span class="op">)</span></span>
+<span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">sapply</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="op">-</span><span class="fl">0.60</span>, <span class="op">-</span><span class="fl">0.45</span><span class="op">)</span>, <span class="kw">function</span><span class="op">(</span><span class="va">v</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="va">mv</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/cm_model.html">cm_model</a></span><span class="op">(</span><span class="va">pop_s</span>, <span class="fu"><a href="../reference/cm_impacts.html">cm_impacts</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"d1"</span>, <span class="st">"d2"</span>, <span class="st">"d3"</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="va">v</span>, <span class="fl">5</span>, <span class="fl">7.5</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/base/unlist.html" class="external-link">unlist</a></span><span class="op">(</span><span class="fu"><a href="../reference/compare_methods.html">compare_methods</a></span><span class="op">(</span><span class="va">mv</span>, methods <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"published"</span>, <span class="st">"simultaneous"</span><span class="op">)</span><span class="op">)</span><span class="op">$</span><span class="va">impacts</span><span class="op">[</span><span class="fl">1</span>, <span class="op">-</span><span class="fl">1</span><span class="op">]</span><span class="op">)</span></span>
+<span><span class="op">}</span><span class="op">)</span></span>
+<span><span class="co">#&gt;                    [,1]       [,2]</span></span>
+<span><span class="co">#&gt; raw          -0.6000000 -0.4500000</span></span>
+<span><span class="co">#&gt; published    -4.9068328  2.6424676</span></span>
+<span><span class="co">#&gt; simultaneous -0.9821118 -0.8308846</span></span></code></pre></div>
+<p>A search across such a pole reports a <code>"discontinuity"</code>,
+not a threshold.</p>
 </div>
 <div class="section level3">
 <h3 id="a-target-in-the-units-of-the-impacts">A target in the units of the impacts<a class="anchor" aria-label="anchor" href="#a-target-in-the-units-of-the-impacts"></a>
@@ -328,11 +327,12 @@ do not swap where the range could be evaluated:</p>
 <div class="section level3">
 <h3 id="what-limits-the-number-of-diseases">What limits the number of diseases<a class="anchor" aria-label="anchor" href="#what-limits-the-number-of-diseases"></a>
 </h3>
-<p>The <code>"simultaneous"</code> and <code>"published"</code> methods
-use the pairwise 2x2 tables only. They never enumerate combinations of
-diseases, so they work for any number of diseases (the default triple
-screen checks n(n-1)(n-2)/6 triples; the exact LP feasibility check is
-limited to 14 diseases).</p>
+<p>The <code>"simultaneous"</code> method (and the published
+approximation in <code><a href="../reference/compare_methods.html">compare_methods()</a></code>) uses the pairwise 2x2
+tables only. It never enumerates combinations of diseases, so it works
+for any number of diseases (the default triple screen checks
+n(n-1)(n-2)/6 triples; the exact LP feasibility check is limited to 14
+diseases).</p>
 <p>The <code>"global"</code> method needs the joint distribution of
 disease combinations, for interactions, unknown pairs and three-way
 terms, and so do the snapshot hazard-ratio model and
@@ -529,7 +529,7 @@ tolerance:</p>
 <code class="sourceCode R"><span><span class="va">r_sim</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/deconflate.html">deconflate</a></span><span class="op">(</span><span class="va">m24</span><span class="op">)</span></span>
 <span><span class="va">r_glob</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/deconflate.html">deconflate</a></span><span class="op">(</span><span class="va">m24</span>, method <span class="op">=</span> <span class="st">"global"</span>, joint <span class="op">=</span> <span class="va">j24</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">max</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">abs</a></span><span class="op">(</span><span class="va">r_glob</span><span class="op">$</span><span class="va">adjusted</span><span class="op">$</span><span class="va">adjusted</span> <span class="op">-</span> <span class="va">r_sim</span><span class="op">$</span><span class="va">adjusted</span><span class="op">$</span><span class="va">adjusted</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="co">#&gt; [1] 1.021939e-09</span></span>
+<span><span class="co">#&gt; [1] 1.021933e-09</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>simultaneous <span class="op">=</span> <span class="va">r_sim</span><span class="op">$</span><span class="va">totals</span><span class="op">$</span><span class="va">adjusted_total</span>, global <span class="op">=</span> <span class="va">r_glob</span><span class="op">$</span><span class="va">totals</span><span class="op">$</span><span class="va">adjusted_total</span><span class="op">)</span></span>
 <span><span class="co">#&gt; simultaneous       global </span></span>
 <span><span class="co">#&gt;      11.9101      11.9101</span></span></code></pre></div>

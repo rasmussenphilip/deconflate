@@ -11,7 +11,7 @@ and rankings.
 ## Usage
 
 ``` r
-screen_three_way(model, ratios = c(0.5, 2), triples = NULL, valuation = NULL)
+screen_three_way(model, ratios = c(0.5, 2), triples = NULL)
 ```
 
 ## Arguments
@@ -29,10 +29,6 @@ screen_three_way(model, ratios = c(0.5, 2), triples = NULL, valuation = NULL)
 
   Optional list of character vectors of three disease ids; default all
   triples (which can be many).
-
-- valuation:
-
-  Optional valuation list.
 
 ## Value
 

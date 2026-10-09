@@ -11,7 +11,7 @@ because hazard ratios combine multiplicatively.
 ``` r
 deconflate_hr(
   model,
-  method = c("snapshot", "first_order", "published"),
+  method = c("snapshot", "first_order"),
   joint = NULL,
   warn = TRUE,
   ...
@@ -27,7 +27,7 @@ deconflate_hr(
 
 - method:
 
-  `"snapshot"`, `"first_order"` or `"published"`.
+  `"snapshot"` (default) or `"first_order"`.
 
 - joint:
 
@@ -71,9 +71,12 @@ A `cm_hr_result` with `adjusted` (raw and adjusted hazard ratios),
   [`deconflate()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate.md)
   (pairwise tables only).
 
-- `"published"`: Rasmussen et al. (2024): `HR - 1` adjusted with eq. 16
-  (`"snapshot_crude"` hazard ratios only). For reproduction and
-  comparison.
+The approach of Rasmussen et al. (2024), `HR - 1` adjusted with eq. 16
+of Rasmussen et al. (2022), is not a method here; it is kept for
+comparison in
+[`compare_methods()`](https://rasmussenphilip.github.io/deconflate/reference/compare_methods.md)
+and in
+[`reproduce_rasmussen_2024()`](https://rasmussenphilip.github.io/deconflate/reference/reproduce.md).
 
 ## What the snapshot model is not
 

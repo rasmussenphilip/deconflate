@@ -19,8 +19,7 @@ screen_associations(
   method = "simultaneous",
   or_values = c(0.5, 2),
   multipliers = c(0.5, 2),
-  pairs = NULL,
-  valuation = NULL
+  pairs = NULL
 )
 ```
 
@@ -46,13 +45,6 @@ screen_associations(
 - pairs:
 
   Optional character vector of pairs (`"d1:d2"`); default all.
-
-- valuation:
-
-  Optional valuation list (see
-  [`contribution_table()`](https://rasmussenphilip.github.io/deconflate/reference/contribution_table.md))
-  to use the gap's value as the metric; otherwise the adjusted
-  aggregate.
 
 ## Value
 

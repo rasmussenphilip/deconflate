@@ -149,7 +149,7 @@ them) and <code>"sign"</code>.</p></dd>
 <dt id="arg-method">method<a class="anchor" aria-label="anchor" href="#arg-method"></a></dt>
 <dd><p>Adjustment method; by default <code>"global"</code> for models with
 interactions or three-way terms (and for <code>"inter:"</code> and <code>"three:"</code>
-inputs), otherwise <code>"simultaneous"</code>. The pairwise methods are rejected
+inputs), otherwise <code>"simultaneous"</code>. The simultaneous method is rejected
 (class <code>deconflate_unsupported</code>) for <code>"inter:"</code> and <code>"three:"</code> inputs and
 for models with interactions.</p></dd>
 
@@ -204,9 +204,10 @@ such points) is a crossing only if the quantity has opposite signs at the
 usable points on either side; the threshold is then the first zero point.
 A refined crossing is reported as a <code>"threshold"</code> only if the quantity
 being compared is close to zero on both sides of the final bracket
-(continuity); a jump across a pole of the published approximation, or
-across a nearly singular system, is reported as a <code>"discontinuity"</code>, never
-as a threshold. If a bisection step lands on an unusable point, the
+(continuity); a jump across a pole (e.g. where the system becomes
+singular) is reported as a <code>"discontinuity"</code>, never as a threshold; so is
+a bracket whose bisection reaches a singular point. If a bisection step
+lands on any other unusable point, the
 crossing is <code>"unresolved"</code>. All crossings in the range are reported;
 stretches of unusable grid points are listed in <code>regions</code>, so that "no
 crossing found" can be told apart from "part of the range could not be
@@ -235,8 +236,8 @@ first) need the Monte Carlo tools.</p>
 <span class="r-in"><span><span class="fu">cm_threshold</span><span class="op">(</span><span class="va">m</span>, <span class="st">"assoc:d1:d3"</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">50</span><span class="op">)</span>, conclusion <span class="op">=</span> <span class="st">"change"</span>, target <span class="op">=</span> <span class="op">-</span><span class="fl">0.1</span><span class="op">)</span><span class="op">$</span><span class="va">thresholds</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   conclusion  item    status threshold    lower    upper        below</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> 1     change total threshold  5.263907 5.263907 5.263907 4.931178e-10</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>           above                                                 description</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 1 -3.748852e-10 the aggregate falls below the baseline by the target change</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>          above                                                 description</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 1 -3.74885e-10 the aggregate falls below the baseline by the target change</span>
 </code></pre></div>
     </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

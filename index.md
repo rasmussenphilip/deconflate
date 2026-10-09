@@ -53,18 +53,35 @@ additive regression adjusted for named diseases (`"adjusted_linear"`).
 | Method | What it does |
 |----|----|
 | `"simultaneous"` (default) | Exact solution of the additive impact equations `raw = A b`, using pairwise 2×2 tables. Reports sign changes, reconstruction residuals and the conditioning of `A`, and screens the pairs for joint feasibility. |
-| `"published"` | Proportional approximation of Rasmussen et al. (2022), eq. 16, for crude estimates. Use it to reproduce the published results and to compare methods. |
 | `"global"` | Maximum-entropy distribution of disease combinations fitted by iterative proportional fitting, then the full equations including specified pairwise interactions (and optional three-way scenarios). |
+
+Use `"simultaneous"` when impacts are additive and every pair of
+diseases has an association estimate or a defensible independence
+assumption; use `"global"` otherwise (impact interactions, unknown
+pairs). The proportional approximation of Rasmussen et al. (2022, eq.
+16) is not a method of
+[`deconflate()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate.md):
+it is kept as `"published"` in
+[`compare_methods()`](https://rasmussenphilip.github.io/deconflate/reference/compare_methods.md),
+[`cm_monte_carlo()`](https://rasmussenphilip.github.io/deconflate/reference/cm_monte_carlo.md)
+and the `reproduce_*()` functions, for comparison and reproduction only.
+
+The package reports adjusted impacts and contributions in the units of
+the impacts. Converting them into a productivity gap or a monetary value
+is a few lines of base R (see
+[`vignette("deconflate")`](https://rasmussenphilip.github.io/deconflate/articles/deconflate.md)).
 
 Hazard ratios (e.g. of culling) combine multiplicatively and have their
 own model, the snapshot hazard-multiplier model
 ([`deconflate_hr()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate_hr.md),
-with explicitly named estimands), with
+with explicitly named estimands; the default and recommended method),
+with
 [`attributable_risk()`](https://rasmussenphilip.github.io/deconflate/reference/attributable_risk.md).
 
-The pairwise methods work for any number of diseases. The global method
-enumerates disease combinations up to about 20 diseases; beyond that,
-`fit_joint(backend = "sampled")` fits the same model by Monte Carlo.
+The simultaneous method works for any number of diseases. The global
+method enumerates disease combinations up to about 20 diseases; beyond
+that, `fit_joint(backend = "sampled")` fits the same model by Monte
+Carlo.
 
 ## Example
 
@@ -77,7 +94,7 @@ library(deconflate)
 gd <- example_global_dairy()
 res <- deconflate(gd)
 res$yield$contributions
-compare_methods(gd)
+compare_methods(gd)   # includes the published approximation, for comparison
 
 # At what odds ratio between d2 and d3 does the ranking of d1 and d2 change?
 cm_threshold(example_supplement(), "assoc:d2:d3", c(0.1, 100), conclusion = "rank")
@@ -93,7 +110,7 @@ inp <- cm_read_inputs(dir = dir)
 deconflate(inp$model)
 
 # Uncertainty, with shared population draws across analyses
-mc <- cm_monte_carlo(sampler_global_dairy(), 1000, method = "published", seed = 1)
+mc <- cm_monte_carlo(sampler_global_dairy(), 1000, seed = 1)
 summary(mc)
 
 # The published tables
@@ -127,7 +144,8 @@ reproduce_rasmussen_2022()
 - **Adjustment:**
   [`deconflate()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate.md)
   and
-  [`compare_methods()`](https://rasmussenphilip.github.io/deconflate/reference/compare_methods.md);
+  [`compare_methods()`](https://rasmussenphilip.github.io/deconflate/reference/compare_methods.md)
+  (which also shows the published approximation, for comparison);
   contributions of each disease (closed-form Shapley values) in
   [`attribute_burden()`](https://rasmussenphilip.github.io/deconflate/reference/attribute_burden.md)
   and
@@ -138,13 +156,8 @@ reproduce_rasmussen_2022()
   [`combination_probs()`](https://rasmussenphilip.github.io/deconflate/reference/combination_probs.md)
   and
   [`check_feasibility()`](https://rasmussenphilip.github.io/deconflate/reference/check_feasibility.md).
-- **Optional helpers:**
-  [`productivity_gap()`](https://rasmussenphilip.github.io/deconflate/reference/productivity_gap.md)
-  and
-  [`value_losses()`](https://rasmussenphilip.github.io/deconflate/reference/value_losses.md)
-  turn an aggregate into a gap and a value;
-  [`shapley_by_cell()`](https://rasmussenphilip.github.io/deconflate/reference/shapley_by_cell.md)
-  attributes non-additive losses.
+- **Attribution of non-additive losses:**
+  [`shapley_by_cell()`](https://rasmussenphilip.github.io/deconflate/reference/shapley_by_cell.md).
 - **Hazard ratios:**
   [`cm_hazard_ratios()`](https://rasmussenphilip.github.io/deconflate/reference/cm_hazard_ratios.md),
   [`cm_hr_model()`](https://rasmussenphilip.github.io/deconflate/reference/cm_hr_model.md),
@@ -160,11 +173,9 @@ reproduce_rasmussen_2022()
   hypercube and importance sampling), stability checks with suggestions
   ([`cm_diagnose()`](https://rasmussenphilip.github.io/deconflate/reference/cm_diagnose.md),
   [`cm_suggest_proposal()`](https://rasmussenphilip.github.io/deconflate/reference/cm_suggest_proposal.md)),
-  reweighting
+  and reweighting
   ([`cm_scenario()`](https://rasmussenphilip.github.io/deconflate/reference/cm_scenario.md),
-  [`cm_reweight()`](https://rasmussenphilip.github.io/deconflate/reference/cm_reweight.md))
-  and
-  [`cm_mc_gap()`](https://rasmussenphilip.github.io/deconflate/reference/cm_mc_gap.md).
+  [`cm_reweight()`](https://rasmussenphilip.github.io/deconflate/reference/cm_reweight.md)).
 - **Sensitivity and thresholds:**
   [`cm_threshold()`](https://rasmussenphilip.github.io/deconflate/reference/cm_threshold.md)
   (where a ranking, a sign or the aggregate changes as one input
@@ -179,7 +190,7 @@ reproduce_rasmussen_2022()
   [`reproduce_rasmussen_2022()`](https://rasmussenphilip.github.io/deconflate/reference/reproduce.md)
   and
   [`reproduce_rasmussen_2024()`](https://rasmussenphilip.github.io/deconflate/reference/reproduce.md).
-- **Plots** (base graphics) and six vignettes. Start with
+- **Plots** (base graphics) and seven vignettes. Start with
   [`vignette("deconflate")`](https://rasmussenphilip.github.io/deconflate/articles/deconflate.md).
 
 ## Development

@@ -2,6 +2,78 @@
 
 ## deconflate (development version)
 
+### Breaking changes
+
+- **The published approximation is no longer a method of
+  [`deconflate()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate.md)
+  or
+  [`deconflate_hr()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate_hr.md).**
+  [`deconflate()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate.md)
+  (for `cm_model` and `cm_analyses`) has the methods `"simultaneous"`
+  (default) and `"global"`;
+  [`deconflate_hr()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate_hr.md)
+  has `"snapshot"` (default) and `"first_order"`. `method = "published"`
+  now gives an error of class `deconflate_unsupported` that points to
+  the alternatives. The approximation of Rasmussen et al. (2022, eq.
+  16), and the HR - 1 approach of Rasmussen et al. (2024), are kept for
+  comparison and reproduction only: in
+  [`compare_methods()`](https://rasmussenphilip.github.io/deconflate/reference/compare_methods.md)
+  (whose default methods still include `"published"`),
+  `cm_monte_carlo(method = ...)` and
+  [`reproduce_rasmussen_2022()`](https://rasmussenphilip.github.io/deconflate/reference/reproduce.md)
+  /
+  [`reproduce_rasmussen_2024()`](https://rasmussenphilip.github.io/deconflate/reference/reproduce.md).
+  [`cm_threshold()`](https://rasmussenphilip.github.io/deconflate/reference/cm_threshold.md)
+  accepts `"simultaneous"` and `"global"` only, and
+  [`sensitivity_oat()`](https://rasmussenphilip.github.io/deconflate/reference/sensitivity_oat.md),
+  the `screen_*()` functions and
+  [`compare_scenarios()`](https://rasmussenphilip.github.io/deconflate/reference/compare_scenarios.md)
+  inherit the methods of
+  [`deconflate()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate.md).
+  Method guidance: use `"simultaneous"` when impacts are additive and
+  every pair has an association estimate or a defensible independence
+  assumption; `"global"` otherwise (interactions, unknown pairs); the
+  snapshot model for hazard ratios.
+- **Valuation is removed from the package.** The package reports
+  adjusted impacts and contributions in the units of the impacts.
+  Removed:
+  - the exported functions `productivity_gap()`, `value_losses()`,
+    `cm_mc_gap()` and `uk_dairy_2022_economics()`;
+  - the `valuation` argument of
+    [`contribution_table()`](https://rasmussenphilip.github.io/deconflate/reference/contribution_table.md),
+    [`summary.cm_result()`](https://rasmussenphilip.github.io/deconflate/reference/summary.cm_result.md),
+    [`compare_methods()`](https://rasmussenphilip.github.io/deconflate/reference/compare_methods.md)
+    (for `cm_model` and `cm_analyses`; `totals` now has `raw_sum` and
+    `adjusted_total` per method),
+    [`sensitivity_oat()`](https://rasmussenphilip.github.io/deconflate/reference/sensitivity_oat.md),
+    [`screen_associations()`](https://rasmussenphilip.github.io/deconflate/reference/screen_associations.md),
+    [`screen_interactions()`](https://rasmussenphilip.github.io/deconflate/reference/screen_interactions.md),
+    [`screen_three_way()`](https://rasmussenphilip.github.io/deconflate/reference/screen_three_way.md),
+    [`compare_scenarios()`](https://rasmussenphilip.github.io/deconflate/reference/compare_scenarios.md)
+    and
+    [`plot_burden()`](https://rasmussenphilip.github.io/deconflate/reference/plots.md)
+    (which now plots shares of the aggregate); the screens use the
+    adjusted aggregate as their metric;
+  - the `unit_value` argument of
+    [`attributable_risk()`](https://rasmussenphilip.github.io/deconflate/reference/attributable_risk.md)
+    and its `value` columns.
+
+  The gap and value calculation of the 2022 paper moved into
+  [`reproduce_rasmussen_2022()`](https://rasmussenphilip.github.io/deconflate/reference/reproduce.md),
+  whose output is unchanged. For new analyses,
+  [`vignette("deconflate")`](https://rasmussenphilip.github.io/deconflate/articles/deconflate.md)
+  shows in a few lines of base R how to turn the adjusted aggregate and
+  contributions into a gap and a value.
+
+### Documentation
+
+- Vignettes, README and the five-disease example script use the new
+  interface: the published approximation is shown with
+  [`compare_methods()`](https://rasmussenphilip.github.io/deconflate/reference/compare_methods.md)
+  or
+  [`cm_monte_carlo()`](https://rasmussenphilip.github.io/deconflate/reference/cm_monte_carlo.md),
+  and gaps and values are computed in base R.
+
 ## deconflate 0.3.0
 
 This version responds to a second external review of 0.2.0 and adds
@@ -50,9 +122,8 @@ five-disease example that uses every feature.
   [`sampler_global_dairy()`](https://rasmussenphilip.github.io/deconflate/reference/sampler_global_dairy.md)
   lose `culling` (the 2024 HR - 1 analysis is built inside
   [`reproduce_rasmussen_2024()`](https://rasmussenphilip.github.io/deconflate/reference/reproduce.md)).
-- [`uk_dairy_2022_economics()`](https://rasmussenphilip.github.io/deconflate/reference/uk_dairy_2022_economics.md)
-  returns the yield and fertility valuations (and `additional`); the
-  paper’s culling valuation is used inside
+- `uk_dairy_2022_economics()` returns the yield and fertility valuations
+  (and `additional`); the paper’s culling valuation is used inside
   [`reproduce_rasmussen_2022()`](https://rasmussenphilip.github.io/deconflate/reference/reproduce.md)
   only.
 - Non-positive odds ratios, risk ratios and three-way ratios now raise
@@ -297,8 +368,7 @@ changes”).
   (Tables 8-10) and
   [`reproduce_rasmussen_2024()`](https://rasmussenphilip.github.io/deconflate/reference/reproduce.md)
   (Table 5), with the published values beside the package’s.
-- [`cm_mc_gap()`](https://rasmussenphilip.github.io/deconflate/reference/cm_mc_gap.md):
-  productivity gaps and values per Monte Carlo draw.
+- `cm_mc_gap()`: productivity gaps and values per Monte Carlo draw.
 - [`example_global_dairy_hr()`](https://rasmussenphilip.github.io/deconflate/reference/example_global_dairy_hr.md):
   the 2024 culling hazard ratios as a hazard-ratio model.
 
@@ -407,11 +477,10 @@ Builds the remaining v0.1 features.
 
 - Added the UK dairy model of Rasmussen et al. (2022):
   [`example_uk_dairy_2022()`](https://rasmussenphilip.github.io/deconflate/reference/example_uk_dairy_2022.md)
-  and
-  [`uk_dairy_2022_economics()`](https://rasmussenphilip.github.io/deconflate/reference/uk_dairy_2022_economics.md).
-  It reproduces the fertility and culling results of Tables 8-10 and
-  documents why the yield results differ (the printed Table 4 differs
-  from the inputs implied by Tables 8-10).
+  and `uk_dairy_2022_economics()`. It reproduces the fertility and
+  culling results of Tables 8-10 and documents why the yield results
+  differ (the printed Table 4 differs from the inputs implied by Tables
+  8-10).
 - Added
   [`sampler_global_dairy()`](https://rasmussenphilip.github.io/deconflate/reference/sampler_global_dairy.md)
   with the input distributions of Rasmussen et al. (2024). Monte Carlo
@@ -423,12 +492,9 @@ Builds the remaining v0.1 features.
 - Added `hr_conversion()`, `as_impacts()` and `adjusted_hr()`, which
   take culling hazard ratios through to adjusted hazard ratios. They
   support proportional-hazards and published (odds-ratio) conversions.
-- [`productivity_gap()`](https://rasmussenphilip.github.io/deconflate/reference/productivity_gap.md)
-  now supports impacts on the absolute scale.
-- Added
-  [`value_losses()`](https://rasmussenphilip.github.io/deconflate/reference/value_losses.md)
-  to value gaps in money, and `combine_impacts()` to stack impact
-  tables.
+- `productivity_gap()` now supports impacts on the absolute scale.
+- Added `value_losses()` to value gaps in money, and `combine_impacts()`
+  to stack impact tables.
 
 #### Uncertainty
 

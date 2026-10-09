@@ -36,7 +36,9 @@ culling analysis, HR - 1 adjusted as an additive impact, is sampled only
 inside
 [`reproduce_rasmussen_2024()`](https://rasmussenphilip.github.io/deconflate/reference/reproduce.md).)
 
-With `method = "published"`, Monte Carlo means reproduce Table 5 (see
+With `method = "published"` in
+[`cm_monte_carlo()`](https://rasmussenphilip.github.io/deconflate/reference/cm_monte_carlo.md),
+Monte Carlo means reproduce Table 5 (see
 [`reproduce_rasmussen_2024()`](https://rasmussenphilip.github.io/deconflate/reference/reproduce.md)
 and
 [`vignette("reproducing-published")`](https://rasmussenphilip.github.io/deconflate/articles/reproducing-published.md)).

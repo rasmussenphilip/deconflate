@@ -85,8 +85,13 @@ check_feasibility(bad, method = "triples")
 
 Setting an association to an odds ratio of 1 imposes independence.
 Leaving it unknown lets the maximum-entropy fit imply an association
-through the other diseases. Only the global method accepts unknown
-pairs:
+through the other diseases. Use the simultaneous method when every pair
+has an association estimate or a defensible independence assumption;
+with unknown pairs (or interactions, below), use the global method, the
+only one that accepts them.
+[`compare_methods()`](https://rasmussenphilip.github.io/deconflate/reference/compare_methods.md)
+reports why the others fail (the `"published"` approximation is listed
+for comparison only):
 
 ``` r
 
@@ -111,7 +116,7 @@ compare_methods(unk)
 #>  method raw_sum adjusted_total
 #>  global    3.05          2.436
 #> 
-#> Not run (or not valued):
+#> Not run:
 #>   published: Unknown associations for a-c. Specify them, set missing_associations = 'independent', or use method = 'global'.
 #>   simultaneous: Unknown associations for a-c. Specify them, set missing_associations = 'independent', or use method = 'global'.
 ```

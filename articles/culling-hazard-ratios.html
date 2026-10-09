@@ -139,6 +139,8 @@ estimand has no default. The names <code>"crude"</code> and
 <span><span class="co">#&gt;       d1 1.5      1.41        1.40     1.38</span></span>
 <span><span class="co">#&gt;       d2 2.0      1.91        1.89     1.89</span></span>
 <span><span class="co">#&gt;       d3 1.3      1.19        1.17     1.14</span></span></code></pre></div>
+<p><code><a href="../reference/deconflate_hr.html">deconflate_hr()</a></code> has two methods; the snapshot model (the
+default) is the one to use for hazard ratios:</p>
 <ul>
 <li>
 <code>"snapshot"</code> (the default) is a snapshot
@@ -154,11 +156,11 @@ the raw HRs, and <code>exp(beta)</code> are the adjusted HRs.</li>
 <code>log(HR_raw) = A beta</code>, with the conflation matrix
 <code>A</code> of <code><a href="../reference/deconflate.html">deconflate()</a></code>. It needs only the pairwise
 tables.</li>
-<li>
-<code>"published"</code> is the approach of Rasmussen et al. (2024):
-HR - 1 adjusted with eq. 16 and 1 added back. It is kept for
-reproduction and comparison.</li>
 </ul>
+<p>The <code>"published"</code> column of <code><a href="../reference/compare_methods.html">compare_methods()</a></code>
+is the approach of Rasmussen et al. (2024): HR - 1 adjusted with eq. 16
+and 1 added back. It is not a method of <code><a href="../reference/deconflate_hr.html">deconflate_hr()</a></code>; it
+is kept for comparison and reproduction only.</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/deconflate_hr.html">deconflate_hr</a></span><span class="op">(</span><span class="va">hr</span><span class="op">)</span></span>
 <span><span class="co">#&gt; &lt;cm_hr_result&gt; method: snapshot</span></span>
@@ -228,17 +230,17 @@ by Shapley values over all disease combinations
 (<code><a href="../reference/shapley_by_cell.html">shapley_by_cell()</a></code>); the allocation adds up to the
 attributable risk.</p>
 <div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="../reference/attributable_risk.html">attributable_risk</a></span><span class="op">(</span><span class="fu"><a href="../reference/deconflate_hr.html">deconflate_hr</a></span><span class="op">(</span><span class="va">hr</span><span class="op">)</span>, overall_risk <span class="op">=</span> <span class="fl">0.25</span>, unit_value <span class="op">=</span> <span class="fl">1300</span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="fu"><a href="../reference/attributable_risk.html">attributable_risk</a></span><span class="op">(</span><span class="fu"><a href="../reference/deconflate_hr.html">deconflate_hr</a></span><span class="op">(</span><span class="va">hr</span><span class="op">)</span>, overall_risk <span class="op">=</span> <span class="fl">0.25</span><span class="op">)</span></span>
 <span><span class="co">#&gt; &lt;cm_attributable&gt; snapshot hazard-multiplier model</span></span>
 <span><span class="co">#&gt;   Overall risk 0.25; disease-free risk 0.2134; attributable 0.03665 (14.7% of the overall risk)</span></span>
-<span><span class="co">#&gt;   Value: 47.64</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt;  disease hr_adjusted attributable  share  value</span></span>
-<span><span class="co">#&gt;       d1       1.383     0.007371 0.2011  9.582</span></span>
-<span><span class="co">#&gt;       d2       1.891     0.023488 0.6409 30.534</span></span>
-<span><span class="co">#&gt;       d3       1.144     0.005791 0.1580  7.528</span></span></code></pre></div>
-<p><code>unit_value</code> is the value of a cow removed
-(e.g. replacement price less salvage value).</p>
+<span><span class="co">#&gt;  disease hr_adjusted attributable  share</span></span>
+<span><span class="co">#&gt;       d1       1.383     0.007371 0.2011</span></span>
+<span><span class="co">#&gt;       d2       1.891     0.023488 0.6409</span></span>
+<span><span class="co">#&gt;       d3       1.144     0.005791 0.1580</span></span></code></pre></div>
+<p>The risks are proportions of animals culled in the period. Converting
+them into numbers of animals or a value (e.g. times the replacement
+price less salvage value) is left to the user.</p>
 </div>
 <div class="section level2">
 <h2 id="the-global-dairy-example">The global dairy example<a class="anchor" aria-label="anchor" href="#the-global-dairy-example"></a>
@@ -293,27 +295,24 @@ smaller than the associated diseases alone would produce.
 <span><span class="co">#&gt; Warning: Adjusted hazard ratios cross 1 for CK, MET. The raw hazard ratios are</span></span>
 <span><span class="co">#&gt; smaller than the associated diseases alone would produce; check the estimands</span></span>
 <span><span class="co">#&gt; and source populations.</span></span>
-<span><span class="va">ar</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/attributable_risk.html">attributable_risk</a></span><span class="op">(</span><span class="va">glob</span>, overall_risk <span class="op">=</span> <span class="fl">0.2366</span>, unit_value <span class="op">=</span> <span class="fl">1299.33</span> <span class="op">-</span> <span class="fl">785.86</span><span class="op">)</span></span>
+<span><span class="va">ar</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/attributable_risk.html">attributable_risk</a></span><span class="op">(</span><span class="va">glob</span>, overall_risk <span class="op">=</span> <span class="fl">0.2366</span><span class="op">)</span></span>
 <span><span class="va">ar</span></span>
 <span><span class="co">#&gt; &lt;cm_attributable&gt; snapshot hazard-multiplier model</span></span>
 <span><span class="co">#&gt;   Overall risk 0.2366; disease-free risk 0.12; attributable 0.1166 (49.3% of the overall risk)</span></span>
-<span><span class="co">#&gt;   Value: 59.86</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt;  disease hr_adjusted attributable      share    value</span></span>
-<span><span class="co">#&gt;       CK      0.9821   -9.666e-05 -0.0008292 -0.04963</span></span>
-<span><span class="co">#&gt;       CM      1.8194    2.981e-02  0.2557145 15.30613</span></span>
-<span><span class="co">#&gt;       DA      1.8477    2.843e-03  0.0243863  1.45967</span></span>
-<span><span class="co">#&gt;      DYS      1.0505    4.715e-04  0.0040444  0.24209</span></span>
-<span><span class="co">#&gt;      LAM      1.2230    7.989e-03  0.0685346  4.10223</span></span>
-<span><span class="co">#&gt;      MET      0.7198   -4.730e-03 -0.0405736 -2.42859</span></span>
-<span><span class="co">#&gt;       MF      2.6601    5.124e-03  0.0439548  2.63097</span></span>
-<span><span class="co">#&gt;       OC      1.5580    8.424e-03  0.0722672  4.32565</span></span>
-<span><span class="co">#&gt;      PTB      2.0165    1.455e-02  0.1247870  7.46929</span></span>
-<span><span class="co">#&gt;       RP      1.1817    3.403e-03  0.0291948  1.74749</span></span>
-<span><span class="co">#&gt;      SCK      1.7107    3.590e-02  0.3079742 18.43420</span></span>
-<span><span class="co">#&gt;      SCM      1.2109    1.289e-02  0.1105452  6.61683</span></span></code></pre></div>
-<p>(<code>unit_value</code> is the replacement price less the culled-cow
-price, Rasmussen et al. 2024, Table 1.)</p>
+<span><span class="co">#&gt;  disease hr_adjusted attributable      share</span></span>
+<span><span class="co">#&gt;       CK      0.9821   -9.666e-05 -0.0008292</span></span>
+<span><span class="co">#&gt;       CM      1.8194    2.981e-02  0.2557145</span></span>
+<span><span class="co">#&gt;       DA      1.8477    2.843e-03  0.0243863</span></span>
+<span><span class="co">#&gt;      DYS      1.0505    4.715e-04  0.0040444</span></span>
+<span><span class="co">#&gt;      LAM      1.2230    7.989e-03  0.0685346</span></span>
+<span><span class="co">#&gt;      MET      0.7198   -4.730e-03 -0.0405736</span></span>
+<span><span class="co">#&gt;       MF      2.6601    5.124e-03  0.0439548</span></span>
+<span><span class="co">#&gt;       OC      1.5580    8.424e-03  0.0722672</span></span>
+<span><span class="co">#&gt;      PTB      2.0165    1.455e-02  0.1247870</span></span>
+<span><span class="co">#&gt;       RP      1.1817    3.403e-03  0.0291948</span></span>
+<span><span class="co">#&gt;      SCK      1.7107    3.590e-02  0.3079742</span></span>
+<span><span class="co">#&gt;      SCM      1.2109    1.289e-02  0.1105452</span></span></code></pre></div>
 <p>The model attributes about 11.7 percentage points of the 23.7%
 culling rate to disease. The 2024 paper instead converted each adjusted
 HR to an excess risk relative to the overall rate,
@@ -325,17 +324,30 @@ diseases more than once.</p>
 <div class="section level2">
 <h2 id="culling-alongside-the-additive-analyses">Culling alongside the additive analyses<a class="anchor" aria-label="anchor" href="#culling-alongside-the-additive-analyses"></a>
 </h2>
-<p>Hazard ratios are kept out of <code><a href="../reference/deconflate.html">deconflate()</a></code>,
-<code><a href="../reference/productivity_gap.html">productivity_gap()</a></code> and the contribution tables. Values from
-the two routes can be put side by side. Here the yield analysis follows
-the paper (published method; global average yield of 5013 kg and milk
-price of 0.5981 per kg, Rasmussen et al. 2024, Table 1):</p>
+<p>Hazard ratios are kept out of <code><a href="../reference/deconflate.html">deconflate()</a></code> and the
+contribution tables: the additive analyses return impacts in their own
+units, and <code><a href="../reference/attributable_risk.html">attributable_risk()</a></code> returns a proportion of
+cows. To set them side by side, convert both to a common unit, here a
+value per cow and year with the global average yield of 5013 kg, a milk
+price of 0.5981 per kg, and a replacement price less culled-cow price of
+1299.33 - 785.86 (Rasmussen et al. 2024, Table 1). The yield impacts are
+percent losses, so the gap is computed as in
+<code><a href="../articles/deconflate.html">vignette("deconflate")</a></code>:</p>
 <div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">yres</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/deconflate.html">deconflate</a></span><span class="op">(</span><span class="fu"><a href="../reference/example_global_dairy.html">example_global_dairy</a></span><span class="op">(</span><span class="op">)</span><span class="op">$</span><span class="va">models</span><span class="op">$</span><span class="va">yield</span>, method <span class="op">=</span> <span class="st">"published"</span><span class="op">)</span></span>
-<span><span class="va">yv</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/value_losses.html">value_losses</a></span><span class="op">(</span><span class="fu"><a href="../reference/productivity_gap.html">productivity_gap</a></span><span class="op">(</span><span class="va">yres</span>, <span class="fl">5013</span>, <span class="st">"decrease"</span>, <span class="st">"percent"</span><span class="op">)</span>, unit_value <span class="op">=</span> <span class="fl">0.5981</span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>yield <span class="op">=</span> <span class="va">yv</span><span class="op">$</span><span class="va">value</span>, culling <span class="op">=</span> <span class="va">ar</span><span class="op">$</span><span class="va">summary</span><span class="op">$</span><span class="va">value</span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="va">yres</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/deconflate.html">deconflate</a></span><span class="op">(</span><span class="fu"><a href="../reference/example_global_dairy.html">example_global_dairy</a></span><span class="op">(</span><span class="op">)</span><span class="op">$</span><span class="va">models</span><span class="op">$</span><span class="va">yield</span><span class="op">)</span></span>
+<span><span class="co">#&gt; Warning: Adjusted impacts change sign for CK, CM, DA, MF. The raw impacts are</span></span>
+<span><span class="co">#&gt; smaller than the associated diseases alone would produce under the additive</span></span>
+<span><span class="co">#&gt; model; check the estimands, and whether the estimates come from populations</span></span>
+<span><span class="co">#&gt; with different comorbidity patterns.</span></span>
+<span><span class="va">yield_gap</span> <span class="op">&lt;-</span> <span class="fl">5013</span> <span class="op">/</span> <span class="op">(</span><span class="fl">1</span> <span class="op">-</span> <span class="va">yres</span><span class="op">$</span><span class="va">totals</span><span class="op">$</span><span class="va">adjusted_total</span> <span class="op">/</span> <span class="fl">100</span><span class="op">)</span> <span class="op">-</span> <span class="fl">5013</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>yield <span class="op">=</span> <span class="va">yield_gap</span> <span class="op">*</span> <span class="fl">0.5981</span>,</span>
+<span>  culling <span class="op">=</span> <span class="va">ar</span><span class="op">$</span><span class="va">summary</span><span class="op">$</span><span class="va">attributable</span> <span class="op">*</span> <span class="op">(</span><span class="fl">1299.33</span> <span class="op">-</span> <span class="fl">785.86</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt;     yield   culling </span></span>
-<span><span class="co">#&gt; 235.43177  59.85632</span></span></code></pre></div>
+<span><span class="co">#&gt; 242.89991  59.85632</span></span></code></pre></div>
+<p>The yield analysis here uses the simultaneous method; the paper’s
+figures (published approximation, Monte Carlo means) are recomputed by
+<code><a href="../reference/reproduce.html">reproduce_rasmussen_2024()</a></code>
+(<code><a href="../articles/reproducing-published.html">vignette("reproducing-published")</a></code>).</p>
 </div>
 <div class="section level2">
 <h2 id="methods-that-are-not-available-for-new-analyses">Methods that are not available for new analyses<a class="anchor" aria-label="anchor" href="#methods-that-are-not-available-for-new-analyses"></a>
@@ -366,7 +378,7 @@ which disease status changes during the lactation.</li>
 <li>Hazard ratios are not collapsible: even without confounding, an
 average HR differs from the HR within subgroups. The snapshot model
 accounts for this given the distribution of disease combinations; the
-first-order and published methods do not.</li>
+first-order method and the published approach do not.</li>
 <li>The snapshot model and <code><a href="../reference/attributable_risk.html">attributable_risk()</a></code> use the
 whole distribution of disease combinations, so they depend on the
 maximum-entropy assumption and on any three-way terms

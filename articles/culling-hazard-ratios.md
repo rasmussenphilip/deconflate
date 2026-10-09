@@ -73,6 +73,10 @@ compare_methods(hr)
 #>       d3 1.3      1.19        1.17     1.14
 ```
 
+[`deconflate_hr()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate_hr.md)
+has two methods; the snapshot model (the default) is the one to use for
+hazard ratios:
+
 - `"snapshot"` (the default) is a snapshot hazard-multiplier model. A
   cow’s hazard is `h0 * exp(sum_i beta_i * D_i)`, and the raw HR of
   disease `i` is taken to be the ratio of the average hazard multiplier
@@ -85,9 +89,13 @@ compare_methods(hr)
   `log(HR_raw) = A beta`, with the conflation matrix `A` of
   [`deconflate()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate.md).
   It needs only the pairwise tables.
-- `"published"` is the approach of Rasmussen et al. (2024): HR - 1
-  adjusted with eq. 16 and 1 added back. It is kept for reproduction and
-  comparison.
+
+The `"published"` column of
+[`compare_methods()`](https://rasmussenphilip.github.io/deconflate/reference/compare_methods.md)
+is the approach of Rasmussen et al. (2024): HR - 1 adjusted with eq. 16
+and 1 added back. It is not a method of
+[`deconflate_hr()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate_hr.md);
+it is kept for comparison and reproduction only.
 
 ``` r
 
@@ -165,19 +173,19 @@ the allocation adds up to the attributable risk.
 
 ``` r
 
-attributable_risk(deconflate_hr(hr), overall_risk = 0.25, unit_value = 1300)
+attributable_risk(deconflate_hr(hr), overall_risk = 0.25)
 #> <cm_attributable> snapshot hazard-multiplier model
 #>   Overall risk 0.25; disease-free risk 0.2134; attributable 0.03665 (14.7% of the overall risk)
-#>   Value: 47.64
 #> 
-#>  disease hr_adjusted attributable  share  value
-#>       d1       1.383     0.007371 0.2011  9.582
-#>       d2       1.891     0.023488 0.6409 30.534
-#>       d3       1.144     0.005791 0.1580  7.528
+#>  disease hr_adjusted attributable  share
+#>       d1       1.383     0.007371 0.2011
+#>       d2       1.891     0.023488 0.6409
+#>       d3       1.144     0.005791 0.1580
 ```
 
-`unit_value` is the value of a cow removed (e.g. replacement price less
-salvage value).
+The risks are proportions of animals culled in the period. Converting
+them into numbers of animals or a value (e.g. times the replacement
+price less salvage value) is left to the user.
 
 ## The global dairy example
 
@@ -240,29 +248,25 @@ glob <- deconflate_hr(hr_gd, joint = j_gd)
 #> Warning: Adjusted hazard ratios cross 1 for CK, MET. The raw hazard ratios are
 #> smaller than the associated diseases alone would produce; check the estimands
 #> and source populations.
-ar <- attributable_risk(glob, overall_risk = 0.2366, unit_value = 1299.33 - 785.86)
+ar <- attributable_risk(glob, overall_risk = 0.2366)
 ar
 #> <cm_attributable> snapshot hazard-multiplier model
 #>   Overall risk 0.2366; disease-free risk 0.12; attributable 0.1166 (49.3% of the overall risk)
-#>   Value: 59.86
 #> 
-#>  disease hr_adjusted attributable      share    value
-#>       CK      0.9821   -9.666e-05 -0.0008292 -0.04963
-#>       CM      1.8194    2.981e-02  0.2557145 15.30613
-#>       DA      1.8477    2.843e-03  0.0243863  1.45967
-#>      DYS      1.0505    4.715e-04  0.0040444  0.24209
-#>      LAM      1.2230    7.989e-03  0.0685346  4.10223
-#>      MET      0.7198   -4.730e-03 -0.0405736 -2.42859
-#>       MF      2.6601    5.124e-03  0.0439548  2.63097
-#>       OC      1.5580    8.424e-03  0.0722672  4.32565
-#>      PTB      2.0165    1.455e-02  0.1247870  7.46929
-#>       RP      1.1817    3.403e-03  0.0291948  1.74749
-#>      SCK      1.7107    3.590e-02  0.3079742 18.43420
-#>      SCM      1.2109    1.289e-02  0.1105452  6.61683
+#>  disease hr_adjusted attributable      share
+#>       CK      0.9821   -9.666e-05 -0.0008292
+#>       CM      1.8194    2.981e-02  0.2557145
+#>       DA      1.8477    2.843e-03  0.0243863
+#>      DYS      1.0505    4.715e-04  0.0040444
+#>      LAM      1.2230    7.989e-03  0.0685346
+#>      MET      0.7198   -4.730e-03 -0.0405736
+#>       MF      2.6601    5.124e-03  0.0439548
+#>       OC      1.5580    8.424e-03  0.0722672
+#>      PTB      2.0165    1.455e-02  0.1247870
+#>       RP      1.1817    3.403e-03  0.0291948
+#>      SCK      1.7107    3.590e-02  0.3079742
+#>      SCM      1.2109    1.289e-02  0.1105452
 ```
-
-(`unit_value` is the replacement price less the culled-cow price,
-Rasmussen et al. 2024, Table 1.)
 
 The model attributes about 11.7 percentage points of the 23.7% culling
 rate to disease. The 2024 paper instead converted each adjusted HR to an
@@ -275,21 +279,35 @@ than once.
 ## Culling alongside the additive analyses
 
 Hazard ratios are kept out of
-[`deconflate()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate.md),
-[`productivity_gap()`](https://rasmussenphilip.github.io/deconflate/reference/productivity_gap.md)
-and the contribution tables. Values from the two routes can be put side
-by side. Here the yield analysis follows the paper (published method;
-global average yield of 5013 kg and milk price of 0.5981 per kg,
-Rasmussen et al. 2024, Table 1):
+[`deconflate()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate.md)
+and the contribution tables: the additive analyses return impacts in
+their own units, and
+[`attributable_risk()`](https://rasmussenphilip.github.io/deconflate/reference/attributable_risk.md)
+returns a proportion of cows. To set them side by side, convert both to
+a common unit, here a value per cow and year with the global average
+yield of 5013 kg, a milk price of 0.5981 per kg, and a replacement price
+less culled-cow price of 1299.33 - 785.86 (Rasmussen et al. 2024, Table
+1). The yield impacts are percent losses, so the gap is computed as in
+[`vignette("deconflate")`](https://rasmussenphilip.github.io/deconflate/articles/deconflate.md):
 
 ``` r
 
-yres <- deconflate(example_global_dairy()$models$yield, method = "published")
-yv <- value_losses(productivity_gap(yres, 5013, "decrease", "percent"), unit_value = 0.5981)
-c(yield = yv$value, culling = ar$summary$value)
+yres <- deconflate(example_global_dairy()$models$yield)
+#> Warning: Adjusted impacts change sign for CK, CM, DA, MF. The raw impacts are
+#> smaller than the associated diseases alone would produce under the additive
+#> model; check the estimands, and whether the estimates come from populations
+#> with different comorbidity patterns.
+yield_gap <- 5013 / (1 - yres$totals$adjusted_total / 100) - 5013
+c(yield = yield_gap * 0.5981,
+  culling = ar$summary$attributable * (1299.33 - 785.86))
 #>     yield   culling 
-#> 235.43177  59.85632
+#> 242.89991  59.85632
 ```
+
+The yield analysis here uses the simultaneous method; the paper’s
+figures (published approximation, Monte Carlo means) are recomputed by
+[`reproduce_rasmussen_2024()`](https://rasmussenphilip.github.io/deconflate/reference/reproduce.md)
+([`vignette("reproducing-published")`](https://rasmussenphilip.github.io/deconflate/articles/reproducing-published.md)).
 
 ## Methods that are not available for new analyses
 
@@ -318,7 +336,7 @@ so that the published tables can be recomputed (see
 - Hazard ratios are not collapsible: even without confounding, an
   average HR differs from the HR within subgroups. The snapshot model
   accounts for this given the distribution of disease combinations; the
-  first-order and published methods do not.
+  first-order method and the published approach do not.
 - The snapshot model and
   [`attributable_risk()`](https://rasmussenphilip.github.io/deconflate/reference/attributable_risk.md)
   use the whole distribution of disease combinations, so they depend on

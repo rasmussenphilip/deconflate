@@ -3,13 +3,19 @@
 Runs several adjustment methods on the same inputs and tabulates the
 results side by side:
 
-- `"published"`: the simple proportional approximation used in Rasmussen
-  et al. (2022, 2024) (eq. 16);
-
 - `"simultaneous"`: the exact solution of the system of equations;
 
 - `"global"`: the iterative (maximum-entropy) model of disease
-  combinations, which can also include interactions.
+  combinations, which can also include interactions;
+
+- `"published"`: the proportional approximation used in Rasmussen et al.
+  (2022, 2024) (eq. 16 of the 2022 paper). It is not a method of
+  [`deconflate()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate.md);
+  it is kept here (and in
+  [`cm_monte_carlo()`](https://rasmussenphilip.github.io/deconflate/reference/cm_monte_carlo.md)
+  and the `reproduce_*()` functions) to compare earlier results with the
+  exact solution. It applies to crude estimates only, can mask
+  incompatible inputs, and is undefined when its denominator is zero.
 
 ## Usage
 
@@ -17,20 +23,10 @@ results side by side:
 compare_methods(x, ...)
 
 # S3 method for class 'cm_model'
-compare_methods(
-  x,
-  methods = c("published", "simultaneous", "global"),
-  valuation = NULL,
-  ...
-)
+compare_methods(x, methods = c("published", "simultaneous", "global"), ...)
 
 # S3 method for class 'cm_analyses'
-compare_methods(
-  x,
-  methods = c("published", "simultaneous", "global"),
-  valuation = NULL,
-  ...
-)
+compare_methods(x, methods = c("published", "simultaneous", "global"), ...)
 
 # S3 method for class 'cm_hr_model'
 compare_methods(
@@ -58,25 +54,14 @@ compare_methods(x, stat = c("mean", "median", "trimmed_mean"), ...)
 
 - ...:
 
-  Passed to
-  [`deconflate()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate.md)
-  or
-  [`deconflate_hr()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate_hr.md)
-  (for Monte Carlo runs, to
-  [`summary.cm_mc()`](https://rasmussenphilip.github.io/deconflate/reference/summary.cm_mc.md)).
+  Passed to the adjustment (e.g. `joint`, `feasibility`, or arguments of
+  [`fit_joint()`](https://rasmussenphilip.github.io/deconflate/reference/fit_joint.md));
+  for Monte Carlo runs, to
+  [`summary.cm_mc()`](https://rasmussenphilip.github.io/deconflate/reference/summary.cm_mc.md).
 
 - methods:
 
   Methods to compare.
-
-- valuation:
-
-  Optional valuation list for models (see
-  [`contribution_table()`](https://rasmussenphilip.github.io/deconflate/reference/contribution_table.md)),
-  or a named list of them (one per analysis) for
-  [`cm_analyses()`](https://rasmussenphilip.github.io/deconflate/reference/cm_analyses.md)
-  (analyses without one are not valued); adds the gap and value per
-  method to `totals`.
 
 - overall_risk:
 
@@ -93,12 +78,12 @@ compare_methods(x, stat = c("mean", "median", "trimmed_mean"), ...)
 A `cm_comparison` object with `impacts` (raw and adjusted values, one
 column per method), `change` (relative change from raw), `long` (long
 format with sign-change flags, or the Monte Carlo summaries), `totals`
-(aggregate per method, with gap and value if requested), `diagnostics`,
-`failed` (methods that could not be run, gave an undefined (non-finite)
-result, or whose valuation or attributable risk could not be computed,
-with reasons; their `totals` are `NA`) and `methods`. For a model,
-`undefined` keeps the results with non-finite values for inspection;
-they are not among the estimates.
+(naive and adjusted aggregate per method; attributable risk for
+hazard-ratio models with `overall_risk`), `diagnostics`, `failed`
+(methods that could not be run, gave an undefined (non-finite) result,
+or whose attributable risk could not be computed, with reasons) and
+`methods`. For a model, `undefined` keeps the results with non-finite
+values for inspection; they are not among the estimates.
 
 ## Details
 
@@ -109,9 +94,10 @@ are reported with the reason. For
 each analysis is compared and the tables are stacked. For a hazard-ratio
 model, the methods of
 [`deconflate_hr()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate_hr.md)
-are compared. For a Monte Carlo run made with several methods, the
-methods were applied to identical draws, and their summaries are
-compared.
+(`"snapshot"`, `"first_order"`) are compared with the published approach
+of Rasmussen et al. (2024) (`"published"`: `HR - 1` adjusted with eq.
+16). For a Monte Carlo run made with several methods, the methods were
+applied to identical draws, and their summaries are compared.
 
 ## Examples
 

@@ -42,8 +42,10 @@ cm_monte_carlo(
 
 - method:
 
-  Adjustment method(s) passed to
-  [`deconflate()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate.md).
+  Adjustment method(s): `"simultaneous"`, `"global"`, or `"published"`
+  (the approximation of Rasmussen et al. 2022, eq. 16, kept here to
+  compare with and reproduce earlier analyses; see
+  [`compare_methods()`](https://rasmussenphilip.github.io/deconflate/reference/compare_methods.md)).
 
 - seed:
 
@@ -70,8 +72,9 @@ cm_monte_carlo(
 
 - ...:
 
-  Passed to
-  [`deconflate()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate.md).
+  Passed to the adjustment (e.g. `joint`, `feasibility`, or arguments of
+  [`fit_joint()`](https://rasmussenphilip.github.io/deconflate/reference/fit_joint.md)
+  for the global method).
 
 ## Value
 

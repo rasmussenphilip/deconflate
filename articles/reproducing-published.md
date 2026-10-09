@@ -12,39 +12,53 @@ from the published tables.
 [`reproduce_rasmussen_2022()`](https://rasmussenphilip.github.io/deconflate/reference/reproduce.md)
 and
 [`reproduce_rasmussen_2024()`](https://rasmussenphilip.github.io/deconflate/reference/reproduce.md)
-use the published (eq. 16) method and the hazard-ratio conversions of
-the papers. Those conversions are not offered for new analyses (see
+use the published approximation (eq. 16 of the 2022 paper) and the
+hazard-ratio conversions and economic valuations of the papers. None of
+these is offered for new analyses: the approximation is not a method of
+[`deconflate()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate.md)
+and appears elsewhere only in
+[`compare_methods()`](https://rasmussenphilip.github.io/deconflate/reference/compare_methods.md)
+and
+[`cm_monte_carlo()`](https://rasmussenphilip.github.io/deconflate/reference/cm_monte_carlo.md),
+for comparison (see
+[`vignette("deconflate")`](https://rasmussenphilip.github.io/deconflate/articles/deconflate.md)
+and
 [`vignette("culling-hazard-ratios")`](https://rasmussenphilip.github.io/deconflate/articles/culling-hazard-ratios.md)).
 
 ## Supplementary File example (2022)
 
 The impacts are entered in percent, so the adjusted impacts are in
-percent:
+percent.
+[`compare_methods()`](https://rasmussenphilip.github.io/deconflate/reference/compare_methods.md)
+gives the published approximation beside the exact solution; the gap is
+computed from the published result in base R, as in
+[`vignette("deconflate")`](https://rasmussenphilip.github.io/deconflate/articles/deconflate.md),
+for an observed level of 10,000 units:
 
 ``` r
 
-res <- deconflate(example_supplement(), method = "published")
-res$adjusted[, c("disease", "raw", "adjusted")]
-#>   disease raw adjusted
-#> 1      d1 2.5 2.065001
-#> 2      d2 5.0 3.699294
-#> 3      d3 7.5 6.748473
-productivity_gap(res, 10000, "decrease", "percent")
-#> $summary
-#>   observed disease_free      gap  aggregate direction  effect
-#> 1    10000     10215.66 215.6617 0.02111089  decrease percent
-#> 
-#> $attribution
-#>   disease       gap  gap_main gap_interaction
-#> 1      d1  21.09535  21.09535               0
-#> 2      d2  56.68610  56.68610               0
-#> 3      d3 137.88024 137.88024               0
+cmp_sup <- compare_methods(example_supplement(), methods = c("published", "simultaneous"))
+cmp_sup$impacts
+#>   disease raw published simultaneous
+#> 1      d1 2.5  2.065001     2.143250
+#> 2      d2 5.0  3.699294     3.387080
+#> 3      d3 7.5  6.748473     6.934209
+pub <- cmp_sup$results$published
+disease_free <- 10000 / (1 - pub$totals$adjusted_total / 100)
+gap <- disease_free - 10000
+c(disease_free = disease_free, gap = gap)
+#> disease_free          gap 
+#>   10215.6617     215.6617
+setNames(gap * pub$contributions$share, pub$contributions$disease)
+#>        d1        d2        d3 
+#>  21.09535  56.68610 137.88024
 ```
 
-The published gap of 10,225 units (20, 61 and 143 units per disease)
-comes from rounding the adjusted impacts to 2%, 4% and 7% before
-computing the gap. Without rounding, the published method gives 10,215.7
-units (21.1, 56.7 and 137.9 units per disease).
+The published disease-free level of 10,225 units (gaps of 20, 61 and 143
+units per disease) comes from rounding the adjusted impacts to 2%, 4%
+and 7% before computing the gap. Without rounding, the published
+approximation gives 10,215.7 units (21.1, 56.7 and 137.9 units per
+disease).
 
 ## UK dairy example (2022, Tables 8-10)
 
@@ -57,11 +71,10 @@ analysis, which converted the hazard ratios to excess annual culling
 risks by treating them as odds ratios and recovered adjusted hazard
 ratios by rescaling (eq. 23), exists only inside
 [`reproduce_rasmussen_2022()`](https://rasmussenphilip.github.io/deconflate/reference/reproduce.md).
-[`uk_dairy_2022_economics()`](https://rasmussenphilip.github.io/deconflate/reference/uk_dairy_2022_economics.md)
-holds the observed means and unit values of Table 1 for yield and
-fertility, and the veterinary expenditure (the paper’s culling valuation
-belongs to its historical conversion and is used only inside the
-reproduction).
+The observed means and unit values of Table 1, the veterinary
+expenditure and the paper’s culling valuation are used only inside the
+reproduction, which computes the productivity gaps and their values as
+in the paper.
 [`reproduce_rasmussen_2022()`](https://rasmussenphilip.github.io/deconflate/reference/reproduce.md)
 runs the whole calculation:
 
@@ -180,8 +193,10 @@ data.frame(disease = r22$adjusted$disease,
 
 **Exact solution.** `method = "simultaneous"` solves the additive
 equations instead of approximating them. The example has the yield and
-fertility analyses, valued with
-[`uk_dairy_2022_economics()`](https://rasmussenphilip.github.io/deconflate/reference/uk_dairy_2022_economics.md):
+fertility analyses. The gaps and values below use Table 1 in base R:
+milk yield of 8737 kg/cow/year (impacts are percent decreases) valued at
+GBP 0.3022/kg, and a calving interval of 401 days (impacts are percent
+increases), each day valued at 13 kg of milk:
 
 ``` r
 
@@ -192,16 +207,19 @@ uk
 #>   Disease pairs: 78 [independent (default): 59; specified: 19]
 #>   - yield [% decrease]
 #>   - fertility [% increase]
-eco <- uk_dairy_2022_economics()
-cmp <- compare_methods(uk, methods = c("published", "simultaneous"),
-                       valuation = eco$valuation)
-cmp$totals
+cmp <- compare_methods(uk, methods = c("published", "simultaneous"))
+tt <- cmp$totals
+yield <- tt$analysis == "yield"
+L <- tt$adjusted_total / 100
+tt$gap <- ifelse(yield, 8737 / (1 - L) - 8737, 401 - 401 / (1 + L))
+tt$value <- tt$gap * ifelse(yield, 0.3022, 13 * 0.3022)
+tt
 #>    analysis       method raw_sum adjusted_total       gap     value
 #> 1     yield    published  7.1678       6.045754 562.20724 169.89903
 #> 2     yield simultaneous  7.1678       5.982142 555.91542 167.99764
 #> 3 fertility    published  7.5734       6.906756  25.90677 101.77735
 #> 4 fertility simultaneous  7.5734       6.448457  24.29186  95.43301
-tapply(cmp$totals$value, cmp$totals$method, sum)
+tapply(tt$value, tt$method, sum)
 #>    published simultaneous 
 #>     271.6764     263.4306
 ```
@@ -250,9 +268,8 @@ compare_methods(hr_uk, overall_risk = 0.27, joint = fit_joint(uk$population))
 ```
 
 The attributable risk times the replacement price (GBP 1335.36) gives
-its value per cow and year;
-[`attributable_risk()`](https://rasmussenphilip.github.io/deconflate/reference/attributable_risk.md)
-does this with `unit_value`.
+its value per cow and year; as for the other analyses, that conversion
+is left to the user.
 
 ## Global dairy analysis (2024, Table 5)
 
@@ -398,39 +415,40 @@ res24 <- deconflate(example_global_dairy(), warn = FALSE)
 vapply(res24, function(r) r$diagnostics$sign_changes, character(1))
 #>                   yield               fertility 
 #>        "CK, CM, DA, MF" "CK, DA, LAM, SCK, SCM"
-pub24 <- deconflate(example_global_dairy(), method = "published")
-rbind(published = vapply(pub24, function(r) r$totals$adjusted_total, numeric(1)),
-      simultaneous = vapply(res24, function(r) r$totals$adjusted_total, numeric(1)))
-#>                 yield fertility
-#> published    7.280553  4.794033
-#> simultaneous 7.494192  3.933738
+compare_methods(example_global_dairy(), methods = c("published", "simultaneous"))$totals
+#>    analysis       method  raw_sum adjusted_total
+#> 1     yield    published 9.931174       7.280553
+#> 2     yield simultaneous 9.931174       7.494192
+#> 3 fertility    published 7.471713       4.794033
+#> 4 fertility simultaneous 7.471713       3.933738
 ```
 
 **Culling losses.** The adjusted culling impacts of the 2024 analysis
 are adjusted HR - 1; adding 1 gives the adjusted hazard ratios. The
 central values are in `r24$central$culling_hr_minus_1`, and they equal
-the `"published"` method of
-[`deconflate_hr()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate_hr.md):
+the `"published"` column of
+[`compare_methods()`](https://rasmussenphilip.github.io/deconflate/reference/compare_methods.md)
+for the hazard-ratio model:
 
 ``` r
 
 cu <- r24$central$culling_hr_minus_1$adjusted
-hr_pub <- deconflate_hr(example_global_dairy_hr(), method = "published")
+hr_pub <- compare_methods(example_global_dairy_hr(), methods = "published")
 data.frame(disease = cu$disease, hr = 1 + cu$raw, adjusted_hr = 1 + cu$adjusted,
-           deconflate_hr = hr_pub$adjusted$adjusted)
-#>    disease       hr adjusted_hr deconflate_hr
-#> 1       CK 1.500100    1.177580      1.177580
-#> 2       CM 2.300000    1.903941      1.903941
-#> 3       DA 2.851179    2.197930      2.197930
-#> 4      DYS 1.258143    1.098377      1.098377
-#> 5      LAM 1.744976    1.380683      1.380683
-#> 6      MET 1.116444    1.012411      1.012411
-#> 7       MF 2.999886    2.647637      2.647637
-#> 8       OC 1.620000    1.458644      1.458644
-#> 9      PTB 2.310508    2.047235      2.047235
-#> 10      RP 1.599928    1.284496      1.284496
-#> 11     SCK 1.920000    1.675253      1.675253
-#> 12     SCM 1.449996    1.254928      1.254928
+           compare_methods = hr_pub$impacts$published)
+#>    disease       hr adjusted_hr compare_methods
+#> 1       CK 1.500100    1.177580        1.177580
+#> 2       CM 2.300000    1.903941        1.903941
+#> 3       DA 2.851179    2.197930        2.197930
+#> 4      DYS 1.258143    1.098377        1.098377
+#> 5      LAM 1.744976    1.380683        1.380683
+#> 6      MET 1.116444    1.012411        1.012411
+#> 7       MF 2.999886    2.647637        2.647637
+#> 8       OC 1.620000    1.458644        1.458644
+#> 9      PTB 2.310508    2.047235        2.047235
+#> 10      RP 1.599928    1.284496        1.284496
+#> 11     SCK 1.920000    1.675253        1.675253
+#> 12     SCM 1.449996    1.254928        1.254928
 ```
 
 For the losses, the paper converted each adjusted hazard ratio to an

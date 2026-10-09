@@ -64,12 +64,12 @@ and
 UK example
 ([`example_uk_dairy_2022()`](https://rasmussenphilip.github.io/deconflate/reference/example_uk_dairy_2022.md))
 and the historical culling analysis, computes the productivity gaps and
-their values with
-[`uk_dairy_2022_economics()`](https://rasmussenphilip.github.io/deconflate/reference/uk_dairy_2022_economics.md)
-(and the paper's culling valuation), adds veterinary expenditure, and
-back-converts the culling impacts to hazard ratios. Fertility and the
-culling hazard ratios reproduce the paper; yield does not reproduce
-exactly from the printed Table 4 (see
+their values with the paper's economic inputs (Table 1, and its culling
+valuation), adds veterinary expenditure, and back-converts the culling
+impacts to hazard ratios. (The gap and valuation steps exist only here:
+the package itself does not value impacts.) Fertility and the culling
+hazard ratios reproduce the paper; yield does not reproduce exactly from
+the printed Table 4 (see
 [`vignette("reproducing-published")`](https://rasmussenphilip.github.io/deconflate/articles/reproducing-published.md)).
 
 ## 2024 (Table 5)

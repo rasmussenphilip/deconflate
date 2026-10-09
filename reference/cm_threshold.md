@@ -82,7 +82,7 @@ cm_threshold(
 
   Adjustment method; by default `"global"` for models with interactions
   or three-way terms (and for `"inter:"` and `"three:"` inputs),
-  otherwise `"simultaneous"`. The pairwise methods are rejected (class
+  otherwise `"simultaneous"`. The simultaneous method is rejected (class
   `deconflate_unsupported`) for `"inter:"` and `"three:"` inputs and for
   models with interactions.
 
@@ -138,15 +138,15 @@ such points) is a crossing only if the quantity has opposite signs at
 the usable points on either side; the threshold is then the first zero
 point. A refined crossing is reported as a `"threshold"` only if the
 quantity being compared is close to zero on both sides of the final
-bracket (continuity); a jump across a pole of the published
-approximation, or across a nearly singular system, is reported as a
-`"discontinuity"`, never as a threshold. If a bisection step lands on an
-unusable point, the crossing is `"unresolved"`. All crossings in the
-range are reported; stretches of unusable grid points are listed in
-`regions`, so that "no crossing found" can be told apart from "part of
-the range could not be evaluated". A sign change between usable points
-separated by unusable ones is not reported as a crossing; such stretches
-appear in `regions`.
+bracket (continuity); a jump across a pole (e.g. where the system
+becomes singular) is reported as a `"discontinuity"`, never as a
+threshold; so is a bracket whose bisection reaches a singular point. If
+a bisection step lands on any other unusable point, the crossing is
+`"unresolved"`. All crossings in the range are reported; stretches of
+unusable grid points are listed in `regions`, so that "no crossing
+found" can be told apart from "part of the range could not be
+evaluated". A sign change between usable points separated by unusable
+ones is not reported as a crossing; such stretches appear in `regions`.
 
 With the global method, when the input is an impact or an interaction
 (which do not change the joint distribution), the joint distribution is
@@ -172,6 +172,6 @@ th
 cm_threshold(m, "assoc:d1:d3", c(1, 50), conclusion = "change", target = -0.1)$thresholds
 #>   conclusion  item    status threshold    lower    upper        below
 #> 1     change total threshold  5.263907 5.263907 5.263907 4.931178e-10
-#>           above                                                 description
-#> 1 -3.748852e-10 the aggregate falls below the baseline by the target change
+#>          above                                                 description
+#> 1 -3.74885e-10 the aggregate falls below the baseline by the target change
 ```

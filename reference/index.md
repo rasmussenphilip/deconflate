@@ -62,7 +62,7 @@
 - [`check_feasibility()`](https://rasmussenphilip.github.io/deconflate/reference/check_feasibility.md)
   : Check whether the pairwise associations are jointly feasible
 
-## Contributions, gaps and values
+## Contributions
 
 - [`attribute_burden()`](https://rasmussenphilip.github.io/deconflate/reference/attribute_burden.md)
   : Attribute the aggregate to diseases (Shapley allocation)
@@ -70,10 +70,6 @@
   : Contribution table
 - [`summary(`*`<cm_result>`*`)`](https://rasmussenphilip.github.io/deconflate/reference/summary.cm_result.md)
   : Summarise an adjustment result
-- [`productivity_gap()`](https://rasmussenphilip.github.io/deconflate/reference/productivity_gap.md)
-  : Productivity gap of one adjusted impact vector (optional helper)
-- [`value_losses()`](https://rasmussenphilip.github.io/deconflate/reference/value_losses.md)
-  : Value a productivity gap in monetary terms (optional helper)
 - [`shapley_by_cell()`](https://rasmussenphilip.github.io/deconflate/reference/shapley_by_cell.md)
   : Shapley attribution of a general loss function over disease
   combinations
@@ -112,8 +108,6 @@
   : Monte Carlo propagation of input uncertainty
 - [`summary(`*`<cm_mc>`*`)`](https://rasmussenphilip.github.io/deconflate/reference/summary.cm_mc.md)
   : Summarise Monte Carlo results
-- [`cm_mc_gap()`](https://rasmussenphilip.github.io/deconflate/reference/cm_mc_gap.md)
-  : Productivity gaps over Monte Carlo draws (optional helper)
 - [`cm_reweight()`](https://rasmussenphilip.github.io/deconflate/reference/cm_reweight.md)
   : Reweight Monte Carlo draws (importance sampling)
 - [`cm_scenario()`](https://rasmussenphilip.github.io/deconflate/reference/cm_scenario.md)
@@ -156,9 +150,6 @@
   (2022)
 - [`example_uk_dairy_2022()`](https://rasmussenphilip.github.io/deconflate/reference/example_uk_dairy_2022.md)
   : UK dairy example from Rasmussen et al. (2022)
-- [`uk_dairy_2022_economics()`](https://rasmussenphilip.github.io/deconflate/reference/uk_dairy_2022_economics.md)
-  : Economic inputs for the UK dairy example (Rasmussen et al. 2022,
-  Table 1)
 - [`example_global_dairy()`](https://rasmussenphilip.github.io/deconflate/reference/example_global_dairy.md)
   : Global dairy inputs from Rasmussen et al. (2024)
 - [`example_global_dairy_hr()`](https://rasmussenphilip.github.io/deconflate/reference/example_global_dairy_hr.md)

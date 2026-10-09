@@ -198,7 +198,7 @@ folder. By default it is a single analysis, the standard workflow:</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">dir</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/file.path.html" class="external-link">file.path</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempdir</a></span><span class="op">(</span><span class="op">)</span>, <span class="st">"my-inputs"</span><span class="op">)</span></span>
 <span><span class="fu"><a href="../reference/cm_template.html">cm_template</a></span><span class="op">(</span><span class="va">dir</span>, overwrite <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Wrote 5 files to /tmp/RtmpvHQgP8/my-inputs</span></span>
+<span><span class="co">#&gt; Wrote 5 files to /tmp/Rtmp9Ghi8s/my-inputs</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/list.files.html" class="external-link">list.files</a></span><span class="op">(</span><span class="va">dir</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [1] "associations.csv" "diseases.csv"     "impacts.csv"      "interactions.csv"</span></span>
 <span><span class="co">#&gt; [5] "three_way.csv"</span></span>
@@ -336,7 +336,7 @@ days):</p>
 <div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">dir2</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/file.path.html" class="external-link">file.path</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempdir</a></span><span class="op">(</span><span class="op">)</span>, <span class="st">"my-analyses"</span><span class="op">)</span></span>
 <span><span class="fu"><a href="../reference/cm_template.html">cm_template</a></span><span class="op">(</span><span class="va">dir2</span>, type <span class="op">=</span> <span class="st">"analyses"</span>, overwrite <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Wrote 6 files to /tmp/RtmpvHQgP8/my-analyses</span></span>
+<span><span class="co">#&gt; Wrote 6 files to /tmp/Rtmp9Ghi8s/my-analyses</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/list.files.html" class="external-link">list.files</a></span><span class="op">(</span><span class="va">dir2</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [1] "associations.csv"             "diseases.csv"                </span></span>
 <span><span class="co">#&gt; [3] "impacts_calving_interval.csv" "impacts_yield.csv"           </span></span>
@@ -535,33 +535,54 @@ tables.</p>
 <span><span class="co">#&gt; 22    yield      RP 4.1986640 2.25771112    2.4733053</span></span>
 <span><span class="co">#&gt; 23    yield     SCK 8.3964720 7.10307185    8.2785938</span></span>
 <span><span class="co">#&gt; 24    yield     SCM 6.2931840 5.58961905    6.5761493</span></span></code></pre></div>
-<p>The simultaneous solution changes the sign of several adjusted
-impacts (see <code><a href="../articles/reproducing-published.html">vignette("reproducing-published")</a></code>). The
-culling hazard ratios are adjusted separately
-(<code><a href="../articles/culling-hazard-ratios.html">vignette("culling-hazard-ratios")</a></code>):</p>
+<p>The <code>"published"</code> column (the approximation of the paper,
+kept for comparison only) and the simultaneous solution differ; the
+simultaneous solution changes the sign of several adjusted impacts (see
+<code><a href="../articles/reproducing-published.html">vignette("reproducing-published")</a></code>). The culling hazard
+ratios are adjusted separately with the snapshot model
+(<code><a href="../articles/culling-hazard-ratios.html">vignette("culling-hazard-ratios")</a></code>), and
+<code><a href="../reference/compare_methods.html">compare_methods()</a></code> sets the paper’s approach beside it:</p>
 <div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="../reference/deconflate_hr.html">deconflate_hr</a></span><span class="op">(</span><span class="va">gd</span><span class="op">$</span><span class="va">hr_model</span>, method <span class="op">=</span> <span class="st">"published"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; &lt;cm_hr_result&gt; method: published</span></span>
+<code class="sourceCode R"><span><span class="va">hr_gd</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/deconflate_hr.html">deconflate_hr</a></span><span class="op">(</span><span class="va">gd</span><span class="op">$</span><span class="va">hr_model</span><span class="op">)</span></span>
+<span><span class="co">#&gt; Warning: Adjusted hazard ratios cross 1 for CK, MET. The raw hazard ratios are</span></span>
+<span><span class="co">#&gt; smaller than the associated diseases alone would produce; check the estimands</span></span>
+<span><span class="co">#&gt; and source populations.</span></span>
+<span><span class="va">hr_gd</span></span>
+<span><span class="co">#&gt; &lt;cm_hr_result&gt; method: snapshot</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;  disease   raw adjusted   change       estimand</span></span>
-<span><span class="co">#&gt;       CK 1.500    1.178 -0.21500 snapshot_crude</span></span>
-<span><span class="co">#&gt;       CM 2.300    1.904 -0.17220 snapshot_crude</span></span>
-<span><span class="co">#&gt;       DA 2.851    2.198 -0.22912 snapshot_crude</span></span>
-<span><span class="co">#&gt;      DYS 1.258    1.098 -0.12699 snapshot_crude</span></span>
-<span><span class="co">#&gt;      LAM 1.745    1.381 -0.20877 snapshot_crude</span></span>
-<span><span class="co">#&gt;      MET 1.116    1.012 -0.09318 snapshot_crude</span></span>
-<span><span class="co">#&gt;       MF 3.000    2.648 -0.11742 snapshot_crude</span></span>
-<span><span class="co">#&gt;       OC 1.620    1.459 -0.09960 snapshot_crude</span></span>
-<span><span class="co">#&gt;      PTB 2.311    2.047 -0.11395 snapshot_crude</span></span>
-<span><span class="co">#&gt;       RP 1.600    1.284 -0.19715 snapshot_crude</span></span>
-<span><span class="co">#&gt;      SCK 1.920    1.675 -0.12747 snapshot_crude</span></span>
-<span><span class="co">#&gt;      SCM 1.450    1.255 -0.13453 snapshot_crude</span></span>
+<span><span class="co">#&gt;       CK 1.500   0.9821 -0.34529 snapshot_crude</span></span>
+<span><span class="co">#&gt;       CM 2.300   1.8194 -0.20898 snapshot_crude</span></span>
+<span><span class="co">#&gt;       DA 2.851   1.8477 -0.35196 snapshot_crude</span></span>
+<span><span class="co">#&gt;      DYS 1.258   1.0505 -0.16500 snapshot_crude</span></span>
+<span><span class="co">#&gt;      LAM 1.745   1.2230 -0.29912 snapshot_crude</span></span>
+<span><span class="co">#&gt;      MET 1.116   0.7198 -0.35524 snapshot_crude</span></span>
+<span><span class="co">#&gt;       MF 3.000   2.6601 -0.11325 snapshot_crude</span></span>
+<span><span class="co">#&gt;       OC 1.620   1.5580 -0.03829 snapshot_crude</span></span>
+<span><span class="co">#&gt;      PTB 2.311   2.0165 -0.12723 snapshot_crude</span></span>
+<span><span class="co">#&gt;       RP 1.600   1.1817 -0.26140 snapshot_crude</span></span>
+<span><span class="co">#&gt;      SCK 1.920   1.7107 -0.10900 snapshot_crude</span></span>
+<span><span class="co">#&gt;      SCM 1.450   1.2109 -0.16489 snapshot_crude</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Diagnostics:</span></span>
 <span><span class="co">#&gt;  max_reconstruction_residual n_sign_changes condition_number</span></span>
-<span><span class="co">#&gt;                         0.49              0             3.25</span></span>
-<span><span class="co">#&gt;                                      feasibility</span></span>
-<span><span class="co">#&gt;  triple screen passed (necessary condition only)</span></span></code></pre></div>
+<span><span class="co">#&gt;                      8.1e-15              2             3.75</span></span>
+<span><span class="co">#&gt;                                       feasibility</span></span>
+<span><span class="co">#&gt;  joint distribution fitted (max residual 4.9e-11)</span></span>
+<span><span class="fu"><a href="../reference/compare_methods.html">compare_methods</a></span><span class="op">(</span><span class="va">gd</span><span class="op">$</span><span class="va">hr_model</span>, methods <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"published"</span>, <span class="st">"snapshot"</span><span class="op">)</span>, joint <span class="op">=</span> <span class="va">hr_gd</span><span class="op">$</span><span class="va">joint</span><span class="op">)</span><span class="op">$</span><span class="va">impacts</span></span>
+<span><span class="co">#&gt;    disease      raw published  snapshot</span></span>
+<span><span class="co">#&gt; 1       CK 1.500100  1.177580 0.9821306</span></span>
+<span><span class="co">#&gt; 2       CM 2.300000  1.903941 1.8193536</span></span>
+<span><span class="co">#&gt; 3       DA 2.851179  2.197930 1.8476664</span></span>
+<span><span class="co">#&gt; 4      DYS 1.258143  1.098377 1.0505432</span></span>
+<span><span class="co">#&gt; 5      LAM 1.744976  1.380683 1.2230210</span></span>
+<span><span class="co">#&gt; 6      MET 1.116444  1.012411 0.7198427</span></span>
+<span><span class="co">#&gt; 7       MF 2.999886  2.647637 2.6601486</span></span>
+<span><span class="co">#&gt; 8       OC 1.620000  1.458644 1.5579660</span></span>
+<span><span class="co">#&gt; 9      PTB 2.310508  2.047235 2.0165455</span></span>
+<span><span class="co">#&gt; 10      RP 1.599928  1.284496 1.1816995</span></span>
+<span><span class="co">#&gt; 11     SCK 1.920000  1.675253 1.7107120</span></span>
+<span><span class="co">#&gt; 12     SCM 1.449996  1.254928 1.2109005</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="tables-typed-in-r">Tables typed in R<a class="anchor" aria-label="anchor" href="#tables-typed-in-r"></a>

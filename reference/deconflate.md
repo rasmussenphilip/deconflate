@@ -13,7 +13,7 @@ deconflate(model, ...)
 # S3 method for class 'cm_model'
 deconflate(
   model,
-  method = c("simultaneous", "published", "global"),
+  method = c("simultaneous", "global"),
   joint = NULL,
   warn = TRUE,
   feasibility = c("screen", "lp", "none"),
@@ -21,12 +21,7 @@ deconflate(
 )
 
 # S3 method for class 'cm_analyses'
-deconflate(
-  model,
-  method = c("simultaneous", "published", "global"),
-  joint = NULL,
-  ...
-)
+deconflate(model, method = c("simultaneous", "global"), joint = NULL, ...)
 ```
 
 ## Arguments
@@ -50,22 +45,24 @@ deconflate(
   - `"simultaneous"` (default): solves `raw = A b` exactly using the
     pairwise 2x2 tables. No joint distribution is needed.
 
-  - `"published"`: the proportional approximation of Rasmussen et al.
-    (2022), eq. 16:
-    `b[i] = raw[i]^2 / (raw[i] + sum_{k != i} A[i, k] raw[k])`, for
-    crude estimates only. Provided for reproduction and comparison; it
-    can mask incompatible inputs, and its value is undefined when the
-    denominator is zero.
+    - `"global"`: fits the maximum-entropy joint distribution
+      ([`fit_joint()`](https://rasmussenphilip.github.io/deconflate/reference/fit_joint.md);
+      the "iterative" model) and solves the equations including any
+      interactions. Unknown pairs are left unconstrained. Without
+      interactions and unknown pairs, it equals `"simultaneous"`. For
+      more than about 20 diseases, pass `backend = "sampled"` (through
+      `...`, or fit the joint with
+      [`fit_joint()`](https://rasmussenphilip.github.io/deconflate/reference/fit_joint.md)
+      and pass it as `joint`).
 
-  - `"global"`: fits the maximum-entropy joint distribution
-    ([`fit_joint()`](https://rasmussenphilip.github.io/deconflate/reference/fit_joint.md);
-    the "iterative" model) and solves the equations including any
-    interactions. Unknown pairs are left unconstrained. Without
-    interactions and unknown pairs, it equals `"simultaneous"`. For more
-    than about 20 diseases, pass `backend = "sampled"` (through `...`,
-    or fit the joint with
-    [`fit_joint()`](https://rasmussenphilip.github.io/deconflate/reference/fit_joint.md)
-    and pass it as `joint`).
+    Use `"simultaneous"` when impacts are additive and every pair has an
+    association estimate or a defensible independence assumption;
+    otherwise (interactions, unknown pairs) use `"global"`. The
+    proportional approximation of Rasmussen et al. (2022, eq. 16) is not
+    a method here: it is kept for comparison and reproduction in
+    [`compare_methods()`](https://rasmussenphilip.github.io/deconflate/reference/compare_methods.md),
+    [`cm_monte_carlo()`](https://rasmussenphilip.github.io/deconflate/reference/cm_monte_carlo.md)
+    and the `reproduce_*()` functions.
 
 - joint:
 
@@ -142,10 +139,10 @@ aggregate. Shares are `NA` when the aggregate is zero.
 
 ## Number of diseases
 
-The `"simultaneous"` and `"published"` methods use the pairwise tables
-only, so they work for any number of diseases (the triple screen checks
-n(n-1)(n-2)/6 triples). The `"global"` method needs the joint
-distribution: the exact backend of
+The `"simultaneous"` method uses the pairwise tables only, so it works
+for any number of diseases (the triple screen checks n(n-1)(n-2)/6
+triples). The `"global"` method needs the joint distribution: the exact
+backend of
 [`fit_joint()`](https://rasmussenphilip.github.io/deconflate/reference/fit_joint.md)
 enumerates 2^n combinations (about 20 diseases at most); the sampled
 backend fits the same model by Monte Carlo for more. The exact LP

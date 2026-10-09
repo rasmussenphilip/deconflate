@@ -61,8 +61,8 @@ brackets a crossing, which is refined by bisection. As a result:
   evaluated”;
 - a refined crossing counts as a threshold only if the compared quantity
   is close to zero on both sides of the final bracket. A jump across a
-  pole of the published approximation, or across a nearly singular
-  system, is reported as a `"discontinuity"`, never as a threshold;
+  pole, such as a nearly singular system, is reported as a
+  `"discontinuity"`, never as a threshold;
 - a crossing whose bisection lands on an unusable point is
   `"unresolved"`.
 
@@ -127,11 +127,11 @@ cm_threshold(m, "assoc:d2:d3", c(0.2, 20), conclusion = "change", target = 0.1)$
 #> 1 -4.971832e-10 the aggregate falls below the baseline by the target change
 ```
 
-For an unknown pair, the pairwise methods cannot compute the baseline,
-but the global method can: it leaves the pair unconstrained in the
-maximum-entropy fit. The change is then relative to that fit. Here the
-fitted distribution implies an odds ratio of about 1.14 for d1 and d3,
-and an odds ratio of about 6.4 would reduce the aggregate by 10%:
+For an unknown pair, the simultaneous method cannot compute the
+baseline, but the global method can: it leaves the pair unconstrained in
+the maximum-entropy fit. The change is then relative to that fit. Here
+the fitted distribution implies an odds ratio of about 1.14 for d1 and
+d3, and an odds ratio of about 6.4 would reduce the aggregate by 10%:
 
 ``` r
 
@@ -208,32 +208,35 @@ diseases alone would produce under the additive model. This says that
 the inputs are inconsistent with the model there (or the estimands are
 not what they were assumed to be), not that d1 is protective.
 
-The published approximation, `m^2 / (m + c)`, has a pole where its
-denominator is zero, here at a raw impact of about -0.527. Its adjusted
-impact changes sign there, but by jumping through infinity, so the
-search reports a discontinuity, not a threshold. (At a raw impact of 0
-the published value touches zero without changing sign, which is not a
-crossing.)
+[`cm_threshold()`](https://rasmussenphilip.github.io/deconflate/reference/cm_threshold.md)
+searches with the methods of
+[`deconflate()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate.md)
+(`"simultaneous"` or `"global"`). The published approximation,
+`m^2 / (m + c)`, kept for comparison only, behaves differently: it has a
+pole where its denominator is zero, here at a raw impact of d1 of about
+-0.527, and its adjusted impact changes sign there by jumping through
+infinity.
+[`compare_methods()`](https://rasmussenphilip.github.io/deconflate/reference/compare_methods.md)
+shows this on either side of the pole:
 
 ``` r
 
-th_pub <- cm_threshold(m, "impact:d1", c(-3, 3), conclusion = "sign", diseases = "d1",
-                       method = "published")
-th_pub
-#> <cm_threshold> sign over impact:d1 in [-3, 3] (baseline 2.5; method published)
-#> Fixed: all inputs other than impact:d1 at the model's values.
-#> 
-#> Crossings:
-#>  item        status threshold   lower   upper
-#>    d1 discontinuity        NA -0.5266 -0.5266
-#>                                                              description
-#>  sign change across a pole or a nearly singular system (not a threshold)
-th_pub$summary
-#>   item n_thresholds n_other
-#> 1   d1            0       1
-#>                                                      result
-#> 1 no threshold; see discontinuities or unresolved crossings
+pop_s <- cm_population(
+  cm_diseases(c("d1", "d2", "d3"), c(0.10, 0.15, 0.20)),
+  cm_associations(c("d1", "d2"), c("d2", "d3"), c(2, 3), measure = "OR")
+)
+sapply(c(-0.60, -0.45), function(v) {
+  mv <- cm_model(pop_s, cm_impacts(c("d1", "d2", "d3"), c(v, 5, 7.5)))
+  unlist(compare_methods(mv, methods = c("published", "simultaneous"))$impacts[1, -1])
+})
+#>                    [,1]       [,2]
+#> raw          -0.6000000 -0.4500000
+#> published    -4.9068328  2.6424676
+#> simultaneous -0.9821118 -0.8308846
 ```
+
+A search across such a pole reports a `"discontinuity"`, not a
+threshold.
 
 ### A target in the units of the impacts
 
@@ -279,11 +282,12 @@ th_prob$summary
 
 ### What limits the number of diseases
 
-The `"simultaneous"` and `"published"` methods use the pairwise 2x2
-tables only. They never enumerate combinations of diseases, so they work
-for any number of diseases (the default triple screen checks
-n(n-1)(n-2)/6 triples; the exact LP feasibility check is limited to 14
-diseases).
+The `"simultaneous"` method (and the published approximation in
+[`compare_methods()`](https://rasmussenphilip.github.io/deconflate/reference/compare_methods.md))
+uses the pairwise 2x2 tables only. It never enumerates combinations of
+diseases, so it works for any number of diseases (the default triple
+screen checks n(n-1)(n-2)/6 triples; the exact LP feasibility check is
+limited to 14 diseases).
 
 The `"global"` method needs the joint distribution of disease
 combinations, for interactions, unknown pairs and three-way terms, and
@@ -509,7 +513,7 @@ global result equals the simultaneous one up to the raking tolerance:
 r_sim <- deconflate(m24)
 r_glob <- deconflate(m24, method = "global", joint = j24)
 max(abs(r_glob$adjusted$adjusted - r_sim$adjusted$adjusted))
-#> [1] 1.021939e-09
+#> [1] 1.021933e-09
 c(simultaneous = r_sim$totals$adjusted_total, global = r_glob$totals$adjusted_total)
 #> simultaneous       global 
 #>      11.9101      11.9101

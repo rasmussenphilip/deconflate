@@ -8,7 +8,7 @@ once and reused.
 ## Usage
 
 ``` r
-screen_interactions(model, values, pairs = NULL, valuation = NULL, ...)
+screen_interactions(model, values, pairs = NULL, ...)
 ```
 
 ## Arguments
@@ -26,11 +26,6 @@ screen_interactions(model, values, pairs = NULL, valuation = NULL, ...)
 - pairs:
 
   Optional character vector of pairs (`"d1:d2"`).
-
-- valuation:
-
-  Optional valuation list; otherwise the adjusted aggregate is the
-  metric.
 
 - ...:
 

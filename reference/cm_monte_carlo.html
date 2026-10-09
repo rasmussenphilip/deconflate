@@ -85,7 +85,10 @@ jointly.</p>
 
 
 <dt id="arg-method">method<a class="anchor" aria-label="anchor" href="#arg-method"></a></dt>
-<dd><p>Adjustment method(s) passed to <code><a href="deconflate.html">deconflate()</a></code>.</p></dd>
+<dd><p>Adjustment method(s): <code>"simultaneous"</code>, <code>"global"</code>, or
+<code>"published"</code> (the approximation of Rasmussen et al. 2022, eq. 16, kept
+here to compare with and reproduce earlier analyses; see
+<code><a href="compare_methods.html">compare_methods()</a></code>).</p></dd>
 
 
 <dt id="arg-seed">seed<a class="anchor" aria-label="anchor" href="#arg-seed"></a></dt>
@@ -111,7 +114,8 @@ sampling proposals), keyed as in <code>params</code> (e.g. <code>"impact:SCK"</c
 
 
 <dt id="arg--">...<a class="anchor" aria-label="anchor" href="#arg--"></a></dt>
-<dd><p>Passed to <code><a href="deconflate.html">deconflate()</a></code>.</p></dd>
+<dd><p>Passed to the adjustment (e.g. <code>joint</code>, <code>feasibility</code>, or
+arguments of <code><a href="fit_joint.html">fit_joint()</a></code> for the global method).</p></dd>
 
 </dl></div>
     <div class="section level2">

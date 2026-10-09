@@ -6,7 +6,7 @@ Summarise an adjustment result
 
 ``` r
 # S3 method for class 'cm_result'
-summary(object, valuation = NULL, ...)
+summary(object, ...)
 ```
 
 ## Arguments
@@ -17,11 +17,6 @@ summary(object, valuation = NULL, ...)
   [`deconflate()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate.md)
   result.
 
-- valuation:
-
-  Optional valuation list (see
-  [`contribution_table()`](https://rasmussenphilip.github.io/deconflate/reference/contribution_table.md)).
-
 - ...:
 
   Unused.
@@ -29,5 +24,5 @@ summary(object, valuation = NULL, ...)
 ## Value
 
 A `summary.cm_result` list with `method`, `label`, `units`, `totals`
-(naive and adjusted aggregate, their difference, and the gap and value
-with `valuation`), `diagnostics` and `contributions`.
+(naive and adjusted aggregate and the reduction), `diagnostics` and
+`contributions`.

@@ -7,7 +7,7 @@ disease rankings side by side.
 ## Usage
 
 ``` r
-compare_scenarios(..., method = "simultaneous", valuation = NULL)
+compare_scenarios(..., method = "simultaneous")
 ```
 
 ## Arguments
@@ -22,11 +22,6 @@ compare_scenarios(..., method = "simultaneous", valuation = NULL)
 
   Adjustment method (`"global"` is used automatically for models with
   interactions or three-way terms).
-
-- valuation:
-
-  Optional valuation list (see
-  [`screen_associations()`](https://rasmussenphilip.github.io/deconflate/reference/screen_associations.md)).
 
 ## Value
 

@@ -44,6 +44,22 @@
 
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="development version" id="deconflate-development-version">deconflate (development version)<a class="anchor" aria-label="anchor" href="#deconflate-development-version"></a></h2>
+<div class="section level3">
+<h3 id="breaking-changes-development-version">Breaking changes<a class="anchor" aria-label="anchor" href="#breaking-changes-development-version"></a></h3>
+<ul><li>
+<strong>The published approximation is no longer a method of <code><a href="../reference/deconflate.html">deconflate()</a></code> or <code><a href="../reference/deconflate_hr.html">deconflate_hr()</a></code>.</strong> <code><a href="../reference/deconflate.html">deconflate()</a></code> (for <code>cm_model</code> and <code>cm_analyses</code>) has the methods <code>"simultaneous"</code> (default) and <code>"global"</code>; <code><a href="../reference/deconflate_hr.html">deconflate_hr()</a></code> has <code>"snapshot"</code> (default) and <code>"first_order"</code>. <code>method = "published"</code> now gives an error of class <code>deconflate_unsupported</code> that points to the alternatives. The approximation of Rasmussen et al. (2022, eq. 16), and the HR - 1 approach of Rasmussen et al. (2024), are kept for comparison and reproduction only: in <code><a href="../reference/compare_methods.html">compare_methods()</a></code> (whose default methods still include <code>"published"</code>), <code>cm_monte_carlo(method = ...)</code> and <code><a href="../reference/reproduce.html">reproduce_rasmussen_2022()</a></code> / <code><a href="../reference/reproduce.html">reproduce_rasmussen_2024()</a></code>. <code><a href="../reference/cm_threshold.html">cm_threshold()</a></code> accepts <code>"simultaneous"</code> and <code>"global"</code> only, and <code><a href="../reference/sensitivity_oat.html">sensitivity_oat()</a></code>, the <code>screen_*()</code> functions and <code><a href="../reference/compare_scenarios.html">compare_scenarios()</a></code> inherit the methods of <code><a href="../reference/deconflate.html">deconflate()</a></code>. Method guidance: use <code>"simultaneous"</code> when impacts are additive and every pair has an association estimate or a defensible independence assumption; <code>"global"</code> otherwise (interactions, unknown pairs); the snapshot model for hazard ratios.</li>
+<li>
+<strong>Valuation is removed from the package.</strong> The package reports adjusted impacts and contributions in the units of the impacts. Removed:
+<ul><li>the exported functions <code>productivity_gap()</code>, <code>value_losses()</code>, <code>cm_mc_gap()</code> and <code>uk_dairy_2022_economics()</code>;</li>
+<li>the <code>valuation</code> argument of <code><a href="../reference/contribution_table.html">contribution_table()</a></code>, <code><a href="../reference/summary.cm_result.html">summary.cm_result()</a></code>, <code><a href="../reference/compare_methods.html">compare_methods()</a></code> (for <code>cm_model</code> and <code>cm_analyses</code>; <code>totals</code> now has <code>raw_sum</code> and <code>adjusted_total</code> per method), <code><a href="../reference/sensitivity_oat.html">sensitivity_oat()</a></code>, <code><a href="../reference/screen_associations.html">screen_associations()</a></code>, <code><a href="../reference/screen_interactions.html">screen_interactions()</a></code>, <code><a href="../reference/screen_three_way.html">screen_three_way()</a></code>, <code><a href="../reference/compare_scenarios.html">compare_scenarios()</a></code> and <code><a href="../reference/plots.html">plot_burden()</a></code> (which now plots shares of the aggregate); the screens use the adjusted aggregate as their metric;</li>
+<li>the <code>unit_value</code> argument of <code><a href="../reference/attributable_risk.html">attributable_risk()</a></code> and its <code>value</code> columns.</li>
+</ul>
+The gap and value calculation of the 2022 paper moved into <code><a href="../reference/reproduce.html">reproduce_rasmussen_2022()</a></code>, whose output is unchanged. For new analyses, <code><a href="../articles/deconflate.html">vignette("deconflate")</a></code> shows in a few lines of base R how to turn the adjusted aggregate and contributions into a gap and a value.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="documentation-development-version">Documentation<a class="anchor" aria-label="anchor" href="#documentation-development-version"></a></h3>
+<ul><li>Vignettes, README and the five-disease example script use the new interface: the published approximation is shown with <code><a href="../reference/compare_methods.html">compare_methods()</a></code> or <code><a href="../reference/cm_monte_carlo.html">cm_monte_carlo()</a></code>, and gaps and values are computed in base R.</li>
+</ul></div>
 </div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.3.0" id="deconflate-030">deconflate 0.3.0<a class="anchor" aria-label="anchor" href="#deconflate-030"></a></h2>
@@ -57,7 +73,7 @@
 <li>
 <strong>Historical conversions are confined to the reproduction functions.</strong> <code><a href="../reference/example_uk_dairy_2022.html">example_uk_dairy_2022()</a></code> has the yield and fertility analyses only (the 2022 culling analysis, hazard ratios treated as odds ratios, is built inside <code><a href="../reference/reproduce.html">reproduce_rasmussen_2022()</a></code>); <code><a href="../reference/example_global_dairy.html">example_global_dairy()</a></code> and <code><a href="../reference/sampler_global_dairy.html">sampler_global_dairy()</a></code> lose <code>culling</code> (the 2024 HR - 1 analysis is built inside <code><a href="../reference/reproduce.html">reproduce_rasmussen_2024()</a></code>).</li>
 <li>
-<code><a href="../reference/uk_dairy_2022_economics.html">uk_dairy_2022_economics()</a></code> returns the yield and fertility valuations (and <code>additional</code>); the paper’s culling valuation is used inside <code><a href="../reference/reproduce.html">reproduce_rasmussen_2022()</a></code> only.</li>
+<code>uk_dairy_2022_economics()</code> returns the yield and fertility valuations (and <code>additional</code>); the paper’s culling valuation is used inside <code><a href="../reference/reproduce.html">reproduce_rasmussen_2022()</a></code> only.</li>
 <li>Non-positive odds ratios, risk ratios and three-way ratios now raise <code>deconflate_infeasible</code> (still a <code>deconflate_error</code>).</li>
 <li>
 <strong><code><a href="../reference/cm_template.html">cm_template()</a></code> writes one analysis by default</strong> (<code>impacts.csv</code>, <code>interactions.csv</code> and the population files, with distributions in the rows of four values), which reads into a model and a single sampler with Latin hypercube and importance sampling. <code>cm_template(dir, type = "analyses")</code> writes the multi-analysis example. Hazard ratios are no longer in the template.</li>
@@ -136,7 +152,7 @@
 <li>
 <strong>Reproduction:</strong> <code><a href="../reference/reproduce.html">reproduce_rasmussen_2022()</a></code> (Tables 8-10) and <code><a href="../reference/reproduce.html">reproduce_rasmussen_2024()</a></code> (Table 5), with the published values beside the package’s.</li>
 <li>
-<code><a href="../reference/cm_mc_gap.html">cm_mc_gap()</a></code>: productivity gaps and values per Monte Carlo draw.</li>
+<code>cm_mc_gap()</code>: productivity gaps and values per Monte Carlo draw.</li>
 <li>
 <code><a href="../reference/example_global_dairy_hr.html">example_global_dairy_hr()</a></code>: the 2024 culling hazard ratios as a hazard-ratio model.</li>
 </ul></div>
@@ -196,15 +212,15 @@
 <p>Builds the remaining v0.1 features.</p>
 <div class="section level4">
 <h4 id="reproduction-of-the-published-analyses-0-1-0">Reproduction of the published analyses<a class="anchor" aria-label="anchor" href="#reproduction-of-the-published-analyses-0-1-0"></a></h4>
-<ul><li>Added the UK dairy model of Rasmussen et al. (2022): <code><a href="../reference/example_uk_dairy_2022.html">example_uk_dairy_2022()</a></code> and <code><a href="../reference/uk_dairy_2022_economics.html">uk_dairy_2022_economics()</a></code>. It reproduces the fertility and culling results of Tables 8-10 and documents why the yield results differ (the printed Table 4 differs from the inputs implied by Tables 8-10).</li>
+<ul><li>Added the UK dairy model of Rasmussen et al. (2022): <code><a href="../reference/example_uk_dairy_2022.html">example_uk_dairy_2022()</a></code> and <code>uk_dairy_2022_economics()</code>. It reproduces the fertility and culling results of Tables 8-10 and documents why the yield results differ (the printed Table 4 differs from the inputs implied by Tables 8-10).</li>
 <li>Added <code><a href="../reference/sampler_global_dairy.html">sampler_global_dairy()</a></code> with the input distributions of Rasmussen et al. (2024). Monte Carlo means of the adjusted yield impacts reproduce Table 5. The central value of the PERT distributions in Tables 2-4 is the mode.</li>
 </ul></div>
 <div class="section level4">
 <h4 id="culling-and-valuation-0-1-0">Culling and valuation<a class="anchor" aria-label="anchor" href="#culling-and-valuation-0-1-0"></a></h4>
 <ul><li>Added <code>hr_conversion()</code>, <code>as_impacts()</code> and <code>adjusted_hr()</code>, which take culling hazard ratios through to adjusted hazard ratios. They support proportional-hazards and published (odds-ratio) conversions.</li>
 <li>
-<code><a href="../reference/productivity_gap.html">productivity_gap()</a></code> now supports impacts on the absolute scale.</li>
-<li>Added <code><a href="../reference/value_losses.html">value_losses()</a></code> to value gaps in money, and <code>combine_impacts()</code> to stack impact tables.</li>
+<code>productivity_gap()</code> now supports impacts on the absolute scale.</li>
+<li>Added <code>value_losses()</code> to value gaps in money, and <code>combine_impacts()</code> to stack impact tables.</li>
 </ul></div>
 <div class="section level4">
 <h4 id="uncertainty-0-1-0">Uncertainty<a class="anchor" aria-label="anchor" href="#uncertainty-0-1-0"></a></h4>

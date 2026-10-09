@@ -63,7 +63,7 @@ units), the raw estimates satisfy</p>
 <span><span class="co"># S3 method for class 'cm_model'</span></span>
 <span><span class="fu">deconflate</span><span class="op">(</span></span>
 <span>  <span class="va">model</span>,</span>
-<span>  method <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"simultaneous"</span>, <span class="st">"published"</span>, <span class="st">"global"</span><span class="op">)</span>,</span>
+<span>  method <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"simultaneous"</span>, <span class="st">"global"</span><span class="op">)</span>,</span>
 <span>  joint <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  warn <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  feasibility <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"screen"</span>, <span class="st">"lp"</span>, <span class="st">"none"</span><span class="op">)</span>,</span>
@@ -71,12 +71,7 @@ units), the raw estimates satisfy</p>
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># S3 method for class 'cm_analyses'</span></span>
-<span><span class="fu">deconflate</span><span class="op">(</span></span>
-<span>  <span class="va">model</span>,</span>
-<span>  method <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"simultaneous"</span>, <span class="st">"published"</span>, <span class="st">"global"</span><span class="op">)</span>,</span>
-<span>  joint <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  <span class="va">...</span></span>
-<span><span class="op">)</span></span></code></pre></div>
+<span><span class="fu">deconflate</span><span class="op">(</span><span class="va">model</span>, method <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"simultaneous"</span>, <span class="st">"global"</span><span class="op">)</span>, joint <span class="op">=</span> <span class="cn">NULL</span>, <span class="va">...</span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -95,18 +90,18 @@ for each analysis.</p></dd>
 
 <dt id="arg-method">method<a class="anchor" aria-label="anchor" href="#arg-method"></a></dt>
 <dd><ul><li><p><code>"simultaneous"</code> (default): solves <code>raw = A b</code> exactly using the
-pairwise 2x2 tables. No joint distribution is needed.</p></li>
-<li><p><code>"published"</code>: the proportional approximation of Rasmussen et al.
-(2022), eq. 16: <code>b[i] = raw[i]^2 / (raw[i] + sum_{k != i} A[i, k] raw[k])</code>,
-for crude estimates only. Provided for reproduction and comparison;
-it can mask incompatible inputs, and its value is undefined when the
-denominator is zero.</p></li>
-<li><p><code>"global"</code>: fits the maximum-entropy joint distribution
+pairwise 2x2 tables. No joint distribution is needed.</p><ul><li><p><code>"global"</code>: fits the maximum-entropy joint distribution
 (<code><a href="fit_joint.html">fit_joint()</a></code>; the "iterative" model) and solves the equations
 including any interactions. Unknown pairs are left unconstrained.
 Without interactions and unknown pairs, it equals <code>"simultaneous"</code>.
 For more than about 20 diseases, pass <code>backend = "sampled"</code> (through
 <code>...</code>, or fit the joint with <code><a href="fit_joint.html">fit_joint()</a></code> and pass it as <code>joint</code>).</p></li>
+</ul><p>Use <code>"simultaneous"</code> when impacts are additive and every pair has an
+association estimate or a defensible independence assumption; otherwise
+(interactions, unknown pairs) use <code>"global"</code>. The proportional
+approximation of Rasmussen et al. (2022, eq. 16) is not a method here: it
+is kept for comparison and reproduction in <code><a href="compare_methods.html">compare_methods()</a></code>,
+<code><a href="cm_monte_carlo.html">cm_monte_carlo()</a></code> and the <code>reproduce_*()</code> functions.</p></li>
 </ul></dd>
 
 
@@ -180,8 +175,8 @@ aggregate. Shares are <code>NA</code> when the aggregate is zero.</p>
     <h2 id="number-of-diseases">Number of diseases<a class="anchor" aria-label="anchor" href="#number-of-diseases"></a></h2>
 
 
-<p>The <code>"simultaneous"</code> and <code>"published"</code> methods use the pairwise tables
-only, so they work for any number of diseases (the triple screen checks
+<p>The <code>"simultaneous"</code> method uses the pairwise tables only, so it works
+for any number of diseases (the triple screen checks
 n(n-1)(n-2)/6 triples). The <code>"global"</code> method needs the joint
 distribution: the exact backend of <code><a href="fit_joint.html">fit_joint()</a></code> enumerates 2^n
 combinations (about 20 diseases at most); the sampled backend fits the

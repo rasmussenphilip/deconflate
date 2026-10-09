@@ -107,20 +107,35 @@ compare_methods(m)
 #>        global     2.5          2.109
 ```
 
+[`deconflate()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate.md)
+has two methods:
+
 - `"simultaneous"` (the default) solves the system of impact equations
-  exactly, using the pairwise 2x2 tables.
-- `"published"` is the proportional approximation of Rasmussen et al.
-  (2022, 2024), eq. 16, kept for reproduction and comparison. It is
-  defined for crude estimates only.
+  exactly, using the pairwise 2x2 tables. Use it when impacts are
+  additive and every pair of diseases has an association estimate or a
+  defensible independence assumption.
 - `"global"` fits the maximum-entropy distribution of disease
   combinations and can include impact interactions
   ([`vignette("interactions")`](https://rasmussenphilip.github.io/deconflate/articles/interactions.md)).
-  Without interactions and unknown pairs, it equals `"simultaneous"`.
-  The pairwise methods work for any number of diseases; the global
-  method enumerates combinations up to about 20 diseases, and beyond
-  that uses the sampled backend of
+  Use it otherwise: when impacts interact, or when some pairs are
+  unknown. Without interactions and unknown pairs, it equals
+  `"simultaneous"`. The simultaneous method works for any number of
+  diseases; the global method enumerates combinations up to about 20
+  diseases, and beyond that uses the sampled backend of
   [`fit_joint()`](https://rasmussenphilip.github.io/deconflate/reference/fit_joint.md)
   ([`vignette("thresholds-and-scaling")`](https://rasmussenphilip.github.io/deconflate/articles/thresholds-and-scaling.md)).
+
+The `"published"` row above is the proportional approximation of
+Rasmussen et al. (2022, 2024), eq. 16. It is not a method of
+[`deconflate()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate.md):
+it is kept for comparison
+([`compare_methods()`](https://rasmussenphilip.github.io/deconflate/reference/compare_methods.md),
+[`cm_monte_carlo()`](https://rasmussenphilip.github.io/deconflate/reference/cm_monte_carlo.md))
+and for reproducing the published analyses
+([`vignette("reproducing-published")`](https://rasmussenphilip.github.io/deconflate/articles/reproducing-published.md))
+only. It is defined for crude estimates only. (Hazard ratios have their
+own adapter, with the snapshot model as the default; see
+[`vignette("culling-hazard-ratios")`](https://rasmussenphilip.github.io/deconflate/articles/culling-hazard-ratios.md).)
 
 ``` r
 
@@ -273,78 +288,64 @@ compare_methods(m_adj)$failed
 #> "The published approximation is defined for crude estimates only; use method = 'simultaneous' or 'global' for adjusted estimands."
 ```
 
-## Productivity gaps and values (optional)
+## From adjusted impacts to gaps and values
 
-The adjustment works on impacts alone. Turning the aggregate into a
-productivity gap needs to know what the impacts mean, so it is a
-separate, optional step. Here the impacts are percent decreases in a
-yield of 10,000 units:
+[`deconflate()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate.md)
+returns impacts and contributions in the units of the impacts; it does
+not convert them into other quantities. Turning them into a gap between
+the observed and the disease-free level of an outcome, or into a value,
+needs to know what the impacts mean, and takes a few lines of base R.
 
-``` r
-
-gaps <- productivity_gap(res, observed = 10000, direction = "decrease",
-                         effect = "percent")
-gaps$summary
-#>   observed disease_free      gap  aggregate direction  effect
-#> 1    10000     10215.47 215.4676 0.02109229  decrease percent
-gaps$attribution
-#>   disease       gap  gap_main gap_interaction
-#> 1      d1  21.89431  21.89431               0
-#> 2      d2  51.90090  51.90090               0
-#> 3      d3 141.67238 141.67238               0
-```
-
-[`value_losses()`](https://rasmussenphilip.github.io/deconflate/reference/value_losses.md)
-values the gap. Lump-sum costs that are not part of any adjustment
-(e.g. veterinary expenditure) can be added with `additional`; they are
-reported separately and included in the total:
+When the impacts are percentage losses relative to the disease-free
+level (as in `m`, with an observed mean of 10,000 units), the
+disease-free level is `observed / (1 - aggregate / 100)`, the gap is the
+disease-free level minus the observed level, and each disease’s part of
+the gap is its share of the aggregate:
 
 ``` r
 
-v <- value_losses(gaps, unit_value = 0.30, additional = c(veterinary = 25))
-v$by_disease
-#>   disease       gap     value
-#> 1      d1  21.89431  6.568292
-#> 2      d2  51.90090 15.570271
-#> 3      d3 141.67238 42.501715
-v$total
-#> [1] 89.64028
+observed <- 10000
+aggregate <- res$totals$adjusted_total            # in percent
+disease_free <- observed / (1 - aggregate / 100)
+gap <- disease_free - observed
+ct <- res$contributions
+by_disease <- data.frame(disease = ct$disease, gap = gap * ct$share)
+by_disease
+#>   disease       gap
+#> 1      d1  21.89431
+#> 2      d2  51.90090
+#> 3      d3 141.67238
+c(disease_free = disease_free, gap = gap)
+#> disease_free          gap 
+#>   10215.4676     215.4676
 ```
 
-The same valuation can be passed to
-[`contribution_table()`](https://rasmussenphilip.github.io/deconflate/reference/contribution_table.md),
-[`summary()`](https://rdrr.io/r/base/summary.html) and
-[`compare_methods()`](https://rasmussenphilip.github.io/deconflate/reference/compare_methods.md):
+A value per unit of outcome turns the gaps into values; any costs that
+are not part of the adjustment are added separately:
 
 ``` r
 
-val <- list(observed = 10000, direction = "decrease", effect = "percent",
-            unit_value = 0.30)
-summary(res, valuation = val)
-#> Comorbidity adjustment (method: simultaneous) - milk yield loss [% of yield]
-#> 
-#>  raw_sum adjusted_total interaction_total reduction observed disease_free   gap
-#>      2.5          2.109                 0    0.1563    10000        10215 215.5
-#>  value
-#>  64.64
-#> 
-#>  disease raw adjusted   change contribution   main interaction  share    gap
-#>       d1 2.5    2.143 -0.14270       0.2143 0.2143           0 0.1016  21.89
-#>       d2 5.0    3.387 -0.32258       0.5081 0.5081           0 0.2409  51.90
-#>       d3 7.5    6.934 -0.07544       1.3868 1.3868           0 0.6575 141.67
-#>   value
-#>   6.568
-#>  15.570
-#>  42.502
-#> Feasibility: triple screen passed (necessary condition only)
+unit_value <- 0.30
+by_disease$value <- by_disease$gap * unit_value
+sum(by_disease$value)
+#> [1] 64.64028
 ```
+
+`ct$share` is `NA` when the aggregate is zero;
+`disease_free * ct$total / 100` gives the same gaps and stays defined.
+For an outcome that disease increases, the disease-free level is
+`observed / (1 + aggregate / 100)` and the gap is
+`observed - disease_free`. When the impacts are absolute effects (in the
+outcome’s own units, such as the days of the calving-interval analysis
+above), no conversion is needed: each disease’s contribution
+(`ct$total`) is its part of the gap, and the aggregate is the gap.
 
 ## Feasibility
 
 Each pairwise table can be valid on its own while no population has all
-of them. By default the pairwise methods screen every triple of diseases
-(a necessary condition), and `feasibility = "lp"` runs an exact check
-(it needs the `lpSolve` package):
+of them. By default the simultaneous method screens every triple of
+diseases (a necessary condition), and `feasibility = "lp"` runs an exact
+check (it needs the `lpSolve` package):
 
 ``` r
 
@@ -400,7 +401,8 @@ class(e)
 [`simulate_raw_impacts()`](https://rasmussenphilip.github.io/deconflate/reference/simulate_raw_impacts.md)
 computes the raw impacts that single-disease studies would report in a
 herd with known true impacts. Adjusting them should recover the truth;
-the published approximation does so only approximately:
+the published approximation (shown for comparison) does so only
+approximately:
 
 ``` r
 

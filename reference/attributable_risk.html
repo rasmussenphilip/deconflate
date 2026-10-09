@@ -61,7 +61,6 @@ diseases.</p>
     <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">attributable_risk</span><span class="op">(</span></span>
 <span>  <span class="va">result</span>,</span>
 <span>  <span class="va">overall_risk</span>,</span>
-<span>  unit_value <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  joint <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  allocate <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  max_present <span class="op">=</span> <span class="cn">Inf</span></span>
@@ -79,11 +78,6 @@ diseases.</p>
 <dt id="arg-overall-risk">overall_risk<a class="anchor" aria-label="anchor" href="#arg-overall-risk"></a></dt>
 <dd><p>Overall period risk of the event, as a proportion
 (e.g. <code>0.25</code> for an annual culling rate of 25%).</p></dd>
-
-
-<dt id="arg-unit-value">unit_value<a class="anchor" aria-label="anchor" href="#arg-unit-value"></a></dt>
-<dd><p>Optional value per animal removed (e.g. replacement
-cost less salvage value); adds <code>value</code> columns.</p></dd>
 
 
 <dt id="arg-joint">joint<a class="anchor" aria-label="anchor" href="#arg-joint"></a></dt>
@@ -105,8 +99,9 @@ population. For more than about 20 diseases, fit it with
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>A <code>cm_attributable</code> list with <code>summary</code> (overall, disease-free and
-attributable risk, attributable fraction, value, and any unallocated
-part), <code>by_disease</code> and <code>baseline_hazard</code>.</p>
+attributable risk, attributable fraction, and any unallocated part),
+<code>by_disease</code> and <code>baseline_hazard</code>. Risks are proportions of animals
+experiencing the event during the period.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
@@ -131,15 +126,14 @@ of diseases over the period).</p>
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="va">hr</span> <span class="op">&lt;-</span> <span class="fu"><a href="cm_hr_model.html">cm_hr_model</a></span><span class="op">(</span><span class="fu"><a href="example_supplement.html">example_supplement</a></span><span class="op">(</span><span class="op">)</span>,</span></span>
 <span class="r-in"><span>                  <span class="fu"><a href="cm_hazard_ratios.html">cm_hazard_ratios</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"d1"</span>, <span class="st">"d2"</span>, <span class="st">"d3"</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1.5</span>, <span class="fl">2.0</span>, <span class="fl">1.3</span><span class="op">)</span>,</span></span>
 <span class="r-in"><span>                                   estimand <span class="op">=</span> <span class="st">"snapshot_crude"</span><span class="op">)</span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="fu">attributable_risk</span><span class="op">(</span><span class="fu"><a href="deconflate_hr.html">deconflate_hr</a></span><span class="op">(</span><span class="va">hr</span><span class="op">)</span>, overall_risk <span class="op">=</span> <span class="fl">0.25</span>, unit_value <span class="op">=</span> <span class="fl">1300</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="fu">attributable_risk</span><span class="op">(</span><span class="fu"><a href="deconflate_hr.html">deconflate_hr</a></span><span class="op">(</span><span class="va">hr</span><span class="op">)</span>, overall_risk <span class="op">=</span> <span class="fl">0.25</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> &lt;cm_attributable&gt; snapshot hazard-multiplier model</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   Overall risk 0.25; disease-free risk 0.2134; attributable 0.03665 (14.7% of the overall risk)</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   Value: 47.64</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  disease hr_adjusted attributable  share  value</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>       d1       1.383     0.007371 0.2011  9.582</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>       d2       1.891     0.023488 0.6409 30.534</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>       d3       1.144     0.005791 0.1580  7.528</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  disease hr_adjusted attributable  share</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>       d1       1.383     0.007371 0.2011</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>       d2       1.891     0.023488 0.6409</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>       d3       1.144     0.005791 0.1580</span>
 </code></pre></div>
     </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

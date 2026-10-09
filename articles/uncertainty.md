@@ -138,7 +138,11 @@ functions below.
 Give several methods to
 [`cm_monte_carlo()`](https://rasmussenphilip.github.io/deconflate/reference/cm_monte_carlo.md)
 and every accepted draw is adjusted with each of them (a draw is
-rejected if any method fails on it).
+rejected if any method fails on it). Besides the methods of
+[`deconflate()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate.md),
+`"published"` (the approximation of Rasmussen et al. 2022, eq. 16) is
+accepted here, for comparison with and reproduction of earlier analyses
+only.
 [`compare_methods()`](https://rasmussenphilip.github.io/deconflate/reference/compare_methods.md)
 then tabulates the results:
 
@@ -376,24 +380,34 @@ summary(cond, diagnose = FALSE)[, c("disease", "mean", "q0.5")]
 #> 3      d3 6.765979 6.793630
 ```
 
-## Productivity gaps over the draws
+## Gaps and values over the draws
 
-[`cm_mc_gap()`](https://rasmussenphilip.github.io/deconflate/reference/cm_mc_gap.md)
-applies
-[`productivity_gap()`](https://rasmussenphilip.github.io/deconflate/reference/productivity_gap.md)
-to every accepted draw. The observed mean and the unit value can be
-fixed or drawn:
+The package reports impacts in their own units. A gap or a value per
+draw is computed from `mc$totals` (one row per accepted draw and method)
+in base R, as in
+[`vignette("deconflate")`](https://rasmussenphilip.github.io/deconflate/articles/deconflate.md).
+Here the impacts are percent losses of an observed level of 10,000
+units, and the unit value is drawn per draw:
 
 ``` r
 
-g <- cm_mc_gap(mc, observed = 10000, direction = "decrease", effect = "percent",
-               unit_value = dist_uniform(0.25, 0.35), seed = 5)
-g$summary
-#>         method gap_mean gap_q0.025 gap_q0.975 value_mean value_q0.025
-#> 1 simultaneous 211.6042   170.6756   255.4873   63.43205     46.30161
-#>   value_q0.975
-#> 1     82.77978
+tt <- mc$totals
+w <- mc$weights[match(tt$draw, mc$params$draw)]
+tt$gap <- 10000 / (1 - tt$adjusted_total / 100) - 10000
+set.seed(5)
+tt$value <- tt$gap * runif(nrow(tt), 0.25, 0.35)
+sapply(tt[c("gap", "value")], function(x) c(mean = sum(w * x) / sum(w),
+                                             quantile(x, c(0.025, 0.975))))
+#>            gap    value
+#> mean  211.6042 63.43205
+#> 2.5%  170.7844 46.44422
+#> 97.5% 255.4956 82.79279
 ```
+
+The quantiles are unweighted, which is right for this run (simple random
+sampling, equal weights); after importance sampling or
+[`cm_reweight()`](https://rasmussenphilip.github.io/deconflate/reference/cm_reweight.md),
+use weighted quantiles.
 
 ## Sensitivity
 

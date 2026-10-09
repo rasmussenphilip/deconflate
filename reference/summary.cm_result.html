@@ -50,7 +50,7 @@
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="co"># S3 method for class 'cm_result'</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">object</span>, valuation <span class="op">=</span> <span class="cn">NULL</span>, <span class="va">...</span><span class="op">)</span></span></code></pre></div>
+<span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">object</span>, <span class="va">...</span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -61,10 +61,6 @@
 <dd><p>A <code><a href="deconflate.html">deconflate()</a></code> result.</p></dd>
 
 
-<dt id="arg-valuation">valuation<a class="anchor" aria-label="anchor" href="#arg-valuation"></a></dt>
-<dd><p>Optional valuation list (see <code><a href="contribution_table.html">contribution_table()</a></code>).</p></dd>
-
-
 <dt id="arg--">...<a class="anchor" aria-label="anchor" href="#arg--"></a></dt>
 <dd><p>Unused.</p></dd>
 
@@ -72,8 +68,8 @@
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>A <code>summary.cm_result</code> list with <code>method</code>, <code>label</code>, <code>units</code>,
-<code>totals</code> (naive and adjusted aggregate, their difference, and the gap
-and value with <code>valuation</code>), <code>diagnostics</code> and <code>contributions</code>.</p>
+<code>totals</code> (naive and adjusted aggregate and the reduction),
+<code>diagnostics</code> and <code>contributions</code>.</p>
     </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

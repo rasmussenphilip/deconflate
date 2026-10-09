@@ -28,33 +28,32 @@ estimates so that they can be aggregated.
 
 2.  Adjust impacts with
     [`deconflate()`](https://rasmussenphilip.github.io/deconflate/reference/deconflate.md),
-    using one of three methods:
+    using one of two methods:
 
     - `"simultaneous"` (default): the exact solution of the additive
       impact equations, built from pairwise 2x2 tables. Crude estimates
       and coefficients from additive regressions with a recorded
-      adjustment set (`estimand = "adjusted_linear"`) are supported.
-
-    - `"published"`: the proportional approximation of Rasmussen et al.
-      (2022), eq. 16, for crude estimates, for reproduction and
-      comparison.
+      adjustment set (`estimand = "adjusted_linear"`) are supported. Use
+      it when impacts are additive and every pair has an association
+      estimate or a defensible independence assumption.
 
     - `"global"`: fits a maximum-entropy distribution of disease
       combinations with
       [`fit_joint()`](https://rasmussenphilip.github.io/deconflate/reference/fit_joint.md),
       then solves the impact equations including pairwise interactions
-      ([`cm_interactions()`](https://rasmussenphilip.github.io/deconflate/reference/cm_interactions.md)).
+      ([`cm_interactions()`](https://rasmussenphilip.github.io/deconflate/reference/cm_interactions.md))
+      and unknown pairs.
 
 3.  Inspect each disease's contribution to the aggregate
     ([`attribute_burden()`](https://rasmussenphilip.github.io/deconflate/reference/attribute_burden.md),
-    [`contribution_table()`](https://rasmussenphilip.github.io/deconflate/reference/contribution_table.md));
-    optionally turn the aggregate into a productivity gap and a value
-    with
-    [`productivity_gap()`](https://rasmussenphilip.github.io/deconflate/reference/productivity_gap.md)
-    and
-    [`value_losses()`](https://rasmussenphilip.github.io/deconflate/reference/value_losses.md).
+    [`contribution_table()`](https://rasmussenphilip.github.io/deconflate/reference/contribution_table.md)),
+    in the units of the impacts. Converting the results into other
+    quantities (e.g. a productivity gap or a monetary value) is left to
+    the user.
     [`compare_methods()`](https://rasmussenphilip.github.io/deconflate/reference/compare_methods.md)
-    tabulates the methods side by side.
+    sets the methods side by side, including the proportional
+    approximation of Rasmussen et al. (2022, eq. 16), which is kept for
+    comparison and reproduction only.
 
 4.  Hazard ratios (e.g. of culling) combine multiplicatively and have
     their own adapter:

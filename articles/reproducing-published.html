@@ -78,36 +78,43 @@
 Dairy Sci.</em> 107:6945-6970), and explains where the package’s results
 differ from the published tables.
 <code><a href="../reference/reproduce.html">reproduce_rasmussen_2022()</a></code> and
-<code><a href="../reference/reproduce.html">reproduce_rasmussen_2024()</a></code> use the published (eq. 16)
-method and the hazard-ratio conversions of the papers. Those conversions
-are not offered for new analyses (see
+<code><a href="../reference/reproduce.html">reproduce_rasmussen_2024()</a></code> use the published approximation
+(eq. 16 of the 2022 paper) and the hazard-ratio conversions and economic
+valuations of the papers. None of these is offered for new analyses: the
+approximation is not a method of <code><a href="../reference/deconflate.html">deconflate()</a></code> and appears
+elsewhere only in <code><a href="../reference/compare_methods.html">compare_methods()</a></code> and
+<code><a href="../reference/cm_monte_carlo.html">cm_monte_carlo()</a></code>, for comparison (see
+<code><a href="../articles/deconflate.html">vignette("deconflate")</a></code> and
 <code><a href="../articles/culling-hazard-ratios.html">vignette("culling-hazard-ratios")</a></code>).</p>
 <div class="section level2">
 <h2 id="supplementary-file-example-2022">Supplementary File example (2022)<a class="anchor" aria-label="anchor" href="#supplementary-file-example-2022"></a>
 </h2>
 <p>The impacts are entered in percent, so the adjusted impacts are in
-percent:</p>
+percent. <code><a href="../reference/compare_methods.html">compare_methods()</a></code> gives the published
+approximation beside the exact solution; the gap is computed from the
+published result in base R, as in <code><a href="../articles/deconflate.html">vignette("deconflate")</a></code>,
+for an observed level of 10,000 units:</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">res</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/deconflate.html">deconflate</a></span><span class="op">(</span><span class="fu"><a href="../reference/example_supplement.html">example_supplement</a></span><span class="op">(</span><span class="op">)</span>, method <span class="op">=</span> <span class="st">"published"</span><span class="op">)</span></span>
-<span><span class="va">res</span><span class="op">$</span><span class="va">adjusted</span><span class="op">[</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"disease"</span>, <span class="st">"raw"</span>, <span class="st">"adjusted"</span><span class="op">)</span><span class="op">]</span></span>
-<span><span class="co">#&gt;   disease raw adjusted</span></span>
-<span><span class="co">#&gt; 1      d1 2.5 2.065001</span></span>
-<span><span class="co">#&gt; 2      d2 5.0 3.699294</span></span>
-<span><span class="co">#&gt; 3      d3 7.5 6.748473</span></span>
-<span><span class="fu"><a href="../reference/productivity_gap.html">productivity_gap</a></span><span class="op">(</span><span class="va">res</span>, <span class="fl">10000</span>, <span class="st">"decrease"</span>, <span class="st">"percent"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; $summary</span></span>
-<span><span class="co">#&gt;   observed disease_free      gap  aggregate direction  effect</span></span>
-<span><span class="co">#&gt; 1    10000     10215.66 215.6617 0.02111089  decrease percent</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; $attribution</span></span>
-<span><span class="co">#&gt;   disease       gap  gap_main gap_interaction</span></span>
-<span><span class="co">#&gt; 1      d1  21.09535  21.09535               0</span></span>
-<span><span class="co">#&gt; 2      d2  56.68610  56.68610               0</span></span>
-<span><span class="co">#&gt; 3      d3 137.88024 137.88024               0</span></span></code></pre></div>
-<p>The published gap of 10,225 units (20, 61 and 143 units per disease)
-comes from rounding the adjusted impacts to 2%, 4% and 7% before
-computing the gap. Without rounding, the published method gives 10,215.7
-units (21.1, 56.7 and 137.9 units per disease).</p>
+<code class="sourceCode R"><span><span class="va">cmp_sup</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/compare_methods.html">compare_methods</a></span><span class="op">(</span><span class="fu"><a href="../reference/example_supplement.html">example_supplement</a></span><span class="op">(</span><span class="op">)</span>, methods <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"published"</span>, <span class="st">"simultaneous"</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="va">cmp_sup</span><span class="op">$</span><span class="va">impacts</span></span>
+<span><span class="co">#&gt;   disease raw published simultaneous</span></span>
+<span><span class="co">#&gt; 1      d1 2.5  2.065001     2.143250</span></span>
+<span><span class="co">#&gt; 2      d2 5.0  3.699294     3.387080</span></span>
+<span><span class="co">#&gt; 3      d3 7.5  6.748473     6.934209</span></span>
+<span><span class="va">pub</span> <span class="op">&lt;-</span> <span class="va">cmp_sup</span><span class="op">$</span><span class="va">results</span><span class="op">$</span><span class="va">published</span></span>
+<span><span class="va">disease_free</span> <span class="op">&lt;-</span> <span class="fl">10000</span> <span class="op">/</span> <span class="op">(</span><span class="fl">1</span> <span class="op">-</span> <span class="va">pub</span><span class="op">$</span><span class="va">totals</span><span class="op">$</span><span class="va">adjusted_total</span> <span class="op">/</span> <span class="fl">100</span><span class="op">)</span></span>
+<span><span class="va">gap</span> <span class="op">&lt;-</span> <span class="va">disease_free</span> <span class="op">-</span> <span class="fl">10000</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>disease_free <span class="op">=</span> <span class="va">disease_free</span>, gap <span class="op">=</span> <span class="va">gap</span><span class="op">)</span></span>
+<span><span class="co">#&gt; disease_free          gap </span></span>
+<span><span class="co">#&gt;   10215.6617     215.6617</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/stats/setNames.html" class="external-link">setNames</a></span><span class="op">(</span><span class="va">gap</span> <span class="op">*</span> <span class="va">pub</span><span class="op">$</span><span class="va">contributions</span><span class="op">$</span><span class="va">share</span>, <span class="va">pub</span><span class="op">$</span><span class="va">contributions</span><span class="op">$</span><span class="va">disease</span><span class="op">)</span></span>
+<span><span class="co">#&gt;        d1        d2        d3 </span></span>
+<span><span class="co">#&gt;  21.09535  56.68610 137.88024</span></span></code></pre></div>
+<p>The published disease-free level of 10,225 units (gaps of 20, 61 and
+143 units per disease) comes from rounding the adjusted impacts to 2%,
+4% and 7% before computing the gap. Without rounding, the published
+approximation gives 10,215.7 units (21.1, 56.7 and 137.9 units per
+disease).</p>
 </div>
 <div class="section level2">
 <h2 id="uk-dairy-example-2022-tables-8-10">UK dairy example (2022, Tables 8-10)<a class="anchor" aria-label="anchor" href="#uk-dairy-example-2022-tables-8-10"></a>
@@ -119,11 +126,10 @@ attached as the attribute <code>"hazard_ratios"</code>, for the
 hazard-ratio adapter. The paper’s culling analysis, which converted the
 hazard ratios to excess annual culling risks by treating them as odds
 ratios and recovered adjusted hazard ratios by rescaling (eq. 23),
-exists only inside <code><a href="../reference/reproduce.html">reproduce_rasmussen_2022()</a></code>.
-<code><a href="../reference/uk_dairy_2022_economics.html">uk_dairy_2022_economics()</a></code> holds the observed means and unit
-values of Table 1 for yield and fertility, and the veterinary
-expenditure (the paper’s culling valuation belongs to its historical
-conversion and is used only inside the reproduction).
+exists only inside <code><a href="../reference/reproduce.html">reproduce_rasmussen_2022()</a></code>. The observed
+means and unit values of Table 1, the veterinary expenditure and the
+paper’s culling valuation are used only inside the reproduction, which
+computes the productivity gaps and their values as in the paper.
 <code><a href="../reference/reproduce.html">reproduce_rasmussen_2022()</a></code> runs the whole calculation:</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">r22</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/reproduce.html">reproduce_rasmussen_2022</a></span><span class="op">(</span><span class="op">)</span></span>
@@ -270,8 +276,10 @@ with 3.89% for subclinical ketosis:</p>
 </h3>
 <p><strong>Exact solution.</strong> <code>method = "simultaneous"</code>
 solves the additive equations instead of approximating them. The example
-has the yield and fertility analyses, valued with
-<code><a href="../reference/uk_dairy_2022_economics.html">uk_dairy_2022_economics()</a></code>:</p>
+has the yield and fertility analyses. The gaps and values below use
+Table 1 in base R: milk yield of 8737 kg/cow/year (impacts are percent
+decreases) valued at GBP 0.3022/kg, and a calving interval of 401 days
+(impacts are percent increases), each day valued at 13 kg of milk:</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">uk</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/example_uk_dairy_2022.html">example_uk_dairy_2022</a></span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="va">uk</span></span>
@@ -280,16 +288,19 @@ has the yield and fertility analyses, valued with
 <span><span class="co">#&gt;   Disease pairs: 78 [independent (default): 59; specified: 19]</span></span>
 <span><span class="co">#&gt;   - yield [% decrease]</span></span>
 <span><span class="co">#&gt;   - fertility [% increase]</span></span>
-<span><span class="va">eco</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/uk_dairy_2022_economics.html">uk_dairy_2022_economics</a></span><span class="op">(</span><span class="op">)</span></span>
-<span><span class="va">cmp</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/compare_methods.html">compare_methods</a></span><span class="op">(</span><span class="va">uk</span>, methods <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"published"</span>, <span class="st">"simultaneous"</span><span class="op">)</span>,</span>
-<span>                       valuation <span class="op">=</span> <span class="va">eco</span><span class="op">$</span><span class="va">valuation</span><span class="op">)</span></span>
-<span><span class="va">cmp</span><span class="op">$</span><span class="va">totals</span></span>
+<span><span class="va">cmp</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/compare_methods.html">compare_methods</a></span><span class="op">(</span><span class="va">uk</span>, methods <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"published"</span>, <span class="st">"simultaneous"</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="va">tt</span> <span class="op">&lt;-</span> <span class="va">cmp</span><span class="op">$</span><span class="va">totals</span></span>
+<span><span class="va">yield</span> <span class="op">&lt;-</span> <span class="va">tt</span><span class="op">$</span><span class="va">analysis</span> <span class="op">==</span> <span class="st">"yield"</span></span>
+<span><span class="va">L</span> <span class="op">&lt;-</span> <span class="va">tt</span><span class="op">$</span><span class="va">adjusted_total</span> <span class="op">/</span> <span class="fl">100</span></span>
+<span><span class="va">tt</span><span class="op">$</span><span class="va">gap</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/ifelse.html" class="external-link">ifelse</a></span><span class="op">(</span><span class="va">yield</span>, <span class="fl">8737</span> <span class="op">/</span> <span class="op">(</span><span class="fl">1</span> <span class="op">-</span> <span class="va">L</span><span class="op">)</span> <span class="op">-</span> <span class="fl">8737</span>, <span class="fl">401</span> <span class="op">-</span> <span class="fl">401</span> <span class="op">/</span> <span class="op">(</span><span class="fl">1</span> <span class="op">+</span> <span class="va">L</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="va">tt</span><span class="op">$</span><span class="va">value</span> <span class="op">&lt;-</span> <span class="va">tt</span><span class="op">$</span><span class="va">gap</span> <span class="op">*</span> <span class="fu"><a href="https://rdrr.io/r/base/ifelse.html" class="external-link">ifelse</a></span><span class="op">(</span><span class="va">yield</span>, <span class="fl">0.3022</span>, <span class="fl">13</span> <span class="op">*</span> <span class="fl">0.3022</span><span class="op">)</span></span>
+<span><span class="va">tt</span></span>
 <span><span class="co">#&gt;    analysis       method raw_sum adjusted_total       gap     value</span></span>
 <span><span class="co">#&gt; 1     yield    published  7.1678       6.045754 562.20724 169.89903</span></span>
 <span><span class="co">#&gt; 2     yield simultaneous  7.1678       5.982142 555.91542 167.99764</span></span>
 <span><span class="co">#&gt; 3 fertility    published  7.5734       6.906756  25.90677 101.77735</span></span>
 <span><span class="co">#&gt; 4 fertility simultaneous  7.5734       6.448457  24.29186  95.43301</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/tapply.html" class="external-link">tapply</a></span><span class="op">(</span><span class="va">cmp</span><span class="op">$</span><span class="va">totals</span><span class="op">$</span><span class="va">value</span>, <span class="va">cmp</span><span class="op">$</span><span class="va">totals</span><span class="op">$</span><span class="va">method</span>, <span class="va">sum</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/tapply.html" class="external-link">tapply</a></span><span class="op">(</span><span class="va">tt</span><span class="op">$</span><span class="va">value</span>, <span class="va">tt</span><span class="op">$</span><span class="va">method</span>, <span class="va">sum</span><span class="op">)</span></span>
 <span><span class="co">#&gt;    published simultaneous </span></span>
 <span><span class="co">#&gt;     271.6764     263.4306</span></span></code></pre></div>
 <p>The published rows reproduce the yield and fertility values of the
@@ -331,8 +342,8 @@ hazard ratios of Table 6 are attached to the example:</p>
 <span><span class="co">#&gt;  first_order         0.27           0.09699       0.1730</span></span>
 <span><span class="co">#&gt;     snapshot         0.27           0.10230       0.1677</span></span></code></pre></div>
 <p>The attributable risk times the replacement price (GBP 1335.36) gives
-its value per cow and year; <code><a href="../reference/attributable_risk.html">attributable_risk()</a></code> does this
-with <code>unit_value</code>.</p>
+its value per cow and year; as for the other analyses, that conversion
+is left to the user.</p>
 </div>
 </div>
 <div class="section level2">
@@ -557,35 +568,36 @@ aggregates move less (about 3% for yield and 18% for fertility):</p>
 <span><span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">vapply</a></span><span class="op">(</span><span class="va">res24</span>, <span class="kw">function</span><span class="op">(</span><span class="va">r</span><span class="op">)</span> <span class="va">r</span><span class="op">$</span><span class="va">diagnostics</span><span class="op">$</span><span class="va">sign_changes</span>, <span class="fu"><a href="https://rdrr.io/r/base/character.html" class="external-link">character</a></span><span class="op">(</span><span class="fl">1</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt;                   yield               fertility </span></span>
 <span><span class="co">#&gt;        "CK, CM, DA, MF" "CK, DA, LAM, SCK, SCM"</span></span>
-<span><span class="va">pub24</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/deconflate.html">deconflate</a></span><span class="op">(</span><span class="fu"><a href="../reference/example_global_dairy.html">example_global_dairy</a></span><span class="op">(</span><span class="op">)</span>, method <span class="op">=</span> <span class="st">"published"</span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/cbind.html" class="external-link">rbind</a></span><span class="op">(</span>published <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">vapply</a></span><span class="op">(</span><span class="va">pub24</span>, <span class="kw">function</span><span class="op">(</span><span class="va">r</span><span class="op">)</span> <span class="va">r</span><span class="op">$</span><span class="va">totals</span><span class="op">$</span><span class="va">adjusted_total</span>, <span class="fu"><a href="https://rdrr.io/r/base/numeric.html" class="external-link">numeric</a></span><span class="op">(</span><span class="fl">1</span><span class="op">)</span><span class="op">)</span>,</span>
-<span>      simultaneous <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">vapply</a></span><span class="op">(</span><span class="va">res24</span>, <span class="kw">function</span><span class="op">(</span><span class="va">r</span><span class="op">)</span> <span class="va">r</span><span class="op">$</span><span class="va">totals</span><span class="op">$</span><span class="va">adjusted_total</span>, <span class="fu"><a href="https://rdrr.io/r/base/numeric.html" class="external-link">numeric</a></span><span class="op">(</span><span class="fl">1</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="co">#&gt;                 yield fertility</span></span>
-<span><span class="co">#&gt; published    7.280553  4.794033</span></span>
-<span><span class="co">#&gt; simultaneous 7.494192  3.933738</span></span></code></pre></div>
+<span><span class="fu"><a href="../reference/compare_methods.html">compare_methods</a></span><span class="op">(</span><span class="fu"><a href="../reference/example_global_dairy.html">example_global_dairy</a></span><span class="op">(</span><span class="op">)</span>, methods <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"published"</span>, <span class="st">"simultaneous"</span><span class="op">)</span><span class="op">)</span><span class="op">$</span><span class="va">totals</span></span>
+<span><span class="co">#&gt;    analysis       method  raw_sum adjusted_total</span></span>
+<span><span class="co">#&gt; 1     yield    published 9.931174       7.280553</span></span>
+<span><span class="co">#&gt; 2     yield simultaneous 9.931174       7.494192</span></span>
+<span><span class="co">#&gt; 3 fertility    published 7.471713       4.794033</span></span>
+<span><span class="co">#&gt; 4 fertility simultaneous 7.471713       3.933738</span></span></code></pre></div>
 <p><strong>Culling losses.</strong> The adjusted culling impacts of the
 2024 analysis are adjusted HR - 1; adding 1 gives the adjusted hazard
 ratios. The central values are in
 <code>r24$central$culling_hr_minus_1</code>, and they equal the
-<code>"published"</code> method of <code><a href="../reference/deconflate_hr.html">deconflate_hr()</a></code>:</p>
+<code>"published"</code> column of <code><a href="../reference/compare_methods.html">compare_methods()</a></code> for
+the hazard-ratio model:</p>
 <div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">cu</span> <span class="op">&lt;-</span> <span class="va">r24</span><span class="op">$</span><span class="va">central</span><span class="op">$</span><span class="va">culling_hr_minus_1</span><span class="op">$</span><span class="va">adjusted</span></span>
-<span><span class="va">hr_pub</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/deconflate_hr.html">deconflate_hr</a></span><span class="op">(</span><span class="fu"><a href="../reference/example_global_dairy_hr.html">example_global_dairy_hr</a></span><span class="op">(</span><span class="op">)</span>, method <span class="op">=</span> <span class="st">"published"</span><span class="op">)</span></span>
+<span><span class="va">hr_pub</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/compare_methods.html">compare_methods</a></span><span class="op">(</span><span class="fu"><a href="../reference/example_global_dairy_hr.html">example_global_dairy_hr</a></span><span class="op">(</span><span class="op">)</span>, methods <span class="op">=</span> <span class="st">"published"</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span>disease <span class="op">=</span> <span class="va">cu</span><span class="op">$</span><span class="va">disease</span>, hr <span class="op">=</span> <span class="fl">1</span> <span class="op">+</span> <span class="va">cu</span><span class="op">$</span><span class="va">raw</span>, adjusted_hr <span class="op">=</span> <span class="fl">1</span> <span class="op">+</span> <span class="va">cu</span><span class="op">$</span><span class="va">adjusted</span>,</span>
-<span>           deconflate_hr <span class="op">=</span> <span class="va">hr_pub</span><span class="op">$</span><span class="va">adjusted</span><span class="op">$</span><span class="va">adjusted</span><span class="op">)</span></span>
-<span><span class="co">#&gt;    disease       hr adjusted_hr deconflate_hr</span></span>
-<span><span class="co">#&gt; 1       CK 1.500100    1.177580      1.177580</span></span>
-<span><span class="co">#&gt; 2       CM 2.300000    1.903941      1.903941</span></span>
-<span><span class="co">#&gt; 3       DA 2.851179    2.197930      2.197930</span></span>
-<span><span class="co">#&gt; 4      DYS 1.258143    1.098377      1.098377</span></span>
-<span><span class="co">#&gt; 5      LAM 1.744976    1.380683      1.380683</span></span>
-<span><span class="co">#&gt; 6      MET 1.116444    1.012411      1.012411</span></span>
-<span><span class="co">#&gt; 7       MF 2.999886    2.647637      2.647637</span></span>
-<span><span class="co">#&gt; 8       OC 1.620000    1.458644      1.458644</span></span>
-<span><span class="co">#&gt; 9      PTB 2.310508    2.047235      2.047235</span></span>
-<span><span class="co">#&gt; 10      RP 1.599928    1.284496      1.284496</span></span>
-<span><span class="co">#&gt; 11     SCK 1.920000    1.675253      1.675253</span></span>
-<span><span class="co">#&gt; 12     SCM 1.449996    1.254928      1.254928</span></span></code></pre></div>
+<span>           compare_methods <span class="op">=</span> <span class="va">hr_pub</span><span class="op">$</span><span class="va">impacts</span><span class="op">$</span><span class="va">published</span><span class="op">)</span></span>
+<span><span class="co">#&gt;    disease       hr adjusted_hr compare_methods</span></span>
+<span><span class="co">#&gt; 1       CK 1.500100    1.177580        1.177580</span></span>
+<span><span class="co">#&gt; 2       CM 2.300000    1.903941        1.903941</span></span>
+<span><span class="co">#&gt; 3       DA 2.851179    2.197930        2.197930</span></span>
+<span><span class="co">#&gt; 4      DYS 1.258143    1.098377        1.098377</span></span>
+<span><span class="co">#&gt; 5      LAM 1.744976    1.380683        1.380683</span></span>
+<span><span class="co">#&gt; 6      MET 1.116444    1.012411        1.012411</span></span>
+<span><span class="co">#&gt; 7       MF 2.999886    2.647637        2.647637</span></span>
+<span><span class="co">#&gt; 8       OC 1.620000    1.458644        1.458644</span></span>
+<span><span class="co">#&gt; 9      PTB 2.310508    2.047235        2.047235</span></span>
+<span><span class="co">#&gt; 10      RP 1.599928    1.284496        1.284496</span></span>
+<span><span class="co">#&gt; 11     SCK 1.920000    1.675253        1.675253</span></span>
+<span><span class="co">#&gt; 12     SCM 1.449996    1.254928        1.254928</span></span></code></pre></div>
 <p>For the losses, the paper converted each adjusted hazard ratio to an
 excess culling risk relative to the overall culling rate <code>r</code>,
 <code>HR * r / (HR * r + 1 - r) - r</code>, which treats the hazard

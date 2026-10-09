@@ -2,7 +2,7 @@
 
 Varies each input by `variation` (e.g. +/- 20%) with everything else
 fixed, as in Rasmussen et al. (2024), Fig. 7, and reports the resulting
-range of the aggregate (or value).
+range of the adjusted aggregate.
 
 ## Usage
 
@@ -11,8 +11,7 @@ sensitivity_oat(
   model,
   method = "simultaneous",
   variation = 0.2,
-  inputs = c("prob", "assoc", "impact"),
-  valuation = NULL
+  inputs = c("prob", "assoc", "impact")
 )
 ```
 
@@ -34,11 +33,6 @@ sensitivity_oat(
 - inputs:
 
   Which inputs to vary: `"prob"`, `"assoc"`, `"impact"`.
-
-- valuation:
-
-  Optional valuation list (see
-  [`screen_associations()`](https://rasmussenphilip.github.io/deconflate/reference/screen_associations.md)).
 
 ## Value
 
