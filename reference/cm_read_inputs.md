@@ -37,7 +37,13 @@ A
 [`cm_model()`](https://rasmussenphilip.github.io/deconflate/reference/cm_model.md),
 with the distributions of uncertain values in `$distributions` (keyed by
 table and row, e.g. `"associations:3"`) and any notes from the checks in
-attribute `"problems"`.
+attribute `"problems"`. When a check finds an error, the error (class
+`deconflate_input_problems`) holds every problem found in `$problems`,
+as
+[`cm_check_inputs()`](https://rasmussenphilip.github.io/deconflate/reference/cm_check_inputs.md)
+returns them. The notes are also shown as a message of class
+`deconflate_input_notes`, which holds them in `$problems`;
+[`suppressMessages()`](https://rdrr.io/r/base/message.html) hides it.
 
 ## Details
 
@@ -124,7 +130,7 @@ parameters:
 ``` r
 dir <- file.path(tempdir(), "deconflate-inputs")
 cm_template(dir, overwrite = TRUE)
-#> Wrote 4 files to /tmp/RtmpEx0sgC/deconflate-inputs
+#> Wrote 4 files to /tmp/RtmpxOqF10/deconflate-inputs
 m <- cm_read_inputs(diseases = file.path(dir, "diseases.csv"),
                     associations = file.path(dir, "associations.csv"),
                     impacts = file.path(dir, "yield.csv"))

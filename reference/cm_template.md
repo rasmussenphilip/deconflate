@@ -49,7 +49,7 @@ subgroups, adjusted rows, combinations).
 ``` r
 dir <- file.path(tempdir(), "my-inputs")
 cm_template(dir, overwrite = TRUE)
-#> Wrote 4 files to /tmp/RtmpEx0sgC/my-inputs
+#> Wrote 4 files to /tmp/RtmpxOqF10/my-inputs
 yield <- cm_read_inputs(diseases = file.path(dir, "diseases.csv"),
                         associations = file.path(dir, "associations.csv"),
                         impacts = file.path(dir, "yield.csv"))

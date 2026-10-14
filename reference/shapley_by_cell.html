@@ -89,7 +89,9 @@ no disease is assumed. See <code><a href="loss_functions.html">loss_additive()</
 (the cost grows as 2^k for a cell with k diseases). The default skips
 nothing. Skipped cells are reported: their probability (<code>skipped_mass</code>)
 and their expected loss (<code>skipped_loss</code>), which is the part of the total
-that is not allocated.</p></dd>
+that is not allocated. The warning (class
+<code>deconflate_incomplete_allocation</code>) has the same values as fields
+(<code>skipped_mass</code>, <code>skipped_loss</code>, <code>total</code>).</p></dd>
 
 </dl></div>
     <div class="section level2">

@@ -247,6 +247,31 @@ rejected and counted (`$draws$rejections`), not replaced; notes in
 `$notes` report a high rejection share and limited Monte Carlo
 precision. Without distributions, no draws are run.
 
+## Errors and warnings
+
+Errors and warnings are condition objects with classes (see
+[deconflate-package](https://rasmussenphilip.github.io/deconflate/reference/deconflate-package.md)).
+Those about particular inputs also hold them as fields, so that code can
+use them without reading the message:
+
+- `table` and `row` (or `rows`): the input rows concerned, e.g. an
+  impact row that is not identifiable, or exact rows that contradict
+  each other (with their `residuals` for impact rows);
+
+- `terms`: diseases and interactions, e.g. those the impact rows do not
+  determine (`deconflate_singular`), or those whose adjusted impact
+  changes sign (the warning `deconflate_sign_change`);
+
+- `triples`: the conflicting triples when the crude pair rows cannot all
+  hold (`deconflate_infeasible`), as in
+  [`check_feasibility()`](https://rasmussenphilip.github.io/deconflate/reference/check_feasibility.md);
+
+- `pairs`: the pairs without a crude pair row, for the calculations that
+  need every pair (`deconflate_unknown_pairs`);
+
+- `residual`: how far a fit was from converging
+  (`deconflate_nonconvergence`).
+
 ## Examples
 
 ``` r
@@ -325,4 +350,13 @@ deconflate(cull, event_model = TRUE, overall_risk = 0.25)
 #> Notes:
 #> * No input has a distribution, so no draws were run: the results are point
 #>   estimates.
+
+# Errors hold the inputs they are about
+bad <- cm_model(cm_population(cm_diseases(c("a", "b", "c"), c(0.5, 0.5, 0.5)),
+                              cm_associations(c("a", "a", "b"), c("b", "c", "c"), c(20, 20, 0.05))),
+                cm_impacts(c("a", "b", "c"), c(1, 1, 1)))
+e <- tryCatch(deconflate(bad), deconflate_infeasible = function(e) e)
+e$triples
+#>   disease1 disease2 disease3      gap
+#> 1        a        b        c 0.225884
 ```

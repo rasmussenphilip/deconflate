@@ -73,7 +73,7 @@ writes an example set of files to a folder:
 
 dir <- file.path(tempdir(), "my-inputs")
 cm_template(dir, overwrite = TRUE)
-#> Wrote 4 files to /tmp/RtmplYP8D7/my-inputs
+#> Wrote 4 files to /tmp/RtmpSIAJcF/my-inputs
 list.files(dir)
 #> [1] "associations.csv" "culling.csv"      "diseases.csv"     "yield.csv"
 read.csv(file.path(dir, "yield.csv"))
@@ -171,7 +171,7 @@ r_unknown
 #>      MET 5.61    3.964 -0.2935
 #> 
 #> Raw sum: 4.966; adjusted total: 4.095
-#> Diagnostics: residual 8.88e-16, condition number 1.99, sign changes 0
+#> Diagnostics: residual 0.00e+00, condition number 1.99, sign changes 0
 #> Unknown pairs: 1 without an association; the fit gave it an odds ratio of 1.33 (see $unknown_pairs).
 r_unknown$unknown_pairs
 #>   disease1 disease2 fitted_or
@@ -304,7 +304,7 @@ results$calving_interval
 #>       RP  10   10.002  2.042e-04    1
 #> 
 #> Raw sum: NA (several rows per disease); adjusted total: 7.265
-#> Diagnostics: residual 0.00e+00, condition number 1.67, sign changes 0
+#> Diagnostics: residual 4.44e-16, condition number 1.67, sign changes 0
 #> Pooled or over-determined items: 2 (see $heterogeneity and $estimates)
 #> 
 #> Notes:

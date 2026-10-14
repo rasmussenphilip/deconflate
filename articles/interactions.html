@@ -396,18 +396,18 @@ term of the model).</li>
 <span><span class="co">#&gt;    d1;d2 1.0    1.000       NA</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Raw sum: 2.5; adjusted total: 2.089; interactions: 0.02448</span></span>
-<span><span class="co">#&gt; Diagnostics: residual 1.78e-15, condition number 1.6, sign changes 0</span></span></code></pre></div>
+<span><span class="co">#&gt; Diagnostics: residual 8.88e-16, condition number 1.6, sign changes 0</span></span></code></pre></div>
 <p>The adjusted values reproduce every impact row: the raw values are
 <code>A %*% adjusted</code>, where each row of <code>A</code> says how
 much of each term (main impact or interaction) the row’s comparison
 contains under the fitted distribution:</p>
 <div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">res</span><span class="op">$</span><span class="va">conflation</span><span class="op">$</span><span class="va">A</span></span>
-<span><span class="co">#&gt;                     d1        d2           d3      d1;d2</span></span>
-<span><span class="co">#&gt; impacts:1 1.000000e+00 0.1053266 2.058839e-11 0.24479393</span></span>
-<span><span class="co">#&gt; impacts:2 7.434818e-02 1.0000000 2.096236e-01 0.16319595</span></span>
-<span><span class="co">#&gt; impacts:3 1.158099e-11 0.1670438 1.000000e+00 0.02304974</span></span>
-<span><span class="co">#&gt; impacts:4 2.524438e-17 0.0000000 0.000000e+00 1.00000000</span></span>
+<span><span class="co">#&gt;                     d1           d2           d3      d1;d2</span></span>
+<span><span class="co">#&gt; impacts:1 1.000000e+00 1.053266e-01 2.058839e-11 0.24479393</span></span>
+<span><span class="co">#&gt; impacts:2 7.434818e-02 1.000000e+00 2.096236e-01 0.16319595</span></span>
+<span><span class="co">#&gt; impacts:3 1.158099e-11 1.670438e-01 1.000000e+00 0.02304974</span></span>
+<span><span class="co">#&gt; impacts:4 0.000000e+00 2.038632e-16 0.000000e+00 1.00000000</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/vector.html" class="external-link">as.vector</a></span><span class="op">(</span><span class="va">res</span><span class="op">$</span><span class="va">conflation</span><span class="op">$</span><span class="va">A</span> <span class="op"><a href="https://rdrr.io/r/base/matmult.html" class="external-link">%*%</a></span> <span class="va">res</span><span class="op">$</span><span class="va">adjusted</span><span class="op">$</span><span class="va">adjusted</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [1] 2.5 5.0 7.5 1.0</span></span>
 <span><span class="va">res</span><span class="op">$</span><span class="va">estimates</span><span class="op">$</span><span class="va">value</span><span class="op">[</span><span class="va">res</span><span class="op">$</span><span class="va">estimates</span><span class="op">$</span><span class="va">table</span> <span class="op">==</span> <span class="st">"impacts"</span><span class="op">]</span></span>

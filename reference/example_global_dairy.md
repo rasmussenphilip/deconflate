@@ -89,7 +89,7 @@ deconflate(gd, n_draws = 0)
 #>      SCM 6.2932   5.9495  -0.05461
 #> 
 #> Raw sum: 9.931; adjusted total: 6.915
-#> Diagnostics: residual 2.22e-16, condition number 3.24, sign changes 4 (CK, CM, DA, MF)
+#> Diagnostics: residual 4.44e-16, condition number 3.24, sign changes 4 (CK, CM, DA, MF)
 #> Unknown pairs: 28 without an association; the fit gave them odds ratios from 1.08 to 2.37 (see $unknown_pairs).
 # \donttest{
 deconflate(example_global_dairy("culling"), event_model = TRUE,

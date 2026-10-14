@@ -281,6 +281,25 @@ hold together are rejected and counted (<code>$draws$rejections</code>), not
 replaced; notes in <code>$notes</code> report a high rejection share and limited
 Monte Carlo precision. Without distributions, no draws are run.</p>
     </div>
+    <div class="section level2">
+    <h2 id="errors-and-warnings">Errors and warnings<a class="anchor" aria-label="anchor" href="#errors-and-warnings"></a></h2>
+
+
+<p>Errors and warnings are condition objects with classes (see
+<a href="deconflate-package.html">deconflate-package</a>). Those about particular inputs also hold them as
+fields, so that code can use them without reading the message:</p><ul><li><p><code>table</code> and <code>row</code> (or <code>rows</code>): the input rows concerned, e.g. an impact
+row that is not identifiable, or exact rows that contradict each other
+(with their <code>residuals</code> for impact rows);</p></li>
+<li><p><code>terms</code>: diseases and interactions, e.g. those the impact rows do not
+determine (<code>deconflate_singular</code>), or those whose adjusted impact
+changes sign (the warning <code>deconflate_sign_change</code>);</p></li>
+<li><p><code>triples</code>: the conflicting triples when the crude pair rows cannot all
+hold (<code>deconflate_infeasible</code>), as in <code><a href="check_feasibility.html">check_feasibility()</a></code>;</p></li>
+<li><p><code>pairs</code>: the pairs without a crude pair row, for the calculations that
+need every pair (<code>deconflate_unknown_pairs</code>);</p></li>
+<li><p><code>residual</code>: how far a fit was from converging
+(<code>deconflate_nonconvergence</code>).</p></li>
+</ul></div>
 
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
@@ -359,6 +378,15 @@ Monte Carlo precision. Without distributions, no draws are run.</p>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Notes:</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> * No input has a distribution, so no draws were run: the results are point</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   estimates.</span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># Errors hold the inputs they are about</span></span></span>
+<span class="r-in"><span><span class="va">bad</span> <span class="op">&lt;-</span> <span class="fu"><a href="cm_model.html">cm_model</a></span><span class="op">(</span><span class="fu"><a href="cm_population.html">cm_population</a></span><span class="op">(</span><span class="fu"><a href="cm_diseases.html">cm_diseases</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"a"</span>, <span class="st">"b"</span>, <span class="st">"c"</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0.5</span>, <span class="fl">0.5</span>, <span class="fl">0.5</span><span class="op">)</span><span class="op">)</span>,</span></span>
+<span class="r-in"><span>                              <span class="fu"><a href="cm_associations.html">cm_associations</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"a"</span>, <span class="st">"a"</span>, <span class="st">"b"</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"b"</span>, <span class="st">"c"</span>, <span class="st">"c"</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">20</span>, <span class="fl">20</span>, <span class="fl">0.05</span><span class="op">)</span><span class="op">)</span><span class="op">)</span>,</span></span>
+<span class="r-in"><span>                <span class="fu"><a href="cm_impacts.html">cm_impacts</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"a"</span>, <span class="st">"b"</span>, <span class="st">"c"</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">1</span>, <span class="fl">1</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">e</span> <span class="op">&lt;-</span> <span class="kw"><a href="https://rdrr.io/r/base/conditions.html" class="external-link">tryCatch</a></span><span class="op">(</span><span class="fu">deconflate</span><span class="op">(</span><span class="va">bad</span><span class="op">)</span>, deconflate_infeasible <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">e</span><span class="op">)</span> <span class="va">e</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">e</span><span class="op">$</span><span class="va">triples</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   disease1 disease2 disease3      gap</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 1        a        b        c 0.225884</span>
 </code></pre></div>
     </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

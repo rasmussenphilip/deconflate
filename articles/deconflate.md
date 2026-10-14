@@ -383,7 +383,7 @@ res_five
 #>       RP 4.2    2.669 1.6092 3.299 -0.3646
 #> 
 #> Raw sum: 3.742; adjusted total: 2.713 (95% interval 2.179 to 3.578)
-#> Diagnostics: residual 0.00e+00, condition number 1.79, sign changes 0
+#> Diagnostics: residual 4.44e-16, condition number 1.79, sign changes 0
 #> Pooled or over-determined items: 1 (see $heterogeneity and $estimates)
 #> Uncertainty: 95% intervals from 200 draws (0 rejected; random sampling; seed 1).
 #> 

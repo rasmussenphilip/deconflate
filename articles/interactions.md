@@ -347,7 +347,7 @@ res
 #>    d1;d2 1.0    1.000       NA
 #> 
 #> Raw sum: 2.5; adjusted total: 2.089; interactions: 0.02448
-#> Diagnostics: residual 1.78e-15, condition number 1.6, sign changes 0
+#> Diagnostics: residual 8.88e-16, condition number 1.6, sign changes 0
 ```
 
 The adjusted values reproduce every impact row: the raw values are
@@ -358,11 +358,11 @@ distribution:
 ``` r
 
 res$conflation$A
-#>                     d1        d2           d3      d1;d2
-#> impacts:1 1.000000e+00 0.1053266 2.058839e-11 0.24479393
-#> impacts:2 7.434818e-02 1.0000000 2.096236e-01 0.16319595
-#> impacts:3 1.158099e-11 0.1670438 1.000000e+00 0.02304974
-#> impacts:4 2.524438e-17 0.0000000 0.000000e+00 1.00000000
+#>                     d1           d2           d3      d1;d2
+#> impacts:1 1.000000e+00 1.053266e-01 2.058839e-11 0.24479393
+#> impacts:2 7.434818e-02 1.000000e+00 2.096236e-01 0.16319595
+#> impacts:3 1.158099e-11 1.670438e-01 1.000000e+00 0.02304974
+#> impacts:4 0.000000e+00 2.038632e-16 0.000000e+00 1.00000000
 as.vector(res$conflation$A %*% res$adjusted$adjusted)
 #> [1] 2.5 5.0 7.5 1.0
 res$estimates$value[res$estimates$table == "impacts"]

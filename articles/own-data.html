@@ -166,7 +166,7 @@ folder:</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">dir</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/file.path.html" class="external-link">file.path</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempdir</a></span><span class="op">(</span><span class="op">)</span>, <span class="st">"my-inputs"</span><span class="op">)</span></span>
 <span><span class="fu"><a href="../reference/cm_template.html">cm_template</a></span><span class="op">(</span><span class="va">dir</span>, overwrite <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Wrote 4 files to /tmp/RtmplYP8D7/my-inputs</span></span>
+<span><span class="co">#&gt; Wrote 4 files to /tmp/RtmpSIAJcF/my-inputs</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/list.files.html" class="external-link">list.files</a></span><span class="op">(</span><span class="va">dir</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [1] "associations.csv" "culling.csv"      "diseases.csv"     "yield.csv"</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/read.table.html" class="external-link">read.csv</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/file.path.html" class="external-link">file.path</a></span><span class="op">(</span><span class="va">dir</span>, <span class="st">"yield.csv"</span><span class="op">)</span><span class="op">)</span></span>
@@ -258,7 +258,7 @@ give the pair an odds ratio of 1 (with no distribution).</p>
 <span><span class="co">#&gt;      MET 5.61    3.964 -0.2935</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Raw sum: 4.966; adjusted total: 4.095</span></span>
-<span><span class="co">#&gt; Diagnostics: residual 8.88e-16, condition number 1.99, sign changes 0</span></span>
+<span><span class="co">#&gt; Diagnostics: residual 0.00e+00, condition number 1.99, sign changes 0</span></span>
 <span><span class="co">#&gt; Unknown pairs: 1 without an association; the fit gave it an odds ratio of 1.33 (see $unknown_pairs).</span></span>
 <span><span class="va">r_unknown</span><span class="op">$</span><span class="va">unknown_pairs</span></span>
 <span><span class="co">#&gt;   disease1 disease2 fitted_or</span></span>
@@ -385,7 +385,7 @@ days), among others:</p>
 <span><span class="co">#&gt;       RP  10   10.002  2.042e-04    1</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Raw sum: NA (several rows per disease); adjusted total: 7.265</span></span>
-<span><span class="co">#&gt; Diagnostics: residual 0.00e+00, condition number 1.67, sign changes 0</span></span>
+<span><span class="co">#&gt; Diagnostics: residual 4.44e-16, condition number 1.67, sign changes 0</span></span>
 <span><span class="co">#&gt; Pooled or over-determined items: 2 (see $heterogeneity and $estimates)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Notes:</span></span>

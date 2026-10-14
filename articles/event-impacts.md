@@ -74,7 +74,7 @@ res
 #>       d2     0.023488 0.6409
 #>       d3     0.005791 0.1580
 #> 
-#> Diagnostics: residual 2.22e-16, condition number 1.68, sign changes 0
+#> Diagnostics: residual 1.67e-16, condition number 1.68, sign changes 0
 ```
 
 The kind of impacts and the call must agree. Event impacts without
@@ -216,7 +216,7 @@ deconflate(cull, event_model = TRUE, overall_risk = dist_beta(250, 750),
 #>       d2     0.023488 0.6409 0.021960 0.025136
 #>       d3     0.005791 0.1580 0.005385 0.006237
 #> 
-#> Diagnostics: residual 2.22e-16, condition number 1.68, sign changes 0
+#> Diagnostics: residual 1.67e-16, condition number 1.68, sign changes 0
 #> Uncertainty: 95% intervals from 200 draws (0 rejected; random sampling; seed 1).
 ```
 
@@ -484,7 +484,7 @@ deconflate(five, event_model = TRUE, overall_risk = 0.25, n_draws = 0)
 #>      SCK     0.011474 0.21190
 #>       RP     0.005511 0.10178
 #> 
-#> Diagnostics: residual 1.50e-15, condition number 24.1, sign changes 0
+#> Diagnostics: residual 2.22e-16, condition number 24.1, sign changes 0
 #> Pooled or over-determined items: 1 (see $heterogeneity and $estimates)
 #> 
 #> Notes:

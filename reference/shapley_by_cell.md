@@ -38,7 +38,9 @@ shapley_by_cell(joint, loss, max_present = Inf)
   as 2^k for a cell with k diseases). The default skips nothing. Skipped
   cells are reported: their probability (`skipped_mass`) and their
   expected loss (`skipped_loss`), which is the part of the total that is
-  not allocated.
+  not allocated. The warning (class `deconflate_incomplete_allocation`)
+  has the same values as fields (`skipped_mass`, `skipped_loss`,
+  `total`).
 
 ## Value
 
