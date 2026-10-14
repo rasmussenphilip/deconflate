@@ -50,9 +50,6 @@ test_that("the LP check agrees and identifies the conflict", {
 test_that("deconflate() checks that the associations can hold together", {
   m <- t2_bad_model()
   expect_error(deconflate(m), class = "deconflate_infeasible")
-  # The published approximation (internal; compare_methods() and reproduce)
-  # is screened too.
-  expect_error(adjust_published(m), class = "deconflate_infeasible")
   res_s <- deconflate(example_supplement())
   expect_match(res_s$diagnostics$feasibility, "^joint distribution fitted")
   expect_error(deconflate(m, feasibility = "lp"), "has been removed", class = "deconflate_unsupported")

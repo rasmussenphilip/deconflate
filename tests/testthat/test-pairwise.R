@@ -14,7 +14,7 @@ t2_unknown_model <- function() {
            associations = cm_associations(c("a", "b"), c("b", "c"), c(3, 2)))
 }
 
-test_that("odds ratio quadratic reproduces the Supplementary File", {
+test_that("odds ratio quadratic matches the Supplementary File", {
   p11 <- or_to_joint(2, 0.10, 0.15)
   expect_equal(p11 / 0.15, 0.1631959501785622, tolerance = 1e-10)  # P(1 | 2)
   expect_equal(p11 / 0.10, 0.24479392526784327, tolerance = 1e-10) # P(2 | 1)
@@ -94,14 +94,15 @@ test_that("retired measures and count columns are rejected with what to do inste
   expect_error(cm_associations("a", "b", 0, measure = "OR_ratio"), "positive")
 })
 
-test_that("excess matrix matches the Supplementary File", {
-  E <- excess_matrix(example_supplement())
-  # E[k, i] = P(k | i) - P(k | not i)
-  expect_equal(E["d2", "d1"], 0.10532658, tolerance = 1e-7)  # ep_2,1 = 0.11
-  expect_equal(E["d1", "d2"], 0.07434818, tolerance = 1e-7)  # ep_1,2 = 0.07
-  expect_equal(E["d3", "d2"], 0.20962356, tolerance = 1e-7)  # ep_3,2 = 0.21
-  expect_equal(E["d2", "d3"], 0.16704377, tolerance = 1e-7)  # ep_2,3 = 0.17
-  expect_equal(E["d1", "d3"], 0, tolerance = 1e-12)
+test_that("excess probabilities match the Supplementary File", {
+  pt <- pair_tables(example_supplement())
+  rownames(pt) <- paste(pt$disease1, pt$disease2, sep = ":")
+  # ep_2_given_1 = P(disease2 | disease1) - P(disease2 | not disease1)
+  expect_equal(pt["d1:d2", "ep_2_given_1"], 0.10532658, tolerance = 1e-7)  # ep_2,1 = 0.11
+  expect_equal(pt["d1:d2", "ep_1_given_2"], 0.07434818, tolerance = 1e-7)  # ep_1,2 = 0.07
+  expect_equal(pt["d2:d3", "ep_2_given_1"], 0.20962356, tolerance = 1e-7)  # ep_3,2 = 0.21
+  expect_equal(pt["d2:d3", "ep_1_given_2"], 0.16704377, tolerance = 1e-7)  # ep_2,3 = 0.17
+  expect_equal(pt["d1:d3", "ep_1_given_2"], 0, tolerance = 1e-12)
 })
 
 test_that("pair tables report specified and unknown pairs", {
@@ -139,11 +140,9 @@ test_that("pair tables report specified and unknown pairs", {
   expect_true(is.na(po$p11[1]))
 })
 
-test_that("unknown pairs are rejected by pairwise calculations and filled in by the model", {
+test_that("unknown pairs rule out the pairwise shortcut and are filled in by the model", {
   m <- t2_unknown_model()
   expect_false(shortcut_ok(m))
-  expect_error(adjust_published(m), class = "deconflate_unknown_pairs")
-  expect_error(excess_matrix(m), class = "deconflate_unknown_pairs")
   # deconflate() fits the full model, which fills the pair in.
   res <- deconflate(m, n_draws = 0)
   expect_s3_class(res, "cm_result")
@@ -163,11 +162,6 @@ test_that("unknown pairs are rejected by pairwise calculations and filled in by 
   expect_equal(nrow(ind$unknown_pairs), 0)
   expect_equal(ind$adjusted$adjusted, c(2.2632638445, 2.9469446222, 4.5487022146), tolerance = 1e-8)
   expect_false(isTRUE(all.equal(res$adjusted$adjusted, ind$adjusted$adjusted)))
-  # compare_methods(): the published approximation needs every pair.
-  cmp <- compare_methods(m)
-  expect_equal(cmp$methods, "deconflate")
-  expect_equal(names(cmp$failed), "published")
-  expect_match(cmp$failed[["published"]], "missing: a-c")
 })
 
 test_that("deconflate() needs at least one association", {

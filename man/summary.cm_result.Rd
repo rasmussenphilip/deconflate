@@ -16,8 +16,9 @@
 }
 \value{
 A \code{summary.cm_result} list with \code{method}, \code{label}, \code{units},
-\code{totals} (additive impacts: naive and adjusted aggregate and the
-reduction; event impacts: overall, disease-free and attributable risk),
+\code{totals} (additive impacts: raw aggregate (the diseases unrelated),
+adjusted aggregate and the reduction; event impacts: overall,
+disease-free, raw and adjusted attributable risk and the reduction),
 \code{diagnostics}, \code{contributions} (see \code{\link[=contribution_table]{contribution_table()}}) and \code{notes}.
 }
 \description{

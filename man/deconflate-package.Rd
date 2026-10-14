@@ -32,16 +32,15 @@ and the impacts and interactions that reproduce every impact row
 unknowns). When the pairwise tables give the same answer, they are used
 directly. Event impacts (hazard ratios, rate ratios, risk ratios, odds
 ratios or risk differences of e.g. culling) use the snapshot hazard
-model (\code{event_model = TRUE}, with the overall risk), which also gives
+model (\code{event_model = TRUE}, with the overall risk or the risk of
+disease-free animals), which also gives
 the risk attributable to disease. When inputs have distributions,
 \code{deconflate()} also reports intervals (\code{n_draws}).
-\item Inspect each disease's contribution (\code{\link[=attribute_burden]{attribute_burden()}},
-\code{\link[=contribution_table]{contribution_table()}}, \code{\link[=plot_burden]{plot_burden()}}), in the units of the impacts,
-and how well the rows fit together (\verb{$estimates}, \verb{$heterogeneity}).
-Converting the results into other quantities (e.g. a productivity gap
-or a monetary value) is left to the user. \code{\link[=compare_methods]{compare_methods()}} sets the
-model beside the proportional approximation of Rasmussen et al. (2022,
-eq. 16), which is kept for comparison and reproduction only.
+\item Inspect each disease's contribution (\code{\link[=contribution_table]{contribution_table()}},
+\link[=summary.cm_result]{summary()}), in the units of the impacts, and how
+well the rows fit together (\verb{$estimates}, \verb{$heterogeneity}). Converting
+the results into other quantities (e.g. a productivity gap or a
+monetary value) is left to the user.
 \item Check joint feasibility with \code{\link[=check_feasibility]{check_feasibility()}}.
 \item Explore the inputs with \code{\link[=sensitivity_oat]{sensitivity_oat()}}, \code{\link[=screen_associations]{screen_associations()}}
 (also without any association estimates), \code{\link[=screen_interactions]{screen_interactions()}} and
@@ -49,8 +48,7 @@ eq. 16), which is kept for comparison and reproduction only.
 or the total) changes as one input varies with \code{\link[=cm_threshold]{cm_threshold()}}.
 }
 
-\code{\link[=reproduce_rasmussen_2022]{reproduce_rasmussen_2022()}} and \code{\link[=reproduce_rasmussen_2024]{reproduce_rasmussen_2024()}} recompute
-the published tables. See \code{vignette("deconflate")} to get started.
+See \code{vignette("deconflate")} to get started.
 }
 
 \section{Conventions}{
@@ -59,8 +57,8 @@ the published tables. See \code{vignette("deconflate")} to get started.
 \item Additive impacts are in any units, the same within an impact table;
 results come back in those units. Event impacts are adjusted to hazard
 ratios, and risks are proportions of animals over the period.
-\item \code{E[k, i]} (see \code{\link[=excess_matrix]{excess_matrix()}}) is the excess probability of disease
-\code{k} among animals with disease \code{i}: \verb{P(k | i) - P(k | not i)}.
+\item \code{E[k, i]} is the excess probability of disease \code{k} among animals with
+disease \code{i}: \verb{P(k | i) - P(k | not i)}.
 \item Under additive impacts, the crude impact of disease \code{i} satisfies
 \verb{m_raw[i] = m[i] + sum_k E[k, i] * m[k]} exactly.
 \item Errors are condition objects of class \code{deconflate_error}. Failures that
@@ -69,12 +67,10 @@ code may want to handle separately have a subclass as well:
 \code{deconflate_singular} (an estimate that is not identifiable, or rows
 that do not determine the impacts), \code{deconflate_nonconvergence} (a fit
 that did not converge), \code{deconflate_unsupported} (a combination of
-inputs and options that is not supported; with
-\code{deconflate_unknown_pairs} when a calculation needs a crude pair row for
-every pair), \code{deconflate_nonfinite} (non-finite results) and
-\code{deconflate_invalid_input} (an argument, table, row or input value that
-is not valid). Problems
-found by \code{\link[=cm_read_inputs]{cm_read_inputs()}} have class \code{deconflate_input_problems}
+inputs and options that is not supported), \code{deconflate_nonfinite}
+(non-finite results) and \code{deconflate_invalid_input} (an argument, table,
+row or input value that is not valid). Problems found by
+\code{\link[=cm_read_inputs]{cm_read_inputs()}} have class \code{deconflate_input_problems}
 (also \code{deconflate_invalid_input}).
 \item Warnings are condition objects of class \code{deconflate_warning}, with the
 subclasses \code{deconflate_sign_change} (an adjusted impact on the other
@@ -82,7 +78,7 @@ side of zero, or an adjusted hazard ratio on the other side of 1, from
 its raw estimate), \code{deconflate_nonfinite_warning} (non-finite adjusted
 impacts), \code{deconflate_nonconvergence} (a joint distribution that did not
 converge) and \code{deconflate_incomplete_allocation} (a Shapley allocation
-that skipped combinations; see \code{\link[=shapley_by_cell]{shapley_by_cell()}}).
+that skipped combinations).
 \item Messages are of class \code{deconflate_message}; the notes of
 \code{\link[=cm_read_inputs]{cm_read_inputs()}} are also \code{deconflate_input_notes}.
 }

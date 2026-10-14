@@ -9,7 +9,8 @@ screen_three_way(
   ratios = c(0.5, 2),
   triples = NULL,
   event_model = FALSE,
-  overall_risk = NULL
+  overall_risk = NULL,
+  baseline_risk = NULL
 )
 }
 \arguments{
@@ -21,7 +22,7 @@ screen_three_way(
 (the association of the first two, among the third); default all
 triples (which can be many).}
 
-\item{event_model, overall_risk}{As in \code{\link[=deconflate]{deconflate()}}.}
+\item{event_model, overall_risk, baseline_risk}{As in \code{\link[=deconflate]{deconflate()}}.}
 }
 \value{
 A \code{cm_screen} data frame as in \code{\link[=screen_associations]{screen_associations()}}.

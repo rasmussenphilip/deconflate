@@ -5,16 +5,10 @@
 #' percent), and odds ratios of 2 (d1:d2), 1 (d1:d3) and 3 (d2:d3). The
 #' observed mean yield in the example is 10,000 units per animal per year.
 #'
-#' Note: the published productivity gap (10,225; 20, 61 and 143 units) rounds
-#' the adjusted impacts to 2%, 4% and 7% before computing the gap. Without
-#' rounding, the published method gives 10,215.7 and 21.1, 56.7 and 137.9
-#' units (see `vignette("reproducing-published")`).
-#'
 #' @return A [cm_model()].
 #' @export
 #' @examples
 #' deconflate(example_supplement())
-#' compare_methods(example_supplement())
 example_supplement <- function() {
   pop <- cm_population(
     cm_diseases(c("d1", "d2", "d3"), c(0.10, 0.15, 0.20)),
@@ -85,12 +79,11 @@ global_dairy_inputs <- function(inputs) {
 #' point estimates only).
 #'
 #' Pairs not in Table 3 are unknown, as for any input in this package: the
-#' model fills them in. The 2024 analysis treated them as independent;
-#' [reproduce_rasmussen_2024()] does the same.
+#' model fills them in (the 2024 analysis treated them as independent).
 #'
 #' @section Two versions of the inputs:
 #' * `inputs = "analysis"` (default) uses the inputs of the published
-#'   analysis code (1st revision), which reproduce Table 5: disease
+#'   analysis code (1st revision): disease
 #'   probabilities fixed at `1 - exp(-incidence)` at the unrounded global
 #'   means, except subclinical mastitis (entered without conversion, 0.4094
 #'   rather than 0.3360, as in the analysis), and unrounded impacts.
@@ -105,9 +98,8 @@ global_dairy_inputs <- function(inputs) {
 #' `outcome = "culling"` gives the hazard ratios as event impacts (crude
 #' snapshot comparisons, an assumption), for
 #' `deconflate(..., event_model = TRUE, overall_risk = 0.2366)` (the global
-#' culling risk of the 2024 analysis). The 2024 analysis adjusted hazard
-#' ratios minus 1 as if they were additive impacts; that historical
-#' calculation is only available inside [reproduce_rasmussen_2024()].
+#' culling risk of the 2024 analysis). (The 2024 analysis adjusted hazard
+#' ratios minus 1 as if they were additive impacts; the package does not.)
 #'
 #' @param outcome `"yield"`, `"fertility"` or `"culling"`.
 #' @param inputs `"analysis"` or `"tables"`.
@@ -138,161 +130,12 @@ example_global_dairy <- function(outcome = c("yield", "fertility", "culling"),
   cm_model(g$pop, imp, distributions = dists)
 }
 
-# The analyses of the 2024 global dairy example, for
-# reproduce_rasmussen_2024(): a named list of models with every unlisted pair
-# independent (as in the analysis). `culling = TRUE` adds the historical
-# HR - 1 analysis.
-global_dairy_analyses <- function(inputs, culling = FALSE) {
-  g <- global_dairy_inputs(inputs)
-  pop <- with_independent_pairs(g$pop)
-  out <- list(
-    yield = cm_model(pop, cm_impacts(g$ids, unname(g$yield[g$ids]), label = "milk yield loss",
-                                     units = "% decrease", source = g$src)),
-    fertility = cm_model(pop, cm_impacts(g$ids, unname(g$fert[g$ids]), label = "calving interval increase",
-                                         units = "% increase", source = g$src)))
-  if (culling) {
-    out$culling_hr_minus_1 <- cm_model(pop, cm_impacts(
-      g$ids, unname(g$hr[g$ids]) - 1, label = "culling hazard ratio minus 1 (2024 analysis; legacy)",
-      units = "hazard ratio - 1", source = g$src))
-  }
-  out
-}
-
-# Give every pair without an association an odds ratio of 1 (the assumption
-# of the published analyses, used by the reproduce_*() functions).
-with_independent_pairs <- function(pop) {
-  pt <- pair_tables(pop)
-  u <- pt[pt$status == "unknown", , drop = FALSE]
-  if (!nrow(u)) return(pop)
-  add <- cm_associations(u$disease1, u$disease2, 1, measure = "OR",
-                         source = "unlisted pair, independent (published analysis)")
-  a <- pop$associations
-  if (!is.null(a)) add$row <- max(a$row) + seq_len(nrow(add))
-  pop$associations <- if (is.null(a)) add else rbind(a, add)
-  pop
-}
-
-#' UK dairy example from Rasmussen et al. (2022)
-#'
-#' Thirteen endemic diseases and conditions of UK dairy cattle, with cow-level
-#' prevalence (Table 2), inter-disease odds ratios (Table 3), and the raw
-#' impacts of one outcome: milk yield (Table 4, % decrease), calving interval
-#' (Table 5, % increase) or culling (Table 6, hazard ratios, as event impacts
-#' (crude snapshot comparisons, an assumption); use
-#' `deconflate(..., event_model = TRUE, overall_risk = 0.27)`, the annual
-#' culling rate of the paper). Use [reproduce_rasmussen_2022()] for the
-#' published tables, including the economic values.
-#'
-#' Pairs not in Table 3 are unknown, as for any input in this package: the
-#' model fills them in. The paper treated them as independent;
-#' [reproduce_rasmussen_2022()] does the same. The paper
-#' converted the hazard ratios to excess annual culling risks by treating
-#' them as odds ratios; that historical calculation is only available inside
-#' [reproduce_rasmussen_2022()].
-#'
-#' Disease ids: CO cystic ovary, DA displaced abomasum, DYS dystocia, FAS
-#' fasciolosis, GIN gastrointestinal nematodes, LAM lameness, MAS mastitis,
-#' MET metritis, MF milk fever, NEO neosporosis, PTB paratuberculosis, RP
-#' retained placenta, SCK subclinical ketosis.
-#'
-#' @param outcome `"yield"`, `"fertility"` or `"culling"`.
-#' @param yield_sck Raw yield impact of subclinical ketosis, in percent (the
-#'   printed 3.05, or 100 * 340 / 8737 = 3.89 from note i of Table 4).
-#' @return A [cm_model()].
-#' @export
-#' @examples
-#' uk <- example_uk_dairy_2022()
-#' deconflate(uk)
-example_uk_dairy_2022 <- function(outcome = c("yield", "fertility", "culling"), yield_sck = 3.05) {
-  outcome <- cm_match_arg(outcome)
-  u <- uk_dairy_2022_inputs(yield_sck)
-  imp <- switch(outcome,
-    yield = u$yield, fertility = u$fertility,
-    culling = cm_impacts(u$ids, unname(u$hr[u$ids]), measure = "HR",
-                         label = "culling", source = "Rasmussen et al. 2022, Table 6"))
-  cm_model(u$pop, imp)
-}
-
-uk_dairy_2022_inputs <- function(yield_sck) {
-  ids <- c("CO", "DA", "DYS", "FAS", "GIN", "LAM", "MAS", "MET", "MF", "NEO", "PTB", "RP", "SCK")
-  prev <- c(CO = 0.09, DA = 0.03, DYS = 0.02, FAS = 0.10, GIN = 0.21, LAM = 0.30, MAS = 0.30,
-            MET = 0.10, MF = 0.08, NEO = 0.15, PTB = 0.07, RP = 0.05, SCK = 0.22)
-  or <- c("RP:MET" = 6.20, "DA:SCK" = 4.25, "RP:DYS" = 4.10, "MET:DA" = 3.40,
-          "MET:DYS" = 3.20, "LAM:PTB" = 2.70, "MF:DA" = 2.50, "MAS:MET" = 2.30,
-          "DA:RP" = 2.20, "MAS:DA" = 2.10, "SCK:MF" = 2.10, "LAM:SCK" = 2.01,
-          "MAS:MF" = 1.90, "MAS:PTB" = 1.89, "MAS:CO" = 1.65, "MAS:SCK" = 1.64,
-          "SCK:CO" = 1.60, "MET:SCK" = 1.40, "SCK:RP" = 1.20)
-  pr <- do.call(rbind, strsplit(names(or), ":", fixed = TRUE))
-  pop <- cm_population(
-    cm_diseases(ids, unname(prev[ids]), measure = "prevalence", time_horizon = "year",
-                reference_population = "UK dairy cows", source = "Rasmussen et al. 2022, Table 2"),
-    cm_associations(pr[, 1], pr[, 2], unname(or), measure = "OR",
-                    source = "Rasmussen et al. 2022, Table 3")
-  )
-  yield <- c(CO = 0, DA = 4.04, DYS = 4.05, FAS = 7.33, GIN = 3.28, LAM = 5.54, MAS = 4.57,
-             MET = 3.95, MF = 0.41, NEO = 4.20, PTB = 5.90, RP = 7.38, SCK = yield_sck)
-  fert <- c(CO = 11.26, DA = 0, DYS = 6.96, FAS = 0, GIN = 1.20, LAM = 12.47, MAS = 0,
-            MET = 4.74, MF = 0, NEO = 7.21, PTB = 5.79, RP = 2.74, SCK = 1.50)
-  hr <- c(DA = 3.83, LAM = 3.40, MAS = 2.78, MF = 2.50, PTB = 2.40, MET = 2.20,
-          SCK = 2.10, DYS = 1.90, NEO = 1.60)
-  hr_all <- stats::setNames(rep(1, length(ids)), ids)
-  hr_all[names(hr)] <- hr
-  list(ids = ids, prev = prev, pop = pop, hr = hr_all,
-       yield = cm_impacts(ids, unname(yield[ids]), label = "milk yield loss", units = "% decrease",
-                          source = "Rasmussen et al. 2022, Table 4"),
-       fertility = cm_impacts(ids, unname(fert[ids]), label = "calving interval increase",
-                              units = "% increase", source = "Rasmussen et al. 2022, Table 5"))
-}
-
-# The UK 2022 analyses for reproduce_rasmussen_2022(): a named list of models
-# with every unlisted pair independent (as in the paper). `culling = TRUE`
-# adds the historical culling analysis (hazard ratios treated as odds
-# ratios). The hazard ratios are attached as attribute "hazard_ratios".
-uk_dairy_2022_analyses <- function(yield_sck, culling = FALSE) {
-  u <- uk_dairy_2022_inputs(yield_sck)
-  pop <- with_independent_pairs(u$pop)
-  out <- list(yield = cm_model(pop, u$yield), fertility = cm_model(pop, u$fertility))
-  if (culling) {
-    excess <- legacy_hr_as_or_excess(unname(u$hr[u$ids]), unname(u$prev[u$ids]), 0.27)
-    out$culling <- cm_model(pop, cm_impacts(
-      u$ids, excess,
-      label = "excess annual culling risk (hazard ratio treated as an odds ratio; historical)",
-      units = "proportional increase in the culling rate",
-      source = "Rasmussen et al. 2022, Table 6 (historical conversion)"))
-  }
-  attr(out, "hazard_ratios") <- u$hr
-  out
-}
-
-# Economic inputs of the UK dairy example (Rasmussen et al. 2022, Table 1),
-# used only by reproduce_rasmussen_2022(): milk yield 8737 kg/cow/year valued
-# at GBP 0.3022/kg; calving interval 401 days, each day valued at lifetime
-# daily yield (13 kg) times the milk price; veterinary expenditure of GBP
-# 71.09 per cow per year as a separate lump sum. The paper's culling
-# valuation (historical conversion) is uk_dairy_2022_culling_valuation().
-uk_dairy_2022_economics <- function() {
-  price <- 30.22 / 100
-  list(valuation = list(
-    yield = list(observed = 8737, direction = "decrease", effect = "percent", unit_value = price),
-    fertility = list(observed = 401, direction = "increase", effect = "percent",
-                     unit_value = 13 * price)),
-    additional = c(veterinary = 71.09))
-}
-
-# Valuation of the historical culling analysis (uk_dairy_2022_analyses(culling
-# = TRUE)), used only by reproduce_rasmussen_2022(): excess culling risks are
-# proportional increases of the 27% annual culling rate, valued at the
-# replacement price per percentage point (GBP 13.3536).
-uk_dairy_2022_culling_valuation <- function() {
-  list(observed = 27, direction = "increase", effect = "proportion", unit_value = 1335.36 / 100)
-}
-
 # Distributions of the 2024 inputs (Rasmussen et al. 2024): PERT
 # distributions use the reported central value as the mode (shape 4), and
 # normal distributions of odds ratios are truncated at zero. `pop` holds the
 # disease and association distributions (keys as in cm_model()), the others
-# the impact distributions by disease. `cull` is on the HR - 1 scale of the
-# analysis, `cull_hr` on the hazard-ratio scale.
+# the impact distributions by disease. `cull_hr`: culling hazard ratios
+# (entered on the HR - 1 scale of the analysis, shifted by 1).
 global_dairy_dists <- function(inputs) {
   n0 <- function(m, s) dist_normal(m, s, lower = 0)
   pe <- function(mode, mn, mx) dist_pert(mn, mode, mx)
@@ -357,23 +200,12 @@ global_dairy_dists <- function(inputs) {
       MF = list("n", 2.00, 0.90), OC = list("n", 0.62, 0.42), PTB = list("n", 1.31, 0.35),
       RP = list("n", 0.60, 0.32), SCK = list("n", 0.92, 0.18), SCM = list("n", 0.45, 0.25))
   }
-  # Culling on the HR - 1 scale (the analysis) and on the hazard-ratio scale.
+  # Culling: from the HR - 1 scale of the analysis to hazard ratios.
   mk <- function(x, shift) {
     v <- unlist(x[-1])
     if (x[[1]] == "n") nn(v[1] + shift, v[2]) else pe(v[1] + shift, v[2] + shift, v[3] + shift)
   }
   prefix <- function(x, p) if (length(x)) stats::setNames(x, paste0(p, names(x))) else list()
   pop <- c(prefix(diseases, "prob:"), prefix(associations, "assoc:"))
-  list(pop = pop, yield = yield, fert = fert,
-       cull = lapply(cull, mk, shift = 0), cull_hr = lapply(cull, mk, shift = 1))
-}
-
-# Batch sampler of the 2024 inputs for reproduce_rasmussen_2024();
-# `culling = TRUE` adds the historical HR - 1 analysis.
-global_dairy_sampler <- function(inputs, culling = FALSE) {
-  d <- global_dairy_dists(inputs)
-  models <- global_dairy_analyses(inputs, culling = culling)
-  imp <- list(yield = d$yield, fertility = d$fert)
-  if (culling) imp$culling_hr_minus_1 <- d$cull
-  batch_sampler(models, pop = d$pop, impacts = imp)
+  list(pop = pop, yield = yield, fert = fert, cull_hr = lapply(cull, mk, shift = 1))
 }

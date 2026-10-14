@@ -1,11 +1,11 @@
 # Uncertainty: draws of the uncertain inputs -----------------------------------
 #
-# deconflate() and compare_methods() propagate the uncertainty of the inputs
-# that have a distribution (the model's `distributions`, and the overall risk
-# of an event model) by drawing input sets, adjusting each, and summarising
+# deconflate() propagates the uncertainty of the inputs
+# that have a distribution (the model's `distributions`, and the overall or
+# baseline risk of an event model) by drawing input sets, adjusting each, and summarising
 # the results over the accepted draws.
 
-# The distributions to draw from: the model's, the overall risk ("risk"),
+# The distributions to draw from: the model's, the overall or baseline risk ("risk"),
 # and a standard normal between-study deviate ("between:associations:<rows>",
 # e.g. "between:associations:1,2") for each pooled group of association rows
 # with a random-effects term.
@@ -70,7 +70,7 @@ set_inputs <- function(model, values) {
   model
 }
 
-# Check the arguments that control the draws (deconflate(), compare_methods()).
+# Check the arguments that control the draws.
 check_draw_args <- function(n_draws, seed = NULL, sampling = "random", lhs_replicates = 10L) {
   whole <- function(x) is.numeric(x) && length(x) == 1L && is.finite(x) && x == round(x)
   if (!whole(n_draws) || n_draws < 0) cm_abort("`n_draws` must be a single whole number, 0 or more.", class = "deconflate_invalid_input")
@@ -127,7 +127,7 @@ run_draws <- function(model, specs, n_draws, seed, sampling, lhs_replicates, eva
         m <- set_inputs(model, x[keys != "risk"])
         risk <- if ("risk" %in% keys) x[["risk"]] else NULL
         if (!is.null(risk) && !(risk > 0 && risk < 1)) {
-          cm_abort(sprintf("risk = %g is not a valid overall risk.", risk), class = "deconflate_infeasible")
+          cm_abort(sprintf("risk = %g is not a valid risk (between 0 and 1).", risk), class = "deconflate_infeasible")
         }
         q <- evaluate(m, risk)
         if (!all(is.finite(q))) cm_abort("Non-finite results.", class = "deconflate_nonfinite")
@@ -155,19 +155,24 @@ run_draws <- function(model, specs, n_draws, seed, sampling, lhs_replicates, eva
 }
 
 # Summary of each quantity over the accepted draws: mean, SD, Monte Carlo
-# standard error, interval and stability (see mc_stats()).
+# standard error, interval and stability (see draw_stats()).
 summarise_draws <- function(dr, level = 0.95) {
   probs <- c((1 - level) / 2, 0.5, 1 - (1 - level) / 2)
   if (is.null(dr$values) || nrow(dr$values) < 2L) return(NULL)
   qn <- colnames(dr$values)
   rows <- lapply(qn, function(q) {
-    g <- data.frame(x = dr$values[, q], w = 1, disease = q, method = "",
-                    block = if (is.null(dr$block)) NA_integer_ else dr$block,
-                    raw = NA_real_, adjusted = NA_real_, stringsAsFactors = FALSE)
-    st <- mc_stats(g, probs, trim = 0.05, check_pole = FALSE, n_blocks = dr$n_blocks)$row
+    g <- data.frame(x = dr$values[, q], block = if (is.null(dr$block)) NA_integer_ else dr$block)
+    # The raw total can be missing in some draws (a failed fit with the
+    # diseases unrelated); it is summarised over the others.
+    g <- g[is.finite(g$x), , drop = FALSE]
+    if (nrow(g) < 2L) {
+      return(data.frame(quantity = q, mean = NA_real_, sd = NA_real_, mcse = NA_real_, lower = NA_real_,
+                        median = NA_real_, upper = NA_real_, stability = NA_character_,
+                        stringsAsFactors = FALSE))
+    }
+    st <- draw_stats(g$x, g$block, probs, n_blocks = dr$n_blocks)
     data.frame(quantity = q, mean = st$mean, sd = st$sd, mcse = st$mcse,
-               lower = st[[paste0("q", probs[1])]], median = st[[paste0("q", probs[2])]],
-               upper = st[[paste0("q", probs[3])]], stability = st$stability,
+               lower = st$q[1], median = st$q[2], upper = st$q[3], stability = st$stability,
                stringsAsFactors = FALSE)
   })
   out <- do.call(rbind, rows)
@@ -175,38 +180,84 @@ summarise_draws <- function(dr, level = 0.95) {
   out
 }
 
+# Summary and stability of one quantity over the accepted draws (equal
+# weights; `block`: the Latin hypercube replicate of each draw, or NA).
+draw_stats <- function(x, block, probs, n_blocks = NULL) {
+  n <- length(x)
+  w <- rep(1 / n, n)
+  mu <- sum(w * x)
+  s <- sqrt(sum(w * (x - mu)^2))
+  q <- weighted_quantile(x, w, probs)
+  if (all(!is.na(block))) {
+    # The pooled mean is a ratio estimator, mu = sum_b S_b / sum_b W_b, over
+    # the R replicate blocks (S_b: weighted sum, W_b: weight of block b).
+    # Its standard error is sqrt(sum_b (S_b - mu W_b)^2 / (R (R - 1))) / mean(W_b).
+    # Blocks whose draws were all rejected are replicates with S_b = W_b = 0:
+    # they count in R. With equal block weights this is
+    # sd(block means) / sqrt(R). Fewer than two blocks with positive weight
+    # give no precision information.
+    ix_b <- split(seq_along(x), block)
+    Wb <- vapply(ix_b, function(ix) sum(w[ix]), numeric(1))
+    Sb <- vapply(ix_b, function(ix) sum(w[ix] * x[ix]), numeric(1))
+    R <- max(n_blocks %||% 0L, length(ix_b))
+    mcse <- if (sum(Wb > 0) >= 2L && R >= 2L) {
+      sqrt(sum((Sb - mu * Wb)^2) / (R * (R - 1))) / (sum(Wb) / R)
+    } else NA_real_
+  } else {
+    mcse <- sqrt(sum(w^2 * (x - mu)^2))
+  }
+  rel <- if (isTRUE(abs(mu) > 1e-12)) mcse / abs(mu) else NA_real_
+  cdev <- w * (x - mu)^2
+  k <- max(1L, ceiling(0.01 * n))
+  tail_share <- if (isTRUE(sum(cdev) > 0)) sum(sort(cdev, decreasing = TRUE)[seq_len(k)]) / sum(cdev) else 0
+  stability <- if (n >= 50 && tail_share > 0.6) {
+    "heavy_tail"
+  } else if (is.na(mcse) || (is.na(rel) && mcse > 0)) {
+    "insufficient_info"
+  } else if (!is.na(rel) && rel > 0.05) {
+    "imprecise"
+  } else {
+    "ok"
+  }
+  list(mean = mu, sd = s, mcse = mcse, q = q, stability = stability)
+}
+
 # Rows of a result's draw summary for one kind of quantity ("adjusted",
 # "contribution", "total", ...), in the order of the result's tables.
-draw_rows <- function(x, kind, method = NULL) {
+draw_rows <- function(x, kind) {
   s <- x$draws$summary
-  pre <- if (is.null(method)) "" else paste0(method, "|")
   if (kind == "adjusted") {
-    s[match(paste0(pre, kind, ":", x$adjusted$disease), s$quantity), , drop = FALSE]
+    s[match(paste0(kind, ":", x$adjusted$disease), s$quantity), , drop = FALSE]
   } else if (kind == "contribution") {
     ids <- if (inherits(x, "cm_event_result")) x$attributable$by_disease$disease else x$contributions$disease
-    s[match(paste0(pre, kind, ":", ids), s$quantity), , drop = FALSE]
+    s[match(paste0(kind, ":", ids), s$quantity), , drop = FALSE]
   } else {
-    s[match(paste0(pre, kind), s$quantity), , drop = FALSE]
+    s[match(kind, s$quantity), , drop = FALSE]
   }
 }
 
 # Quantities of one adjusted result, for the draws.
-result_quantities <- function(r, prefix = "") {
+result_quantities <- function(r) {
   terms <- r$adjusted$disease
   if (inherits(r, "cm_event_result")) {
     ar <- r$attributable
-    q <- c(stats::setNames(r$adjusted$adjusted, paste0(prefix, "adjusted:", terms)),
-           stats::setNames(ar$summary$attributable, paste0(prefix, "total")),
-           stats::setNames(ar$summary$attributable_fraction, paste0(prefix, "fraction")))
+    q <- c(stats::setNames(r$adjusted$adjusted, paste0("adjusted:", terms)),
+           stats::setNames(ar$summary$attributable, "total"),
+           stats::setNames(ar$summary$attributable_fraction, "fraction"))
     if (!is.null(ar$by_disease)) {
-      q <- c(q, stats::setNames(ar$by_disease$attributable, paste0(prefix, "contribution:", ar$by_disease$disease)))
+      q <- c(q, stats::setNames(ar$by_disease$attributable, paste0("contribution:", ar$by_disease$disease)))
+    }
+    # Always present when computed (NA in a draw where it fails), so that
+    # every draw has the same quantities.
+    if (!is.null(ar$summary$raw_attributable)) {
+      q <- c(q, stats::setNames(ar$summary$raw_attributable, "raw_total"))
     }
     return(q)
   }
-  q <- c(stats::setNames(r$adjusted$adjusted, paste0(prefix, "adjusted:", terms)),
-         stats::setNames(r$contributions$total, paste0(prefix, "contribution:", r$contributions$disease)),
-         stats::setNames(r$totals$adjusted_total, paste0(prefix, "total")))
-  if (is.finite(r$totals$raw_sum)) q <- c(q, stats::setNames(r$totals$raw_sum, paste0(prefix, "raw_sum")))
+  q <- c(stats::setNames(r$adjusted$adjusted, paste0("adjusted:", terms)),
+         stats::setNames(r$contributions$total, paste0("contribution:", r$contributions$disease)),
+         stats::setNames(r$totals$adjusted_total, "total"))
+  if (!is.null(r$totals$raw_total)) q <- c(q, stats::setNames(r$totals$raw_total, "raw_total"))
   q
 }
 
@@ -272,7 +323,7 @@ draw_notes <- function(dr) {
                           100 * share, paste(sprintf("%s %d", names(tab), as.integer(tab)), collapse = ", ")))
   }
   s <- dr$summary
-  bad <- s[s$stability != "ok", , drop = FALSE]
+  bad <- s[!is.na(s$stability) & s$stability != "ok", , drop = FALSE]
   if (nrow(bad)) {
     out <- c(out, sprintf("Monte Carlo precision is limited for %d quantit%s (%s): increase n_draws, or use sampling = \"lhs\". See $draws$summary.",
                           nrow(bad), if (nrow(bad) == 1L) "y" else "ies",

@@ -189,8 +189,8 @@ test_that("sampled and exact backends agree for the 12-disease global dairy popu
   expect_lt(max(abs(nd(je) - nd(js))), 0.01)
   # Yield adjustment with one interaction.
   y <- set_interaction(example_global_dairy("yield", inputs = "tables"), "CM", "SCM", 1)
-  # The exact solution changes the sign of some global dairy yield impacts
-  # (see vignette("reproducing-published")), so warnings are off.
+  # The exact solution changes the sign of some global dairy yield impacts,
+  # so warnings are off.
   re <- deconflate(y, joint = je, warn = FALSE, n_draws = 0)$adjusted$adjusted
   rs <- deconflate(y, joint = js, warn = FALSE, n_draws = 0)$adjusted$adjusted
   expect_lt(max(abs(re - rs)), 0.05 * max(abs(re)))

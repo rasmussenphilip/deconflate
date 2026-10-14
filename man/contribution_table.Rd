@@ -23,10 +23,19 @@ diseases here.
 \itemize{
 \item Additive impacts: the contribution to the aggregate (its Shapley share,
 including any interaction share), in the units of the impacts.
-\item Event impacts: the adjusted hazard ratio and the disease's share of the
-risk attributable to disease (Shapley allocation), as a proportion of
+\item Event impacts: the adjusted hazard ratio, the risk of an animal with
+only this disease and its risk ratio and risk difference against a
+disease-free animal, the relative change from the raw estimate (on the
+raw estimate's measure), and the disease's share of the risk
+attributable to disease (Shapley allocation), as a proportion of
 animals.
 }
+
+In both cases the contribution is split into the disease's own part
+(\code{main}: its Shapley value with the interactions set to zero) and its
+share of the interactions (\code{interaction}: the rest; for event impacts it
+also holds the small changes the interaction terms make, through
+non-additive risks, to diseases outside them).
 }
 \examples{
 contribution_table(deconflate(example_supplement()))

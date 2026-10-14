@@ -98,7 +98,20 @@ In this order:
    - [ ] Run `run_all_features.R` end to end and review every printed result as a new user would.
    - [ ] Have someone else work through the CSV workflow with their own data, without help.
    - [ ] Optional: a short external review of the 0.5 additions (rows about combinations and subgroups, several rows per item, `diagnose = TRUE`).
-7. **Revised 2024 inputs**, separate from `reproduce_rasmussen_2024()`, which stays a faithful reproduction.
+1. **Event impacts matched to additive impacts.** Design: section 15 of the v0.4 design note; reference values: `inst/validation/reference_v06_event_parity.py`.
+   - [x] One raw result for both models: the same model with the diseases unrelated (same prevalences and impact rows, no association rows). `raw_sum` becomes `raw_total` (additive), and event results gain `raw_attributable`.
+   - [x] Contributions split into each disease's own part and its share of the interactions (`main`, `interaction`), for additive and event impacts.
+   - [x] The local row equations of event impacts (`$conflation$A`, at the adjusted values).
+   - [x] Results on the risk scale: risk, risk ratio, risk difference and odds ratio of an animal with only the disease against a disease-free animal; `change` and the sign check on the raw row's own measure.
+   - [x] `baseline_risk` (the risk of disease-free animals) as an alternative to `overall_risk`; exactly one is given.
+   - [x] Simulated raw estimates of event impacts (`simulate_raw_impacts(event_model = TRUE)`), exact or from sampled animals (rate ratios for HR rows).
+   - [x] Interactions of event impacts in `set_interaction()`, `screen_interactions()` and `cm_threshold()`.
+   - [ ] Run `devtools::document()`, `test()` and `check()`.
+2. **One model only.** Remove everything that is not the package's model (the sensitivity tools wait for their redesign).
+   - [x] Remove `compare_methods()`, the published approximation (eq. 16, HR - 1), the first-order event method, `reproduce_rasmussen_2022()`/`_2024()`, `example_uk_dairy_2022()`, the reproduction vignette and the reproduction-only code.
+   - [x] Remove helpers nothing uses (`attribute_burden()`, `plot_burden()`, `loss_*()`, `combination_probs()`, `excess_matrix()`, `cm_dist_table()`), and stop exporting the internals of the model (`or_to_joint()`, `joint_to_or()`, `association_to_joint()`, `pair_tables()`, `shapley_by_cell()`).
+   - [ ] Run `devtools::document()`, `test()` and `check()`.
+7. **Revised 2024 inputs**, beside the inputs of the 2024 analysis (`example_global_dairy()`).
    - [ ] `example_global_dairy(inputs = "revised")`, using the features of items 4-5 (several rows per disease with their own estimands, e.g. the clinical mastitis sources).
    - [ ] A vignette section documenting each correction: the SCK conversion from kg to percent, the milk fever and ketosis estimates of Bareille et al. (2003) as direct effects, the adjusted SCK estimates and odds ratios of Raboisson et al. (2014), the clinical mastitis sources by estimand, and the displaced abomasum sources. Unit and measurement-window corrections are made here only, not in the main pipeline.
 8. **Simpler, more intuitive input tables.**
@@ -107,8 +120,8 @@ In this order:
    - [ ] Clearer column names and messages; review the template and the example folders accordingly (more important now that tables hold several estimates).
    - [ ] Make uncertainty visible: `deconflate()` notes when the inputs have distributions but `n_draws = 0`.
 9. **Clearer output and summary tables.** The package assumes no species, outcome or unit: tables show the user's own labels and units, and the reference population and time horizon from the diseases table when given (otherwise "per average individual in the population").
-   - [ ] Consistent column names, order, rounding and layout across `deconflate()`, `compare_methods()`, `summary()` and `contribution_table()`, with and without draws; wide tables do not wrap into several blocks.
-   - [ ] Raw vs adjusted attributable risk for mortality files (the same calculation with the raw estimates), so that the double counting removed is visible, as with the raw and adjusted aggregates of impact files.
+   - [ ] Consistent column names, order, rounding and layout across `deconflate()`, `summary()` and `contribution_table()`, with and without draws; wide tables do not wrap into several blocks.
+   - [x] Raw vs adjusted attributable risk for mortality files (the same calculation with the raw estimates), so that the double counting removed is visible, as with the raw and adjusted aggregates of impact files (done in item 1).
 10. **Better plots.** The same rule as for tables (the user's labels and units only); a consistent look across plot methods, and plots for uncertainty, thresholds and the estimate diagnostics.
     - [ ] Documentation examples from more than dairy cattle (e.g. another livestock system and a human-health example), so that the generality is visible.
 11. **Dependencies.** Keep the package on base R (see the Dependencies section of the README); list any new dependency there with its reason.

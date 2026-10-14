@@ -26,7 +26,8 @@ every association row.
 m <- example_supplement()
 j <- fit_joint(m)
 j
-head(combination_probs(j))
+cmb <- data.frame(j$cells, prob = j$prob)
+head(cmb[order(-cmb$prob), ])
 ```
 
 Enumerating 2^n combinations limits this exact fit to about 20 diseases.
@@ -98,13 +99,6 @@ the fit implies a positive association between them too:
 
 ```{r}
 res_unk$unknown_pairs
-```
-
-The published approximation needs every pair, so `compare_methods()`
-reports why it cannot run:
-
-```{r}
-compare_methods(unk)$failed
 ```
 
 ## Association rows about combinations and subgroups
@@ -294,16 +288,12 @@ every interaction term it is involved in. This is the `contributions`
 table:
 
 ```{r}
-attribute_burden(res)
+res$contributions
 ```
 
-For general loss functions, `shapley_by_cell()` computes Shapley values cell
-by cell over the joint distribution. For example, with proportional impacts
-that compound (here as proportions):
-
-```{r}
-shapley_by_cell(j, loss_multiplicative(c(d1 = 0.02, d2 = 0.04, d3 = 0.06)))
-```
+For event impacts, risks do not add up, so the attributable risk is
+allocated cell by cell over the joint distribution (see
+`vignette("event-impacts")`).
 
 ## Which interactions or three-way associations would matter?
 

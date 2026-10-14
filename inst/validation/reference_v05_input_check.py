@@ -5,8 +5,10 @@ implementation (reference_v041.py) and does not use the package.
 Definitions (section 14 of the design note):
 - A disease term is flagged when c = sign(r) a - 0.1 |r| < 0, with a the
   adjusted value and r the raw reference on the impact's scale (additive:
-  units; event: log of the adjusted HR, and the row on its own scale: log
-  for HR, rate ratio, RR and OR, RD as is; for RD rows c = sign(r) a).
+  units; event: on the rows' measure when they share one, log for HR, rate
+  ratio, RR and OR, RD as is; the adjusted HR, or the RR, OR or RD of an
+  animal with only the disease against a disease-free animal; with mixed
+  measures, the log HR against the ratio rows).
   With several rows, r is their inverse-variance weighted mean on that
   scale (an exact row's value when one is exact; for event impacts, ratio
   rows only when there are any). r stays at the inputs as entered while
@@ -123,7 +125,12 @@ def event_adjust(pop, p, rows, risk):
     theta = sol.x
     mult = np.exp(F @ theta)
     h0 = R.baseline_h0(mult, p, risk)
-    return dict(zip(terms, np.exp(theta))), risk - (1 - np.exp(-h0))
+    r0 = 1 - np.exp(-h0)
+    alone = {}
+    for i, d in enumerate(pop.ids):
+        rd = 1 - np.exp(-h0 * np.exp(theta[i]))
+        alone[d] = dict(HR=float(np.exp(theta[i])), RR=rd / r0, RD=rd - r0, OR=(rd / (1 - rd)) / (r0 / (1 - r0)))
+    return dict(zip(terms, np.exp(theta))), risk - r0, alone
 
 
 class Case:
@@ -184,15 +191,21 @@ class Case:
             rr["value"] = repr(changes.get(k, float(r["value"])))
             rows.append(rr)
         if self.event:
-            hr, ar = event_adjust(pop, p, rows, changes.get("risk", self.risk))
-            return dict(adj=hr, agg=ar, groups=groups, info=info, rows=rows)
+            hr, ar, alone = event_adjust(pop, p, rows, changes.get("risk", self.risk))
+            return dict(adj=hr, agg=ar, alone=alone, groups=groups, info=info, rows=rows)
         b, contrib, total, resid, Am, y, se = R.adjust_additive(pop, p, rows)
         return dict(adj=b, agg=total, groups=groups, info=info, resid=resid, rows=rows, se=se)
 
     # ------------------------------------------------------------ flags
     def raw_ref(self, d, rows):
         own = [r for r in rows if r["disease"].strip() == d]
-        if self.event and any((r.get("measure") or "").strip() != "RD" for r in own):
+        ms = {(r.get("measure") or "").strip() for r in own}
+        if not self.event:
+            on = "units"
+        elif len(ms) == 1:
+            on = "HR" if ms == {"rate_ratio"} else ms.pop()
+        else:
+            on = "HR"
             own = [r for r in own if (r.get("measure") or "").strip() != "RD"]
         vals, ses, meas = [], [], []
         for r in own:
@@ -209,14 +222,19 @@ class Case:
         else:
             w = 1 / ses ** 2
             r0 = float((w * vals).sum() / w.sum())
-        return r0, ("RD" if self.event and all(m == "RD" for m in meas) else "ratio")
+        return r0, on
+
+    def compared(self, res, d):
+        on = self.raw_ref(d, self.irows)[1]
+        return res["adj"][d] if on in ("units", "HR") else res["alone"][d][on]
 
     def criterion(self, res, d, rows=None):
-        # The raw reference stays at the inputs as entered.
-        r, kind = self.raw_ref(d, self.irows)
-        a = math.log(res["adj"][d]) if self.event else res["adj"][d]
-        if kind == "RD":
-            return np.sign(r) * a
+        # The raw reference stays at the inputs as entered; an event result is
+        # compared on its rows' measure (RR, OR and RD: an animal with only
+        # the disease against a disease-free animal).
+        r, on = self.raw_ref(d, self.irows)
+        v = self.compared(res, d)
+        a = math.log(v) if self.event and on != "RD" else v
         return np.sign(r) * a - 0.1 * abs(r)
 
     def flagged(self):
@@ -256,7 +274,7 @@ class Case:
             cm, rm = self.c_at(key, xm, flags)
             c0 = np.array([self.criterion(self.central, d) for d in flags])
             for j, d in enumerate(flags):
-                eff = (rp["adj"][d] - rm["adj"][d]) / (2 * H)
+                eff = (self.compared(rp, d) - self.compared(rm, d)) / (2 * H)
                 dc = (cp[j] - cm[j]) / (2 * H)
                 need = -c0[j] / dc if abs(dc) > 1e-12 else np.inf
                 out.append((key, lab, v, d, eff, need))
@@ -329,7 +347,8 @@ class Case:
 def report(name, case, top=None):
     print(f"\n== {name}")
     flags = case.flagged()
-    print("flagged:", [(d, round(case.raw_ref(d, case.irows)[0], 10), round(float(case.central["adj"][d]), 10),
+    print("flagged:", [(d, case.raw_ref(d, case.irows)[1], round(case.raw_ref(d, case.irows)[0], 10),
+                        round(float(case.compared(case.central, d)), 10),
                         round(float(case.criterion(case.central, d)), 10)) for d in flags])
     print(f"aggregate {case.central['agg']:.10f}")
     if not flags:
@@ -365,10 +384,12 @@ if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1] == "E":
         case_e()
         sys.exit()
+    only_b = len(sys.argv) > 1 and sys.argv[1] == "B"
     # A. Five diseases, yield, SCK raw impact 1.0 (exact): SCK changes sign.
-    rows = read("five_diseases", "impacts_yield.csv")
-    rows[3]["value"] = "1.0"
-    report("A. five diseases, yield with SCK raw 1.0", Case("five_diseases", None, impact_rows=rows))
+    if not only_b:
+        rows = read("five_diseases", "impacts_yield.csv")
+        rows[3]["value"] = "1.0"
+        report("A. five diseases, yield with SCK raw 1.0", Case("five_diseases", None, impact_rows=rows))
 
     # B. Five diseases, culling (overall risk 0.25), SCK OR 1.2: SCK on the
     # other side of 1, LAM shrunk by more than 90% on the log scale.
@@ -376,6 +397,8 @@ if __name__ == "__main__":
     rows[3]["value"] = "1.2"
     report("B. five diseases, culling with SCK OR 1.2", Case("five_diseases", None, event=True, risk=0.25,
                                                                impact_rows=rows))
+    if only_b:
+        sys.exit()
 
     # C. 2024 yield (the tables shown on 14 Oct 2026).
     report("C. global dairy 2024, yield", Case("global_dairy_2024", "impacts_yield.csv"))

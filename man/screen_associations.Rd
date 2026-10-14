@@ -11,14 +11,15 @@ screen_associations(
   or_values = c(0.5, 2),
   multipliers = c(0.5, 2),
   pairs = NULL,
+  baseline_risk = NULL,
   ...
 )
 }
 \arguments{
 \item{model}{A \code{\link[=cm_model]{cm_model()}}.}
 
-\item{event_model, overall_risk}{As in \code{\link[=deconflate]{deconflate()}} (a distribution of
-the overall risk is used at its mean).}
+\item{event_model, overall_risk, baseline_risk}{As in \code{\link[=deconflate]{deconflate()}} (a distribution of
+the risk is used at its mean).}
 
 \item{or_values}{Odds ratios tried for pairs without a crude pair row.}
 

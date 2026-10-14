@@ -6,14 +6,12 @@
 #' * `plot(<cm_event_result>)`: adjusted hazard ratios by disease (with
 #'   intervals when the result has draws), and the raw hazard and rate
 #'   ratios.
-#' * `plot_burden()`: each disease's share of the aggregate (including its
-#'   share of interaction effects), or of the risk attributable to disease.
 #' * `plot(<cm_screen>)`: the most influential scenarios from
 #'   [screen_associations()], [screen_interactions()] or
 #'   [screen_three_way()].
 #' * `plot(<cm_oat>)`: tornado plot from [sensitivity_oat()].
 #'
-#' @param x,result The object to plot.
+#' @param x The object to plot.
 #' @param top Number of rows to show.
 #' @param ... Passed to the underlying graphics function.
 #' @return The input, invisibly.
@@ -21,7 +19,6 @@
 #' @examples
 #' res <- deconflate(example_supplement())
 #' plot(res)
-#' plot_burden(res)
 NULL
 
 impact_axis_label <- function(units) {
@@ -69,34 +66,6 @@ plot.cm_event_result <- function(x, ...) {
   graphics::legend("bottomright", legend = c("adjusted", "raw (hazard and rate ratios)"),
                    pch = c(19, 1), col = c("black", "grey40"), bty = "n", cex = 0.8)
   invisible(x)
-}
-
-#' @rdname plots
-#' @export
-plot_burden <- function(result, ...) {
-  if (inherits(result, "cm_event_result")) {
-    by <- result$attributable$by_disease
-    if (is.null(by)) cm_abort("The result has no allocation of the attributable risk.", class = "deconflate_invalid_input")
-    ids <- by$disease
-    share <- 100 * by$share
-    main <- "Risk attributable to disease, by disease"
-    ylab <- "Share of the attributable risk (%)"
-  } else if (inherits(result, "cm_result")) {
-    ids <- result$contributions$disease
-    share <- 100 * result$contributions$share
-    main <- "Burden by disease"
-    ylab <- "Share of the aggregate (%)"
-  } else {
-    cm_abort("`result` must come from deconflate().", class = "deconflate_invalid_input")
-  }
-  mat <- matrix(share, nrow = length(ids), dimnames = list(ids, result$label %||% "impacts"))
-  cols <- grDevices::hcl.colors(nrow(mat), "Set 2")
-  op <- graphics::par(mar = c(5, 4, 3, 8), xpd = TRUE)
-  on.exit(graphics::par(op))
-  graphics::barplot(mat, col = cols, ylab = ylab, main = main, ...)
-  graphics::legend("topright", inset = c(-0.25, 0), legend = rownames(mat), fill = cols,
-                   bty = "n", cex = 0.8)
-  invisible(result)
 }
 
 #' @rdname plots

@@ -468,22 +468,3 @@ validate_joint <- function(joint, model, pool = "random") {
   }
   invisible(joint)
 }
-
-#' Probabilities of disease combinations
-#'
-#' @param joint A [fit_joint()] result.
-#' @param min_prob Drop combinations with probability below this value.
-#' @return A data frame with one row per combination: a 0/1 column per
-#'   disease, the number of diseases present and the probability, sorted by
-#'   decreasing probability.
-#' @export
-combination_probs <- function(joint, min_prob = 0) {
-  if (!inherits(joint, "cm_joint")) cm_abort("`joint` must come from fit_joint().", class = "deconflate_invalid_input")
-  out <- as.data.frame(joint$cells)
-  out$n_diseases <- rowSums(joint$cells)
-  out$prob <- joint$prob
-  out <- out[out$prob >= min_prob, , drop = FALSE]
-  out <- out[order(-out$prob), , drop = FALSE]
-  rownames(out) <- NULL
-  out
-}

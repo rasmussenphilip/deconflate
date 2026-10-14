@@ -19,6 +19,7 @@ deconflate(model, ...)
   joint = NULL,
   warn = TRUE,
   diagnose = FALSE,
+  baseline_risk = NULL,
   ...
 )
 }
@@ -32,9 +33,10 @@ more than 20 diseases the sampled backend is used.}
 \item{event_model}{\code{FALSE} (default) for additive impacts; \code{TRUE} for
 event impacts (an impact table with a \code{measure} column).}
 
-\item{overall_risk}{With \code{event_model = TRUE} (required): the overall risk
-of the event in the population over the period, as a proportion (e.g.
-\code{0.25}), or a distribution (e.g. \code{dist_beta(250, 750)}).}
+\item{overall_risk}{With \code{event_model = TRUE} (this or \code{baseline_risk} is
+required): the overall risk of the event in the population over the
+period, as a proportion (e.g. \code{0.25}), or a distribution (e.g.
+\code{dist_beta(250, 750)}).}
 
 \item{n_draws}{Number of draws for the uncertainty (default 1000; 0 for
 point estimates only; otherwise at least 2). Used only when some input
@@ -64,6 +66,11 @@ problematic adjusted impacts, and which rows disagree with other rows
 (\verb{$problems}, printed with the result; see the section "Checking the
 inputs"). It reruns the central estimate many times (twice per input
 with a distribution, a few times per input without one).}
+
+\item{baseline_risk}{With \code{event_model = TRUE}, instead of \code{overall_risk}:
+the risk of the event in disease-free animals over the period, as a
+proportion or a distribution. The overall risk then follows from the
+model.}
 }
 \value{
 For additive impacts, a \code{cm_result} with elements:
@@ -72,9 +79,9 @@ For additive impacts, a \code{cm_result} with elements:
 (of its row, when it has exactly one), the adjusted value, the
 relative change and the number of rows (with draws, also \code{lower} and
 \code{upper});
-\item \code{totals}: the sum of \code{p_d * raw_d} (the naive aggregate; \code{NA} when a
-disease has several rows), the adjusted aggregate and its interaction
-part;
+\item \code{totals}: the raw aggregate (\code{raw_total}: the diseases unrelated; see
+"Raw and adjusted totals"), the adjusted aggregate and its
+interaction part;
 \item \code{contributions}: per disease, main and interaction contributions,
 their total and share;
 \item \code{estimates}: every input row (impacts and associations) with its
@@ -100,13 +107,15 @@ distribution), \code{no_single_fix}, \code{disagreeing} and \code{settings};
 }
 
 For event impacts, a \code{cm_event_result} with \code{adjusted} (adjusted hazard
-ratios of diseases and interactions), \code{attributable} (\code{summary}:
-overall, disease-free and attributable risk and the attributable
-fraction; \code{by_disease}: the Shapley allocation; \code{baseline_hazard}),
-\code{estimates}, \code{heterogeneity}, \code{diagnostics}, \code{unknown_pairs}, \code{draws},
-\code{problems} (with \code{diagnose = TRUE}; effects on the adjusted hazard
-ratios),
-\code{notes}, \code{joint}, \code{model}, \code{method} and \code{overall_risk}. Risks are
+ratios of diseases and interactions, the change from the raw estimate,
+and the risk-scale results \code{risk_alone}, \code{rr_alone}, \code{rd_alone} and
+\code{or_alone}), \code{attributable} (\code{summary}: overall, disease-free, raw and
+adjusted attributable risk and the attributable fraction; \code{by_disease}:
+the Shapley allocation with its \code{main} and \code{interaction} parts;
+\code{baseline_hazard}), \code{conflation} (the local row equations), \code{estimates},
+\code{heterogeneity}, \code{diagnostics}, \code{unknown_pairs}, \code{draws}, \code{problems}
+(with \code{diagnose = TRUE}), \code{notes}, \code{joint}, \code{model}, \code{method},
+\code{overall_risk} and \code{risk_given} (\code{"overall"} or \code{"baseline"}). Risks are
 proportions of animals with the event during the period.
 }
 \description{
@@ -136,10 +145,6 @@ to adjusted estimates), so the package uses them ("pairwise shortcut",
 recorded in the result), and fits the joint distribution once to confirm
 that the associations can hold together (up to 20 diseases). The draws
 then use the shortcut too.
-
-The proportional approximation of Rasmussen et al. (2022, eq. 16) is not
-part of the model: it is kept for comparison and reproduction in
-\code{\link[=compare_methods]{compare_methods()}} and the \verb{reproduce_*()} functions.
 }
 
 \section{Additive impacts}{
@@ -187,16 +192,28 @@ ratios, rate ratios, risk ratios, odds ratios or risk differences; see
 the period of the overall risk, an animal with disease combination \code{c} has
 a constant hazard \verb{h0 * exp(sum_d beta_d c_d + sum_T gamma_T all_T(c))}, so
 its risk over the period is \code{R(c) = 1 - exp(-h0 * exp(...))}; \code{h0} is set
-so that the population risk equals \code{overall_risk}. The \code{beta}s and
+so that the population risk equals \code{overall_risk}, or so that the risk of
+disease-free animals equals \code{baseline_risk} (give one of the two). The \code{beta}s and
 \code{gamma}s (interactions on the log-hazard scale) are solved so that each
 raw estimate is reproduced: a hazard or rate ratio by the ratio of the
 average hazard multipliers of the two groups the row compares; a risk
 ratio, odds ratio or risk difference by those of their average risks;
 crude, or within strata of the row's adjustment set (combined with
 Mantel-Haenszel-type weights). The adjusted hazard ratios \code{exp(beta)} are
-each disease's own hazard multiplier. The risk attributable to disease is
-\code{overall_risk} minus the disease-free risk \code{1 - exp(-h0)}, allocated to
-diseases by Shapley values over disease combinations (\code{\link[=shapley_by_cell]{shapley_by_cell()}}).
+each disease's own hazard multiplier. For each disease (and combination),
+\verb{$adjusted} also gives the risk of an animal with only that disease
+(\code{risk_alone}) and its risk ratio, risk difference and odds ratio against
+a disease-free animal (\code{rr_alone}, \code{rd_alone}, \code{or_alone}): the adjusted
+result on the scale of risk-based estimates. \code{change} compares the
+adjusted result with the raw estimate on the raw estimate's own measure.
+The risk attributable to disease is the overall risk minus the
+disease-free risk \code{1 - exp(-h0)}, allocated to diseases by Shapley values
+over disease combinations (cell by cell) and split, as for additive
+impacts, into each disease's own part and its share of the interactions.
+\verb{$conflation$A} holds the row equations at the adjusted values: how each
+row's value (on its measure's scale) changes with each log hazard
+multiplier (a local version of the additive row equations; for crude
+hazard-ratio rows at hazard ratios of 1, they equal the additive ones).
 
 What the snapshot model is not: a Cox hazard ratio estimated over
 follow-up is not, in general, the snapshot ratio, because animals with
@@ -204,16 +221,28 @@ high hazards leave first and the mixture of disease combinations among
 survivors changes. The model is exact for its own comparisons and a
 reasonable approximation when follow-up is short relative to the hazards
 or the diseases are rare. Risk-based estimates (risk ratios, odds ratios,
-risk differences) must refer to the same period as \code{overall_risk}.
+risk differences) must refer to the same period as the overall or baseline
+risk.
+}
+
+\section{Raw and adjusted totals}{
+
+The raw total is the result of the same model with the diseases unrelated
+(the same disease values and impact rows, no association rows): for
+additive impacts with one crude row per disease, it is \code{sum(p * raw)};
+for event impacts, the risk attributable to disease computed from the raw
+estimates. The difference from the adjusted total is the double counting
+removed. Above 20 diseases it is computed only for additive impacts with
+single-disease rows without a subgroup (otherwise \code{NA}).
 }
 
 \section{Uncertainty}{
 
 Inputs with a distribution (the \code{dist} columns of the input tables, or
-\code{distributions} in \code{\link[=cm_model]{cm_model()}}; and \code{overall_risk} given as a
-distribution) are drawn \code{n_draws} times; each draw is adjusted in the same
+\code{distributions} in \code{\link[=cm_model]{cm_model()}}; and \code{overall_risk} or \code{baseline_risk}
+given as a distribution) are drawn \code{n_draws} times; each draw is adjusted in the same
 way as the central estimate. The central estimate uses the point values
-(\code{value}, and the mean of an \code{overall_risk} distribution); the draws give
+(\code{value}, and the mean of a risk given as a distribution); the draws give
 95\% intervals (2.5\% and 97.5\% quantiles), means, Monte Carlo standard
 errors and stability checks (\verb{$draws$summary}). Draws whose values cannot
 hold together are rejected and counted (\verb{$draws$rejections}), not
@@ -275,8 +304,6 @@ determine (\code{deconflate_singular}), or those whose adjusted impact
 changes sign (the warning \code{deconflate_sign_change});
 \item \code{triples}: the conflicting triples when the crude pair rows cannot all
 hold (\code{deconflate_infeasible}), as in \code{\link[=check_feasibility]{check_feasibility()}};
-\item \code{pairs}: the pairs without a crude pair row, for the calculations that
-need every pair (\code{deconflate_unknown_pairs});
 \item \code{residual}: how far a fit was from converging
 (\code{deconflate_nonconvergence}).
 }

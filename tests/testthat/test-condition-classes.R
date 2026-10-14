@@ -35,8 +35,6 @@ test_that("errors about a failed baseline or run are of the kind that caused the
   expect_error(check_baseline(structure(list(), reason = "singular")), "singular", class = "deconflate_singular")
   e <- tryCatch(check_baseline(structure(list(), reason = "error")), deconflate_error = function(e) e)
   expect_s3_class(e, c("deconflate_error", "error", "condition"), exact = TRUE)
-  bad <- cm_model(bad_population(), cm_impacts(c("a", "b", "c"), c(1, 2, 3)))
-  expect_error(compare_methods(bad), "All methods failed", class = "deconflate_infeasible")
   zero <- supp_model(c(0, 0, 0))
   expect_error(cm_threshold(zero, "assoc:d2:d3", c(1, 5), conclusion = "change", target = 0.1), "zero",
                class = "deconflate_nonfinite")

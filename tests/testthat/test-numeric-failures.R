@@ -1,5 +1,5 @@
 # Failures inside base R's numerical routines (solve(), uniroot()) come out
-# as classed errors, so that draws, comparisons and screens handle them like
+# as classed errors, so that the draws and screens handle them like
 # any other failure.
 
 ratio_population <- function(ratio = 1e30) {

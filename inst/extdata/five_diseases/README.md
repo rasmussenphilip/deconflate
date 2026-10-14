@@ -33,10 +33,10 @@ ketosis), RP (retained placenta).
 |---|---|
 | `diseases.csv` | All three probability measures: `prevalence`, `probability` and `incidence_rate` (MAS, converted with `1 - exp(-rate)`). |
 | `associations.csv` | All ten pairs, with the measures `OR`, `RR`, `RD`, `prevalence` and `phi`. LAM:MAS has two studies (rows 1 and 2), which are pooled (random effects by default). LAM:RP has an odds ratio of 1 (unrelated); RP:SCK is the odds ratio of a study's 2x2 table. Row 12 is an `OR_ratio` row: the LAM-MAS odds ratio is 1.5 times higher among cows with SCK. It changes additive results only with interactions, rows about combinations or subgroups, or unknown pairs, and it changes event impacts. Leaving a row out makes the pair unknown (the script shows this as a variant). |
-| `impacts_yield.csv` | Crude yield losses in % of yield, one row per disease: the published approximation can be shown beside the model with `compare_methods()` (on the ten crude pair rows). |
-| `impacts_calving_interval.csv` | Days: two MAS rows (a coefficient adjusted for SCK and a crude difference), fitted together by weighted least squares; SCK adjusted for `all` (exact); RP among cows with no other disease (`among = "no others"`). The published approximation does not apply. |
+| `impacts_yield.csv` | Crude yield losses in % of yield, one row per disease (with only the ten crude pair rows, the pairwise shortcut gives the answer). |
+| `impacts_calving_interval.csv` | Days: two MAS rows (a coefficient adjusted for SCK and a crude difference), fitted together by weighted least squares; SCK adjusted for `all` (exact); RP among cows with no other disease (`among = "no others"`). |
 | `impacts_welfare.csv` | Score points, with interactions: LAM;MAS and MET;RP adjusted for `all` (the interactions themselves, synergistic), and a crude LAM;SCK row (cows with both against cows with neither) that implies an antagonistic LAM:SCK interaction. |
-| `culling.csv` | Event impacts (`event_model = TRUE`, with `overall_risk`): hazard ratios (LAM crude, MAS stratified by LAM and SCK), a risk ratio (MET), an odds ratio (SCK), a risk difference (RP stratified by all other diseases) and a crude hazard ratio for cows with both LAM and MAS (an interaction on the log-hazard scale), all on the snapshot hazard model. |
+| `culling.csv` | Event impacts (`event_model = TRUE`, with `overall_risk` or `baseline_risk`): hazard ratios (LAM crude, MAS stratified by LAM and SCK), a risk ratio (MET), an odds ratio (SCK), a risk difference (RP stratified by all other diseases) and a crude hazard ratio for cows with both LAM and MAS (an interaction on the log-hazard scale), all on the snapshot hazard model. |
 
 Every table has free-text `study` and `note` columns describing its rows.
 
@@ -67,21 +67,21 @@ of `deconflate()` and can also be a distribution (e.g. `dist_beta(250, 750)`).
 ## What the script covers
 
 1. Reading and checking inputs (`cm_check_inputs`, `cm_read_inputs` with one
-   impact table per model, `pair_tables`).
+   impact table per model).
 2. Feasibility (`check_feasibility`), the exact and sampled joint
-   distribution (`fit_joint`), `combination_probs`, and the `OR_ratio` row
+   distribution (`fit_joint`), the most common combinations, and the `OR_ratio` row
    in the fitted distribution.
 3. `deconflate()` for each additive table: pooled association rows and
    their heterogeneity, the pairwise shortcut, several impact rows (weighted
    least squares), adjusted and subgroup rows, interactions, the diagnosis
-   of the inputs (`diagnose = TRUE`), and the published approximation through
-   `compare_methods()` (for comparison only).
+   of the inputs (`diagnose = TRUE`).
 4. Event impacts: mixed measures, an interaction, the attributable risk and
-   its Shapley allocation, the diagnosis, the `event_model` checks, and
-   `compare_methods()` for event impacts.
+   its Shapley allocation (own part and interaction share), the raw
+   attributable risk, results on the risk scale, `baseline_risk`, the
+   diagnosis, and the `event_model` checks.
 5. Uncertainty: intervals from draws, rejections, Latin hypercube sampling,
-   an uncertain overall risk, and methods compared on the same draws.
-6. Reporting (`contribution_table`, `summary`, `attribute_burden`), and
+   and an uncertain overall risk.
+6. Reporting (`contribution_table`, `summary`, `$contributions`), and
    gaps and values computed from the results in a few lines of base R
    (also over the draws).
 7. `sensitivity_oat`, `screen_associations`, `screen_interactions`,
@@ -92,8 +92,7 @@ of `deconflate()` and can also be a distribution (e.g. `dist_beta(250, 750)`).
    number, disease probability, overall risk); poles are reported as
    discontinuities and unusable stretches of a range in `regions`.
 9. `simulate_raw_impacts` (crude, adjusted, subgroup and combination rows,
-   finite samples) and `shapley_by_cell` with additive and multiplicative
-   losses.
+   finite samples, event impacts).
 10. Variants: an unknown pair (filled in by the fit and listed in
     `$unknown_pairs`), an odds ratio adjusted for other diseases, and the
     messages for files of earlier versions.

@@ -63,8 +63,8 @@ print.cm_result <- function(x, ...) {
   tab <- a[, intersect(cols, names(a)), drop = FALSE]
   print(tab, row.names = FALSE, digits = 4)
   tt <- x$totals
-  cat(sprintf("\nRaw sum: %s; adjusted total: %.4g", if (is.finite(tt$raw_sum)) sprintf("%.4g", tt$raw_sum) else "NA (several rows per disease)",
-              tt$adjusted_total))
+  cat(sprintf("\nRaw total (diseases unrelated): %s; adjusted total: %.4g",
+              if (isTRUE(is.finite(tt$raw_total))) sprintf("%.4g", tt$raw_total) else "NA", tt$adjusted_total))
   if (!is.null(tt$adjusted_total_lower)) {
     cat(sprintf(" (95%% interval %.4g to %.4g)", tt$adjusted_total_lower, tt$adjusted_total_upper))
   }
@@ -114,15 +114,28 @@ print.cm_event_result <- function(x, ...) {
     tab$lower <- a$lower
     tab$upper <- a$upper
   }
+  if (!is.null(a$change)) tab$change <- a$change
   if (any(a$rows != 1L)) tab$rows <- a$rows
+  if (!is.null(a$risk_alone)) {
+    tab$risk_alone <- a$risk_alone
+    tab$rr_alone <- a$rr_alone
+    tab$rd_alone <- a$rd_alone
+  }
   print(tab, row.names = FALSE, digits = 4)
+  if (!is.null(a$risk_alone)) {
+    cat("(risk_alone: risk of an animal with only these diseases; rr_alone, rd_alone: against a disease-free animal)\n")
+  }
   ar <- x$attributable
   if (!is.null(ar)) {
     s <- ar$summary
-    cat(sprintf("\nOverall risk %.4g; disease-free risk %.4g; attributable to disease %.4g (%.1f%% of the overall risk)",
-                s$overall_risk, s$disease_free_risk, s$attributable, 100 * s$attributable_fraction))
+    given <- if (identical(x$risk_given, "baseline")) " (given: disease-free risk)" else ""
+    cat(sprintf("\nOverall risk %.4g; disease-free risk %.4g%s; attributable to disease %.4g (%.1f%% of the overall risk)",
+                s$overall_risk, s$disease_free_risk, given, s$attributable, 100 * s$attributable_fraction))
     if (!is.null(s$attributable_lower)) {
       cat(sprintf("; 95%% interval [%.4g, %.4g]", s$attributable_lower, s$attributable_upper))
+    }
+    if (isTRUE(is.finite(s$raw_attributable))) {
+      cat(sprintf("\nRaw attributable risk (diseases unrelated): %.4g", s$raw_attributable))
     }
     cat("\n")
     if (!is.null(ar$by_disease)) {

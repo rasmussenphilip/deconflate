@@ -1,3 +1,86 @@
+# deconflate (development version)
+
+Event impacts now have the same results and tools as additive impacts
+(ROADMAP v0.6, item 1; design note section 15). Reference values come from
+an independent Python implementation
+(`inst/validation/reference_v06_event_parity.py`). Everything that is not
+the package's one model has been removed (item 2).
+
+## Breaking changes: one model only
+
+* **Removed:** `compare_methods()`, the proportional approximation of
+  Rasmussen et al. (2022, eq. 16) and the HR - 1 conversion of 2024, the
+  first-order event method, `reproduce_rasmussen_2022()`,
+  `reproduce_rasmussen_2024()`, `example_uk_dairy_2022()` and
+  `vignette("reproducing-published")`, with the code that existed only for
+  them (the Monte Carlo and batch sampler of the 2024 reproduction, and the
+  historical hazard-ratio, gap and valuation conversions). The v0.5.0
+  release is the record of the published calculations.
+* **Removed helpers:** `attribute_burden()` (use `$contributions`, or
+  `$attributable$by_disease` for event impacts, or `contribution_table()`),
+  `plot_burden()`, `loss_additive()`, `loss_multiplicative()`,
+  `combination_probs()` and `excess_matrix()` (both can be computed from
+  the `$cells` and `$prob` of `fit_joint()`), and `cm_dist_table()`
+  (distributions go in the input tables' `dist` columns).
+* **No longer exported** (still used inside the model): `or_to_joint()`,
+  `joint_to_or()`, `association_to_joint()`, `pair_tables()` and
+  `shapley_by_cell()`.
+* The error class `deconflate_unknown_pairs` is gone (no calculation needs
+  a crude pair row for every pair any more), and the draw summaries no
+  longer have the `possible_pole` stability label (it belonged to the
+  published approximation).
+
+## Breaking changes: event impacts
+
+* **Raw totals have one definition for both models:** the result if the
+  diseases were unrelated, that is, the same model with the same
+  prevalences and impact rows but no association rows. `$totals$raw_sum`
+  (the prevalence-weighted sum of the raw impacts) is renamed
+  `$totals$raw_total` and follows this definition, so it is now also
+  defined when a disease has several rows, subgroup rows or combination
+  rows (above 20 diseases, only for single-disease rows; otherwise `NA`).
+  For single-disease rows it is the same number as before. The same name is
+  used in `summary()` and the draws.
+* **Event results:** `change` and the sign check are on the measure of the
+  term's raw row (HR, rate ratio, RR, OR or RD), so they are now defined for
+  every row measure, not only hazard and rate ratios. The sign-change
+  warning reads "on the other side of 1 (of 0 for risk differences)". The
+  diagnosis (`diagnose = TRUE`) compares on the same measure, so risk
+  difference rows are now also flagged when shrunk by more than 90%.
+* `$attributable$by_disease` has the columns `disease`, `main`,
+  `interaction`, `attributable` and `share`, and `$attributable$summary`
+  gains `raw_attributable`.
+
+## New features
+
+* **Raw attributable risk:** event results report the attributable risk if
+  the diseases were unrelated (`raw_attributable`) beside the adjusted one,
+  in the print and `summary()` (with the reduction).
+* **Own part and interaction share** of each disease's attributable risk
+  (`main`, `interaction`), as for additive contributions.
+* **Results on the risk scale:** `$adjusted` gains `risk_alone`, `rr_alone`,
+  `rd_alone` and `or_alone`: the risk of an animal with only that disease
+  (or combination), and its risk ratio, risk difference and odds ratio
+  against a disease-free animal. `contribution_table()` shows them (except
+  the odds ratio).
+* **Local row equations of event impacts** in `$conflation$A`: how each
+  row's value (on its measure's scale) changes with each log-hazard term, at
+  the adjusted values.
+* **`baseline_risk`:** the risk of disease-free animals, as an alternative
+  to `overall_risk` (exactly one is given; a number or a distribution).
+  The overall risk is then computed by the model. Works in `deconflate()`,
+  `cm_threshold()`, `sensitivity_oat()`, the screens and
+  `simulate_raw_impacts()`.
+* **`simulate_raw_impacts(event_model = TRUE)`:** what each event row would
+  report (HR, rate ratio, RR, OR or RD; crude, stratified or for a
+  combination) given true hazard ratios and interactions, exactly or from
+  `n` sampled animals (exponential event times; HR and rate-ratio rows are
+  then estimated as rate ratios, an approximation).
+* **Interactions of event impacts in the sensitivity tools:**
+  `set_interaction()` adds an HR row adjusted for all;
+  `screen_interactions()` and `cm_threshold()` (input `inter:<d1>:<d2>`)
+  vary it.
+
 # deconflate 0.5.0
 
 The work planned as version 0.4 is released as 0.5.0 (there is no 0.4.0).

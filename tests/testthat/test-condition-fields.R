@@ -22,14 +22,6 @@ test_that("infeasible pair rows give the conflicting triples", {
   expect_equal(e$triples[, c("disease1", "disease2", "disease3")],
                data.frame(disease1 = "a", disease2 = "b", disease3 = "c", stringsAsFactors = FALSE))
   expect_gt(e$triples$gap, 0)
-  expect_equal(catch(adjust_published(m), "deconflate_infeasible")$triples, e$triples)
-})
-
-test_that("calculations that need every pair name the missing pairs", {
-  e <- catch(excess_matrix(supp_unknown_population()), "deconflate_unknown_pairs")
-  expect_equal(e$pairs, data.frame(disease1 = "d1", disease2 = "d3", stringsAsFactors = FALSE))
-  m <- cm_model(supp_unknown_population(), cm_impacts(ids3, c(1, 2, 3)))
-  expect_equal(catch(adjust_published(m), "deconflate_unknown_pairs")$pairs, e$pairs)
 })
 
 test_that("sign changes and unidentified terms are named", {
@@ -71,9 +63,9 @@ test_that("non-convergence gives the residual", {
 
 test_that("an incomplete Shapley allocation gives the amounts", {
   j <- fit_joint(example_supplement())
-  w <- catch(shapley_by_cell(j, loss_additive(c(d1 = 1, d2 = 2, d3 = 3)), max_present = 2),
-             "deconflate_incomplete_allocation")
-  sh <- suppressWarnings(shapley_by_cell(j, loss_additive(c(d1 = 1, d2 = 2, d3 = 3)), max_present = 2))
+  loss <- function(x) sum(c(1, 2, 3) * x[ids3])
+  w <- catch(shapley_by_cell(j, loss, max_present = 2), "deconflate_incomplete_allocation")
+  sh <- suppressWarnings(shapley_by_cell(j, loss, max_present = 2))
   expect_equal(w$skipped_mass, attr(sh, "skipped_mass"))
   expect_equal(w$skipped_loss, attr(sh, "skipped_loss"))
   expect_equal(w$total, attr(sh, "total"))

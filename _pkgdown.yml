@@ -9,7 +9,6 @@ articles:
   - own-data
   - thresholds-and-scaling
   - event-impacts
-  - reproducing-published
   - interactions
   - uncertainty
 reference:
@@ -27,29 +26,18 @@ reference:
   contents:
   - cm_read_inputs
   - cm_check_inputs
-  - cm_dist_table
   - cm_template
 - title: Adjustment
   contents:
   - deconflate
-  - compare_methods
-  - pair_tables
-  - excess_matrix
-  - or_to_joint
-  - joint_to_or
-  - association_to_joint
 - title: Joint distribution and feasibility
   contents:
   - fit_joint
-  - combination_probs
   - check_feasibility
 - title: Contributions
   contents:
-  - attribute_burden
   - contribution_table
   - summary.cm_result
-  - shapley_by_cell
-  - loss_functions
 - title: Uncertainty
   contents:
   - distributions
@@ -62,12 +50,10 @@ reference:
   - screen_three_way
 - title: Plots
   contents: plots
-- title: Examples, reproduction and validation
+- title: Examples and validation
   contents:
   - example_supplement
-  - example_uk_dairy_2022
   - example_global_dairy
-  - reproduce
   - simulate_raw_impacts
 - title: internal
   contents: deconflate-package

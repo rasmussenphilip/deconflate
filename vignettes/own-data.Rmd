@@ -306,9 +306,8 @@ range is noted. In the model, the distributions are kept in
 names(yield$distributions)
 ```
 
-`cm_dist_table()` builds distributions from a table with columns `key`,
-`dist` and `p1`-`p4`. See `vignette("uncertainty")` for the draws, their
-intervals and rejected draws.
+See `vignette("uncertainty")` for the draws, their intervals and rejected
+draws.
 
 ## When something is wrong
 
@@ -496,6 +495,5 @@ cm_read_inputs(diseases = file.path(gd, "diseases.csv"),
                impacts = file.path(gd, "impacts_yield.csv"))
 ```
 
-`example_global_dairy()` returns the same inputs as a model, and
-`vignette("reproducing-published")` compares it with the published analysis,
-which treated these pairs as independent.
+`example_global_dairy()` returns the same inputs as a model. (The published
+analysis treated these pairs as independent.)

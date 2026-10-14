@@ -153,49 +153,6 @@ cm_check_inputs <- function(diseases = NULL, associations = NULL, impacts = NULL
   run_input_checks(diseases, associations, impacts)$problems
 }
 
-#' Build distributions from a table
-#'
-#' Converts a table with columns `key`, `dist` and `p1`-`p4` (distributions
-#' as in the Uncertainty section of [cm_read_inputs()]) into a named list of
-#' `cm_dist` objects, e.g. for the `distributions` argument of [cm_model()].
-#' Keys are kept as given.
-#'
-#' @param x A path to a CSV file or a data frame.
-#' @return A named list of `cm_dist` objects (names = keys).
-#' @export
-#' @examples
-#' cm_dist_table(data.frame(key = c("impact:d1", "assoc:d1:d2"),
-#'                          dist = c("normal", "lognormal_ci"),
-#'                          p1 = c(2.5, 2), p2 = c(0.5, 1.4), p3 = c(NA, 2.9)))
-cm_dist_table <- function(x) {
-  tab <- read_input_table(x)
-  if (is.null(tab) || !nrow(tab)) cm_abort("The uncertainty table is empty.", class = "deconflate_invalid_input")
-  if (!all(c("key", "dist") %in% names(tab))) cm_abort("The uncertainty table needs columns `key` and `dist`.", class = "deconflate_invalid_input")
-  key <- clean_chr(tab$key)
-  dist <- tolower(clean_chr(tab$dist))
-  P <- dist_params(tab)
-  errs <- character(0)
-  out <- list()
-  for (r in seq_len(nrow(tab))) {
-    if (is.na(key[r])) {
-      errs <- c(errs, sprintf("row %d: missing key.", r))
-      next
-    }
-    if (!is.null(out[[key[r]]])) {
-      errs <- c(errs, sprintf("row %d (%s): the key is given more than once.", r, key[r]))
-      next
-    }
-    d <- tryCatch(input_dist(dist[r], P[r, ]), error = function(e) e)
-    if (inherits(d, "condition")) {
-      errs <- c(errs, sprintf("row %d (%s): %s", r, key[r], conditionMessage(d)))
-    } else {
-      out[[key[r]]] <- d
-    }
-  }
-  if (length(errs)) cm_abort(paste(c("Problems in the uncertainty table:", errs), collapse = "\n  "), class = "deconflate_invalid_input")
-  out
-}
-
 #' Write a template set of input files
 #'
 #' Writes an example set of input files to a folder, to edit and read back
@@ -324,14 +281,6 @@ clean_chr <- function(v, default = NA_character_, n = NULL) {
   v[!is.na(v) & !nzchar(v)] <- NA_character_
   v[is.na(v)] <- default
   v
-}
-
-dist_params <- function(tab) {
-  P <- vapply(paste0("p", 1:4), function(col) {
-    v <- tab[[col]]
-    if (is.null(v)) rep(NA_real_, nrow(tab)) else suppressWarnings(as.numeric(v))
-  }, numeric(nrow(tab)))
-  matrix(P, nrow = nrow(tab))
 }
 
 # Build one distribution from a `dist` name and parameters p1-p4.

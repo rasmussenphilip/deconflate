@@ -223,25 +223,6 @@ allocation to diseases vary with it, while the adjusted hazard ratios
 hardly change: raw hazard ratios do not depend on the overall risk, and
 only the risk ratio of d3 does.
 
-## Comparing methods on the same draws
-
-`compare_methods()` runs several methods on the same inputs, including the
-approximation of Rasmussen et al. (2022, eq. 16) (`"published"`), kept for
-comparison with earlier analyses only. With `n_draws` (default 0), every
-method is applied to the same draws; a draw is rejected if any method fails
-on it. Methods that cannot be run are listed in `$failed`.
-
-```{r}
-mu2 <- cm_model(m, m$impacts, distributions = list(
-  "assoc:d1:d2" = dist_lognormal_ci(2, 1.4, 2.9),
-  "impact:d2" = dist_normal(5, 1)
-))
-cmp <- compare_methods(mu2, n_draws = 200, seed = 1)
-cmp
-s <- cmp$draws$summary
-s[s$quantity == "adjusted:d2", c("method", "mean", "lower", "upper")]
-```
-
 ## Gaps and values over the draws
 
 The package reports impacts in their own units. A gap or a value per draw

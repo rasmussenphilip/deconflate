@@ -17,6 +17,7 @@ cm_threshold(
   n_grid = 101L,
   log_scale = NULL,
   tol = 1e-08,
+  baseline_risk = NULL,
   ...
 )
 }
@@ -31,7 +32,7 @@ interaction, see \code{\link[=set_interaction]{set_interaction()}}), \code{"prob
 row of a disease, when it has one), \code{"three:<d1>:<d2>:<d3>"} (an
 OR_ratio, see \code{\link[=set_three_way]{set_three_way()}}), \code{"associations:<row>"} or
 \code{"impacts:<row>"} (any row, by its number), or, for event impacts,
-\code{"risk"} (the overall risk).}
+\code{"risk"} (the overall or baseline risk, whichever is given).}
 
 \item{range}{Two numbers: the range of the input to search.}
 
@@ -46,8 +47,8 @@ them) and \code{"sign"}.}
 
 \item{by}{For \code{"rank"}: \code{"contribution"} (default) or \code{"adjusted"}.}
 
-\item{event_model, overall_risk}{As in \code{\link[=deconflate]{deconflate()}} (a distribution of
-the overall risk is used at its mean).}
+\item{event_model, overall_risk, baseline_risk}{As in \code{\link[=deconflate]{deconflate()}} (a distribution of
+the risk is used at its mean).}
 
 \item{n_grid}{Number of grid points.}
 

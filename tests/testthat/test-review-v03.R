@@ -6,12 +6,6 @@
 t2_ids <- c("d1", "d2", "d3")
 t2_pop <- function(extra = NULL) supp_population(extra)
 t2_model <- function(values) cm_model(t2_pop(), cm_impacts(t2_ids, values))
-# A model where the published approximation divides by zero for d1:
-# b1 = m1^2 / (m1 + A12 m2 + A13 m3) with m = (-A12, 1, 0).
-t2_pole_model <- function() {
-  e <- deconflate(t2_model(c(1, 1, 1)))$conflation$A[1, "d2"]
-  t2_model(c(-e, 1, 0))
-}
 
 # ---- 1. Distribution support ---------------------------------------------------
 
@@ -21,14 +15,12 @@ test_that("a mixture's support is the union of its positive-weight components", 
   expect_equal(c(gap$lower, gap$upper), c(0, 1))
   zero_w <- dist_mixture(dist_uniform(0, 0.5), dist_uniform(0, 1), weights = c(1, 0))
   expect_equal(zero_w$upper, 0.5)
-  expect_false(support_covers(gap, dist_uniform(0, 1)))
-  expect_false(support_covers(zero_w, dist_uniform(0, 1)))
-  expect_true(support_covers(dist_mixture(dist_uniform(0, 1), dist_normal(0.5, 1)), dist_uniform(0, 1)))
+  expect_equal(format_support(zero_w), "[0, 0.5]")
   # Nested mixtures: a gap is closed, or left open.
   closed <- dist_mixture(gap, dist_uniform(0.2, 0.6))
   open <- dist_mixture(gap, dist_uniform(0.3, 0.6))
-  expect_true(support_covers(closed, dist_uniform(0, 1)))
-  expect_false(support_covers(open, dist_uniform(0, 1)))
+  expect_equal(format_support(closed), "[0, 1]")
+  expect_equal(format_support(open), "[0, 0.25] u [0.3, 1]")
   expect_equal(format_support(gap), "[0, 0.25] u [0.5, 1]")
 })
 
@@ -49,30 +41,18 @@ test_that("the stand-alone Monte Carlo and reweighting functions are gone", {
 
 # ---- 2. Undefined results are never successful estimates ----------------------
 
-test_that("compare_methods reports an undefined published result as failed", {
-  pm <- t2_pole_model()
-  expect_true(is.infinite(adjust_published(pm)$adjusted$adjusted[1]))
-  cmp <- compare_methods(pm, methods = c("published", "deconflate"))
-  expect_equal(cmp$methods, "deconflate")
-  expect_match(cmp$failed[["published"]], "^undefined")
-  expect_s3_class(cmp$undefined$published, "cm_result")
-  expect_true(all(is.finite(cmp$impacts$deconflate)))
-  expect_false("published" %in% names(cmp$impacts))
-})
-
 test_that("sensitivity tools report undefined scenarios with a reason", {
-  # The published approximation is the only way to get a non-finite result,
-  # and it is not a method of deconflate(), so the scenario helpers are
-  # tested directly on its result.
-  pm <- t2_pole_model()
-  pub <- adjust_published(pm)
-  expect_true(failed_run(pub))
-  sm <- scenario_metric(pub)
+  # The model does not give non-finite results for these inputs, so the
+  # scenario helpers are tested on a result made non-finite by hand.
+  bad <- deconflate(t2_model(c(1, 1, 1)))
+  bad$adjusted$adjusted[1] <- Inf
+  expect_true(failed_run(bad))
+  sm <- scenario_metric(bad)
   expect_null(sm$met)
   expect_match(sm$reason, "^undefined: non-finite adjusted values \\(d1\\)")
-  expect_true(is.na(scenario_metric(deconflate(pm, warn = FALSE))$reason))
+  expect_true(is.na(scenario_metric(deconflate(t2_model(c(1, 1, 1))))$reason))
   base <- burden_metric(deconflate(t2_model(c(1, 1, 1))))
-  row <- screen_row(data.frame(scenario = "pole", stringsAsFactors = FALSE), pub, base)
+  row <- screen_row(data.frame(scenario = "bad", stringsAsFactors = FALSE), bad, base)
   expect_true(is.na(row$total))
   expect_true(is.na(row$rel_change))
   expect_match(row$failed, "^undefined")
@@ -80,28 +60,19 @@ test_that("sensitivity tools report undefined scenarios with a reason", {
   sm2 <- scenario_metric(structure(list(), reason = "infeasible"))
   expect_equal(sm2$reason, "infeasible")
   # A screen's baseline must be a finite estimate.
-  expect_error(check_baseline(pub), class = "deconflate_nonfinite")
+  expect_error(check_baseline(bad), class = "deconflate_nonfinite")
   expect_error(check_baseline(structure(list(), reason = "singular")), "singular")
-  # The screens have no method argument.
-  expect_error(screen_associations(pm, method = "published"), class = "deconflate_unsupported")
-  expect_error(sensitivity_oat(pm, method = "published"), class = "deconflate_unsupported")
-  # With the model, the pole model is an ordinary scenario.
-  sc <- screen_associations(pm)
-  expect_true(all(is.na(sc$failed)))
-  expect_true(all(is.finite(sc$total)))
-  expect_true(all(is.finite(sensitivity_oat(pm, inputs = "impact")$swing)))
 })
 
 # ---- 3. Unavailable precision is not "ok" -------------------------------------
 
 test_that("one usable replicate block gives insufficient_info, not ok", {
-  g <- data.frame(x = c(1, 2, 3, 4), w = 1, disease = "q", method = "", block = 1L,
-                  raw = NA_real_, adjusted = NA_real_)
-  st <- mc_stats(g, c(0.025, 0.5, 0.975), trim = 0.05, check_pole = FALSE, n_blocks = 1L)$row
+  probs <- c(0.025, 0.5, 0.975)
+  st <- draw_stats(c(1, 2, 3, 4), rep(1L, 4), probs, n_blocks = 1L)
   expect_true(is.na(st$mcse))
   expect_equal(st$stability, "insufficient_info")
   # Blocks without any accepted draw still count as replicates.
-  st4 <- mc_stats(g, c(0.025, 0.5, 0.975), trim = 0.05, check_pole = FALSE, n_blocks = 4L)$row
+  st4 <- draw_stats(c(1, 2, 3, 4), rep(1L, 4), probs, n_blocks = 4L)
   expect_true(is.na(st4$mcse))
   expect_equal(st4$stability, "insufficient_info")
 })
@@ -126,23 +97,21 @@ test_that("Latin hypercube blocks give the ratio-estimator standard error", {
   expect_equal(s$mcse, ratio_se(dr$values[, "adjusted:d1"], dr$block, 4), tolerance = 1e-10)
   # A block whose draws were all rejected (removed) still counts.
   keep <- dr$block != 3
-  g <- data.frame(x = dr$values[keep, "adjusted:d1"], w = 1, disease = "q", method = "",
-                  block = dr$block[keep], raw = NA_real_, adjusted = NA_real_)
-  st <- mc_stats(g, c(0.025, 0.5, 0.975), trim = 0.05, check_pole = FALSE, n_blocks = 4L)$row
-  expect_equal(st$mcse, ratio_se(g$x, g$block, 4), tolerance = 1e-10)
+  x <- dr$values[keep, "adjusted:d1"]
+  st <- draw_stats(x, dr$block[keep], c(0.025, 0.5, 0.975), n_blocks = 4L)
+  expect_equal(st$mcse, ratio_se(x, dr$block[keep], 4), tolerance = 1e-10)
   expect_true(st$stability %in% c("ok", "imprecise", "insufficient_info", "heavy_tail"))
   expect_error(deconflate(m, n_draws = 3, sampling = "lhs"), "at least 4 draws")
 })
 
 test_that("a zero mean with positive uncertainty gives insufficient_info", {
-  g <- data.frame(x = rep(c(1, -1), 25), w = 1, disease = "a", method = "", block = NA_integer_,
-                  raw = NA_real_, adjusted = NA_real_)
-  st <- mc_stats(g, c(0.025, 0.5, 0.975), trim = 0.05, check_pole = FALSE)$row
+  probs <- c(0.025, 0.5, 0.975)
+  x <- rep(c(1, -1), 25)
+  st <- draw_stats(x, NA, probs)
   expect_equal(st$mean, 0)
   expect_gt(st$mcse, 0)
   expect_equal(st$stability, "insufficient_info")
-  g$x <- 2 + g$x / 100
-  expect_equal(mc_stats(g, c(0.025, 0.5, 0.975), trim = 0.05, check_pole = FALSE)$row$stability, "ok")
+  expect_equal(draw_stats(2 + x / 100, NA, probs)$stability, "ok")
 })
 
 # ---- 4. Three-way associations and unknown pairs ------------------------------
@@ -205,32 +174,18 @@ test_that("event impacts need a measure; adjusted_for decides crude or stratifie
   expect_error(cm_impacts(t2_ids, c(1.5, 2, 1.3), measure = "HR2"), "measure")
 })
 
-test_that("historical conversions are not in the general examples", {
-  uk <- example_uk_dairy_2022()
-  expect_s3_class(uk, "cm_model")
-  expect_equal(attr(uk$impacts, "label"), "milk yield loss")
-  expect_null(attr(uk, "hazard_ratios"))
-  expect_equal(names(formals(example_uk_dairy_2022)), c("outcome", "yield_sck"))
-  # Culling is an event impact table of hazard ratios, not converted.
-  ukc <- example_uk_dairy_2022("culling")
-  expect_equal(impact_kind(ukc$impacts), "event")
-  expect_equal(ukc$impacts$value[ukc$impacts$disease == "DA"], 3.83)
-  # The (internal) economic inputs value the yield and fertility analyses.
-  eco <- uk_dairy_2022_economics()
-  expect_equal(names(eco$valuation), c("yield", "fertility"))
-  # Unlisted pairs are unknown: the published approximation cannot run.
-  cmp <- compare_methods(uk)
-  expect_equal(cmp$methods, "deconflate")
-  expect_match(cmp$failed[["published"]], "needs a crude pair row for every pair")
+test_that("the general examples keep the impacts on their own scale", {
   # Valuation is not exported.
   ex <- getNamespaceExports("deconflate")
-  for (f in c("uk_dairy_2022_economics", "productivity_gap", "value_losses", "cm_mc_gap")) {
+  for (f in c("productivity_gap", "value_losses", "cm_mc_gap")) {
     expect_false(f %in% ex)
   }
   gd <- example_global_dairy()
   expect_s3_class(gd, "cm_model")
   expect_equal(attr(gd$impacts, "label"), "milk yield loss")
+  expect_null(attr(gd, "hazard_ratios"))
   expect_equal(names(formals(example_global_dairy)), c("outcome", "inputs"))
+  # Culling is an event impact table of hazard ratios, not converted.
   gc <- example_global_dairy("culling")
   expect_equal(impact_kind(gc$impacts), "event")
   expect_true(all(paste0("impacts:", gc$impacts$row) %in% names(gc$distributions)))

@@ -170,30 +170,8 @@ diseases alone would produce under the additive model. This says that the
 inputs are inconsistent with the model there (or the rows do not mean what
 they were taken to mean), not that d1 is protective.
 
-`cm_threshold()` searches with the model of `deconflate()`. The published
-approximation, `m^2 / (m + c)`, kept for comparison only, behaves
-differently: it has a pole where its denominator is zero, and its adjusted
-impact changes sign there by jumping through infinity. For d1, `c` is the
-part of the raw impact that the conflation matrix `A` attributes to the
-other diseases, so the pole is at a raw impact of d1 of about -0.527:
-
-```{r}
-A <- deconflate(m, n_draws = 0)$conflation$A
-A                                    # one row per impact row
--sum(A["impacts:1", c("d2", "d3")] * c(5, 7.5))
-```
-
-`compare_methods()` shows this on either side of the pole:
-
-```{r}
-sapply(c(-0.60, -0.45), function(v) {
-  mv <- cm_model(m, cm_impacts(c("d1", "d2", "d3"), c(v, 5, 7.5)))
-  unlist(compare_methods(mv)$impacts[1, -1])
-})
-```
-
-The model itself has poles only where the impact rows stop telling the
-terms apart. For example, crude rows for a, for b and for the combination
+`cm_threshold()` searches with the model of `deconflate()`. The model has
+poles only where the impact rows stop telling the terms apart. For example, crude rows for a, for b and for the combination
 a;b (all against none) do not determine the two impacts and the
 interaction when P(a) + P(b) = 1, whatever the association. A search
 across such a pole reports a `"discontinuity"`, not a threshold, and a grid
@@ -311,7 +289,7 @@ read with `cm_read_inputs()` can leave out `associations` for this purpose.
 
 When the pairwise 2x2 tables give the model's answer (crude pair rows for
 every pair, one-disease impact rows, additive impacts), `deconflate()` uses
-them directly, as does the published approximation in `compare_methods()`.
+them directly.
 They never enumerate combinations of diseases, so they work for any number
 of diseases. Up to 20 diseases, `deconflate()` still fits the distribution
 of combinations once, to check that the rows can hold together; beyond
@@ -377,8 +355,8 @@ js$diagnostics$moments
 The probabilities of the eight combinations, exact and sampled:
 
 ```{r}
-cmb <- merge(combination_probs(je), combination_probs(js),
-             by = c("d1", "d2", "d3", "n_diseases"), suffixes = c("_exact", "_sampled"))
+key <- function(j) apply(j$cells, 1, paste, collapse = "")
+cmb <- data.frame(je$cells, prob_exact = je$prob, prob_sampled = js$prob[match(key(je), key(js))])
 cmb[order(-cmb$prob_exact), ]
 ```
 
@@ -401,7 +379,7 @@ rbind(exact = deconflate(mi, n_draws = 0, joint = je)$adjusted$adjusted,
       sampled = deconflate(mi, n_draws = 0, joint = js)$adjusted$adjusted)
 ```
 
-A fitted joint can be passed to `deconflate()`, `compare_methods()` and
+A fitted joint can be passed to `deconflate()` and
 `cm_threshold()` with `joint`. Alternatively, the fitting arguments can be
 passed through `...`, e.g. `deconflate(m, backend = "sampled",
 n_samples = 20000)`.

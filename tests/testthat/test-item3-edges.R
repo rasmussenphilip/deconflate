@@ -15,7 +15,6 @@ test_that("the draw arguments are checked before anything is fitted", {
   expect_error(deconflate(m, n_draws = 10, seed = 1e12), "seed")
   expect_error(deconflate(m, n_draws = 10, sampling = "lhs", lhs_replicates = 1), "lhs_replicates")
   expect_error(deconflate(m, n_draws = 3, sampling = "lhs"), "at least 4 draws")
-  expect_error(compare_methods(m, n_draws = 1), "at least 2")
   r <- deconflate(m, n_draws = 2, seed = 1)
   expect_equal(r$draws$n_draws, 2)
   expect_output(print(r), "seed 1")
@@ -27,9 +26,7 @@ test_that("too few accepted draws give no intervals, with a note", {
   r <- deconflate(m, n_draws = 10, seed = 1)
   expect_null(r$adjusted$lower)
   expect_true(any(grepl("All 10 draws were rejected", r$notes)))
-  cmp <- compare_methods(m, n_draws = 10, seed = 1)
-  expect_true(any(grepl("All 10 draws were rejected", cmp$notes)))
-  expect_output(print(cmp), "All 10 draws were rejected")
+  expect_output(print(r), "All 10 draws were rejected")
   # A high rejection share is reported in the notes.
   m$distributions <- list("prob:d1" = dist_uniform(0.05, 1.2))
   r2 <- deconflate(m, n_draws = 40, seed = 2)
@@ -88,10 +85,12 @@ test_that("negative risk differences give no spurious warnings", {
   expect_lt(r$adjusted$adjusted[3], 1)
 })
 
-test_that("additive interaction setters do not apply to event impacts", {
-  expect_error(set_interaction(supp_hr_model(), "d1", "d2", 1), "additive interactions",
+test_that("interaction setters for event impacts take hazard ratios", {
+  expect_error(set_interaction(supp_hr_model(), "d1", "d2", -1), class = "deconflate_invalid_input")
+  # event_model must match the table, as in deconflate()
+  expect_error(screen_interactions(supp_hr_model(), values = 1), "event_model = TRUE",
                class = "deconflate_unsupported")
-  expect_error(screen_interactions(supp_hr_model(), values = 1), "additive interactions")
   expect_error(cm_threshold(supp_hr_model(), "inter:d1:d2", c(-1, 1), conclusion = "total", target = 0.05,
-                            event_model = TRUE, overall_risk = 0.25), "additive interactions")
+                            event_model = TRUE, overall_risk = 0.25), "must be positive",
+               class = "deconflate_invalid_input")
 })

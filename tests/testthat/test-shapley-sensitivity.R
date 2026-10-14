@@ -23,7 +23,7 @@ t2_no_assoc <- function(m = example_supplement()) {
 }
 
 supp_truth <- c(d1 = 2, d2 = 4, d3 = 6)
-supp_base_total <- 2.109228876453694       # simultaneous aggregate, percent
+supp_base_total <- 2.109228876453694       # adjusted aggregate (pairwise shortcut), percent
 supp_int_total <- 2.0890878497857703       # global, interaction d1:d2 = 1
 supp_int_tw_total <- c(`0.5` = 2.0913976662985534, `2` = 2.086745618267496)
 supp_ar <- 0.03664898509534775             # attributable risk, event model at 0.25
@@ -34,8 +34,6 @@ test_that("additive contributions add up to the aggregate", {
   expect_equal(res$diagnostics$method, "pairwise shortcut")
   expect_equal(sum(res$contributions$total), res$totals$adjusted_total)
   expect_equal(res$totals$adjusted_total, supp_base_total, tolerance = 1e-8)
-  expect_equal(attribute_burden(res), res$contributions)
-  expect_error(attribute_burden(m), "deconflate")
   res_i <- deconflate(set_interaction(m, "d1", "d2", 1))
   expect_equal(res_i$diagnostics$method, "full model")
   expect_equal(res_i$adjusted$kind, c(rep("disease", 3), "interaction"))
@@ -54,10 +52,11 @@ test_that("cell-wise Shapley equals the closed form for pairwise interactions", 
   m2 <- cm_model(pop, simulate_raw_impacts(pop, supp_truth, interactions = c("d1;d2" = 1)))
   res <- deconflate(m2)
   expect_equal(res$adjusted$adjusted, c(unname(supp_truth), 1), tolerance = 1e-8)
-  closed <- attribute_burden(res)
+  closed <- res$contributions
   adj <- stats::setNames(res$adjusted$adjusted[1:3], res$adjusted$disease[1:3])
-  expect_silent(sh <- shapley_by_cell(res$joint,
-                                      loss_additive(adj, list(list(diseases = c("d1", "d2"), value = 1)))))
+  # Additive loss: main effects plus the d1:d2 interaction (1).
+  loss <- function(x) sum(adj[names(x)] * x) + 1 * x[["d1"]] * x[["d2"]]
+  expect_silent(sh <- shapley_by_cell(res$joint, loss))
   expect_equal(sh$disease, t2_ids)
   expect_equal(sh$shapley, closed$total, tolerance = 1e-7)
   expect_equal(sum(sh$shapley), attr(sh, "total"), tolerance = 1e-12)
@@ -70,18 +69,21 @@ test_that("cell-wise Shapley equals the closed form for pairwise interactions", 
 test_that("higher-order additive terms are split equally", {
   j <- fit_joint(t2_pop())
   main <- c(d1 = 2, d2 = 4, d3 = 6)
-  sh <- shapley_by_cell(j, loss_additive(main, list(list(diseases = c("d1", "d2", "d3"), value = 3))))
+  loss <- function(x) sum(main[names(x)] * x) + 3 * prod(x[c("d1", "d2", "d3")])
+  sh <- shapley_by_cell(j, loss)
   p123 <- sum(j$prob[rowSums(j$cells) == 3])
   expect_equal(sh$shapley, unname(main * c(0.10, 0.15, 0.20) + 3 * p123 / 3), tolerance = 1e-8)
-  expect_error(loss_additive(c(2, 4)), "named")
-  expect_error(loss_additive(main, list(list(diseases = "d1", value = 1))), "two or more")
-  expect_error(loss_multiplicative(c(0.1, 0.2)), "named")
-  expect_error(shapley_by_cell(t2_pop(), loss_additive(main)), "fit_joint")
+  expect_error(shapley_by_cell(t2_pop(), loss), "fit_joint")
 })
+
+# Multiplicative loss: 1 - prod(1 - m_i) over the diseases present.
+t2_mult_loss <- function(m = c(d1 = 0.02, d2 = 0.04, d3 = 0.06)) {
+  function(x) 1 - prod((1 - m[names(x)])^x)
+}
 
 test_that("multiplicative losses match the Python reference", {
   j <- fit_joint(t2_pop())
-  sh <- shapley_by_cell(j, loss_multiplicative(c(d1 = 0.02, d2 = 0.04, d3 = 0.06)))
+  sh <- shapley_by_cell(j, t2_mult_loss())
   expect_equal(sh$shapley, c(0.0019783456, 0.0059222732, 0.0119200649), tolerance = 1e-7)
   expect_equal(attr(sh, "total"), 0.01982068370187362, tolerance = 1e-9)
   expect_equal(attr(sh, "allocated"), sum(sh$shapley))
@@ -89,7 +91,7 @@ test_that("multiplicative losses match the Python reference", {
 
 test_that("skipped combinations are reported, not silently dropped", {
   j <- fit_joint(t2_pop())
-  f <- loss_multiplicative(c(d1 = 0.02, d2 = 0.04, d3 = 0.06))
+  f <- t2_mult_loss()
   expect_warning(sh <- shapley_by_cell(j, f, max_present = 2), class = "deconflate_incomplete_allocation")
   p123 <- j$prob[rowSums(j$cells) == 3]
   expect_equal(attr(sh, "skipped_mass"), p123)
@@ -340,7 +342,7 @@ test_that("with unknown pairs the screens fit the full model", {
   expect_setequal(sc$scenario[sc$pair == "a:c"], c("OR = 0.5", "OR = 2"))
   expect_true(all(is.na(sc$failed)))
   # A scenario that gives the unknown pair an odds ratio is adjusted as
-  # deconflate() would (here: every pair given, so simultaneous).
+  # deconflate() would (here: every pair given, so the pairwise shortcut).
   ac2 <- deconflate(set_association(m, "a", "c", 2))
   expect_equal(ac2$diagnostics$method, "pairwise shortcut")
   expect_equal(sc$total[sc$pair == "a:c" & sc$scenario == "OR = 2"], ac2$totals$adjusted_total,

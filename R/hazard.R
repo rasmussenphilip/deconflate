@@ -6,18 +6,22 @@
 # within the period, an animal with disease combination c has a constant
 # hazard h0 * exp(lp(c)), lp(c) = sum_d beta_d c_d + sum_T gamma_T all_T(c),
 # so its period risk is R(c) = 1 - exp(-h0 exp(lp(c))). The overall risk r
-# fixes h0: sum_c p(c) R(c) = r. The adjusted hazard ratios are exp(beta),
-# each disease's own hazard multiplier, and exp(gamma), the interactions.
+# fixes h0: sum_c p(c) R(c) = r (or the baseline risk r0: 1 - exp(-h0) =
+# r0). The adjusted hazard ratios are exp(beta), each disease's own hazard
+# multiplier, and exp(gamma), the interactions.
 
 # Adjust event impacts with the snapshot model on a joint distribution. The
 # unknowns are the log hazard multipliers of each disease (beta) and of each
 # combination in the impact rows (gamma, interactions on the log-hazard
 # scale). Each row is one equation (see ?cm_impacts); with several rows they
 # are fitted by weighted least squares on each measure's scale (rows without
-# uncertainty exact). `start`: optional starting values (e.g. the central
-# fit's).
+# uncertainty exact). `risk`: the overall risk, or (risk_kind = "baseline")
+# the risk in disease-free animals. `start`: optional starting values (e.g.
+# the central fit's). `details`: also the local row equations
+# (`$conflation`).
 adjust_event <- function(model, overall_risk, joint, warn = TRUE, allocate = TRUE, start = NULL,
-                         frozen_se = NULL) {
+                         frozen_se = NULL, risk_kind = "overall", details = TRUE) {
+  risk <- overall_risk
   imp <- model$impacts
   if (is.null(imp)) cm_abort("The model has no impacts to adjust.", class = "deconflate_invalid_input")
   if (impact_kind(imp) != "event") {
@@ -42,44 +46,70 @@ adjust_event <- function(model, overall_risk, joint, warn = TRUE, allocate = TRU
   se[is.na(se)] <- 1
   exact <- se == 0
   risk_based <- any(measure %in% c("RR", "OR", "RD"))
-  eval_F <- function(theta) {
+  row_values <- function(theta) {
     mult <- exp(as.vector(Fm %*% theta))
     if (!all(is.finite(mult))) return(rep(Inf, length(specs)))
     R <- NULL
     if (risk_based) {
-      h0 <- tryCatch(baseline_hazard(mult, prob, overall_risk), error = function(e) NA_real_)
+      h0 <- tryCatch(baseline_hazard(mult, prob, risk, risk_kind), error = function(e) NA_real_)
       if (!is.finite(h0)) return(rep(Inf, length(specs)))
       R <- 1 - exp(-h0 * mult)
     }
     vapply(seq_along(specs), function(r) {
       event_row_value(setups[[r]], measure[r], theta, mult, R, prob)
-    }, numeric(1)) - target
+    }, numeric(1))
   }
+  eval_F <- function(theta) row_values(theta) - target
   labels <- sprintf("row %s (%s)", vapply(specs, `[[`, numeric(1), "row"), vapply(specs, `[[`, character(1), "term"))
   st <- if (!is.null(start) && length(start) == k && all(is.finite(start))) start else rep(0, k)
   sol <- solve_event_rows(eval_F, st, se, exact, labels, terms)
   theta <- stats::setNames(sol$theta, terms)
   adj <- exp(theta)
+  term_of_row <- vapply(specs, `[[`, character(1), "term")
   raw <- vapply(terms, function(t) {
-    r <- which(vapply(specs, `[[`, character(1), "term") == t)
+    r <- which(term_of_row == t)
     if (length(r) == 1L) y[r] else NA_real_
   }, numeric(1), USE.NAMES = FALSE)
   meas_t <- vapply(terms, function(t) {
-    r <- which(vapply(specs, `[[`, character(1), "term") == t)
+    r <- which(term_of_row == t)
     if (length(r) == 1L) measure[r] else NA_character_
   }, character(1), USE.NAMES = FALSE)
   combo <- !(terms %in% ids)
+  attributable <- event_attributable(theta, joint, risk, members, allocate = allocate, risk_kind = risk_kind)
+  # Each term on the risk scale: an animal with exactly the term's diseases
+  # against a disease-free animal.
+  al <- alone_risks(theta, members, attributable$baseline_hazard)
+  # The adjusted value on the measure of the term's row (HR for hazard and
+  # rate ratios; risk ratio, odds ratio or risk difference alone vs
+  # disease-free otherwise), to compare with the raw value.
+  comparable <- ifelse(meas_t %in% c("HR", "rate_ratio"), adj,
+                       ifelse(meas_t == "RR", al$rr, ifelse(meas_t == "OR", al$or,
+                                                           ifelse(meas_t == "RD", al$rd, NA_real_))))
   raw_dir <- ifelse(is.na(raw), 0, sign(event_scale(ifelse(is.na(raw), 1, raw), ifelse(is.na(meas_t), "HR", meas_t))))
-  sign_change <- !combo & is.finite(adj) & adj > 0 & raw_dir != 0 & abs(adj - 1) > 1e-12 &
-    sign(theta) != raw_dir
+  adj_sc <- ifelse(is.na(comparable), 0,
+                   event_scale(ifelse(is.na(comparable), 1, comparable), ifelse(is.na(meas_t), "HR", meas_t)))
+  adj_dir <- ifelse(abs(adj_sc) > 1e-12, sign(adj_sc), 0)
+  sign_change <- !combo & is.finite(comparable) & raw_dir != 0 & adj_dir != 0 & adj_dir != raw_dir
   if (warn && any(sign_change)) {
-    cm_warn(sprintf("Adjusted hazard ratios are on the other side of 1 from the raw estimates for %s. The raw estimates are weaker than the associated diseases alone would produce; check the estimates and source populations. deconflate(diagnose = TRUE) shows which inputs drive this.",
+    cm_warn(sprintf("Adjusted results are on the other side of 1 (of 0 for risk differences) from the raw estimates for %s. The raw estimates are weaker than the associated diseases alone would produce; check the estimates and source populations. deconflate(diagnose = TRUE) shows which inputs drive this.",
                     paste(terms[sign_change], collapse = ", ")), class = "deconflate_sign_change",
             terms = terms[sign_change])
   }
-  attributable <- event_attributable(theta, joint, overall_risk, members, allocate = allocate)
+  conflation <- NULL
+  if (details) {
+    # Local row equations: how each row's value (on its measure's scale)
+    # changes with each log-hazard term, at the adjusted values.
+    h <- 1e-6
+    A <- vapply(seq_len(k), function(j) {
+      e <- rep(0, k)
+      e[j] <- h
+      (row_values(theta + e) - row_values(theta - e)) / (2 * h)
+    }, numeric(length(specs)))
+    A <- matrix(A, nrow = length(specs), dimnames = list(paste0("impacts:", vapply(specs, `[[`, numeric(1), "row")), terms))
+    conflation <- list(A = A, terms = members, local = TRUE)
+  }
   estimates <- data.frame(table = "impacts", row = vapply(specs, `[[`, numeric(1), "row"),
-                          item = vapply(specs, `[[`, character(1), "term"), measure = measure,
+                          item = term_of_row, measure = measure,
                           among = imp$among, adjusted_for = imp$adjusted_for, study = imp$study,
                           value = y, sd = ifelse(exact, 0, se),
                           fitted = event_unscale(sol$f + target, measure),
@@ -87,21 +117,37 @@ adjust_event <- function(model, overall_risk, joint, warn = TRUE, allocate = TRU
   structure(list(
     adjusted = data.frame(disease = terms, kind = ifelse(combo, "interaction", "disease"),
                           measure = meas_t, raw = raw, adjusted = unname(adj),
-                          change = ifelse(!combo & meas_t %in% c("HR", "rate_ratio"), adj / raw - 1, NA_real_),
-                          rows = vapply(terms, function(t) sum(vapply(specs, `[[`, character(1), "term") == t),
-                                        integer(1), USE.NAMES = FALSE),
+                          change = ifelse(!combo & is.finite(comparable) & !is.na(raw) & raw != 0,
+                                          comparable / raw - 1, NA_real_),
+                          rows = vapply(terms, function(t) sum(term_of_row == t), integer(1), USE.NAMES = FALSE),
+                          risk_alone = al$risk, rr_alone = al$rr, rd_alone = al$rd, or_alone = al$or,
                           stringsAsFactors = FALSE),
     attributable = attributable,
     estimates = estimates,
+    conflation = conflation,
     fit = list(Q = sol$Q, df = sol$df, p = if (is.finite(sol$Q)) stats::pchisq(sol$Q, sol$df, lower.tail = FALSE) else NA_real_),
     diagnostics = data.frame(method = "snapshot", max_reconstruction_residual = sol$residual,
                              condition_number = sol$condition, n_sign_changes = sum(sign_change),
                              sign_changes = paste(terms[sign_change], collapse = ", "),
                              feasibility = sprintf("joint distribution fitted (max residual %.1e)", joint$max_residual),
                              stringsAsFactors = FALSE),
-    joint = joint, model = model, method = "snapshot", overall_risk = overall_risk,
+    joint = joint, model = model, method = "snapshot",
+    overall_risk = attributable$summary$overall_risk, risk_given = risk_kind,
     label = attr(imp, "label"), units = attr(imp, "units"), row_se = se, terms = members
   ), class = "cm_event_result")
+}
+
+# Period risk of an animal with exactly the diseases of each term, and its
+# risk ratio, risk difference and odds ratio against a disease-free animal
+# (baseline cumulative hazard h0).
+alone_risks <- function(theta, members, h0) {
+  r0 <- 1 - exp(-h0)
+  lp <- vapply(members, function(m) {
+    sum(theta[vapply(members, function(s) all(s %in% m), logical(1))])
+  }, numeric(1))
+  r <- 1 - exp(-h0 * exp(lp))
+  list(risk = unname(r), rr = unname(r / r0), rd = unname(r - r0),
+       or = unname((r / (1 - r)) / (r0 / (1 - r0))), r0 = r0)
 }
 
 # Precomputed groups of cells for one event row: the comparison groups
@@ -238,79 +284,6 @@ solve_event_rows <- function(eval_F, start, se, exact, labels, terms, tol = 1e-1
 # From an event measure's scale back to the measure.
 event_unscale <- function(x, measure) ifelse(measure == "RD", x, exp(x))
 
-# First-order and published adjustment of event impacts from the pairwise
-# tables (one hazard or rate ratio per disease; kept for compare_methods()).
-adjust_event_pairwise <- function(model, method = c("first_order", "published"), overall_risk, joint = NULL,
-                                  pool = "random", frozen = NULL) {
-  method <- match.arg(method)
-  imp <- model$impacts
-  ids <- model$diseases$disease
-  specs <- impact_specs(model)
-  if (length(specs) != length(ids) || any(vapply(specs, function(s) length(s$g) > 1L || length(c(s$apos, s$aneg)) > 0L,
-                                                 logical(1)))) {
-    cm_abort(sprintf("The %s method needs one row per disease (no combinations or subgroups).",
-                     if (method == "published") "published" else "first-order"), class = "deconflate_unsupported")
-  }
-  ord <- match(ids, vapply(specs, `[[`, character(1), "term"))
-  specs <- specs[ord]
-  meas <- vapply(specs, `[[`, character(1), "measure")
-  if (!all(meas %in% c("HR", "rate_ratio"))) {
-    cm_abort(sprintf("The %s method needs hazard or rate ratios; risk ratios, odds ratios and risk differences need the snapshot model.",
-                     if (method == "published") "published" else "first-order"), class = "deconflate_unsupported")
-  }
-  if (method == "published" && any(vapply(specs, `[[`, logical(1), "adjusted"))) {
-    cm_abort("The published (2024) approach is defined for crude hazard ratios only.", class = "deconflate_unsupported")
-  }
-  pt <- pair_tables_at(model, pool, frozen, model$between)
-  if (anyNA(pt$p11)) {
-    cm_abort(sprintf("The %s method needs a crude pair row for every pair (missing: %s); the snapshot model fills unknown pairs in.",
-                     if (method == "published") "published" else "first-order",
-                     paste(utils::head(paste(pt$disease1, pt$disease2, sep = "-")[is.na(pt$p11)], 5), collapse = ", ")),
-             class = c("deconflate_unknown_pairs", "deconflate_unsupported"), pairs = missing_pairs(pt))
-  }
-  P <- stats::setNames(model$diseases$prob, ids)
-  tri <- triple_screen(pt, P)
-  if (nrow(tri)) cm_abort("The pairwise associations are jointly infeasible; see check_feasibility().",
-                          class = "deconflate_infeasible", triples = tri)
-  J <- pairwise_joint_matrix(pt, ids, P)
-  A <- pairwise_coefficients(pair_covariance(J), specs, ids)
-  v <- vapply(specs, `[[`, numeric(1), "value")
-  n <- length(ids)
-  if (method == "published") {
-    m <- v - 1
-    conf <- as.vector((A - diag(n)) %*% m)
-    adj <- 1 + ifelse(m == 0, 0, m^2 / (m + conf))
-    resid <- max(abs(as.vector(A %*% (adj - 1)) - m))
-  } else {
-    beta <- as.vector(solve_exact(A, log(v)))
-    adj <- exp(beta)
-    resid <- max(abs(as.vector(A %*% beta) - log(v)))
-  }
-  adj <- unname(adj)
-  bad <- !is.finite(adj) | adj <= 0
-  attributable <- NULL
-  if (!any(bad)) {
-    if (is.null(joint)) joint <- event_joint(as_population(model), NULL)
-    attributable <- event_attributable(stats::setNames(log(adj), ids), joint, overall_risk,
-                                       stats::setNames(as.list(ids), ids))
-  }
-  raw_dir <- sign(log(v))
-  sign_change <- is.finite(adj) & adj > 0 & raw_dir != 0 & abs(adj - 1) > 1e-12 &
-    sign(log(pmax(adj, 1e-300))) != raw_dir
-  structure(list(
-    adjusted = data.frame(disease = ids, kind = "disease", measure = meas, raw = v, adjusted = adj,
-                          change = adj / v - 1, rows = 1L, stringsAsFactors = FALSE),
-    attributable = attributable,
-    diagnostics = data.frame(method = method, max_reconstruction_residual = resid,
-                             condition_number = kappa(A, exact = TRUE), n_sign_changes = sum(sign_change),
-                             sign_changes = paste(ids[sign_change], collapse = ", "),
-                             feasibility = "triple screen passed (necessary condition only)",
-                             stringsAsFactors = FALSE),
-    joint = joint, model = model, method = method, overall_risk = overall_risk,
-    label = attr(imp, "label"), units = attr(imp, "units")
-  ), class = "cm_event_result")
-}
-
 # The population part of a model (for joint fits and their checks).
 as_population <- function(model) {
   pop <- model
@@ -347,8 +320,9 @@ event_joint <- function(pop, joint, joint_start = NULL, pool = "random", frozen 
 }
 
 # Baseline cumulative hazard h0 such that the population risk over the period
-# equals `overall_risk`, for hazard multipliers `mult` of the combinations.
-baseline_hazard <- function(mult, prob, overall_risk) {
+# equals `overall_risk`, for hazard multipliers `mult` of the combinations
+# (risk_kind = "baseline": such that the disease-free risk equals it).
+baseline_hazard <- function(mult, prob, overall_risk, risk_kind = "overall") {
   keep <- prob > 0
   mult <- mult[keep]
   prob <- prob[keep]
@@ -356,6 +330,8 @@ baseline_hazard <- function(mult, prob, overall_risk) {
     cm_abort("The hazard multipliers are not all finite and positive, so the baseline hazard is undefined.",
              class = "deconflate_nonfinite")
   }
+  # A baseline risk fixes the hazard of disease-free animals directly.
+  if (identical(risk_kind, "baseline")) return(-log(1 - overall_risk))
   hi <- -log(1 - overall_risk) / min(mult)
   tryCatch(stats::uniroot(function(h) sum(prob * (1 - exp(-h * mult))) - overall_risk,
                           c(0, hi), extendInt = "upX", tol = 1e-14)$root,
@@ -375,29 +351,40 @@ event_scale <- function(value, measure) {
 
 # The event risk attributable to disease, and its Shapley allocation over
 # disease combinations. `theta`: log hazard multipliers of the terms
-# (`members`: the diseases of each term).
-event_attributable <- function(theta, joint, overall_risk, members, allocate = TRUE, max_present = Inf) {
+# (`members`: the diseases of each term); `risk`: the overall risk, or the
+# baseline (disease-free) risk with risk_kind = "baseline". The allocation is
+# split into each disease's own part (the allocation with the interaction
+# terms set to zero, same baseline hazard) and its share of the interactions
+# (the rest).
+event_attributable <- function(theta, joint, overall_risk, members, allocate = TRUE, max_present = Inf,
+                               risk_kind = "overall") {
   ids <- joint$diseases
   Fm <- term_matrix(joint$cells, members)
   rel <- exp(as.vector(Fm %*% theta))
-  h0 <- baseline_hazard(rel, joint$prob, overall_risk)
+  h0 <- baseline_hazard(rel, joint$prob, overall_risk, risk_kind)
   r0 <- 1 - exp(-h0)
-  summ <- data.frame(overall_risk = overall_risk, disease_free_risk = r0,
-                     attributable = overall_risk - r0,
-                     attributable_fraction = (overall_risk - r0) / overall_risk,
+  overall <- if (identical(risk_kind, "baseline")) sum(joint$prob * (1 - exp(-h0 * rel))) else overall_risk
+  summ <- data.frame(overall_risk = overall, disease_free_risk = r0,
+                     attributable = overall - r0,
+                     attributable_fraction = (overall - r0) / overall,
                      unallocated = NA_real_, stringsAsFactors = FALSE)
   by <- NULL
   if (allocate) {
-    th <- unname(theta)
-    loss <- function(x) {
-      lp <- 0
-      for (j in seq_along(members)) if (all(x[members[[j]]] == 1)) lp <- lp + th[j]
-      1 - exp(-h0 * exp(lp)) - r0
+    shapley_for <- function(th) {
+      th <- unname(th)
+      loss <- function(x) {
+        lp <- 0
+        for (j in seq_along(members)) if (all(x[members[[j]]] == 1)) lp <- lp + th[j]
+        1 - exp(-h0 * exp(lp)) - r0
+      }
+      withCallingHandlers(shapley_by_cell(joint, loss, max_present = max_present),
+                          deconflate_incomplete_allocation = function(w) invokeRestart("muffleWarning"))
     }
-    sh <- withCallingHandlers(shapley_by_cell(joint, loss, max_present = max_present),
-                              deconflate_incomplete_allocation = function(w) invokeRestart("muffleWarning"))
-    by <- data.frame(disease = ids, attributable = sh$shapley, share = sh$share,
-                     stringsAsFactors = FALSE)
+    sh <- shapley_for(theta)
+    combo <- lengths(members) > 1L
+    main <- if (any(combo)) shapley_for(ifelse(combo, 0, theta))$shapley else sh$shapley
+    by <- data.frame(disease = ids, main = main, interaction = sh$shapley - main,
+                     attributable = sh$shapley, share = sh$share, stringsAsFactors = FALSE)
     summ$unallocated <- summ$attributable - attr(sh, "allocated")
   }
   list(summary = summ, by_disease = by, baseline_hazard = h0)

@@ -247,7 +247,7 @@ adjust_additive <- function(model, joint = NULL, pt = NULL, warn = TRUE, frozen_
                           raw = raw, adjusted = unname(theta),
                           change = ifelse(!combo & !is.na(raw) & raw != 0, theta / raw - 1, NA_real_),
                           rows = lengths(term_rows), stringsAsFactors = FALSE),
-    totals = data.frame(raw_sum = sum(P * raw_d), adjusted_total = total,
+    totals = data.frame(raw_total = sum(P * raw_d), adjusted_total = total,
                         interaction_total = sum(inter)),
     contributions = data.frame(disease = ids, main = main, interaction = inter,
                                total = contrib, share = share, stringsAsFactors = FALSE),
@@ -261,60 +261,5 @@ adjust_additive <- function(model, joint = NULL, pt = NULL, warn = TRUE, frozen_
     conflation = list(A = A, terms = members), joint_pairs = J, model = model, joint = joint,
     method = method, label = attr(imp, "label"), units = attr(imp, "units"),
     row_se = se
-  ), class = "cm_result")
-}
-
-# The published approximation of Rasmussen et al. (2022, eq. 16), kept for
-# compare_methods() and the reproduce_*() functions: crude rows, one per
-# disease, and a crude pair row for every pair.
-adjust_published <- function(model, warn = TRUE, pool = "random", frozen = NULL) {
-  imp <- model$impacts
-  ids <- model$diseases$disease
-  specs <- impact_specs(model)
-  if (length(specs) != length(ids) || any(vapply(specs, function(s) length(s$g) > 1L || s$adjusted ||
-                                                 length(c(s$apos, s$aneg)) > 0L, logical(1)))) {
-    cm_abort("The published approximation is defined for one crude impact per disease (no combinations, subgroups or adjusted rows).",
-             class = "deconflate_unsupported")
-  }
-  # (In draws: the central pooling weights and the draw's between-study
-  # deviates, as for the model.)
-  pt <- pair_tables_at(model, pool, frozen, model$between)
-  if (anyNA(pt$p11)) {
-    cm_abort(sprintf("The published approximation needs a crude pair row for every pair (missing: %s).",
-                     paste(utils::head(paste(pt$disease1, pt$disease2, sep = "-")[is.na(pt$p11)], 5), collapse = ", ")),
-             class = c("deconflate_unknown_pairs", "deconflate_unsupported"), pairs = missing_pairs(pt))
-  }
-  P <- stats::setNames(model$diseases$prob, ids)
-  tri <- triple_screen(pt, P)
-  if (nrow(tri)) {
-    cm_abort("The pairwise associations are jointly infeasible; see check_feasibility().",
-             class = "deconflate_infeasible", triples = tri)
-  }
-  J <- pairwise_joint_matrix(pt, ids, P)
-  A <- pairwise_coefficients(pair_covariance(J), specs, ids)
-  ord <- match(ids, vapply(specs, `[[`, character(1), "term"))
-  A <- A[ord, , drop = FALSE]
-  m_raw <- vapply(specs, `[[`, numeric(1), "value")[ord]
-  n <- length(ids)
-  conf <- as.vector((A - diag(n)) %*% m_raw)
-  m_adj <- unname(ifelse(m_raw == 0, 0, m_raw^2 / (m_raw + conf)))
-  sign_change <- is.finite(m_adj) & abs(m_raw) > 1e-12 & abs(m_adj) > 1e-12 & sign(m_adj) != sign(m_raw)
-  main <- unname(P * m_adj)
-  total <- sum(main)
-  structure(list(
-    adjusted = data.frame(disease = ids, kind = "disease", raw = m_raw, adjusted = m_adj,
-                          change = ifelse(m_raw != 0, m_adj / m_raw - 1, NA_real_), rows = 1L,
-                          stringsAsFactors = FALSE),
-    totals = data.frame(raw_sum = sum(P * m_raw), adjusted_total = total, interaction_total = 0),
-    contributions = data.frame(disease = ids, main = main, interaction = 0, total = main,
-                               share = if (is.finite(total) && abs(total) > 0) main / total else NA_real_,
-                               stringsAsFactors = FALSE),
-    diagnostics = data.frame(method = "published", max_reconstruction_residual = {
-      rec <- as.vector(A %*% m_adj); if (all(is.finite(rec))) max(abs(rec - m_raw)) else NA_real_
-    }, rank = qr(A)$rank, condition_number = kappa(A, exact = TRUE),
-    n_sign_changes = sum(sign_change), sign_changes = paste(ids[sign_change], collapse = ", "),
-    feasibility = "triple screen passed (necessary condition only)", stringsAsFactors = FALSE),
-    conflation = list(A = A), joint_pairs = J, model = model, joint = NULL, method = "published",
-    label = attr(imp, "label"), units = attr(imp, "units")
   ), class = "cm_result")
 }

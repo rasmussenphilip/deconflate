@@ -1,7 +1,5 @@
 # Uncertainty: draws of the inputs with a distribution in deconflate(n_draws =)
-# and compare_methods(n_draws =) (R/draws.R), the summary statistics they share
-# with the reproduction of Rasmussen et al. (2024) (mc_stats(), R/montecarlo.R),
-# and the internal batch Monte Carlo of that reproduction (R/sampler.R).
+# and their summary statistics (draw_stats(), R/draws.R).
 
 # The supplement model with two uncertain impacts.
 unc_model <- function(d1 = dist_normal(2.5, 0.5), d3 = dist_normal(7.5, 1)) {
@@ -19,7 +17,7 @@ unc_event_model <- function() {
 # Summary row of one quantity.
 qrow <- function(s, q) s[s$quantity == q, , drop = FALSE]
 
-stability_levels <- c("ok", "imprecise", "insufficient_info", "heavy_tail", "possible_pole")
+stability_levels <- c("ok", "imprecise", "insufficient_info", "heavy_tail")
 
 # ---- Distributions in the model ------------------------------------------------
 
@@ -134,7 +132,7 @@ test_that("deconflate() draws the uncertain inputs and summarises the results", 
   expect_named(dr$rejections, c("draw", "type", "reason"))
   expect_equal(nrow(dr$rejections), 0)
   expect_equal(names(dr$specs), c("impacts:1", "impacts:3"))
-  qn <- c(paste0("adjusted:", ids3), paste0("contribution:", ids3), "total", "raw_sum")
+  qn <- c(paste0("adjusted:", ids3), paste0("contribution:", ids3), "total", "raw_total")
   expect_equal(colnames(dr$values), qn)
   expect_equal(dim(dr$values), c(100L, 8L))
   expect_equal(colnames(dr$params), c("impacts:1", "impacts:3"))
@@ -151,7 +149,7 @@ test_that("deconflate() draws the uncertain inputs and summarises the results", 
   expect_equal(unname(dr$values[, paste0("adjusted:", ids3)]), unname(t(solve(A, t(raw)))), tolerance = 1e-10)
   expect_equal(unname(rowSums(dr$values[, paste0("contribution:", ids3)])), unname(dr$values[, "total"]),
                tolerance = 1e-12)
-  expect_equal(unname(dr$values[, "raw_sum"]), as.vector(raw %*% c(0.10, 0.15, 0.20)), tolerance = 1e-12)
+  expect_equal(unname(dr$values[, "raw_total"]), as.vector(raw %*% c(0.10, 0.15, 0.20)), tolerance = 1e-12)
 
   # Summary: mean, SD (divisor n), MCSE = SD / sqrt(n), quantiles, stability.
   s <- dr$summary
@@ -197,7 +195,7 @@ test_that("deconflate() draws the uncertain inputs and summarises the results", 
   expect_error(deconflate(m, n_draws = 10, seed = "a"), "`seed` must be a single whole number")
 })
 
-test_that("seeds reproduce draws exactly, and an unseeded run stores its seed", {
+test_that("the same seed gives the same draws, and an unseeded run stores its seed", {
   m <- unc_model()
   a <- deconflate(m, n_draws = 30, seed = 42)$draws
   b <- deconflate(m, n_draws = 30, seed = 42)$draws
@@ -348,6 +346,22 @@ test_that("stability statuses follow the documented rules", {
   s <- stab(rev(seq_len(100)) / 10)
   expect_equal(c(s$lower, s$median, s$upper), c(0.3, 5.0, 9.8))
   expect_null(summarise_draws(list(values = NULL)))
+  # draw_stats() directly: equal weights, MCSE = SD / sqrt(n) without blocks.
+  ds <- draw_stats(x, NA, c(0.025, 0.5, 0.975))
+  expect_named(ds, c("mean", "sd", "mcse", "q", "stability"))
+  expect_equal(ds$mean, mean(x))
+  expect_equal(ds$sd, sqrt(mean((x - mean(x))^2)))
+  expect_equal(ds$mcse, ds$sd / sqrt(20))
+  expect_length(ds$q, 3)
+  expect_true(ds$stability %in% stability_levels)
+  # Blocks with no accepted draw still count as replicates (n_blocks).
+  expect_equal(draw_stats(x, b, c(0.025, 0.5, 0.975), n_blocks = 5)$mcse, stab(x, b)$mcse)
+  expect_false(isTRUE(all.equal(draw_stats(x, b, c(0.025, 0.5, 0.975), n_blocks = 6)$mcse,
+                                stab(x, b)$mcse)))
+  # One block, even with others counted, gives no precision information.
+  one <- draw_stats(1:4, rep(1L, 4), c(0.025, 0.5, 0.975), n_blocks = 4L)
+  expect_true(is.na(one$mcse))
+  expect_equal(one$stability, "insufficient_info")
 })
 
 test_that("each draw matches deconflate() on its own inputs (full model, unknown pair)", {
@@ -381,10 +395,9 @@ test_that("event-model draws, with the overall risk as a distribution", {
   expect_equal(colnames(dr$params), c("impacts:1", "risk"))
   expect_true(all(dr$params[, "risk"] > 0 & dr$params[, "risk"] < 1))
   expect_gt(length(unique(dr$params[, "risk"])), 1)
-  qn <- c(paste0("adjusted:", ids3), "total", "fraction", paste0("contribution:", ids3))
+  qn <- c(paste0("adjusted:", ids3), "total", "fraction", paste0("contribution:", ids3), "raw_total")
   expect_equal(colnames(dr$values), qn)
   expect_equal(dr$summary$quantity, qn)
-  expect_false("raw_sum" %in% dr$summary$quantity)
   expect_equal(unname(dr$values[, "fraction"]), unname(dr$values[, "total"] / dr$params[, "risk"]),
                tolerance = 1e-12)
   expect_equal(unname(rowSums(dr$values[, paste0("contribution:", ids3)])), unname(dr$values[, "total"]),
@@ -444,130 +457,7 @@ test_that("event-model draws of the five-disease culling table", {
   expect_false(is.null(res$attributable$summary$attributable_lower))
 })
 
-# ---- compare_methods(n_draws = ) -------------------------------------------------------
-
-test_that("compare_methods() applies every method to the same draws", {
-  m <- unc_model()
-  cmp <- compare_methods(m, n_draws = 100, seed = 3)
-  dr <- cmp$draws
-  expect_equal(dr$n_draws, 100)
-  expect_equal(dr$n_rejected, 0)
-  s <- dr$summary
-  expect_named(s, c("method", "quantity", "mean", "sd", "mcse", "lower", "median", "upper", "stability"))
-  expect_equal(unique(s$method), c("published", "deconflate"))
-  qn <- c(paste0("adjusted:", ids3), paste0("contribution:", ids3), "total", "raw_sum")
-  expect_equal(s$quantity[s$method == "deconflate"], qn)
-  expect_equal(s$quantity[s$method == "published"], qn)
-  expect_true(all(s$stability %in% stability_levels))
-  # The same draws as deconflate() with the same seed.
-  res <- deconflate(m, n_draws = 100, seed = 3)
-  expect_identical(dr$params, res$draws$params)
-  ss <- s[s$method == "deconflate", ]
-  expect_equal(ss$mean, res$draws$summary$mean, tolerance = 1e-12)
-  expect_equal(ss$lower, res$draws$summary$lower, tolerance = 1e-12)
-  expect_equal(ss$upper, res$draws$summary$upper, tolerance = 1e-12)
-  # The raw sum does not depend on the method.
-  expect_equal(s$mean[s$method == "published" & s$quantity == "raw_sum"],
-               ss$mean[ss$quantity == "raw_sum"])
-  # The point comparison is unchanged by the draws.
-  expect_equal(cmp$impacts, compare_methods(m)$impacts)
-  expect_output(print(cmp), "Uncertainty \\(100 draws, 0 rejected\\)")
-
-  # No distributions: a note.
-  c0 <- compare_methods(example_supplement(), n_draws = 10)
-  expect_null(c0$draws)
-  expect_match(c0$notes, "No input has a distribution", all = FALSE)
-  expect_output(print(c0), "No input has a distribution")
-  expect_error(compare_methods(m, n_draws = -1), "whole number")
-})
-
-test_that("a draw where one method fails is rejected for every method", {
-  # The published method divides by zero for d1 when m = (-A12, 1, 0).
-  e <- deconflate(supp_model(c(1, 1, 1)), n_draws = 0)$conflation$A[1, "d2"]
-  expect_gt(e, 0)
-  m <- cm_model(supp_population(), cm_impacts(ids3, c(2.5, 1, 0)),
-                distributions = list("impact:d1" = dist_fixed(-e)))
-  cmp <- compare_methods(m, methods = c("deconflate", "published"), n_draws = 4, seed = 1)
-  expect_equal(cmp$methods, c("deconflate", "published"))     # the central inputs are fine
-  expect_equal(cmp$draws$n_rejected, 4)
-  expect_true(all(cmp$draws$rejections$type == "nonfinite"))
-  expect_match(cmp$draws$rejections$reason, "method published")
-  expect_null(cmp$draws$summary)
-  expect_output(print(cmp), "<cm_comparison>")
-  # The model alone accepts every draw.
-  expect_equal(compare_methods(m, methods = "deconflate", n_draws = 4, seed = 1)$draws$n_rejected, 0)
-})
-
-test_that("compare_methods() draws event models, including the overall risk", {
-  m <- unc_event_model()
-  cmp <- compare_methods(m, event_model = TRUE, overall_risk = dist_beta(250, 750),
-                         methods = c("first_order", "deconflate"), n_draws = 20, seed = 1)
-  dr <- cmp$draws
-  expect_equal(colnames(dr$params), c("impacts:1", "risk"))
-  expect_equal(unique(dr$summary$method), c("first_order", "deconflate"))
-  expect_true(all(c("total", "fraction") %in% dr$summary$quantity))
-  expect_equal(cmp$totals$overall_risk, c(0.25, 0.25))
-  res <- deconflate(m, event_model = TRUE, overall_risk = dist_beta(250, 750), n_draws = 20, seed = 1)
-  sn <- dr$summary[dr$summary$method == "deconflate", ]
-  expect_equal(sn$mean[match(res$draws$summary$quantity, sn$quantity)], res$draws$summary$mean,
-               tolerance = 1e-7)
-})
-
-# ---- Statistics of the reproduction Monte Carlo (internal) ---------------------------------
-
-test_that("batch runs share population draws across analyses", {
-  models <- list(a = supp_model(c(2.5, 5, 7.5)), b = supp_model(c(1, 2, 3)))
-  bs <- batch_sampler(models, pop = list("prob:d1" = dist_normal(0.1, 0.1),
-                                         "assoc:d3:d2" = dist_lognormal_ci(3, 2, 4.5)),
-                      impacts = list(a = list(d1 = dist_normal(2.5, 0.5))))
-  expect_s3_class(bs, "cm_batch_sampler")
-  expect_equal(bs$population_keys, c("prob:d1", "associations:3"))
-  expect_equal(names(attr(bs$samplers$a, "specs")), c("prob:d1", "associations:3", "impacts:1"))
-  expect_equal(names(attr(bs$samplers$b, "specs")), c("prob:d1", "associations:3"))
-  mc <- mc_batch(bs, 60, method = "exact", seed = 9)
-  expect_s3_class(mc, "cm_mc_batch")
-  ra <- mc$analyses$a
-  rb <- mc$analyses$b
-  # Negative prevalence draws are rejected in both analyses, for the same draws.
-  expect_gt(ra$n_rejected, 0)
-  expect_equal(ra$rejections$draw, rb$rejections$draw)
-  expect_true(all(ra$rejections$type == "infeasible"))
-  expect_equal(nrow(ra$draws), 3 * (60 - ra$n_rejected))
-  da <- ra$draws[ra$draws$disease == "d1", ]
-  db <- rb$draws[rb$draws$disease == "d1", ]
-  expect_gt(length(unique(da$raw)), 1)
-  expect_equal(unique(db$raw), 1)
-  # The same seed gives the same run.
-  expect_identical(mc_batch(bs, 60, method = "exact", seed = 9)$analyses$a$draws, ra$draws)
-  expect_error(batch_sampler(models, impacts = list(zz = list(d1 = dist_fixed(1)))), "Unknown analyses")
-  s <- mc_batch_summary(mc)
-  expect_equal(names(s)[1], "analysis")
-  expect_equal(unique(s$analysis), c("a", "b"))
-  expect_equal(nrow(s), 2 * 3)
-  expect_true(all(s$stability %in% stability_levels))
-})
-
-test_that("possible_pole is flagged when the published denominator changes sign", {
-  # The published denominator of d2 is m2 + 1.758 (reference_v020_tests.py), so
-  # m2 ~ N(0.2, 1.5) reaches both sides of the pole.
-  bs <- batch_sampler(list(a = example_supplement()), impacts = list(a = list(d2 = dist_normal(0.2, 1.5))))
-  mc <- mc_batch(bs, 400, method = c("published", "exact"), seed = 4)
-  s <- mc_summary(mc$analyses$a)
-  expect_equal(s$stability[s$disease == "d2" & s$method == "published"], "possible_pole")
-  expect_false(any(s$stability[s$method == "exact"] == "possible_pole"))
-  expect_true(all(s$stability %in% stability_levels))
-  # A denominator that keeps its sign is not a pole.
-  bs2 <- batch_sampler(list(a = example_supplement()), impacts = list(a = list(d1 = dist_normal(2.5, 0.5))))
-  s2 <- mc_summary(mc_batch(bs2, 100, method = "published", seed = 7)$analyses$a)
-  expect_false("possible_pole" %in% s2$stability)
-  # Equal weights: mean, SD (divisor n) and MCSE = SD / sqrt(n).
-  d <- mc$analyses$a$draws
-  x <- d$adjusted[d$disease == "d1" & d$method == "exact"]
-  r <- s[s$disease == "d1" & s$method == "exact", ]
-  expect_equal(r$mean, mean(x))
-  expect_equal(r$sd, sqrt(mean((x - mean(x))^2)))
-  expect_equal(r$mcse, sqrt(sum((x - mean(x))^2)) / length(x))
-})
+# ---- Monte Carlo error ----------------------------------------------------------------
 
 test_that("reported MCSEs are calibrated over repeated runs", {
   skip_on_cran()

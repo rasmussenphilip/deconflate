@@ -13,6 +13,10 @@ simulate_raw_impacts(
   n = NULL,
   joint = NULL,
   units = NULL,
+  event_model = FALSE,
+  measure = "HR",
+  overall_risk = NULL,
+  baseline_risk = NULL,
   ...
 )
 }
@@ -20,14 +24,16 @@ simulate_raw_impacts(
 \item{model}{A \code{\link[=cm_population]{cm_population()}} or \code{\link[=cm_model]{cm_model()}} (its impacts are ignored).}
 
 \item{true_impacts}{Named numeric vector of true impacts, one per disease
-(any units).}
+(any units; for event impacts, hazard ratios).}
 
 \item{interactions}{Optional named numeric vector of true interactions,
-named by combination (e.g. \code{c("d1;d2" = 0.5)}), in the same units.}
+named by combination (e.g. \code{c("d1;d2" = 0.5)}), in the same units (for
+event impacts, hazard ratio multipliers).}
 
 \item{rows}{Optional data frame of the rows to simulate, with column
-\code{disease} and optional \code{among} and \code{adjusted_for}. Default: one row per
-disease (with \code{adjusted_for}) and one crude row per interaction.}
+\code{disease} and optional \code{among}, \code{adjusted_for} and (event impacts)
+\code{measure}. Default: one row per disease (with \code{adjusted_for}) and one
+crude row per interaction.}
 
 \item{adjusted_for}{For the default rows: adjustment sets (ids separated
 by \code{";"}, or \code{"all"}), one per disease or recycled.}
@@ -40,6 +46,15 @@ stops with class \code{deconflate_nonconvergence}.}
 
 \item{units}{Optional units label for the returned impacts.}
 
+\item{event_model}{\code{TRUE} for event impacts (see above).}
+
+\item{measure}{For event impacts without a \code{measure} column in \code{rows}: the
+measure of every row (\code{"HR"}, \code{"rate_ratio"}, \code{"RR"}, \code{"OR"} or \code{"RD"}),
+or one per row.}
+
+\item{overall_risk, baseline_risk}{For event impacts, as in \code{\link[=deconflate]{deconflate()}}
+(single proportions).}
+
 \item{...}{Not used (arguments of earlier versions give a message).}
 }
 \value{
@@ -48,14 +63,29 @@ A \code{\link[=cm_impacts]{cm_impacts()}} object with the simulated raw impacts.
 \description{
 For validation: given a population whose disease combinations follow the
 maximum-entropy distribution of \code{model} (see \code{\link[=fit_joint]{fit_joint()}}), and known true
-additive impacts (and optional interactions), computes what a study would
-estimate for each impact row: the crude difference between the two groups
-the row compares, or the regression coefficient of an adjusted row (see
-\code{\link[=cm_impacts]{cm_impacts()}} for what a row means). With \code{n = NULL} the exact
-population values are returned; with \code{n} set, \code{n} animals are sampled,
-which adds sampling error.
+impacts (and optional interactions), computes what a study would
+estimate for each impact row (see \code{\link[=cm_impacts]{cm_impacts()}} for what a row means).
+With \code{n = NULL} the exact population values are returned; with \code{n} set,
+\code{n} animals are sampled, which adds sampling error.
 }
 \details{
+\itemize{
+\item Additive impacts: the crude difference between the two groups the row
+compares, or the regression coefficient of an adjusted row.
+\item Event impacts (\code{event_model = TRUE}): \code{true_impacts} and
+\code{interactions} are hazard ratios (each disease's own hazard
+multiplier, and the interaction multipliers), and the baseline is set by
+\code{overall_risk} or \code{baseline_risk}, as in \code{\link[=deconflate]{deconflate()}}. Each row gives
+the hazard ratio, rate ratio, risk ratio, odds ratio or risk difference
+(\code{measure}) of the snapshot model. With \code{n}, every sampled animal gets
+an event time from its hazard over a period of length 1; risk ratios,
+odds ratios and risk differences come from the events in each group, and
+hazard and rate ratios from events per animal-time (a rate ratio, which
+approximates the snapshot hazard ratio well when events are uncommon).
+Rows adjusted for other diseases are estimated within strata of those
+diseases, with the weights of the model (see \code{\link[=deconflate]{deconflate()}}).
+}
+
 Adjusting the returned raw impacts with \code{\link[=deconflate]{deconflate()}} recovers
 \code{true_impacts} and \code{interactions} exactly (for \code{n = NULL}), whenever the
 rows determine them.
@@ -65,4 +95,12 @@ raw <- simulate_raw_impacts(example_supplement(), c(d1 = 2, d2 = 4, d3 = 6),
                             interactions = c("d1;d2" = 1))
 raw
 deconflate(cm_model(example_supplement(), raw))$adjusted
+
+# Event impacts: what studies would report as hazard ratios and a risk ratio
+ev <- simulate_raw_impacts(example_supplement(), c(d1 = 1.2, d2 = 1.5, d3 = 1.1),
+                           event_model = TRUE, measure = c("HR", "HR", "RR"),
+                           overall_risk = 0.2)
+ev
+deconflate(cm_model(example_supplement(), ev), event_model = TRUE,
+           overall_risk = 0.2, n_draws = 0)$adjusted
 }

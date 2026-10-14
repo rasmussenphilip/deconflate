@@ -80,17 +80,6 @@ interval_union <- function(m) {
   unname(out)
 }
 
-# Does the support of `cover` contain the support of `target`? Each target
-# interval must lie inside one interval of the (merged) cover; a gap of
-# positive length anywhere in the target's support fails.
-support_covers <- function(cover, target) {
-  cs <- interval_union(dist_support(cover))
-  ts <- interval_union(dist_support(target))
-  all(vapply(seq_len(nrow(ts)), function(r) {
-    any(cs[, 1] <= ts[r, 1] & cs[, 2] >= ts[r, 2])
-  }, logical(1)))
-}
-
 format_support <- function(d) {
   s <- interval_union(dist_support(d))
   paste(sprintf("[%g, %g]", s[, 1], s[, 2]), collapse = " u ")

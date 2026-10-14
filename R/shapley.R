@@ -9,14 +9,14 @@
 #' probability-weighted sum over cells.
 #'
 #' For additive loss functions the result has a closed form: each term is
-#' split equally among the diseases it involves ([loss_additive()]). The
-#' cell-wise calculation is needed for non-additive losses such as
-#' [loss_multiplicative()].
+#' split equally among the diseases it involves. The cell-wise calculation
+#' is needed for non-additive losses, such as the attributable risk of
+#' event impacts.
 #'
 #' @param joint A [fit_joint()] result.
 #' @param loss A function of a named 0/1 vector (one element per disease)
 #'   returning the loss for an animal with those diseases; a loss of zero for
-#'   no disease is assumed. See [loss_additive()] and [loss_multiplicative()].
+#'   no disease is assumed.
 #' @param max_present Cells with more diseases present than this are skipped
 #'   (the cost grows as 2^k for a cell with k diseases). The default skips
 #'   nothing. Skipped cells are reported: their probability (`skipped_mass`)
@@ -29,11 +29,7 @@
 #'   skipped), with attributes `total` (expected loss over all cells),
 #'   `allocated` (the sum of the Shapley values), `skipped_mass` and
 #'   `skipped_loss`.
-#' @export
-#' @examples
-#' j <- fit_joint(example_supplement())
-#' m <- c(d1 = 0.02, d2 = 0.04, d3 = 0.06)
-#' shapley_by_cell(j, loss_multiplicative(m))
+#' @noRd
 shapley_by_cell <- function(joint, loss, max_present = Inf) {
   if (!inherits(joint, "cm_joint")) cm_abort("`joint` must come from fit_joint().", class = "deconflate_invalid_input")
   ids <- joint$diseases
@@ -120,47 +116,4 @@ shapley_by_cell <- function(joint, loss, max_present = Inf) {
             skipped_mass = skipped, skipped_loss = skipped_loss, total = total)
   }
   out
-}
-
-#' Loss functions for Shapley attribution
-#'
-#' Builders for the `loss` argument of [shapley_by_cell()].
-#'
-#' * `loss_additive()`: `sum_i m[i] x[i]` plus higher-order terms, each
-#'   applying only when all its diseases are present.
-#' * `loss_multiplicative()`: `1 - prod_i (1 - m[i])^x[i]`, i.e.
-#'   proportional impacts that compound.
-#'
-#' @param main Named numeric vector of per-disease impacts.
-#' @param terms Optional list of terms, each a list with `diseases`
-#'   (character vector of two or more ids) and `value`.
-#' @return A function of a named 0/1 vector.
-#' @name loss_functions
-#' @examples
-#' f <- loss_additive(c(a = 0.02, b = 0.03),
-#'                    terms = list(list(diseases = c("a", "b"), value = 0.01)))
-#' f(c(a = 1, b = 1))
-NULL
-
-#' @rdname loss_functions
-#' @export
-loss_additive <- function(main, terms = NULL) {
-  if (is.null(names(main))) cm_abort("`main` must be named by disease id.", class = "deconflate_invalid_input")
-  for (t in terms) {
-    if (is.null(t$diseases) || length(t$diseases) < 2L || is.null(t$value)) {
-      cm_abort("Each term needs `diseases` (two or more ids) and `value`.", class = "deconflate_invalid_input")
-    }
-  }
-  function(x) {
-    out <- sum(main * x[names(main)])
-    for (t in terms) out <- out + t$value * prod(x[t$diseases])
-    out
-  }
-}
-
-#' @rdname loss_functions
-#' @export
-loss_multiplicative <- function(main) {
-  if (is.null(names(main))) cm_abort("`main` must be named by disease id.", class = "deconflate_invalid_input")
-  function(x) 1 - prod((1 - main)^x[names(main)])
 }

@@ -142,8 +142,8 @@ test_that("combination impacts (interactions) are recovered from crude and adjus
   # adding up to the aggregate.
   expect_equal(sum(r$contributions$total), r$totals$adjusted_total, tolerance = 1e-10)
   j <- fit_joint(pop)
-  sh <- shapley_by_cell(j, loss_additive(b5, list(list(diseases = c("LAM", "MAS"), value = 2),
-                                                  list(diseases = c("LAM", "MAS", "SCK"), value = -1))))
+  loss <- function(x) sum(b5[names(x)] * x) + 2 * x[["LAM"]] * x[["MAS"]] - x[["LAM"]] * x[["MAS"]] * x[["SCK"]]
+  sh <- shapley_by_cell(j, loss)
   expect_equal(sh$shapley, r$contributions$total, tolerance = 1e-7)
 
   # A row within a subgroup tells LAM;MAS apart without a crude combination row.
@@ -268,11 +268,14 @@ test_that("several impact rows are combined by weighted least squares", {
   r <- deconflate(m3, n_draws = 0)
   expect_equal(r$adjusted$rows, c(2L, 1L, 1L))
   expect_true(is.na(r$adjusted$raw[1]))
-  expect_true(is.na(r$totals$raw_sum))
+  # Raw total with the diseases unrelated: both d1 rows are d1's own impact
+  # there, fitted together (weights 1 / SD^2).
+  expect_equal(r$totals$raw_total, 0.10 * (2.5 / 0.5^2 + 1.9 / 0.4^2) / (1 / 0.5^2 + 1 / 0.4^2) + 0.15 * 5 + 0.20 * 7.5,
+               tolerance = 1e-10)
   e <- r$estimates[r$estimates$table == "impacts", ]
   expect_equal(nrow(e), 4)
   # The two d1 rows disagree a little: the fit lies between them, and the
-  # exact rows (d2, d3) are reproduced.
+  # exact rows (d2, d3) are matched.
   expect_true(all(abs(e$fitted[3:4] - e$value[3:4]) < 1e-8))
   expect_true(e$fitted[1] < 2.5 && e$fitted[2] > 1.9)
   expect_equal(e$std_residual[1:2], (e$value[1:2] - e$fitted[1:2]) / c(0.5, 0.4), tolerance = 1e-8)
@@ -318,7 +321,6 @@ test_that("exact association rows that disagree stop every tool", {
   m2 <- cm_model(cm_population(dis, a2), cm_impacts(c("a", "b", "c"), c(2, 3, 4)))
   msg <- "rows 1 and 2 describe the same quantity"
   expect_error(deconflate(m2, n_draws = 0), msg, class = "deconflate_infeasible")
-  expect_error(compare_methods(m2), msg)
   expect_error(screen_associations(m2), "baseline could not be adjusted")
   expect_error(pair_tables(m2), msg)
 })

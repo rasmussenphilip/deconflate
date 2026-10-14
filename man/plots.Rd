@@ -4,7 +4,6 @@
 \alias{plots}
 \alias{plot.cm_result}
 \alias{plot.cm_event_result}
-\alias{plot_burden}
 \alias{plot.cm_screen}
 \alias{plot.cm_oat}
 \alias{plot.cm_threshold}
@@ -14,8 +13,6 @@
 
 \method{plot}{cm_event_result}(x, ...)
 
-plot_burden(result, ...)
-
 \method{plot}{cm_screen}(x, top = 15, ...)
 
 \method{plot}{cm_oat}(x, top = 15, ...)
@@ -23,7 +20,7 @@ plot_burden(result, ...)
 \method{plot}{cm_threshold}(x, items = NULL, ...)
 }
 \arguments{
-\item{x, result}{The object to plot.}
+\item{x}{The object to plot.}
 
 \item{...}{Passed to the underlying graphics function.}
 
@@ -42,8 +39,6 @@ intervals of the adjusted impacts when the result has draws.
 \item \verb{plot(<cm_event_result>)}: adjusted hazard ratios by disease (with
 intervals when the result has draws), and the raw hazard and rate
 ratios.
-\item \code{plot_burden()}: each disease's share of the aggregate (including its
-share of interaction effects), or of the risk attributable to disease.
 \item \verb{plot(<cm_screen>)}: the most influential scenarios from
 \code{\link[=screen_associations]{screen_associations()}}, \code{\link[=screen_interactions]{screen_interactions()}} or
 \code{\link[=screen_three_way]{screen_three_way()}}.
@@ -53,5 +48,4 @@ share of interaction effects), or of the risk attributable to disease.
 \examples{
 res <- deconflate(example_supplement())
 plot(res)
-plot_burden(res)
 }

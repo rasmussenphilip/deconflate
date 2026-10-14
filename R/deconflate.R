@@ -26,10 +26,6 @@
 #' that the associations can hold together (up to 20 diseases). The draws
 #' then use the shortcut too.
 #'
-#' The proportional approximation of Rasmussen et al. (2022, eq. 16) is not
-#' part of the model: it is kept for comparison and reproduction in
-#' [compare_methods()] and the `reproduce_*()` functions.
-#'
 #' @section Additive impacts:
 #' With impacts `b` and interactions `delta`, the outcome of an animal with
 #' disease combination `c` is `y(c) = sum_d b_d c_d + sum_T delta_T all_T(c)`.
@@ -70,16 +66,28 @@
 #' the period of the overall risk, an animal with disease combination `c` has
 #' a constant hazard `h0 * exp(sum_d beta_d c_d + sum_T gamma_T all_T(c))`, so
 #' its risk over the period is `R(c) = 1 - exp(-h0 * exp(...))`; `h0` is set
-#' so that the population risk equals `overall_risk`. The `beta`s and
+#' so that the population risk equals `overall_risk`, or so that the risk of
+#' disease-free animals equals `baseline_risk` (give one of the two). The `beta`s and
 #' `gamma`s (interactions on the log-hazard scale) are solved so that each
 #' raw estimate is reproduced: a hazard or rate ratio by the ratio of the
 #' average hazard multipliers of the two groups the row compares; a risk
 #' ratio, odds ratio or risk difference by those of their average risks;
 #' crude, or within strata of the row's adjustment set (combined with
 #' Mantel-Haenszel-type weights). The adjusted hazard ratios `exp(beta)` are
-#' each disease's own hazard multiplier. The risk attributable to disease is
-#' `overall_risk` minus the disease-free risk `1 - exp(-h0)`, allocated to
-#' diseases by Shapley values over disease combinations ([shapley_by_cell()]).
+#' each disease's own hazard multiplier. For each disease (and combination),
+#' `$adjusted` also gives the risk of an animal with only that disease
+#' (`risk_alone`) and its risk ratio, risk difference and odds ratio against
+#' a disease-free animal (`rr_alone`, `rd_alone`, `or_alone`): the adjusted
+#' result on the scale of risk-based estimates. `change` compares the
+#' adjusted result with the raw estimate on the raw estimate's own measure.
+#' The risk attributable to disease is the overall risk minus the
+#' disease-free risk `1 - exp(-h0)`, allocated to diseases by Shapley values
+#' over disease combinations (cell by cell) and split, as for additive
+#' impacts, into each disease's own part and its share of the interactions.
+#' `$conflation$A` holds the row equations at the adjusted values: how each
+#' row's value (on its measure's scale) changes with each log hazard
+#' multiplier (a local version of the additive row equations; for crude
+#' hazard-ratio rows at hazard ratios of 1, they equal the additive ones).
 #'
 #' What the snapshot model is not: a Cox hazard ratio estimated over
 #' follow-up is not, in general, the snapshot ratio, because animals with
@@ -87,14 +95,24 @@
 #' survivors changes. The model is exact for its own comparisons and a
 #' reasonable approximation when follow-up is short relative to the hazards
 #' or the diseases are rare. Risk-based estimates (risk ratios, odds ratios,
-#' risk differences) must refer to the same period as `overall_risk`.
+#' risk differences) must refer to the same period as the overall or baseline
+#' risk.
+#'
+#' @section Raw and adjusted totals:
+#' The raw total is the result of the same model with the diseases unrelated
+#' (the same disease values and impact rows, no association rows): for
+#' additive impacts with one crude row per disease, it is `sum(p * raw)`;
+#' for event impacts, the risk attributable to disease computed from the raw
+#' estimates. The difference from the adjusted total is the double counting
+#' removed. Above 20 diseases it is computed only for additive impacts with
+#' single-disease rows without a subgroup (otherwise `NA`).
 #'
 #' @section Uncertainty:
 #' Inputs with a distribution (the `dist` columns of the input tables, or
-#' `distributions` in [cm_model()]; and `overall_risk` given as a
-#' distribution) are drawn `n_draws` times; each draw is adjusted in the same
+#' `distributions` in [cm_model()]; and `overall_risk` or `baseline_risk`
+#' given as a distribution) are drawn `n_draws` times; each draw is adjusted in the same
 #' way as the central estimate. The central estimate uses the point values
-#' (`value`, and the mean of an `overall_risk` distribution); the draws give
+#' (`value`, and the mean of a risk given as a distribution); the draws give
 #' 95% intervals (2.5% and 97.5% quantiles), means, Monte Carlo standard
 #' errors and stability checks (`$draws$summary`). Draws whose values cannot
 #' hold together are rejected and counted (`$draws$rejections`), not
@@ -149,8 +167,6 @@
 #'   changes sign (the warning `deconflate_sign_change`);
 #' * `triples`: the conflicting triples when the crude pair rows cannot all
 #'   hold (`deconflate_infeasible`), as in [check_feasibility()];
-#' * `pairs`: the pairs without a crude pair row, for the calculations that
-#'   need every pair (`deconflate_unknown_pairs`);
 #' * `residual`: how far a fit was from converging
 #'   (`deconflate_nonconvergence`).
 #'
@@ -158,9 +174,14 @@
 #'   one association.
 #' @param event_model `FALSE` (default) for additive impacts; `TRUE` for
 #'   event impacts (an impact table with a `measure` column).
-#' @param overall_risk With `event_model = TRUE` (required): the overall risk
-#'   of the event in the population over the period, as a proportion (e.g.
-#'   `0.25`), or a distribution (e.g. `dist_beta(250, 750)`).
+#' @param overall_risk With `event_model = TRUE` (this or `baseline_risk` is
+#'   required): the overall risk of the event in the population over the
+#'   period, as a proportion (e.g. `0.25`), or a distribution (e.g.
+#'   `dist_beta(250, 750)`).
+#' @param baseline_risk With `event_model = TRUE`, instead of `overall_risk`:
+#'   the risk of the event in disease-free animals over the period, as a
+#'   proportion or a distribution. The overall risk then follows from the
+#'   model.
 #' @param n_draws Number of draws for the uncertainty (default 1000; 0 for
 #'   point estimates only; otherwise at least 2). Used only when some input
 #'   has a distribution.
@@ -190,9 +211,9 @@
 #'     (of its row, when it has exactly one), the adjusted value, the
 #'     relative change and the number of rows (with draws, also `lower` and
 #'     `upper`);
-#'   * `totals`: the sum of `p_d * raw_d` (the naive aggregate; `NA` when a
-#'     disease has several rows), the adjusted aggregate and its interaction
-#'     part;
+#'   * `totals`: the raw aggregate (`raw_total`: the diseases unrelated; see
+#'     "Raw and adjusted totals"), the adjusted aggregate and its
+#'     interaction part;
 #'   * `contributions`: per disease, main and interaction contributions,
 #'     their total and share;
 #'   * `estimates`: every input row (impacts and associations) with its
@@ -217,13 +238,15 @@
 #'     `P(j and k)`), `model`, `joint`, `method`, `label` and `units`.
 #'
 #'   For event impacts, a `cm_event_result` with `adjusted` (adjusted hazard
-#'   ratios of diseases and interactions), `attributable` (`summary`:
-#'   overall, disease-free and attributable risk and the attributable
-#'   fraction; `by_disease`: the Shapley allocation; `baseline_hazard`),
-#'   `estimates`, `heterogeneity`, `diagnostics`, `unknown_pairs`, `draws`,
-#'   `problems` (with `diagnose = TRUE`; effects on the adjusted hazard
-#'   ratios),
-#'   `notes`, `joint`, `model`, `method` and `overall_risk`. Risks are
+#'   ratios of diseases and interactions, the change from the raw estimate,
+#'   and the risk-scale results `risk_alone`, `rr_alone`, `rd_alone` and
+#'   `or_alone`), `attributable` (`summary`: overall, disease-free, raw and
+#'   adjusted attributable risk and the attributable fraction; `by_disease`:
+#'   the Shapley allocation with its `main` and `interaction` parts;
+#'   `baseline_hazard`), `conflation` (the local row equations), `estimates`,
+#'   `heterogeneity`, `diagnostics`, `unknown_pairs`, `draws`, `problems`
+#'   (with `diagnose = TRUE`), `notes`, `joint`, `model`, `method`,
+#'   `overall_risk` and `risk_given` (`"overall"` or `"baseline"`). Risks are
 #'   proportions of animals with the event during the period.
 #' @export
 #' @examples
@@ -269,7 +292,7 @@ deconflate.default <- function(model, ...) {
 deconflate.cm_model <- function(model, event_model = FALSE, overall_risk = NULL, n_draws = 1000,
                                 seed = NULL, sampling = c("random", "lhs"), lhs_replicates = 10L,
                                 pool = c("random", "fixed"), joint = NULL, warn = TRUE,
-                                diagnose = FALSE, ...) {
+                                diagnose = FALSE, baseline_risk = NULL, ...) {
   dots <- list(...)
   if (!is.logical(diagnose) || length(diagnose) != 1L || is.na(diagnose)) {
     cm_abort("`diagnose` must be TRUE or FALSE.", class = "deconflate_invalid_input")
@@ -280,13 +303,14 @@ deconflate.cm_model <- function(model, event_model = FALSE, overall_risk = NULL,
   check_draw_args(n_draws, seed, sampling, lhs_replicates)
   n_draws <- as.integer(n_draws)
   check_event_model(model, event_model)
-  risk <- check_overall_risk(overall_risk, event_model)
+  risk <- check_overall_risk(overall_risk, event_model, baseline_risk)
   a <- model$associations
   if (is.null(a) || !nrow(a)) {
     cm_abort("No association estimates were given, so there is nothing to de-conflate (the diseases would be treated as independent). To see how much associations could change the results, use screen_associations() or cm_threshold().",
              class = "deconflate_unsupported")
   }
-  plan <- plan_model(model, event_model, dots, has_joint = !is.null(joint), pool = pool)
+  plan <- plan_model(model, event_model, dots, has_joint = !is.null(joint), pool = pool,
+                     risk_kind = risk$kind %||% "overall")
   # The seed also makes a sampled joint distribution reproducible.
   if (!is.null(seed) && identical(plan$fit_args$backend %||% dots$backend, "sampled") && is.null(dots$seed)) {
     plan$fit_args$seed <- seed
@@ -312,7 +336,7 @@ deconflate.cm_model <- function(model, event_model = FALSE, overall_risk = NULL,
 retired_args <- function(dots) {
   nm <- names(dots) %||% character(0)
   if ("method" %in% nm) {
-    cm_abort("The `method` argument has been removed: deconflate() always gives the model's answer, and uses the pairwise tables itself when they give the same answer (see ?deconflate). The published approximation is in compare_methods().",
+    cm_abort("The `method` argument has been removed: deconflate() always gives the model's answer, and uses the pairwise tables itself when they give the same answer (see ?deconflate). The published approximation of Rasmussen et al. (2022, 2024) was removed in version 0.6.",
              class = "deconflate_unsupported")
   }
   if ("feasibility" %in% nm) {
@@ -334,7 +358,7 @@ check_event_model <- function(model, event_model) {
              class = "deconflate_unsupported")
   }
   if (!event_model && kind == "event") {
-    cm_abort("These are event impacts (the impact table has a measure column): use event_model = TRUE, with overall_risk.",
+    cm_abort("These are event impacts (the impact table has a measure column): use event_model = TRUE, with overall_risk or baseline_risk.",
              class = "deconflate_unsupported")
   }
   invisible(TRUE)
@@ -357,7 +381,8 @@ shortcut_ok <- function(model) {
 
 # How to adjust: the pairwise shortcut or the full model, the arguments of
 # the joint fit, and notes.
-plan_model <- function(model, event_model, dots = list(), has_joint = FALSE, pool = "random") {
+plan_model <- function(model, event_model, dots = list(), has_joint = FALSE, pool = "random",
+                       risk_kind = "overall") {
   n <- nrow(model$diseases)
   notes <- character(0)
   fit_args <- list()
@@ -370,7 +395,7 @@ plan_model <- function(model, event_model, dots = list(), has_joint = FALSE, poo
     notes <- c(notes, sprintf("With %d diseases, the joint distribution was not fitted: the pairwise tables give the answer, and the triple screen (a necessary condition) checked that the associations can hold together.", n))
   }
   list(event = event_model, shortcut = shortcut, fit_args = fit_args, notes = notes, pool = pool,
-       confirm = shortcut && (n <= 20L || has_joint))
+       confirm = shortcut && (n <= 20L || has_joint), risk_kind = risk_kind)
 }
 
 # "a", "a and b", "a, b and c".
@@ -380,13 +405,15 @@ join_and <- function(x) {
 }
 
 # One adjustment of a model, as planned. `central`: also fit the joint
-# distribution to confirm the shortcut (draws use the shortcut alone).
+# distribution to confirm the shortcut (draws use the shortcut alone), and
+# compute the details of event results (the local row equations).
 # `frozen`: pooling of association rows and impact-row SDs fixed at the
 # central estimate; `between`: between-study deviates of a draw;
 # `allocate`: the Shapley allocation of the attributable risk (event
-# impacts).
+# impacts); `raw`: also the raw total (see raw_total()).
 run_point <- function(model, plan, risk = NULL, joint = NULL, warn = TRUE, dots = list(),
-                      joint_start = NULL, start = NULL, frozen = NULL, central = FALSE, allocate = TRUE) {
+                      joint_start = NULL, start = NULL, frozen = NULL, central = FALSE, allocate = TRUE,
+                      raw = TRUE) {
   fj <- utils::modifyList(dots[intersect(names(dots), joint_arg_names)], plan$fit_args)
   between <- model$between
   pool <- plan$pool %||% "random"
@@ -410,20 +437,83 @@ run_point <- function(model, plan, risk = NULL, joint = NULL, warn = TRUE, dots 
       res$joint <- jt
       res$diagnostics$feasibility <- sprintf("joint distribution fitted (max residual %.1e)", jt$max_residual)
     }
-    return(res)
-  }
-  jt <- do.call(event_joint, c(list(as_population(model), joint, joint_start = joint_start, pool = pool,
-                                    frozen = frozen$associations, between = between), fj))
-  res <- if (isTRUE(plan$event)) {
-    adjust_event(model, overall_risk = risk, joint = jt, warn = warn, start = start, frozen_se = frozen$impacts,
-                 allocate = allocate)
   } else {
-    r <- adjust_additive(model, joint = jt, warn = warn, frozen_se = frozen$impacts)
-    r$diagnostics$feasibility <- sprintf("joint distribution fitted (max residual %.1e)", jt$max_residual)
-    r
+    jt <- do.call(event_joint, c(list(as_population(model), joint, joint_start = joint_start, pool = pool,
+                                      frozen = frozen$associations, between = between), fj))
+    res <- if (isTRUE(plan$event)) {
+      adjust_event(model, overall_risk = risk, joint = jt, warn = warn, start = start, frozen_se = frozen$impacts,
+                   allocate = allocate, risk_kind = plan$risk_kind %||% "overall", details = central)
+    } else {
+      r <- adjust_additive(model, joint = jt, warn = warn, frozen_se = frozen$impacts)
+      r$diagnostics$feasibility <- sprintf("joint distribution fitted (max residual %.1e)", jt$max_residual)
+      r
+    }
+    res$pooling <- jt$pooling
   }
-  res$pooling <- jt$pooling
+  if (raw) {
+    rt <- raw_total(model, plan, risk, res$row_se %||% frozen$impacts)
+    if (isTRUE(plan$event)) {
+      res$attributable$summary$raw_attributable <- rt
+    } else {
+      res$totals$raw_total <- rt
+    }
+  }
   res
+}
+
+# The raw total: the same model with the diseases unrelated (the same
+# disease values and impact rows, no association rows). For additive impacts
+# with one crude row per disease it is sum(p * raw); for event impacts it is
+# the attributable risk computed from the raw estimates. NA when it cannot
+# be computed (more than 20 diseases with rows other than single-disease
+# rows without a subgroup, or a failed fit).
+raw_total <- function(model, plan, risk, frozen_se = NULL) {
+  ids <- model$diseases$disease
+  n <- length(ids)
+  P <- stats::setNames(model$diseases$prob, ids)
+  m0 <- model
+  m0$associations <- NULL
+  m0$between <- NULL
+  d <- m0$distributions
+  if (length(d)) m0$distributions <- d[startsWith(names(d), "impacts:") | startsWith(names(d), "prob:")]
+  event <- isTRUE(plan$event)
+  specs <- impact_specs(model)
+  simple <- all(vapply(specs, function(s) length(s$g) == 1L && !length(c(s$apos, s$aneg)), logical(1)))
+  if (n > 20L && (event || !simple)) return(NA_real_)
+  if (!event && simple) {
+    # Unrelated diseases and single-disease rows: each row is its disease's
+    # own impact; several rows are fitted together (weighted mean).
+    se <- frozen_se %||% impact_row_se(model, specs)
+    term <- vapply(specs, `[[`, character(1), "term")
+    y <- vapply(specs, `[[`, numeric(1), "value")
+    b <- vapply(ids, function(dd) {
+      k <- which(term == dd)
+      if (!length(k)) return(NA_real_)
+      ex <- k[!is.na(se[k]) & se[k] == 0]
+      if (length(ex)) return(y[ex[1]])
+      w <- 1 / ifelse(is.na(se[k]), 1, se[k])^2
+      sum(w * y[k]) / sum(w)
+    }, numeric(1))
+    if (anyNA(b)) return(NA_real_)
+    return(sum(P * b))
+  }
+  cells <- disease_cells(n)
+  colnames(cells) <- ids
+  prob <- rep(1, nrow(cells))
+  for (j in seq_len(n)) prob <- prob * ifelse(cells[, j] == 1, P[j], 1 - P[j])
+  jt <- structure(list(cells = cells, prob = prob, diseases = ids, converged = TRUE, iterations = 0L,
+                       max_residual = 0, backend = "exact"), class = "cm_joint")
+  out <- tryCatch(withCallingHandlers({
+    if (event) {
+      adjust_event(m0, overall_risk = risk, joint = jt, warn = FALSE, allocate = FALSE, frozen_se = frozen_se,
+                   risk_kind = plan$risk_kind %||% "overall", details = FALSE)$attributable$summary$attributable
+    } else {
+      adjust_additive(m0, joint = jt, warn = FALSE, frozen_se = frozen_se)$totals$adjusted_total
+    }
+  }, deconflate_nonconvergence = function(w) {
+    if (inherits(w, "warning")) invokeRestart("muffleWarning")
+  }), deconflate_error = function(e) NA_real_)
+  out
 }
 
 # Diagnostics of the central estimate: every input row, heterogeneity,
@@ -528,32 +618,4 @@ unknown_pairs_table <- function(model, joint) {
                     fitted_or = unname(joint_to_or(p11, diag(J)[i1], diag(J)[i2])), stringsAsFactors = FALSE)
   rownames(out) <- NULL
   out
-}
-
-#' Attribute the aggregate to diseases (Shapley allocation)
-#'
-#' The expected aggregate impact is
-#' `sum_i p_i b_i + sum_T delta_T P(all of T)` over the interaction terms
-#' `T` (combinations of two or more diseases). Removing any disease
-#' involved in a term removes that term, so each disease's Shapley value is
-#' its own term plus an equal share of every interaction term it is involved
-#' in. The shares add up to the aggregate. This is the `contributions` table
-#' of [deconflate()].
-#'
-#' For event impacts, it is the Shapley allocation of the risk attributable
-#' to disease (`$attributable$by_disease`).
-#'
-#' @param result A [deconflate()] result.
-#' @return A data frame with, per disease, the main contribution, the share
-#'   of interaction terms, the total and the share of the aggregate (`NA`
-#'   when the aggregate is zero); for event impacts, the attributable risk
-#'   and its share.
-#' @export
-attribute_burden <- function(result) {
-  if (inherits(result, "cm_event_result")) {
-    if (is.null(result$attributable$by_disease)) cm_abort("The result has no allocation of the attributable risk.", class = "deconflate_invalid_input")
-    return(result$attributable$by_disease)
-  }
-  if (!inherits(result, "cm_result")) cm_abort("`result` must come from deconflate().", class = "deconflate_invalid_input")
-  result$contributions
 }

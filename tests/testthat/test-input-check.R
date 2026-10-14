@@ -63,12 +63,16 @@ test_that("B: event impacts, a sign change and a shrink (five diseases, culling,
   expect_equal(f$disease[f$flagged], c("LAM", "SCK"))
   expect_equal(f$reason[f$flagged], c("shrunk by more than 90%", "other side of 1"))
   expect_equal(f$adjusted[f$disease == "LAM"], 1.039582872, tolerance = 1e-8)
-  expect_equal(f$criterion[f$flagged], c(-0.0165689632, -0.034317179), tolerance = 1e-7)
+  expect_equal(f$criterion[f$flagged], c(-0.0165689632, -0.0362463541), tolerance = 1e-7)
+  # SCK has an odds-ratio row: compared on the odds ratio of an animal with
+  # only SCK against a disease-free animal.
+  expect_equal(f$measure[f$flagged], c("HR", "OR"))
+  expect_equal(f$adjusted[f$disease == "SCK"], 0.9821470874, tolerance = 1e-8)
   ref <- list(c("impacts:6", "LAM", -0.58011059, -0.029692), c("impacts:1", "LAM", 0.45401032, 0.037939),
               c("prob:MAS", "LAM", -0.18553125, -0.092840), c("associations:1", "LAM", -0.08894553, -0.193656),
               c("associations:2", "LAM", -0.07676512, -0.224383),
-              c("associations:6", "SCK", -0.04384415, -0.770219), c("prob:MAS", "SCK", 0.03291829, 1.025861),
-              c("associations:12", "SCK", -0.01790559, -1.885981), c("impacts:6", "SCK", -0.01746960, -1.933050))
+              c("associations:6", "SCK", -0.04899042, -0.726657), c("prob:MAS", "SCK", 0.03675369, 0.968590),
+              c("associations:12", "SCK", -0.02000389, -1.779616), c("impacts:6", "SCK", -0.01973425, -1.803932))
   for (x in ref) {
     e <- effect_of(p, x[1], x[2])
     expect_equal(e$effect_per_sd, as.numeric(x[3]), tolerance = 1e-4)
@@ -76,13 +80,14 @@ test_that("B: event impacts, a sign change and a shrink (five diseases, culling,
   }
   # Pooled LAM-MAS rows (associations 1 and 2) are moved with the pooling
   # weights of the central estimate.
-  th <- list(c("associations:9", "SCK", 0.37067257), c("associations:10", "LAM", 0.44689494),
-             c("impacts:2", "LAM", 1.61819061), c("impacts:2", "SCK", 0.79389011),
-             c("impacts:4", "LAM", 1.40706670), c("impacts:4", "SCK", 1.24438782))
+  th <- list(c("associations:9", "SCK", 0.40961752), c("associations:10", "LAM", 0.44689494),
+             c("impacts:2", "LAM", 1.61819061), c("impacts:2", "SCK", 0.84816605),
+             c("impacts:4", "LAM", 1.40706670), c("impacts:4", "SCK", 1.24180429))
   for (x in th) expect_equal(threshold_of(p, x[1], x[2]), as.numeric(x[3]), tolerance = 1e-7)
   expect_equal(nrow(p$thresholds), length(th))
   out <- capture.output(print(p))
-  expect_true(any(grepl("Flagged adjusted hazard ratios", out, fixed = TRUE)))
+  expect_true(any(grepl("Flagged adjusted results", out, fixed = TRUE)))
+  expect_true(any(grepl("SCK: OR 1.20 -> 0.982 (other side of 1)", out, fixed = TRUE)))
 })
 
 test_that("E: rows that disagree with other rows (impacts and pooled associations)", {

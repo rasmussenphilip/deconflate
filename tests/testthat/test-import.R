@@ -47,7 +47,6 @@ test_that("cm_read_inputs() takes three named tables and returns a model", {
   expect_null(m$distributions)
   expect_equal(deconflate(m, n_draws = 0)$adjusted$adjusted,
                deconflate(supp_model(c(2.5, 5, 7.5)), n_draws = 0)$adjusted$adjusted)
-  expect_equal(adjust_published(m)$adjusted$adjusted, adjust_published(example_supplement())$adjusted$adjusted)
 
   # diseases and impacts are required; the arguments of earlier versions
   # give messages.
@@ -99,7 +98,7 @@ test_that("the template writes four files, read back as yield (additive) and cul
   expect_null(ry$draws)
   # reference_v040.py, 6a
   expect_equal(ry$adjusted$adjusted, c(2.8705956676, 7.8191139087, 3.1698811769), tolerance = 1e-9)
-  expect_equal(ry$totals$raw_sum, 4.965719508828417, tolerance = 1e-12)
+  expect_equal(ry$totals$raw_total, 4.965719508828417, tolerance = 1e-12)
   expect_equal(ry$totals$adjusted_total, 4.015413117941525, tolerance = 1e-9)
 
   # Culling: event impacts (hazard ratios and a risk ratio).
@@ -247,13 +246,6 @@ test_that("the shipped global dairy files match example_global_dairy()", {
     expect_equal(vapply(dm[names(dr)], function(d) d$mean, numeric(1)),
                  vapply(dr, function(d) d$mean, numeric(1)), tolerance = 1e-10)
   }
-  # With the unlisted pairs independent (as in the 2024 analysis), the
-  # published approximation gives the analysis values.
-  m <- cm_read_inputs(diseases = f("diseases.csv"), associations = f("associations.csv"),
-                      impacts = f("impacts_yield.csv"))
-  expect_equal(adjust_published(with_independent_pairs(m))$adjusted$adjusted,
-               adjust_published(global_dairy_analyses("analysis")$yield)$adjusted$adjusted,
-               tolerance = 1e-10)
 })
 
 test_that("the shipped example with errors reports each deliberate error", {
@@ -485,47 +477,18 @@ test_that("several rows per item are read and pooled", {
   expect_equal(h$k, c(2, 4))
   expect_true(all(c("Q", "df", "p", "I2", "tau2") %in% names(h)))
   expect_equal(res$adjusted$rows, c(2, 1, 1))
-  expect_true(is.na(res$totals$raw_sum))
+  expect_equal(res$totals$raw_total, 0.10 * (2.5 / 0.5^2 + 2.1 / 0.4^2) / (1 / 0.5^2 + 1 / 0.4^2) + 0.15 * 5 + 0.20 * 7.5,
+               tolerance = 1e-10)
   # Exact rows that disagree are an error.
   imp2 <- data.frame(disease = c(ids3, "d1"), value = c(2.5, 5, 7.5, 2.1))
   m2 <- cm_read_inputs(diseases = tabs$diseases, associations = tabs$associations, impacts = imp2)
   expect_error(deconflate(m2, n_draws = 0), "cannot all hold", class = "deconflate_infeasible")
 })
 
-test_that("cm_dist_table builds distributions", {
-  tab <- data.frame(key = c("a", "b", "c", "d"), dist = c("pert", "lognormal_ci", "normal", "fixed"),
-                    p1 = c(1, 2, 2.6, 3), p2 = c(2, 1.4, 1.4, NA), p3 = c(4, 2.9, 0, NA))
-  d <- cm_dist_table(tab)
-  expect_equal(names(d), c("a", "b", "c", "d"))
-  expect_true(all(vapply(d, inherits, logical(1), "cm_dist")))
-  expect_equal(d$a$type, "pert")
-  expect_equal(d$a$params$mode, 2)
-  expect_equal(d$b$type, "lognormal")
-  expect_equal(d$b$params$meanlog, log(2))
-  expect_equal(d$c$params$lower, 0)
-  expect_equal(d$d$mean, 3)
-
-  f <- file.path(tempdir(), "deconflate-import-dists.csv")
-  utils::write.csv(tab, f, row.names = FALSE, na = "")
-  d2 <- cm_dist_table(f)
-  expect_equal(names(d2), names(d))
-  expect_equal(vapply(d2, function(x) x$mean, numeric(1)), vapply(d, function(x) x$mean, numeric(1)))
-  unlink(f)
-
-  # The keys can be given to cm_model() as distributions.
-  dd <- cm_dist_table(data.frame(key = c("impact:d1", "assoc:d2:d1"), dist = c("normal", "lognormal_ci"),
-                                 p1 = c(2.5, 2), p2 = c(0.5, 1.4), p3 = c(NA, 2.9)))
+test_that("distribution keys given to cm_model() name the rows they refer to", {
+  dd <- list("impact:d1" = dist_normal(2.5, 0.5), "assoc:d2:d1" = dist_lognormal_ci(2, 1.4, 2.9))
   m <- cm_model(supp_population(), cm_impacts(ids3, c(2.5, 5, 7.5)), distributions = dd)
   expect_equal(names(m$distributions), c("impacts:1", "associations:1"))
-
-  expect_error(cm_dist_table(data.frame(key = "a", dist = "gamma", p1 = 1)), "Unknown distribution")
-  expect_error(cm_dist_table(data.frame(key = c("a", NA), dist = "normal", p1 = 1, p2 = 1)),
-               "missing key")
-  expect_error(cm_dist_table(data.frame(key = "a", dist = "pert", p1 = 3, p2 = 2, p3 = 4)), "PERT")
-  expect_error(cm_dist_table(data.frame(key = "a", p1 = 1)), "needs columns")
-  expect_error(cm_dist_table(data.frame(key = character(0), dist = character(0))), "empty")
-  expect_error(cm_dist_table(data.frame(key = c("a", "a"), dist = "fixed", p1 = 1:2)),
-               "more than once")
 })
 
 test_that("CSV columns are read as text, and empty files are empty tables", {
@@ -659,9 +622,6 @@ test_that("the five-disease example reads without problems and matches the refer
   expect_equal(r10$adjusted$adjusted,
                c(4.13927424, 2.35580211, 4.5140575, 1.36629496, 2.66542027), tolerance = 1e-7)
   expect_equal(r10$totals$adjusted_total, 2.7349337441102657, tolerance = 1e-9)
-  rp <- adjust_published(y10)
-  expect_equal(rp$adjusted$adjusted,
-               c(3.97507962, 2.37379544, 4.36087399, 1.58917725, 2.84352728), tolerance = 1e-7)
 
   # The full example (reference_v041.py): two pooled LAM-MAS rows and an
   # OR_ratio row, so the full model.
@@ -689,7 +649,6 @@ test_that("the five-disease example reads without problems and matches the refer
   expect_equal(ei$std_residual, c(-0.0090983656, -0.3092644373, 0.4653633829, -0.0039776718, NA,
                                   -0.000808178), tolerance = 1e-6)
   expect_equal(rc$heterogeneity$Q[rc$heterogeneity$table == "impacts"], 0.3123068256, tolerance = 1e-6)
-  expect_error(adjust_published(ci), class = "deconflate_unsupported")
   # Welfare: two interactions adjusted for all, and a crude combination row.
   w <- read_five("impacts_welfare.csv")
   rw <- deconflate(w, n_draws = 0)
@@ -723,24 +682,6 @@ test_that("the five-disease example reads without problems and matches the refer
   th <- cm_threshold(y10, "prob:SCK", c(0.1, 0.6), conclusion = "rank", diseases = c("MET", "SCK"))
   expect_equal(th$thresholds$threshold[th$thresholds$status == "threshold"], 0.33002218486278845,
                tolerance = 1e-6)
-  # The published approximation is not a method of cm_threshold(); its pole
-  # for SCK (reference_five_diseases.py) is checked on the internal
-  # adjust_published() instead.
-  expect_error(cm_threshold(y10, "impact:SCK", c(-4, 2.5), conclusion = "sign", diseases = "SCK",
-                            method = "published"),
-               class = "deconflate_unsupported")
-  pole <- -1.4328526785573266
-  A <- rp$conflation$A
-  expect_equal(-as.vector((A - diag(nrow(A))) %*% rp$adjusted$raw)[rp$adjusted$disease == "SCK"], pole,
-               tolerance = 1e-8)
-  sck_published <- function(v) {
-    my <- y10
-    my$impacts$value[my$impacts$disease == "SCK"] <- v
-    r <- adjust_published(my)
-    r$adjusted$adjusted[r$adjusted$disease == "SCK"]
-  }
-  expect_lt(sck_published(pole - 1e-3), -1000)
-  expect_gt(sck_published(pole + 1e-3), 1000)
   skip_on_cran()
   th <- cm_threshold(w, "inter:LAM:MAS", c(-5, 20), conclusion = "change", target = -0.1)
   expect_equal(sum(th$thresholds$status == "threshold"), 1)

@@ -82,7 +82,6 @@ m_yield <- read_five("impacts_yield.csv")
 m_yield
 m_yield$diseases                # MAS is an incidence rate, converted to a probability
 m_yield$associations            # every kind of association row (see the note column)
-pair_tables(m_yield)            # the 2x2 table of every pair; LAM-MAS pools two rows
 names(m_yield$distributions)    # the distributions given in the tables
 
 m_ci <- read_five("impacts_calving_interval.csv")
@@ -104,8 +103,9 @@ feas <- check_feasibility(m_yield)  # triple screen, plus an LP check if lpSolve
 feas$feasible
 joint <- fit_joint(m_yield)          # exact maximum-entropy joint (32 combinations), matching every row
 joint
-head(combination_probs(joint), 10)
-sum(combination_probs(joint)$prob[combination_probs(joint)$n_diseases >= 3])
+cmb <- data.frame(joint$cells, prob = joint$prob)
+head(cmb[order(-cmb$prob), ], 10)    # the most common combinations
+sum(joint$prob[rowSums(joint$cells) >= 3])  # share of cows with three or more diseases
 # The OR_ratio row: the LAM-MAS odds ratio among cows with and without SCK
 or_in <- function(j, among) {
   w <- j$prob * (j$cells[, "SCK"] == among)
@@ -146,10 +146,6 @@ res_pairs$diagnostics$method
 # it changes additive results without interactions not at all
 m_pairs_or <- read_five("impacts_yield.csv", associations = assoc[-2, ])
 all.equal(deconflate(m_pairs_or, n_draws = 0)$adjusted$adjusted, res_pairs$adjusted$adjusted)
-# The published approximation (Rasmussen et al. 2022, eq. 16) is not a method
-# of deconflate(); compare_methods() shows it beside the model, for
-# comparison only
-compare_methods(m_pairs)$impacts
 
 # calving interval: two MAS rows (one adjusted for SCK, one crude) fitted
 # together by weighted least squares, SCK adjusted for all (exact), and RP
@@ -158,7 +154,6 @@ res_ci <- deconflate(m_ci, n_draws = 0)
 res_ci$adjusted
 res_ci$estimates[res_ci$estimates$table == "impacts", ]
 res_ci$heterogeneity
-compare_methods(m_ci)$failed   # the published approximation: one crude row per disease only
 
 # welfare: interactions (LAM;MAS and MET;RP adjusted for all, LAM;SCK crude)
 res_welfare <- deconflate(m_welfare, n_draws = 0, joint = joint)
@@ -195,25 +190,27 @@ section("4. Event impacts")
 # risk-based estimates must refer to the same period.
 res_cull <- deconflate(m_cull, event_model = TRUE, overall_risk = 0.25, n_draws = 0, joint = joint)
 res_cull
-res_cull$adjusted                  # adjusted hazard ratios: each term's own effect
-res_cull$attributable$summary      # overall, disease-free and attributable risk
-res_cull$attributable$by_disease   # the attributable risk split by disease (Shapley)
-# Diagnosing the inputs for event impacts: with an SCK odds ratio of 1.2, SCK's
-# adjusted hazard ratio falls below 1 and LAM's shrinks by more than 90% (on
-# the log scale); effects are on the adjusted hazard ratios
+res_cull$adjusted                  # adjusted hazard ratios, and each term alone vs
+                                   # disease-free on the risk scale (risk, RR, RD, OR)
+res_cull$attributable$summary      # overall, disease-free, attributable and raw
+                                   # attributable risk (the diseases unrelated)
+res_cull$attributable$by_disease   # split by disease (Shapley): own part and share
+                                   # of the LAM;MAS interaction
+round(res_cull$conflation$A, 3)    # how each row's value moves with each term
+# The risk of disease-free animals instead of the overall risk: the model
+# then gives the overall risk
+res_base <- deconflate(m_cull, event_model = TRUE, baseline_risk = 0.18, n_draws = 0, joint = joint)
+res_base$attributable$summary
+# Diagnosing the inputs for event impacts: with an SCK odds ratio of 1.2, the
+# adjusted odds ratio of a cow with only SCK against a disease-free cow falls
+# below 1, and LAM's hazard ratio shrinks by more than 90% (on the log scale);
+# results are compared on each raw estimate's own measure
 m_cull_low <- m_cull
 m_cull_low$impacts$value[m_cull_low$impacts$disease == "SCK"] <- 1.2
 deconflate(m_cull_low, event_model = TRUE, overall_risk = 0.25, n_draws = 0, diagnose = TRUE)$problems
 # event_model must match the table
 try_show(deconflate(m_cull, n_draws = 0))
 try_show(deconflate(m_yield, event_model = TRUE, overall_risk = 0.25))
-# compare_methods(): the first-order and published (2024) approaches need
-# one crude hazard (or rate) ratio per disease, so with this table only the
-# model runs
-compare_methods(m_cull, event_model = TRUE, overall_risk = 0.25)$failed
-hr_only <- cm_model(m_pairs, cm_impacts(m_pairs$diseases$disease, c(1.74, 1.6, 1.3, 1.4, 1.5),
-                                        measure = "HR", label = "culling"))
-compare_methods(hr_only, event_model = TRUE, overall_risk = 0.25)
 
 # ---- 5. Uncertainty -----------------------------------------------------------
 section("5. Uncertainty")
@@ -243,8 +240,6 @@ unc_ci$adjusted
 unc_cull <- deconflate(m_cull, event_model = TRUE, overall_risk = dist_beta(250, 750),
                        n_draws = 100, seed = 4)
 unc_cull$attributable$summary
-# Methods compared on the same draws
-compare_methods(m_pairs, n_draws = 200, seed = 5)
 # Without distributions, no draws are run
 deconflate(example_supplement())$notes
 
@@ -254,7 +249,7 @@ section("6. Reporting, gaps and values")
 contribution_table(res_yield)
 contribution_table(unc_yield)      # with intervals
 summary(res_yield)
-attribute_burden(res_welfare)
+res_welfare$contributions          # own part and share of the interactions
 contribution_table(res_cull)
 
 # Gaps and values are computed in base R. yield: percent losses of an
@@ -283,8 +278,11 @@ scr_i <- screen_interactions(m_yield, values = c(-1, 1))
 scr_i
 scr_t <- screen_three_way(m_welfare, ratios = c(0.5, 2))
 scr_t
-# Event impacts
+# Event impacts (the aggregate is the attributable risk), including an
+# interaction between two diseases as a hazard ratio
 head(sensitivity_oat(m_cull, event_model = TRUE, overall_risk = 0.25), 10)
+screen_interactions(m_cull, values = c(0.5, 2), pairs = c("MET:SCK", "SCK:RP"), event_model = TRUE,
+                    overall_risk = 0.25)
 # Without any association estimates: which associations would matter?
 m_none <- cm_read_inputs(diseases = f("diseases.csv"), impacts = f("impacts_yield.csv"))
 try_show(deconflate(m_none))
@@ -336,8 +334,8 @@ th_risk <- cm_threshold(m_cull, "risk", c(0.1, 0.5), conclusion = "total", targe
                         event_model = TRUE, overall_risk = 0.25)
 th_risk$thresholds
 
-# ---- 9. Simulation and non-additive losses ---------------------------------
-section("9. Simulation and Shapley values")
+# ---- 9. Simulation ------------------------------------------------------------
+section("9. Simulation")
 
 # Simulate what studies would report from known true impacts and
 # interactions, and check that the model recovers them. By default: a crude
@@ -365,13 +363,15 @@ raw_adj <- simulate_raw_impacts(m_yield, truth, adjusted_for = "all", joint = jo
 raw_adj$value  # without interactions these equal the true impacts
 # A finite study of 5000 animals adds sampling error
 simulate_raw_impacts(m_yield, truth, n = 5000, joint = joint)$value
-
-# Shapley values cell by cell: additive with a pairwise term, and
-# multiplicative (proportional losses that cannot exceed 100%)
-shapley_by_cell(joint, loss_additive(truth, terms = list(list(diseases = c("LAM", "MAS"),
-                                                             value = 2))))
-shapley_by_cell(joint, loss_multiplicative(c(LAM = 0.05, MAS = 0.03, MET = 0.06,
-                                             SCK = 0.02, RP = 0.04)))
+# Event impacts: what an HR, RR, OR and RD row would report given true hazard
+# ratios, and the model recovering them
+truth_hr <- c(LAM = 1.3, MAS = 1.5, MET = 1.2, SCK = 1.1, RP = 1.6)
+raw_cull <- simulate_raw_impacts(m_cull, truth_hr, interactions = c("LAM;MAS" = 1.4), event_model = TRUE,
+                                 measure = c("HR", "RR", "OR", "RD", "HR", "HR"), overall_risk = 0.25,
+                                 joint = joint)
+raw_cull
+deconflate(cm_model(m_cull, raw_cull), event_model = TRUE, overall_risk = 0.25, n_draws = 0,
+           joint = joint)$adjusted[, c("disease", "measure", "raw", "adjusted")]
 
 # ---- 10. Variants: unknown pairs, adjusted associations, old layouts --------
 section("10. Variants")
@@ -382,8 +382,6 @@ r <- which(assoc$disease == "MAS" & assoc$associated_with == "RP")
 m_u <- read_five("impacts_yield.csv", associations = assoc[-r, ])
 res_u <- deconflate(m_u, n_draws = 0)
 res_u$unknown_pairs
-# The published approximation needs every pair
-compare_methods(m_u)$failed
 # With an unknown pair, an OR_ratio row can change additive results
 screen_three_way(m_u, ratios = c(0.5, 2), triples = list(c("MAS", "RP", "MET")))
 
@@ -414,9 +412,7 @@ section("11. Plots")
 
 try_plot(plot(res_yield))
 try_plot(plot(unc_yield))
-try_plot(plot_burden(res_yield))
 try_plot(plot(res_cull))
-try_plot(plot_burden(unc_cull))
 try_plot(plot(oat))
 try_plot(plot(scr_a))
 try_plot(plot(th_rank))

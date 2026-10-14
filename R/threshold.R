@@ -59,7 +59,7 @@
 #'   row of a disease, when it has one), `"three:<d1>:<d2>:<d3>"` (an
 #'   OR_ratio, see [set_three_way()]), `"associations:<row>"` or
 #'   `"impacts:<row>"` (any row, by its number), or, for event impacts,
-#'   `"risk"` (the overall risk).
+#'   `"risk"` (the overall or baseline risk, whichever is given).
 #' @param range Two numbers: the range of the input to search.
 #' @param conclusion `"rank"`, `"sign"`, `"total"` or `"change"`.
 #' @param target For `"total"`, the value of the aggregate (for event
@@ -68,8 +68,8 @@
 #' @param diseases Optional disease ids to restrict `"rank"` (pairs among
 #'   them) and `"sign"`.
 #' @param by For `"rank"`: `"contribution"` (default) or `"adjusted"`.
-#' @param event_model,overall_risk As in [deconflate()] (a distribution of
-#'   the overall risk is used at its mean).
+#' @param event_model,overall_risk,baseline_risk As in [deconflate()] (a distribution of
+#'   the risk is used at its mean).
 #' @param n_grid Number of grid points.
 #' @param log_scale Use a log-spaced grid? Default `TRUE` for associations
 #'   measured as ratios and three-way ratios with a positive range.
@@ -101,10 +101,10 @@
 cm_threshold <- function(model, input, range, conclusion = c("rank", "sign", "total", "change"),
                          target = NULL, diseases = NULL, by = c("contribution", "adjusted"),
                          event_model = FALSE, overall_risk = NULL,
-                         n_grid = 101L, log_scale = NULL, tol = 1e-8, ...) {
+                         n_grid = 101L, log_scale = NULL, tol = 1e-8, baseline_risk = NULL, ...) {
   dots <- list(...)
   retired_args(dots)
-  st <- sens_setup(model, event_model, overall_risk)
+  st <- sens_setup(model, event_model, overall_risk, baseline_risk = baseline_risk)
   conclusion <- cm_match_arg(conclusion)
   by <- cm_match_arg(by)
   if (!is.character(input) || length(input) != 1L || is.na(input)) {
@@ -134,6 +134,10 @@ cm_threshold <- function(model, input, range, conclusion = c("rank", "sign", "to
     diseases <- unique(diseases)
   }
   setter <- threshold_setter(model, input, st)
+  if (setter$type == "inter" && isTRUE(st$event_model) && range[1] <= 0) {
+    cm_abort("An interaction of event impacts is a hazard ratio: `range` must be positive.",
+             class = "deconflate_invalid_input")
+  }
   log_scale <- log_scale %||% (setter$ratio_scale && range[1] > 0)
   if (log_scale && range[1] <= 0) cm_abort("A log-spaced grid needs a positive range.", class = "deconflate_invalid_input")
   xs <- if (log_scale) exp(seq(log(range[1]), log(range[2]), length.out = n_grid)) else
@@ -152,7 +156,7 @@ cm_threshold <- function(model, input, range, conclusion = c("rank", "sign", "to
   # (Planned on the model at the start of the range: varying an interaction
   # can add a combination row.)
   m_plan <- tryCatch(setter$set(range[1])$model, deconflate_error = function(e) model)
-  base_plan <- plan_model(m_plan, st$event_model, dots = fj)
+  base_plan <- plan_model(m_plan, st$event_model, dots = fj, risk_kind = st$risk_kind)
   uses_joint <- isTRUE(base_plan$event) || !base_plan$shortcut
   if (is.null(joint) && fixed_joint && uses_joint) {
     fa <- utils::modifyList(fj, base_plan$fit_args)
@@ -177,9 +181,11 @@ cm_threshold <- function(model, input, range, conclusion = c("rank", "sign", "to
   evaluate_model <- function(m2, st2) {
     res <- tryCatch(
       withCallingHandlers({
-        plan <- plan_model(m2, st2$event_model, dots = fj, has_joint = fixed_joint && !is.null(joint))
+        plan <- plan_model(m2, st2$event_model, dots = fj, has_joint = fixed_joint && !is.null(joint),
+                           risk_kind = st2$risk_kind)
         if (fixed_joint && !is.null(joint)) plan$shortcut <- FALSE
-        r <- run_point(m2, plan, risk = st2$risk, joint = if (fixed_joint) joint, warn = FALSE, dots = fj)
+        r <- run_point(m2, plan, risk = st2$risk, joint = if (fixed_joint) joint, warn = FALSE, dots = fj,
+                       raw = FALSE)
         used <<- union(used, r$diagnostics$method)
         r
       }, deconflate_nonconvergence = function(w) {
@@ -448,14 +454,13 @@ threshold_setter <- function(model, input, st) {
     },
     inter = {
       need(2)
-      if (isTRUE(st$event_model)) {
-        cm_abort("set_interaction() sets additive interactions; for event impacts, vary a combination row ('impacts:<row>').",
-                 class = "deconflate_unsupported")
-      }
+      # Additive impacts: an interaction in the impacts' units (0: none);
+      # event impacts: a hazard ratio multiplier (1: none).
+      ev <- isTRUE(st$event_model)
       im <- model$impacts
       hit <- same_set(im$disease, paste(parts[2:3], collapse = ";")) & is_all(im$adjusted_for) & is.na(im$among)
-      base <- if (any(hit)) im$value[hit][1] else 0
-      list(type = type, baseline = base, baseline_set = if (any(hit)) base else NULL, ratio_scale = FALSE,
+      base <- if (any(hit)) im$value[hit][1] else if (ev) 1 else 0
+      list(type = type, baseline = base, baseline_set = if (any(hit)) base else NULL, ratio_scale = ev,
            set = function(x) {
              if (is.null(x)) return(with_st(model))
              with_st(set_interaction(model, parts[2], parts[3], x))
@@ -490,11 +495,12 @@ threshold_setter <- function(model, input, st) {
     },
     risk = {
       if (length(parts) != 1L) cm_abort("`input` 'risk' has no further parts.", class = "deconflate_invalid_input")
-      if (!isTRUE(st$event_model)) cm_abort("The overall risk can be varied only with event_model = TRUE.", class = "deconflate_unsupported")
+      if (!isTRUE(st$event_model)) cm_abort("The overall or baseline risk can be varied only with event_model = TRUE.", class = "deconflate_unsupported")
       list(type = type, baseline = st$risk, baseline_set = st$risk, ratio_scale = FALSE,
            set = function(x) {
              if (!(x > 0 && x < 1)) {
-               cm_abort(sprintf("An overall risk of %g is not a proportion.", x), class = "deconflate_infeasible")
+               cm_abort(sprintf("A%s %s of %g is not a proportion.", if (identical(st$risk_kind, "baseline")) "" else "n",
+                                risk_label(st$risk_kind), x), class = "deconflate_infeasible")
              }
              st2 <- st
              st2$risk <- x

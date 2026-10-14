@@ -19,9 +19,12 @@ check_top <- 4L
 
 # Raw reference of each disease term with impact rows: its row, or with
 # several rows their inverse-variance weighted mean on the impact's scale
-# (an exact row's value when one is exact). For event impacts, ratio rows
-# (on the log scale) when there are any, otherwise risk-difference rows
-# (`kind` "RD": sign only). `measure`: the row's measure, or "pooled".
+# (an exact row's value when one is exact). For event impacts, `measure` is
+# the measure the adjusted result is compared on: the rows' measure when
+# they share one (HR, rate ratio, RR, OR or RD: the adjusted HR, or the
+# risk ratio, odds ratio or risk difference of an animal with only the
+# disease against a disease-free animal); with mixed measures, the hazard
+# ratio and the ratio rows (on the log scale).
 raw_reference <- function(model, event) {
   specs <- impact_specs(model)
   ids <- model$diseases$disease
@@ -30,9 +33,13 @@ raw_reference <- function(model, event) {
   for (d in intersect(ids, term)) {
     ss <- specs[term == d]
     meas <- vapply(ss, function(s) s$measure %||% NA_character_, character(1))
-    if (event && any(meas != "RD")) {
+    on <- if (!event) "units" else if (length(unique(meas)) == 1L) {
+      if (meas[1] == "rate_ratio") "HR" else meas[1]
+    } else "HR"
+    if (event && length(unique(meas)) > 1L) {
       ss <- ss[meas != "RD"]
       meas <- meas[meas != "RD"]
+      if (!length(ss)) next
     }
     scale <- function(v, m) if (event) event_scale(v, m) else v
     v <- vapply(seq_along(ss), function(k) scale(ss[[k]]$value, meas[k]), numeric(1))
@@ -41,20 +48,27 @@ raw_reference <- function(model, event) {
     }, numeric(1))
     se[is.na(se)] <- 1
     r <- if (any(se == 0)) v[which(se == 0)[1]] else sum(v / se^2) / sum(1 / se^2)
-    out[[d]] <- list(r = r, kind = if (event && all(meas == "RD")) "RD" else "scale",
-                     measure = if (length(ss) == 1L) meas[1] else "pooled",
+    out[[d]] <- list(r = r, on = on, measure = if (length(ss) == 1L) meas[1] else "pooled",
                      rows = vapply(ss, `[[`, numeric(1), "row"))
   }
   out
 }
 
-# The criterion c for each disease in `ref`, from adjusted values (natural
-# scale: units or HR).
-check_criterion <- function(adj, ref, event) {
+# The adjusted result of each disease in `ref` on the measure it is compared
+# on (natural scale: units, HR, RR, OR or RD), from a result's values.
+compared_values <- function(vals, ref) {
   vapply(names(ref), function(d) {
-    a <- if (event) log(adj[[d]]) else adj[[d]]
+    switch(ref[[d]]$on, units = , HR = vals$adj[[d]], RR = vals$rr[[d]], OR = vals$or[[d]], RD = vals$rd[[d]])
+  }, numeric(1))
+}
+
+# The criterion c for each disease in `ref`, from its compared value (see
+# compared_values()).
+check_criterion <- function(cmp, ref, event) {
+  vapply(names(ref), function(d) {
     rr <- ref[[d]]
-    if (rr$kind == "RD") sign(rr$r) * a else sign(rr$r) * a - 0.1 * abs(rr$r)
+    a <- if (event && rr$on != "RD") log(cmp[[d]]) else cmp[[d]]
+    sign(rr$r) * a - 0.1 * abs(rr$r)
   }, numeric(1))
 }
 
@@ -83,11 +97,11 @@ input_measure <- function(model, key) {
 
 # Short labels of inputs, e.g. "SCM prevalence", "CM-SCM OR", "MAS impact
 # (adjusted for SCK)"; the row number is added where labels repeat.
-input_labels <- function(model, keys) {
+input_labels <- function(model, keys, risk_kind = "overall") {
   uk <- unique(keys)
-  if (length(uk) < length(keys)) return(input_labels(model, uk)[match(keys, uk)])
+  if (length(uk) < length(keys)) return(input_labels(model, uk, risk_kind)[match(keys, uk)])
   lab <- vapply(keys, function(k) {
-    if (k == "risk") return("overall risk")
+    if (k == "risk") return(risk_label(risk_kind))
     parts <- strsplit(k, ":", fixed = TRUE)[[1]]
     qual <- function(among, adj) {
       q <- c(if (!is.na(among) && nzchar(among)) paste("among", among),
@@ -130,11 +144,17 @@ drop_row <- function(model, key) {
   model
 }
 
-# Adjusted values (natural scale) and the aggregate of a result.
+# Adjusted values (natural scale) and the aggregate of a result; for event
+# results also the risk ratio, odds ratio and risk difference of an animal
+# with only the disease against a disease-free animal.
 check_values <- function(r) {
   a <- r$adjusted
-  agg <- if (inherits(r, "cm_event_result")) r$attributable$summary$attributable %||% NA_real_ else r$totals$adjusted_total
-  list(adj = stats::setNames(a$adjusted, a$disease), agg = agg)
+  if (inherits(r, "cm_event_result")) {
+    return(list(adj = stats::setNames(a$adjusted, a$disease), rr = stats::setNames(a$rr_alone, a$disease),
+                or = stats::setNames(a$or_alone, a$disease), rd = stats::setNames(a$rd_alone, a$disease),
+                agg = r$attributable$summary$attributable %||% NA_real_))
+  }
+  list(adj = stats::setNames(a$adjusted, a$disease), agg = r$totals$adjusted_total)
 }
 
 # The diagnosis of a central result.
@@ -155,12 +175,13 @@ diagnose_inputs <- function(model, plan, res, risk, dots) {
       m <- set_inputs(m0, values[names(values) != "risk"])
       rk <- if ("risk" %in% names(values)) values[["risk"]] else risk$value
       if (!is.null(rk) && !(rk > 0 && rk < 1)) {
-        cm_abort("The overall risk must lie between 0 and 1.", class = "deconflate_infeasible")
+        cm_abort(sprintf("The %s must lie between 0 and 1.", risk_label(risk$kind)), class = "deconflate_infeasible")
       }
       only_impacts <- length(values) > 0L && all(startsWith(names(values), "impacts:"))
       jt <- if (only_impacts && identical(m0, model) && !isTRUE(plan$shortcut)) res$joint
       check_values(run_point(m, plan, risk = rk, joint = jt, warn = FALSE, dots = dots,
-                             joint_start = joint_start, start = beta_start, frozen = fz, allocate = FALSE))
+                             joint_start = joint_start, start = beta_start, frozen = fz, allocate = FALSE,
+                             raw = FALSE))
     }, deconflate_nonconvergence = function(w) {
       if (inherits(w, "warning")) invokeRestart("muffleWarning")
     }), deconflate_error = function(e) {
@@ -171,24 +192,22 @@ diagnose_inputs <- function(model, plan, res, risk, dots) {
 
   central <- check_values(res)
   ref <- raw_reference(model, event)
-  c0 <- check_criterion(central$adj, ref, event)
+  cmp0 <- compared_values(central, ref)
+  c0 <- check_criterion(cmp0, ref, event)
   flag <- names(c0)[c0 < 0]
-  raw_nat <- vapply(names(ref), function(d) {
-    rr <- ref[[d]]
-    if (event && rr$kind != "RD") exp(rr$r) else rr$r
-  }, numeric(1))
-  side <- sign(if (event) log(central$adj[names(ref)]) else central$adj[names(ref)]) !=
-    sign(vapply(ref, `[[`, numeric(1), "r"))
-  flagged <- data.frame(disease = names(ref), measure = vapply(ref, `[[`, character(1), "measure"),
-                        raw = unname(raw_nat), adjusted = unname(central$adj[names(ref)]),
+  on_log <- vapply(ref, function(rr) event && rr$on != "RD", logical(1))
+  raw_nat <- vapply(names(ref), function(d) if (on_log[[d]]) exp(ref[[d]]$r) else ref[[d]]$r, numeric(1))
+  side <- sign(ifelse(on_log, log(cmp0), cmp0)) != sign(vapply(ref, `[[`, numeric(1), "r"))
+  flagged <- data.frame(disease = names(ref), measure = vapply(ref, `[[`, character(1), "on"),
+                        raw = unname(raw_nat), adjusted = unname(cmp0),
                         criterion = unname(c0), flagged = c0 < 0,
-                        reason = ifelse(c0 >= 0, "", ifelse(side, if (event) "other side of 1" else "other side of zero",
+                        reason = ifelse(c0 >= 0, "", ifelse(side, ifelse(on_log, "other side of 1", "other side of zero"),
                                                             "shrunk by more than 90%")),
                         stringsAsFactors = FALSE)
   if (!event) flagged$measure <- NULL
   rownames(flagged) <- NULL
   crit_of <- function(out) {
-    if (is.null(out)) rep(NA_real_, length(flag)) else check_criterion(out$adj, ref, event)[flag]
+    if (is.null(out)) rep(NA_real_, length(flag)) else check_criterion(compared_values(out, ref), ref, event)[flag]
   }
 
   # Inputs with a distribution (keys in their canonical form).
@@ -217,14 +236,14 @@ diagnose_inputs <- function(model, plan, res, risk, dots) {
       op <- if (is.finite(xs[1])) run_with(stats::setNames(xs[1], k))
       om <- if (is.finite(xs[2])) run_with(stats::setNames(xs[2], k))
       eff <- if (is.null(op) || is.null(om)) rep(NA_real_, length(flag)) else
-        unname((op$adj[flag] - om$adj[flag]) / (2 * check_h))
+        unname((compared_values(op, ref)[flag] - compared_values(om, ref)[flag]) / (2 * check_h))
       dc <- (crit_of(op) - crit_of(om)) / (2 * check_h)
       need <- ifelse(is.finite(dc) & abs(dc) > 1e-12, -c0[flag] / dc, NA_real_)
       data.frame(key = k, value = x0, disease = flag, effect_per_sd = eff, sd_needed = unname(need),
                  stringsAsFactors = FALSE)
     })
     effects <- do.call(rbind, rows)
-    effects$input <- input_labels(model, effects$key)
+    effects$input <- input_labels(model, effects$key, risk$kind)
     listed <- rep(FALSE, nrow(effects))
     for (d in flag) {
       i <- which(effects$disease == d & is.finite(effects$effect_per_sd))
@@ -304,7 +323,7 @@ diagnose_inputs <- function(model, plan, res, risk, dots) {
     }
     if (length(out)) {
       thresholds <- do.call(rbind, out)
-      thresholds$input <- input_labels(model, thresholds$key)
+      thresholds$input <- input_labels(model, thresholds$key, risk$kind)
       thresholds <- thresholds[, c("key", "input", "value", "disease", "threshold", "in_range")]
       rownames(thresholds) <- NULL
     }
@@ -372,10 +391,10 @@ print.cm_diagnosis <- function(x, digits = 3, ...) {
   cat("Diagnosis (diagnose = TRUE)\n")
   if (nrow(fl)) {
     if (x$event) {
-      cat("\nFlagged adjusted hazard ratios (raw estimate -> adjusted HR):\n")
+      cat("\nFlagged adjusted results (raw estimate -> adjusted, on the estimate's measure; RR, OR and RD\nfor an animal with only the disease against a disease-free animal):\n")
       for (i in seq_len(nrow(fl))) {
-        m <- if (fl$measure[i] == "pooled") "pooled estimates" else fl$measure[i]
-        cat(sprintf("  %s: %s %s -> %s (%s)\n", fl$disease[i], m, fmt(fl$raw[i]), fmt(fl$adjusted[i]), fl$reason[i]))
+        cat(sprintf("  %s: %s %s -> %s (%s)\n", fl$disease[i], fl$measure[i], fmt(fl$raw[i]), fmt(fl$adjusted[i]),
+                    fl$reason[i]))
       }
     } else {
       cat("\nFlagged adjusted impacts (raw -> adjusted):\n")
@@ -388,7 +407,7 @@ print.cm_diagnosis <- function(x, digits = 3, ...) {
     e <- x$inputs
     if (!is.null(e) && any(e$listed)) {
       cat(sprintf("\nInputs with a distribution: change in each flagged %s when the input moves up by 1 SD;\nin brackets, the shift that alone removes the flag (within %g SD).\n",
-                  if (x$event) "hazard ratio" else "impact", max_sd))
+                  if (x$event) "result (on the measure above)" else "impact", max_sd))
       keys <- unique(e$key[e$listed])
       best <- vapply(keys, function(k) {
         n <- abs(e$sd_needed[e$key == k])

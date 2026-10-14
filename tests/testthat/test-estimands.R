@@ -89,13 +89,6 @@ test_that("the estimand of earlier versions is replaced by adjusted_for", {
   r2 <- deconflate(m2, n_draws = 0)
   expect_equal(r2$adjusted$adjusted, deconflate(t2_model(c(2.5, 5, 7.5), adjusted_for = c("d2", NA, NA)))$adjusted$adjusted)
   expect_match(r2$notes, "is ignored", all = FALSE)
-  m3 <- t2_model(truth, adjusted_for = c("d2", NA, NA))
-  # The published approximation (internal adjust_published()) is for crude
-  # estimates only, and is not a method of deconflate().
-  expect_error(adjust_published(m3), class = "deconflate_unsupported")
-  expect_error(adjust_published(m3), "one crude impact per disease")
-  expect_error(deconflate(t2_model(c(1, 2, 3)), method = "published"), class = "deconflate_unsupported")
-  expect_error(deconflate(t2_model(c(1, 2, 3)), method = "published"), "compare_methods")
 })
 
 test_that("a non-identifiable adjustment set is rejected", {
@@ -116,12 +109,6 @@ test_that("zero impacts give a zero aggregate with undefined shares", {
   expect_true(all(is.na(res$contributions$share)))
   expect_true(all(is.na(res$adjusted$change)))
   expect_equal(contribution_table(res)$contribution, c(0, 0, 0))
-  # The legacy gap (reproduce_rasmussen_2022() only) of a zero aggregate.
-  pg <- legacy_gap(res, 100, "decrease", "percent")
-  expect_equal(pg$summary$gap, 0)
-  expect_equal(pg$attribution$gap, c(0, 0, 0))
-  pub <- adjust_published(t2_model(c(0, 0, 0)))
-  expect_equal(pub$adjusted$adjusted, c(0, 0, 0))
 })
 
 test_that("cancelling signed impacts are handled without dividing by the total", {
@@ -133,22 +120,6 @@ test_that("cancelling signed impacts are handled without dividing by the total",
   ct <- contribution_table(res)
   expect_equal(ct$contribution, c(1.5, -1.5))
   expect_true(all(is.na(ct$share)))
-  # The legacy gap and value (reproduce_rasmussen_2022() only) attribute
-  # the gap without dividing by the zero total.
-  pg <- legacy_gap(res, 1000, "decrease", "absolute")
-  expect_equal(pg$summary$disease_free, 1000)
-  expect_equal(pg$attribution$gap, c(1.5, -1.5))
-  expect_equal(legacy_value(pg, 2)$by_disease$value, c(3, -3))
-  expect_equal(legacy_value(pg, 2)$value, 0)
-})
-
-test_that("a published denominator of zero gives a non-finite result", {
-  pop <- cm_population(cm_diseases(c("a", "b"), c(0.1, 0.15)), cm_associations("a", "b", 2))
-  E <- excess_matrix(pop)
-  m <- cm_model(pop, cm_impacts(c("a", "b"), c(1, -1 / E["b", "a"])))
-  res <- adjust_published(m)
-  x <- res$adjusted$adjusted[1]
-  expect_true(!is.finite(x) || abs(x) > 1e10)
 })
 
 test_that("jointly infeasible pairs are rejected although A is well conditioned", {
@@ -191,7 +162,6 @@ test_that("interactions: the model recovers the truth", {
   # entered as rows adjusted for all (the interaction itself).
   raw <- c(0.027146191901, 0.061369036759, 0.071166773469)
   m <- t2_model(raw, interactions = c("d1;d2" = 0.01, "d2;d3" = 0.015))
-  expect_error(adjust_published(m), class = "deconflate_unsupported")
   expect_false(shortcut_ok(m))
   res <- deconflate(m, n_draws = 0)
   expect_equal(res$method, "full model")

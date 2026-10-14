@@ -3,7 +3,7 @@
 `%||%` <- function(x, y) if (is.null(x)) y else x
 
 # Raise a classed error. All package errors inherit from "deconflate_error".
-# Classes used for failures that callers (draws, comparisons, screens)
+# Classes used for failures that callers (draws, screens, the diagnosis)
 # handle separately:
 #   deconflate_infeasible      inputs that admit no valid probabilities
 #   deconflate_singular        a singular or non-identifiable system
@@ -11,9 +11,7 @@
 #   deconflate_unsupported     an estimand/method combination that is not supported
 #   deconflate_nonfinite       non-finite results
 #   deconflate_invalid_input   an argument, table, row or input value that is not valid
-# Two more mark particular errors:
-#   deconflate_unknown_pairs   (with deconflate_unsupported) a calculation needs
-#                              a crude pair row for every pair
+# One more marks a particular error:
 #   deconflate_input_problems  cm_read_inputs() found errors in the tables
 # Warnings inherit from "deconflate_warning"; their classes are
 # deconflate_sign_change, deconflate_nonfinite_warning,
@@ -49,14 +47,6 @@ check_numeric <- function(x, name) {
   if (!is.numeric(x) || anyNA(x) || any(!is.finite(x))) {
     cm_abort(sprintf("`%s` must be numeric, finite and without missing values.",
                      name), class = "deconflate_invalid_input")
-  }
-  invisible(x)
-}
-
-check_scalar_choice <- function(x, choices, name) {
-  if (!is.character(x) || length(x) != 1L || !(x %in% choices)) {
-    cm_abort(sprintf("`%s` must be one of: %s.", name,
-                     paste(sprintf("'%s'", choices), collapse = ", ")), class = "deconflate_invalid_input")
   }
   invisible(x)
 }
@@ -98,10 +88,9 @@ check_ids <- function(id) {
   invisible(id)
 }
 
-# Is an adjustment result usable as an estimate? The published approximation
-# can return infinite or undefined values (a zero denominator); such a result
-# is kept for inspection but never counts as a successful estimate. Used by
-# Monte Carlo, method comparisons, sensitivity screens and threshold searches.
+# Is an adjustment result usable as an estimate? Non-finite values never
+# count as a successful estimate. Used by the draws, the sensitivity screens
+# and the threshold searches.
 result_is_finite <- function(r) {
   if (inherits(r, "cm_event_result")) {
     a <- r$adjusted$adjusted
@@ -146,29 +135,12 @@ split_ids <- function(x) {
   trimws(strsplit(x, ";", fixed = TRUE)[[1]])
 }
 
-# Resolve an adjustment set for disease `i`: "all" means every other disease.
-resolve_adjusted_for <- function(x, i, ids) {
-  s <- split_ids(x)
-  if (length(s) == 1L && tolower(s) == "all") return(setdiff(ids, i))
-  setdiff(s, i)
-}
-
 # All 2^n combinations of n binary disease indicators (rows = combinations).
 disease_cells <- function(n) {
   idx <- seq_len(2^n) - 1
   m <- vapply(seq_len(n), function(j) (idx %/% 2^(j - 1)) %% 2,
               numeric(length(idx)))
   matrix(m, ncol = n)
-}
-
-# Crude difference E[f | D_i = 1] - E[f | D_i = 0] for every disease i, given
-# the joint distribution over cells.
-crude_difference <- function(cells, prob, f) {
-  vapply(seq_len(ncol(cells)), function(i) {
-    w1 <- prob * cells[, i]
-    w0 <- prob * (1 - cells[, i])
-    sum(w1 * f) / sum(w1) - sum(w0 * f) / sum(w0)
-  }, numeric(1))
 }
 
 weighted_quantile <- function(x, w, probs) {
@@ -179,45 +151,53 @@ weighted_quantile <- function(x, w, probs) {
   vapply(probs, function(p) x[which(cw >= p - 1e-12)[1]], numeric(1))
 }
 
-# Method argument of the exported adjustment functions: the published
-# approximation is no longer one of their methods.
-public_method <- function(method, choices, fun) {
-  if (is.character(method) && "published" %in% method && !identical(method, choices)) {
-    cm_abort(sprintf("The published approximation is not a method of %s. It is kept for comparison and reproduction: use compare_methods() or the reproduce_*() functions.",
-                     fun), class = "deconflate_unsupported")
-  }
-  match.arg(method, choices)
-}
-
-# Check the overall risk of an event model: a proportion in (0, 1), or a
-# distribution (cm_dist) whose support lies in (0, 1). Returns the central
-# value (the distribution's mean) and the distribution (or NULL).
-check_overall_risk <- function(overall_risk, event_model) {
+# Check the risk that fixes the baseline of an event model: the overall risk
+# (in the whole population) or the baseline risk (in disease-free animals);
+# exactly one of them. Each is a proportion in (0, 1), or a distribution
+# (cm_dist) whose support lies in (0, 1). Returns the central value (the
+# distribution's mean), the distribution (or NULL) and `kind` ("overall" or
+# "baseline").
+check_overall_risk <- function(overall_risk, event_model, baseline_risk = NULL) {
   if (!isTRUE(event_model)) {
-    if (!is.null(overall_risk)) {
-      cm_abort("`overall_risk` is used only with event_model = TRUE.", class = "deconflate_unsupported")
+    if (!is.null(overall_risk) || !is.null(baseline_risk)) {
+      cm_abort(sprintf("`%s` is used only with event_model = TRUE.",
+                       if (!is.null(overall_risk)) "overall_risk" else "baseline_risk"),
+               class = "deconflate_unsupported")
     }
     return(list(value = NULL, dist = NULL))
   }
-  if (is.null(overall_risk)) {
-    cm_abort("event_model = TRUE needs `overall_risk`: the overall risk of the event in the population over the period of the estimates (a proportion, e.g. 0.25, or a distribution such as dist_beta(250, 750)).", class = "deconflate_invalid_input")
+  if (is.null(overall_risk) && is.null(baseline_risk)) {
+    cm_abort("event_model = TRUE needs `overall_risk` (the risk of the event in the whole population over the period of the estimates) or `baseline_risk` (the risk in disease-free animals): a proportion, e.g. 0.25, or a distribution such as dist_beta(250, 750).", class = "deconflate_invalid_input")
   }
-  if (inherits(overall_risk, "cm_dist")) {
-    sp <- dist_support(overall_risk)
+  if (!is.null(overall_risk) && !is.null(baseline_risk)) {
+    cm_abort("Give either `overall_risk` or `baseline_risk`, not both: the model sets one from the other.",
+             class = "deconflate_invalid_input")
+  }
+  kind <- if (is.null(baseline_risk)) "overall" else "baseline"
+  x <- if (kind == "overall") overall_risk else baseline_risk
+  arg <- paste0(kind, "_risk")
+  if (inherits(x, "cm_dist")) {
+    sp <- dist_support(x)
     if (min(sp[, 1]) < 0 || max(sp[, 2]) > 1) {
-      cm_abort(sprintf("The distribution of `overall_risk` must lie between 0 and 1 (its support is %s).",
-                       format_support(overall_risk)), class = "deconflate_invalid_input")
+      cm_abort(sprintf("The distribution of `%s` must lie between 0 and 1 (its support is %s).",
+                       arg, format_support(x)), class = "deconflate_invalid_input")
     }
-    v <- overall_risk$mean
-    if (!is.finite(v) || v <= 0 || v >= 1) cm_abort("The mean of the `overall_risk` distribution must lie strictly between 0 and 1.", class = "deconflate_invalid_input")
-    return(list(value = v, dist = overall_risk))
+    v <- x$mean
+    if (!is.finite(v) || v <= 0 || v >= 1) {
+      cm_abort(sprintf("The mean of the `%s` distribution must lie strictly between 0 and 1.", arg),
+               class = "deconflate_invalid_input")
+    }
+    return(list(value = v, dist = x, kind = kind))
   }
-  if (!is.numeric(overall_risk) || length(overall_risk) != 1L || !is.finite(overall_risk) ||
-      overall_risk <= 0 || overall_risk >= 1) {
-    cm_abort("`overall_risk` must be a single proportion strictly between 0 and 1, or a distribution.", class = "deconflate_invalid_input")
+  if (!is.numeric(x) || length(x) != 1L || !is.finite(x) || x <= 0 || x >= 1) {
+    cm_abort(sprintf("`%s` must be a single proportion strictly between 0 and 1, or a distribution.", arg),
+             class = "deconflate_invalid_input")
   }
-  list(value = overall_risk, dist = NULL)
+  list(value = x, dist = NULL, kind = kind)
 }
+
+# Label of the risk input of an event model.
+risk_label <- function(kind) if (identical(kind, "baseline")) "baseline risk" else "overall risk"
 
 # Show a message of class "deconflate_message" (and `class`), so that callers
 # can muffle it by class; `...`: named fields of the condition. Built by hand,

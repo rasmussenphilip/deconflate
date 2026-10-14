@@ -5,8 +5,9 @@
 #   * odds ratios from Table 3 (PERT central value = mode; normals truncated
 #     at 0 here, as in deconflate; the original code left them untruncated);
 #   * unrounded impact distributions from the analysis input tables;
-#   * culling entered as (HR - 1), de-conflated, then 1 added back.
-# Mirrors example_global_dairy() and sampler_global_dairy() (inputs = "analysis").
+#   * culling entered as (HR - 1), de-conflated, then 1 added back (the
+#     published approximation, no longer in the package; kept as a record).
+# Mirrors example_global_dairy(inputs = "analysis").
 # Run from this directory: python3 reference_2024_analysis.py [n_draws]
 import sys
 import numpy as np

@@ -1,12 +1,10 @@
 # Event impacts (R/hazard.R): cm_impacts(measure = ...) and
 # deconflate(event_model = TRUE, overall_risk = ...) with the snapshot hazard
-# model; its first-order and published (Rasmussen et al. 2024)
-# approximations (internal adjust_event(), compare_methods()); the
-# attributable risk and its Shapley allocation; and the internal legacy
-# conversions (R/legacy.R). Reference values: inst/validation/reference_v02.py
-# (its "simultaneous" is first_order and its "global" is snapshot),
-# reference_v020_tests.py, reference_v040.py (sections 2, 4, 5, 8, 9) and
-# reference_v041.py (the five-disease culling table).
+# model (internal adjust_event()); and the attributable risk and its Shapley
+# allocation. Reference values: inst/validation/reference_v02.py (its
+# "global" is snapshot), reference_v020_tests.py, reference_v040.py
+# (sections 2, 4, 5, 8, 9) and reference_v041.py (the five-disease culling
+# table).
 
 t2_ids <- c("d1", "d2", "d3")
 
@@ -21,15 +19,9 @@ t2_event <- function(values = c(1.5, 2.0, 1.3), measure = "HR", adjusted_for = N
 
 # The snapshot model on the model's own joint distribution (internal).
 t2_snap <- function(m, risk = 0.25, ...) adjust_event(m, overall_risk = risk, joint = fit_joint(m), ...)
-# The pairwise approximations (internal; compare_methods()).
-t2_approx <- function(m, method, risk = 0.25, ...) adjust_event_pairwise(m, method, risk, ...)
 one_term <- function(ids) stats::setNames(as.list(ids), ids)
 
-t2_hr_ref <- list(
-  published = c(1.4130001998, 1.9090403704, 1.1927014244),
-  first_order = c(1.4029251095, 1.8874397472, 1.1691237145),
-  snapshot = c(1.3831529713, 1.8909315489, 1.1439870467)
-)
+t2_hr_ref <- list(snapshot = c(1.3831529713, 1.8909315489, 1.1439870467))
 t2_ar_ref <- 0.03664898509534775   # attributable risk of the snapshot solution at 0.25
 
 # The snapshot measure of disease i over a joint distribution, on the
@@ -99,8 +91,8 @@ test_that("event models are validated by cm_model()", {
   r <- deconflate(m, event_model = TRUE, overall_risk = 0.25, n_draws = 0)
   expect_equal(r$adjusted$disease, t2_ids)
   expect_equal(r$adjusted$measure, c("OR", "HR", "RD"))
-  # Interactions: combination rows (set_interaction() is for additive impacts).
-  expect_error(set_interaction(t2_event(), "d1", "d2", 0.5), class = "deconflate_unsupported")
+  # Interactions: combination rows; set_interaction() adds an HR row adjusted for all.
+  expect_equal(utils::tail(set_interaction(t2_event(), "d1", "d2", 0.5)$impacts$measure, 1), "HR")
   expect_output(print(t2_event()), "event impacts: use event_model = TRUE")
   expect_output(print(t2_event()), "Measures: HR: 3")
 })
@@ -124,7 +116,6 @@ test_that("additive and event impacts must match event_model, which needs overal
   # The internal engines check the kind of impacts too.
   expect_error(adjust_event(example_supplement(), overall_risk = 0.25, joint = fit_joint(example_supplement())),
                class = "deconflate_unsupported")
-  expect_error(compare_methods(m), class = "deconflate_unsupported")
   expect_error(screen_associations(m), class = "deconflate_unsupported")
   expect_error(screen_associations(example_supplement(), event_model = TRUE, overall_risk = 0.25),
                class = "deconflate_unsupported")
@@ -155,47 +146,18 @@ test_that("the snapshot model matches the reference (supplement hazard ratios)",
   # There is no method argument.
   expect_error(deconflate(t2_event(), method = "global", event_model = TRUE, overall_risk = 0.25),
                "has been removed")
-  # The published approximation is not a method of deconflate().
-  expect_error(deconflate(t2_event(), method = "published", event_model = TRUE, overall_risk = 0.25),
-               class = "deconflate_unsupported")
-  expect_error(deconflate(t2_event(), method = "published", event_model = TRUE, overall_risk = 0.25),
-               "compare_methods")
 })
 
-test_that("first-order and published approximations match the reference", {
-  m <- t2_event()
-  rs <- list(published = t2_approx(m, "published"), first_order = t2_approx(m, "first_order"),
-             snapshot = t2_snap(m))
-  for (meth in names(rs)) {
-    r <- rs[[meth]]
-    expect_s3_class(r, "cm_event_result")
-    expect_equal(r$adjusted$adjusted, t2_hr_ref[[meth]], tolerance = 1e-7)
-    expect_equal(r$diagnostics$n_sign_changes, 0)
-    # Every method has a joint distribution (for the attributable risk).
-    expect_s3_class(r$joint, "cm_joint")
-    expect_equal(sum(r$attributable$by_disease$attributable), r$attributable$summary$attributable,
-                 tolerance = 1e-10)
-  }
-  expect_equal(rs$published$method, "published")
-  expect_equal(rs$first_order$method, "first_order")
-  expect_equal(rs$snapshot$method, "snapshot")
-  # The first-order solution solves log(HR_raw) = A beta exactly.
-  expect_lt(rs$first_order$diagnostics$max_reconstruction_residual, 1e-12)
-
-  cmp <- compare_methods(m, event_model = TRUE, overall_risk = 0.25)
-  expect_s3_class(cmp, "cm_comparison")
-  expect_equal(cmp$methods, c("published", "first_order", "deconflate"))
-  expect_equal(names(cmp$impacts), c("disease", "measure", "raw", "published", "first_order", "deconflate"))
-  expect_equal(cmp$impacts$published, t2_hr_ref$published, tolerance = 1e-7)
-  expect_equal(cmp$impacts$first_order, t2_hr_ref$first_order, tolerance = 1e-7)
-  expect_equal(cmp$impacts$deconflate, t2_hr_ref$snapshot, tolerance = 1e-7)
-  expect_equal(names(cmp$totals), c("method", "overall_risk", "disease_free_risk", "attributable"))
-  expect_equal(cmp$totals$attributable[cmp$totals$method == "deconflate"], t2_ar_ref, tolerance = 1e-7)
-  expect_equal(cmp$totals$overall_risk, rep(0.25, 3))
-  expect_false(any(cmp$long$sign_change))
-  expect_length(cmp$failed, 0)
-  expect_output(print(cmp), "Adjusted hazard ratios")
-  expect_error(compare_methods(m, event_model = TRUE), "overall_risk")
+test_that("the internal snapshot engine matches the reference", {
+  r <- t2_snap(t2_event())
+  expect_s3_class(r, "cm_event_result")
+  expect_equal(r$method, "snapshot")
+  expect_equal(r$adjusted$adjusted, t2_hr_ref$snapshot, tolerance = 1e-7)
+  expect_equal(r$diagnostics$n_sign_changes, 0)
+  expect_s3_class(r$joint, "cm_joint")
+  expect_equal(r$attributable$summary$attributable, t2_ar_ref, tolerance = 1e-7)
+  expect_equal(sum(r$attributable$by_disease$attributable), r$attributable$summary$attributable,
+               tolerance = 1e-10)
 })
 
 test_that("the snapshot model reproduces the raw hazard ratios over the fitted joint", {
@@ -210,10 +172,6 @@ test_that("the snapshot model reproduces the raw hazard ratios over the fitted j
                res$adjusted$adjusted, tolerance = 1e-12)
   j3 <- fit_joint(t2_pop(cm_associations("d1", "d2", 2, measure = "OR_ratio", among = "d3")))
   expect_error(deconflate(t2_event(), event_model = TRUE, overall_risk = 0.25, joint = j3), "association rows")
-  # A joint supplied to the pairwise approximations is kept.
-  fo <- t2_approx(t2_event(), "first_order", joint = j)
-  expect_identical(fo$joint, j)
-  expect_equal(fo$adjusted$adjusted, t2_hr_ref$first_order, tolerance = 1e-8)
 })
 
 test_that("hazard-ratio results do not depend on the overall risk; the attributable risk does", {
@@ -238,8 +196,9 @@ test_that("risk ratios, odds ratios and risk differences reproduce the hazard-ra
   re <- deconflate(exact, event_model = TRUE, overall_risk = 0.25, n_draws = 0)
   expect_equal(re$adjusted$adjusted, t2_hr_ref$snapshot, tolerance = 1e-8)
   expect_equal(re$attributable$summary$attributable, t2_ar_ref, tolerance = 1e-8)
-  # The change column is defined for hazard and rate ratios only.
-  expect_true(all(is.na(re$adjusted$change)))
+  # The change is on each row's measure: OR, RR and RD alone vs disease-free.
+  expect_equal(re$adjusted$change, c(re$adjusted$or_alone[1], re$adjusted$rr_alone[2], re$adjusted$rd_alone[3]) /
+                 re$adjusted$raw - 1)
   expect_equal(re$adjusted$measure, c("OR", "RR", "RD"))
   # Rounded inputs (reference_v040.py, section 5).
   mixed <- t2_event(c(1.592, 1.771, 0.0572), measure = c("OR", "RR", "RD"))
@@ -256,14 +215,6 @@ test_that("risk ratios, odds ratios and risk differences reproduce the hazard-ra
   r15 <- deconflate(mixed, event_model = TRUE, overall_risk = 0.15, n_draws = 0)
   expect_gt(max(abs(r15$adjusted$adjusted - rm$adjusted$adjusted)), 1e-3)
   expect_error(deconflate(mixed, event_model = TRUE), "overall_risk")
-  # Only the snapshot model handles risk-based rows.
-  for (meth in c("first_order", "published")) {
-    expect_error(t2_approx(mixed, meth), class = "deconflate_unsupported")
-  }
-  cmp <- compare_methods(mixed, event_model = TRUE, overall_risk = 0.25)
-  expect_equal(cmp$methods, "deconflate")
-  expect_setequal(names(cmp$failed), c("published", "first_order"))
-  expect_match(cmp$failed[["first_order"]], "hazard or rate ratios")
 })
 
 test_that("mixed measures, crude, stratified and a combination match the five-disease reference", {
@@ -275,7 +226,7 @@ test_that("mixed measures, crude, stratified and a combination match the five-di
   # Python reference (reference_v041.py).
   expect_equal(res$adjusted$adjusted, c(1.060298968, 1.2342866774, 1.080381173, 1.1753668593, 1.509273874,
                                         2.2779452712), tolerance = 1e-7)
-  expect_equal(is.na(res$adjusted$change), c(FALSE, FALSE, TRUE, TRUE, TRUE, TRUE))
+  expect_equal(is.na(res$adjusted$change), c(FALSE, FALSE, FALSE, FALSE, FALSE, TRUE))
   expect_equal(res$estimates$adjusted_for[1:6], c(NA, "LAM;SCK", NA, NA, "all", NA))
   a <- res$attributable
   expect_equal(a$summary$attributable, 0.0541469811, tolerance = 1e-8)
@@ -303,12 +254,10 @@ test_that("mixed measures, crude, stratified and a combination match the five-di
   expect_equal(hr, 3.2, tolerance = 1e-9)
 })
 
-test_that("OR_ratio rows change the snapshot model only", {
+test_that("OR_ratio rows change the snapshot model", {
   # With three diseases, an OR_ratio row is the log-linear three-way term of
   # earlier versions.
   m3 <- t2_event(pop = t2_pop(cm_associations("d1", "d2", 2, measure = "OR_ratio", among = "d3")))
-  expect_equal(t2_approx(m3, "first_order")$adjusted$adjusted, t2_hr_ref$first_order, tolerance = 1e-8)
-  expect_equal(t2_approx(m3, "published")$adjusted$adjusted, t2_hr_ref$published, tolerance = 1e-8)
   snap <- deconflate(m3, event_model = TRUE, overall_risk = 0.25, n_draws = 0)
   expect_gt(max(abs(snap$adjusted$adjusted - t2_hr_ref$snapshot)), 1e-3)
   # Independent Python solutions (reference_v020_tests.py; reference_v040.py, section 8).
@@ -332,24 +281,13 @@ test_that("stratified hazard ratios are matched within strata of their adjustmen
   # Independent Python solution of the same equations (reference_v020_tests.py).
   expect_equal(res$adjusted$adjusted, c(1.504714547766569, 1.8751068533634567, 1.1457314393824285),
                tolerance = 1e-7)
-  # The published approach is defined for crude hazard ratios only.
-  expect_error(t2_approx(m, "published"), class = "deconflate_unsupported")
-  expect_error(t2_approx(m, "published"), "crude hazard ratios only")
-  # The first-order approximation accepts stratified estimates.
-  fo <- t2_approx(m, "first_order")
-  expect_true(all(is.finite(fo$adjusted$adjusted)))
-  cmp <- compare_methods(m, event_model = TRUE, overall_risk = 0.25)
-  expect_equal(cmp$methods, c("first_order", "deconflate"))
-  expect_match(cmp$failed[["published"]], "crude hazard ratios only")
 })
 
 test_that("hazard ratios adjusted for all other diseases are used as they are", {
   m <- t2_event(adjusted_for = "all")
-  for (r in list(t2_snap(m), t2_approx(m, "first_order"))) {
-    expect_equal(r$adjusted$adjusted, c(1.5, 2.0, 1.3), tolerance = 1e-10)
-    expect_equal(r$adjusted$change, c(0, 0, 0), tolerance = 1e-10)
-  }
-  expect_error(t2_approx(m, "published"), class = "deconflate_unsupported")
+  r <- deconflate(m, event_model = TRUE, overall_risk = 0.25, n_draws = 0)
+  expect_equal(r$adjusted$adjusted, c(1.5, 2.0, 1.3), tolerance = 1e-10)
+  expect_equal(r$adjusted$change, c(0, 0, 0), tolerance = 1e-10)
   # Mixed: d1 adjusted for all, the others crude. d1 keeps its value.
   mix <- deconflate(t2_event(adjusted_for = c("all", NA, NA)),
                     event_model = TRUE, overall_risk = 0.25, n_draws = 0)
@@ -361,11 +299,10 @@ test_that("hazard ratios adjusted for all other diseases are used as they are", 
 
 test_that("hazard ratios of 1 stay 1 and give no attributable risk", {
   m <- t2_event(c(1, 1, 1))
-  for (r in list(t2_snap(m), t2_approx(m, "first_order"), t2_approx(m, "published"))) {
-    expect_equal(r$adjusted$adjusted, c(1, 1, 1), tolerance = 1e-12)
-    expect_equal(r$diagnostics$n_sign_changes, 0)
-  }
-  ar <- deconflate(m, event_model = TRUE, overall_risk = 0.25, n_draws = 0)$attributable
+  r <- deconflate(m, event_model = TRUE, overall_risk = 0.25, n_draws = 0)
+  expect_equal(r$adjusted$adjusted, c(1, 1, 1), tolerance = 1e-12)
+  expect_equal(r$diagnostics$n_sign_changes, 0)
+  ar <- r$attributable
   expect_equal(ar$summary$disease_free_risk, 0.25, tolerance = 1e-10)
   expect_equal(ar$summary$attributable, 0, tolerance = 1e-10)
   expect_equal(ar$by_disease$attributable, c(0, 0, 0), tolerance = 1e-12)
@@ -376,33 +313,29 @@ test_that("the attributable risk and its Shapley allocation match the reference"
   res <- deconflate(t2_event(), event_model = TRUE, overall_risk = 0.25, n_draws = 0)
   ar <- res$attributable
   expect_equal(names(ar$summary), c("overall_risk", "disease_free_risk", "attributable",
-                                    "attributable_fraction", "unallocated"))
+                                    "attributable_fraction", "unallocated", "raw_attributable"))
   expect_equal(ar$summary$overall_risk, 0.25)
   expect_equal(ar$summary$disease_free_risk, 0.21335101490465225, tolerance = 1e-8)
   expect_equal(ar$summary$attributable, t2_ar_ref, tolerance = 1e-7)
   expect_equal(ar$summary$attributable_fraction, t2_ar_ref / 0.25, tolerance = 1e-7)
-  expect_equal(names(ar$by_disease), c("disease", "attributable", "share"))
+  expect_equal(names(ar$by_disease), c("disease", "main", "interaction", "attributable", "share"))
   expect_equal(ar$by_disease$disease, t2_ids)
   expect_equal(ar$by_disease$attributable, c(0.0073707436, 0.0234877275, 0.0057905139), tolerance = 1e-7)
   expect_equal(sum(ar$by_disease$attributable), ar$summary$attributable, tolerance = 1e-10)
   expect_equal(sum(ar$by_disease$share), 1, tolerance = 1e-12)
   expect_equal(ar$summary$unallocated, 0, tolerance = 1e-10)
   expect_equal(ar$baseline_hazard, -log(1 - ar$summary$disease_free_risk), tolerance = 1e-12)
-  # attribute_burden() and contribution_table() show the allocation.
-  expect_equal(attribute_burden(res), ar$by_disease)
+  # contribution_table() shows the allocation.
   ct <- contribution_table(res)
   expect_equal(ct$adjusted_hr, res$adjusted$adjusted)
   expect_equal(ct$attributable, ar$by_disease$attributable)
   expect_equal(ct$measure, rep("HR", 3))
 
-  # Without allocation (internal), and the first-order approximation.
+  # Without allocation (internal).
   ea <- event_attributable(log(res$adjusted$adjusted), res$joint, 0.25, one_term(t2_ids), allocate = FALSE)
   expect_null(ea$by_disease)
   expect_true(is.na(ea$summary$unallocated))
   expect_equal(ea$summary$attributable, ar$summary$attributable, tolerance = 1e-12)
-  fo <- t2_approx(t2_event(), "first_order")
-  expect_equal(sum(fo$attributable$by_disease$attributable), fo$attributable$summary$attributable,
-               tolerance = 1e-10)
   # An overall risk given as a distribution is used at its mean.
   rd <- deconflate(t2_event(), event_model = TRUE, overall_risk = dist_beta(250, 750), n_draws = 0)
   expect_equal(rd$overall_risk, 0.25)
@@ -442,37 +375,17 @@ test_that("adjusted hazard ratios on the other side of 1 are warned about", {
                  class = "deconflate_sign_change")
   expect_equal(r2$adjusted$adjusted, c(0.8857581689, 3.0118114622, 1.0224662318), tolerance = 1e-8)
   expect_equal(r2$diagnostics$sign_changes, "d1")
-  # compare_methods() flags sign changes without warning.
-  # (The published approximation keeps the raw side of 1.)
-  expect_silent(cmp <- compare_methods(m, event_model = TRUE, overall_risk = 0.25))
-  sc <- stats::setNames(cmp$long$sign_change[cmp$long$disease == "d1"],
-                        cmp$long$method[cmp$long$disease == "d1"])
-  expect_true(sc[["deconflate"]])
-  expect_false(sc[["published"]])
 })
 
-test_that("non-positive published hazard ratios are flagged and have no attributable risk", {
-  # HR 0.5 for d1 with a strong d2: the published denominator of d1 is
-  # negative (reference_v02.py hr_methods).
+test_that("a hazard ratio below 1 next to a strong associated disease stays positive", {
+  # HR 0.5 for d1 with a strong d2 (reference_v02.py hr_methods).
   m <- t2_event(c(0.5, 4, 1))
-  pub <- t2_approx(m, "published")
-  expect_equal(pub$adjusted$adjusted, c(-0.3585461449, 4.0376405055, 1), tolerance = 1e-8)
-  expect_equal(pub$diagnostics$n_sign_changes, 0)
-  expect_null(pub$attributable)
-  expect_false(result_is_finite(pub))
-  cmp <- compare_methods(m, event_model = TRUE, overall_risk = 0.25, methods = c("published", "deconflate"))
-  expect_equal(cmp$methods, "deconflate")
-  expect_match(cmp$failed[["published"]], "^undefined")
-  expect_s3_class(cmp$undefined$published, "cm_event_result")
-  # The other methods keep the hazard ratios positive.
-  expect_equal(t2_approx(m, "first_order")$adjusted$adjusted,
-               c(0.4268305992, 4.4915295004, 0.7780752535), tolerance = 1e-8)
   snap <- deconflate(m, event_model = TRUE, overall_risk = 0.25, n_draws = 0)
   expect_equal(snap$adjusted$adjusted, c(0.4021045208, 4.487174924, 0.7095065051), tolerance = 1e-7)
   expect_equal(snap$attributable$summary$attributable, 0.03568836025623201, tolerance = 1e-6)
 })
 
-test_that("unknown pairs are filled in by the snapshot model; the approximations need every pair", {
+test_that("unknown pairs are filled in by the snapshot model", {
   m <- t2_event(pop = supp_unknown_population())
   res <- deconflate(m, event_model = TRUE, overall_risk = 0.25, n_draws = 0)
   expect_equal(res$method, "snapshot")
@@ -482,12 +395,6 @@ test_that("unknown pairs are filled in by the snapshot model; the approximations
   # Unknown is not independent: the fit gives d1:d3 an association through d2.
   expect_gt(abs(res$unknown_pairs$fitted_or - 1), 1e-3)
   expect_gt(max(abs(res$adjusted$adjusted - t2_hr_ref$snapshot)), 1e-4)
-  for (meth in c("first_order", "published")) {
-    expect_error(t2_approx(m, meth), class = "deconflate_unknown_pairs")
-  }
-  cmp <- compare_methods(m, event_model = TRUE, overall_risk = 0.25)
-  expect_equal(cmp$methods, "deconflate")
-  expect_match(cmp$failed[["first_order"]], "every pair")
 })
 
 test_that("draws of the overall risk give intervals for the attributable risk only", {
@@ -529,29 +436,19 @@ test_that("global dairy culling: unknown pairs, overall risk 0.2366", {
   expect_length(res$notes, 0)
 })
 
-test_that("global dairy culling with unlisted pairs independent: the three methods (as in 0.3)", {
+test_that("global dairy culling with unlisted pairs independent (as in 0.3)", {
   skip_on_cran()
   m0 <- example_global_dairy("culling")
-  m <- cm_model(with_independent_pairs(as_population(m0)), m0$impacts)
+  # Every unlisted pair gets an OR = 1 row.
+  pop <- as_population(m0)
+  pt <- pair_tables(pop)
+  u <- pt[pt$status == "unknown", , drop = FALSE]
+  add <- cm_associations(u$disease1, u$disease2, 1, measure = "OR")
+  add$row <- max(pop$associations$row) + seq_len(nrow(add))
+  pop$associations <- rbind(pop$associations, add)
+  m <- cm_model(pop, m0$impacts)
   expect_equal(nrow(pair_tables(m)), 66)
   expect_true(all(pair_tables(m)$status == "specified"))
-  pub <- t2_approx(m, "published", 0.2366)
-  expect_equal(pub$adjusted$adjusted,
-               c(1.1775803801, 1.9039406263, 2.1979299277, 1.0983766711, 1.3806827011, 1.0124105823,
-                 2.6476374499, 1.4586441181, 2.0472349212, 1.2844963465, 1.6752532746, 1.2549275636),
-               tolerance = 1e-8)
-  # Identical to adjusting HR - 1 additively with the published method, as
-  # in Rasmussen et al. (2024).
-  legacy <- adjust_published(global_dairy_analyses("analysis", culling = TRUE)$culling_hr_minus_1)
-  expect_equal(pub$adjusted$adjusted, 1 + legacy$adjusted$adjusted, tolerance = 1e-12)
-
-  fo <- t2_approx(m, "first_order", 0.2366)
-  expect_equal(fo$adjusted$adjusted,
-               c(0.9619070191, 1.8350863583, 1.825054203, 1.1165198124, 1.2864922835, 0.7369878787,
-                 2.6233669144, 1.5487477113, 2.0203081931, 1.2305973733, 1.7412069142, 1.2520841682),
-               tolerance = 1e-8)
-  expect_equal(fo$diagnostics$sign_changes, "CK, MET")
-
   snap <- t2_snap(m, 0.2366, warn = FALSE, allocate = FALSE)
   expect_equal(snap$adjusted$adjusted,
                c(0.9821306495, 1.8193535917, 1.8476664195, 1.050543232, 1.2230209916, 0.7198426768,
@@ -564,28 +461,4 @@ test_that("global dairy culling with unlisted pairs independent: the three metho
   expect_equal(snap$attributable$summary$disease_free_risk, 0.12002780924706569, tolerance = 1e-6)
   expect_equal(snap$attributable$summary$attributable, 0.11657219075293432, tolerance = 1e-6)
   expect_null(snap$attributable$by_disease)
-})
-
-test_that("legacy conversions reproduce the published culling inputs", {
-  # Rasmussen et al. (2022), Table 6: hazard ratio treated as an odds ratio
-  # with an overall culling rate of 0.27 (DA: 3.83, P = 0.03; LAM: 3.40,
-  # P = 0.30).
-  ex <- legacy_hr_as_or_excess(c(3.83, 3.40, 1), c(0.03, 0.30, 0.10), 0.27)
-  expect_equal(ex, c(0.3138414572431465, 0.2556484948872295, 0), tolerance = 1e-10)
-  uk <- uk_dairy_2022_analyses(3.05, culling = TRUE)
-  cu <- uk$culling$impacts
-  expect_equal(cu$value[cu$disease %in% c("DA", "LAM")], ex[1:2], tolerance = 1e-12)
-  expect_equal(cu$value[cu$disease == "CO"], 0)
-  expect_equal(impact_kind(cu), "additive")
-  h <- attr(uk, "hazard_ratios")
-  expect_equal(h[["DA"]], 3.83)
-  expect_equal(h[["CO"]], 1)
-  # The same hazard ratios are the event impacts of the culling example.
-  ukc <- example_uk_dairy_2022("culling")
-  expect_equal(ukc$impacts$value, unname(h[ukc$impacts$disease]))
-  expect_equal(unique(ukc$impacts$measure), "HR")
-  # Eq. 23 rescaling, and the 2024 overall-odds excess.
-  expect_equal(legacy_eq23(c(3.83, 1), c(0.31, 0), c(0.2, 0)), c(0.2 * 3.83 / 0.31, 1))
-  expect_equal(legacy_overall_odds_excess(c(2.75, 1), 0.27), c(0.23424448217317484, 0),
-               tolerance = 1e-12)
 })

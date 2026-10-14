@@ -4,15 +4,27 @@
 \alias{screen_interactions}
 \title{Screen disease pairs for influential impact interactions}
 \usage{
-screen_interactions(model, values, pairs = NULL, ...)
+screen_interactions(
+  model,
+  values,
+  pairs = NULL,
+  event_model = FALSE,
+  overall_risk = NULL,
+  baseline_risk = NULL,
+  ...
+)
 }
 \arguments{
 \item{model}{A \code{\link[=cm_model]{cm_model()}}.}
 
-\item{values}{Interaction sizes (same units as the impacts; positive
-synergistic, negative antagonistic).}
+\item{values}{Interaction sizes: for additive impacts in the units of the
+impacts (positive synergistic, negative antagonistic); for event impacts
+hazard ratio multipliers of the combination (above 1 synergistic, below
+1 antagonistic).}
 
 \item{pairs}{Optional character vector of pairs (\code{"d1:d2"}).}
+
+\item{event_model, overall_risk, baseline_risk}{As in \code{\link[=deconflate]{deconflate()}}.}
 
 \item{...}{Passed to \code{\link[=fit_joint]{fit_joint()}} (e.g. \code{backend = "sampled"} for many
 diseases).}
@@ -23,6 +35,6 @@ A \code{cm_screen} data frame as in \code{\link[=screen_associations]{screen_ass
 \description{
 Sets the interaction of each disease pair to each size in \code{values}, one
 at a time (see \code{\link[=set_interaction]{set_interaction()}}), re-runs the adjustment and reports
-the change in the aggregate and rankings. The joint distribution is
-fitted once and reused. For additive impacts.
+the change in the aggregate (for event impacts, the attributable risk)
+and rankings. The joint distribution is fitted once and reused.
 }

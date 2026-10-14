@@ -8,9 +8,18 @@
 #'
 #' * Additive impacts: the contribution to the aggregate (its Shapley share,
 #'   including any interaction share), in the units of the impacts.
-#' * Event impacts: the adjusted hazard ratio and the disease's share of the
-#'   risk attributable to disease (Shapley allocation), as a proportion of
+#' * Event impacts: the adjusted hazard ratio, the risk of an animal with
+#'   only this disease and its risk ratio and risk difference against a
+#'   disease-free animal, the relative change from the raw estimate (on the
+#'   raw estimate's measure), and the disease's share of the risk
+#'   attributable to disease (Shapley allocation), as a proportion of
 #'   animals.
+#'
+#' In both cases the contribution is split into the disease's own part
+#' (`main`: its Shapley value with the interactions set to zero) and its
+#' share of the interactions (`interaction`: the rest; for event impacts it
+#' also holds the small changes the interaction terms make, through
+#' non-additive risks, to diseases outside them).
 #'
 #' @param result A [deconflate()] result.
 #' @return A data frame.
@@ -24,13 +33,20 @@ contribution_table <- function(result) {
     ids <- if (!is.null(by)) by$disease else a$disease[a$kind == "disease"]
     k <- match(ids, a$disease)
     out <- data.frame(disease = ids, measure = a$measure[k], raw = a$raw[k],
-                      adjusted_hr = a$adjusted[k], stringsAsFactors = FALSE)
+                      adjusted_hr = a$adjusted[k], change = a$change[k], stringsAsFactors = FALSE)
     if (!is.null(a$lower)) {
       out$adjusted_lower <- a$lower[k]
       out$adjusted_upper <- a$upper[k]
     }
+    if (!is.null(a$risk_alone)) {
+      out$risk_alone <- a$risk_alone[k]
+      out$rr_alone <- a$rr_alone[k]
+      out$rd_alone <- a$rd_alone[k]
+    }
     if (!is.null(by)) {
       out$attributable <- by$attributable
+      out$main <- by$main
+      out$interaction <- by$interaction
       out$share <- by$share
       if (!is.null(by$lower)) {
         out$attributable_lower <- by$lower
@@ -60,15 +76,16 @@ contribution_table <- function(result) {
 #' @param object A [deconflate()] result.
 #' @param ... Unused.
 #' @return A `summary.cm_result` list with `method`, `label`, `units`,
-#'   `totals` (additive impacts: naive and adjusted aggregate and the
-#'   reduction; event impacts: overall, disease-free and attributable risk),
+#'   `totals` (additive impacts: raw aggregate (the diseases unrelated),
+#'   adjusted aggregate and the reduction; event impacts: overall,
+#'   disease-free, raw and adjusted attributable risk and the reduction),
 #'   `diagnostics`, `contributions` (see [contribution_table()]) and `notes`.
 #' @export
 summary.cm_result <- function(object, ...) {
   tt <- object$totals
-  totals <- data.frame(raw_sum = tt$raw_sum, adjusted_total = tt$adjusted_total,
+  totals <- data.frame(raw_total = tt$raw_total, adjusted_total = tt$adjusted_total,
                        interaction_total = tt$interaction_total,
-                       reduction = if (abs(tt$raw_sum) > 0) 1 - tt$adjusted_total / tt$raw_sum else NA_real_)
+                       reduction = if (isTRUE(abs(tt$raw_total) > 0)) 1 - tt$adjusted_total / tt$raw_total else NA_real_)
   if (!is.null(tt$adjusted_total_lower)) {
     totals$adjusted_total_lower <- tt$adjusted_total_lower
     totals$adjusted_total_upper <- tt$adjusted_total_upper
@@ -84,10 +101,14 @@ summary.cm_result <- function(object, ...) {
 #' @export
 summary.cm_event_result <- function(object, ...) {
   s <- object$attributable$summary
+  if (!is.null(s$raw_attributable)) {
+    s$reduction <- if (isTRUE(abs(s$raw_attributable) > 0)) 1 - s$attributable / s$raw_attributable else NA_real_
+  }
   structure(list(method = object$method, label = object$label, units = "hazard ratio; risks as proportions",
                  totals = s, diagnostics = object$diagnostics,
                  contributions = contribution_table(object),
-                 notes = object$notes),
+                 notes = c(if (identical(object$risk_given, "baseline"))
+                   "The disease-free risk was given; the model computed the overall risk.", object$notes)),
             class = "summary.cm_result")
 }
 

@@ -51,14 +51,6 @@ bad_population <- function() {
                 cm_associations(c("a", "a", "b"), c("b", "c", "c"), c(20, 20, 0.05)))
 }
 
-# A model where the published approximation (internal adjust_published(),
-# used by compare_methods() and the reproduce_*() functions) divides by zero
-# for d1: b1 = m1^2 / (m1 + A12 m2 + A13 m3) with m = (-A12, 1, 0).
-pole_model <- function() {
-  e <- deconflate(supp_model(c(1, 1, 1)), n_draws = 0)$conflation$A[1, "d2"]
-  supp_model(c(-e, 1, 0))
-}
-
 # Path of a shipped example file (inst/extdata/<folder>/<file>).
 extdata <- function(folder, file = NULL) {
   dir <- system.file("extdata", folder, package = "deconflate")
@@ -80,4 +72,17 @@ read_five_pairs <- function(impacts = "impacts_yield.csv") {
   a <- utils::read.csv(f("associations.csv"), stringsAsFactors = FALSE)
   a <- a[-c(2, 12), ]
   suppressMessages(cm_read_inputs(diseases = f("diseases.csv"), associations = a, impacts = f(impacts)))
+}
+
+# Give every pair of a population without an association an odds ratio of 1
+# (as the published analyses did with pairs they had no estimate for).
+with_independent_pairs <- function(pop) {
+  pt <- pair_tables(pop)
+  u <- pt[pt$status == "unknown", , drop = FALSE]
+  if (!nrow(u)) return(pop)
+  add <- cm_associations(u$disease1, u$disease2, 1, measure = "OR")
+  a <- pop$associations
+  if (!is.null(a)) add$row <- max(a$row) + seq_len(nrow(add))
+  pop$associations <- if (is.null(a)) add else rbind(a, add)
+  pop
 }

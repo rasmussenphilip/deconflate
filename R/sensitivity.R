@@ -18,15 +18,15 @@ burden_metric <- function(result) {
 metric_label <- function(event_model) if (isTRUE(event_model)) "attributable risk" else "aggregate"
 
 # Common checks of the sensitivity tools: the model, the kind of impacts and
-# the overall risk (its central value).
-sens_setup <- function(model, event_model, overall_risk, dots = list()) {
+# the overall or baseline risk (its central value and kind).
+sens_setup <- function(model, event_model, overall_risk, dots = list(), baseline_risk = NULL) {
   check_model(model)
   retired_args(dots)
   if (length(dots)) cm_abort(sprintf("Unknown argument%s: %s.", if (length(dots) > 1L) "s" else "",
                                      paste(names(dots), collapse = ", ")), class = "deconflate_invalid_input")
   check_event_model(model, event_model)
-  risk <- check_overall_risk(overall_risk, event_model)$value
-  list(event_model = event_model, risk = risk)
+  risk <- check_overall_risk(overall_risk, event_model, baseline_risk)
+  list(event_model = event_model, risk = risk$value, risk_kind = risk$kind %||% "overall")
 }
 
 compare_to_base <- function(m, base) {
@@ -48,9 +48,9 @@ compare_to_base <- function(m, base) {
 run_quiet <- function(model, st, joint = NULL) {
   tryCatch(
     withCallingHandlers({
-      plan <- plan_model(model, st$event_model, has_joint = !is.null(joint))
+      plan <- plan_model(model, st$event_model, has_joint = !is.null(joint), risk_kind = st$risk_kind)
       if (!is.null(joint)) plan$shortcut <- FALSE
-      run_point(model, plan, risk = st$risk, joint = joint, warn = FALSE)
+      run_point(model, plan, risk = st$risk, joint = joint, warn = FALSE, raw = FALSE)
     }, deconflate_nonconvergence = function(w) {
       if (inherits(w, "warning")) invokeRestart("muffleWarning")
     }),
@@ -154,30 +154,39 @@ replace_rows <- function(model, table, hit, new) {
 
 #' Set or replace one pairwise interaction
 #'
-#' Sets the interaction of two diseases to `value` (in the units of the
-#' impacts): a row for the combination adjusted for `all`, which is the
-#' interaction itself (see [cm_impacts()]). Replaces such a row if present.
+#' Sets the interaction of two diseases to `value`: a row for the
+#' combination adjusted for `all`, which is the interaction itself (see
+#' [cm_impacts()]). Replaces such a row if present. For additive impacts the
+#' value is in the units of the impacts (0: no interaction); for event
+#' impacts it is a hazard ratio multiplier of the combination (1: no
+#' interaction).
 #'
 #' @param model A [cm_model()].
 #' @param disease1,disease2 Disease ids.
-#' @param value Interaction value (same units as the impacts).
+#' @param value Interaction value: in the units of the impacts, or for event
+#'   impacts a positive hazard ratio multiplier.
 #' @return The modified model. Distributions of replaced rows are dropped.
 #' @export
 set_interaction <- function(model, disease1, disease2, value) {
   check_model(model)
-  if (impact_kind(model$impacts) == "event") {
-    cm_abort("set_interaction() sets additive interactions; for event impacts, add a combination row to the impact table.",
-             class = "deconflate_unsupported")
-  }
+  event <- impact_kind(model$impacts) == "event"
   check_disease_ids(c(disease1, disease2), model)
   if (disease1 == disease2) cm_abort("An interaction needs two different diseases.", class = "deconflate_invalid_input")
+  if (event && !(is.numeric(value) && length(value) == 1L && is.finite(value) && value > 0)) {
+    cm_abort("For event impacts, the interaction is a hazard ratio multiplier: a single positive number (1: no interaction).",
+             class = "deconflate_invalid_input")
+  }
   im <- model$impacts
   ids <- model$diseases$disease
   combo <- term_label(ids[ids %in% c(disease1, disease2)])
   hit <- same_set(im$disease, combo) & is_all(im$adjusted_for) & is.na(im$among)
-  new <- cm_impacts(combo, value, adjusted_for = "all", source = "scenario")
+  new <- if (event) {
+    cm_impacts(combo, value, adjusted_for = "all", measure = "HR", source = "scenario")
+  } else {
+    cm_impacts(combo, value, adjusted_for = "all", source = "scenario")
+  }
   out <- replace_rows(model, "impacts", hit, new)
-  attr(out$impacts, "kind") <- "additive"
+  attr(out$impacts, "kind") <- if (event) "event" else "additive"
   out
 }
 
@@ -226,8 +235,8 @@ set_three_way <- function(model, disease1, disease2, disease3, ratio) {
 #' rankings use the contributions to it.
 #'
 #' @param model A [cm_model()].
-#' @param event_model,overall_risk As in [deconflate()] (a distribution of
-#'   the overall risk is used at its mean).
+#' @param event_model,overall_risk,baseline_risk As in [deconflate()] (a distribution of
+#'   the risk is used at its mean).
 #' @param or_values Odds ratios tried for pairs without a crude pair row.
 #' @param multipliers Factors applied to the crude pair rows of a pair (all
 #'   of them, when a pair has several).
@@ -248,8 +257,8 @@ set_three_way <- function(model, disease1, disease2, disease3, ratio) {
 #' screen_associations(m, or_values = c(0.5, 2, 4))
 screen_associations <- function(model, event_model = FALSE, overall_risk = NULL,
                                 or_values = c(0.5, 2), multipliers = c(0.5, 2),
-                                pairs = NULL, ...) {
-  st <- sens_setup(model, event_model, overall_risk, list(...))
+                                pairs = NULL, baseline_risk = NULL, ...) {
+  st <- sens_setup(model, event_model, overall_risk, list(...), baseline_risk)
   base <- burden_metric(check_baseline(run_quiet(model, st)))
   pt <- pair_tables(model)
   if (!is.null(pairs)) {
@@ -324,24 +333,28 @@ finish_screen <- function(rows, base, event_model = FALSE) {
 #'
 #' Sets the interaction of each disease pair to each size in `values`, one
 #' at a time (see [set_interaction()]), re-runs the adjustment and reports
-#' the change in the aggregate and rankings. The joint distribution is
-#' fitted once and reused. For additive impacts.
+#' the change in the aggregate (for event impacts, the attributable risk)
+#' and rankings. The joint distribution is fitted once and reused.
 #'
 #' @param model A [cm_model()].
-#' @param values Interaction sizes (same units as the impacts; positive
-#'   synergistic, negative antagonistic).
+#' @param values Interaction sizes: for additive impacts in the units of the
+#'   impacts (positive synergistic, negative antagonistic); for event impacts
+#'   hazard ratio multipliers of the combination (above 1 synergistic, below
+#'   1 antagonistic).
 #' @param pairs Optional character vector of pairs (`"d1:d2"`).
+#' @param event_model,overall_risk,baseline_risk As in [deconflate()].
 #' @param ... Passed to [fit_joint()] (e.g. `backend = "sampled"` for many
 #'   diseases).
 #' @return A `cm_screen` data frame as in [screen_associations()].
 #' @export
-screen_interactions <- function(model, values, pairs = NULL, ...) {
+screen_interactions <- function(model, values, pairs = NULL, event_model = FALSE, overall_risk = NULL,
+                                baseline_risk = NULL, ...) {
   check_model(model)
-  if (!is.null(model$impacts) && impact_kind(model$impacts) == "event") {
-    cm_abort("screen_interactions() screens additive interactions; it does not apply to event impacts.",
-             class = "deconflate_unsupported")
+  st <- sens_setup(model, event_model, overall_risk, baseline_risk = baseline_risk)
+  if (event_model && (!is.numeric(values) || any(!is.finite(values)) || any(values <= 0))) {
+    cm_abort("For event impacts, `values` are hazard ratio multipliers: positive numbers (1: no interaction).",
+             class = "deconflate_invalid_input")
   }
-  st <- sens_setup(model, FALSE, NULL)
   # One joint distribution serves every scenario (interactions do not change
   # it); `...` goes to fit_joint(), e.g. backend = "sampled" (the default
   # beyond 20 diseases, as in deconflate()).
@@ -364,11 +377,12 @@ screen_interactions <- function(model, values, pairs = NULL, ...) {
       res <- run_quiet(set_interaction(model, pr[r, 1], pr[r, 2], v), st, joint = joint)
       rows[[length(rows) + 1L]] <- screen_row(
         data.frame(pair = paste(pr[r, 1], pr[r, 2], sep = ":"), status = "interaction",
-                   scenario = sprintf("delta = %g", v), stringsAsFactors = FALSE),
+                   scenario = sprintf(if (event_model) "interaction HR = %g" else "delta = %g", v),
+                   stringsAsFactors = FALSE),
         res, base)
     }
   }
-  finish_screen(rows, base, FALSE)
+  finish_screen(rows, base, event_model)
 }
 
 #' Screen three-way association scenarios
@@ -388,7 +402,7 @@ screen_interactions <- function(model, values, pairs = NULL, ...) {
 #' impacts (`event_model = TRUE`).
 #'
 #' @param model A [cm_model()].
-#' @param event_model,overall_risk As in [deconflate()].
+#' @param event_model,overall_risk,baseline_risk As in [deconflate()].
 #' @param ratios Odds ratio ratios to try.
 #' @param triples Optional list of character vectors of three disease ids
 #'   (the association of the first two, among the third); default all
@@ -396,8 +410,8 @@ screen_interactions <- function(model, values, pairs = NULL, ...) {
 #' @return A `cm_screen` data frame as in [screen_associations()].
 #' @export
 screen_three_way <- function(model, ratios = c(0.5, 2), triples = NULL, event_model = FALSE,
-                             overall_risk = NULL) {
-  st <- sens_setup(model, event_model, overall_risk)
+                             overall_risk = NULL, baseline_risk = NULL) {
+  st <- sens_setup(model, event_model, overall_risk, baseline_risk = baseline_risk)
   base <- burden_metric(check_baseline(run_quiet(model, st)))
   ids <- model$diseases$disease
   if (is.null(triples)) {
@@ -433,11 +447,11 @@ screen_three_way <- function(model, ratios = c(0.5, 2), triples = NULL, event_mo
 #' attributable to disease for event impacts.
 #'
 #' @param model A [cm_model()].
-#' @param event_model,overall_risk As in [deconflate()].
+#' @param event_model,overall_risk,baseline_risk As in [deconflate()].
 #' @param variation Relative change applied downwards and upwards.
 #' @param inputs Which inputs to vary: `"prob"` (disease probabilities),
 #'   `"assoc"` (association rows), `"impact"` (impact rows), and for event
-#'   impacts `"risk"` (the overall risk).
+#'   impacts `"risk"` (the overall or baseline risk, whichever is given).
 #' @param ... Not used.
 #' @return A `cm_oat` data frame with one row per input: the input key
 #'   (`"prob:<disease>"`, `"associations:<row>"`, `"impacts:<row>"` or
@@ -447,8 +461,9 @@ screen_three_way <- function(model, ratios = c(0.5, 2), triples = NULL, event_mo
 #' @examples
 #' sensitivity_oat(example_supplement())
 sensitivity_oat <- function(model, event_model = FALSE, overall_risk = NULL,
-                            variation = 0.2, inputs = c("prob", "assoc", "impact", "risk"), ...) {
-  st <- sens_setup(model, event_model, overall_risk, list(...))
+                            variation = 0.2, inputs = c("prob", "assoc", "impact", "risk"),
+                            baseline_risk = NULL, ...) {
+  st <- sens_setup(model, event_model, overall_risk, list(...), baseline_risk)
   inputs <- cm_match_arg(inputs, several_ok = TRUE)
   base <- burden_metric(check_baseline(run_quiet(model, st)))
   vals <- model_inputs(model)

@@ -10,19 +10,20 @@ sensitivity_oat(
   overall_risk = NULL,
   variation = 0.2,
   inputs = c("prob", "assoc", "impact", "risk"),
+  baseline_risk = NULL,
   ...
 )
 }
 \arguments{
 \item{model}{A \code{\link[=cm_model]{cm_model()}}.}
 
-\item{event_model, overall_risk}{As in \code{\link[=deconflate]{deconflate()}}.}
+\item{event_model, overall_risk, baseline_risk}{As in \code{\link[=deconflate]{deconflate()}}.}
 
 \item{variation}{Relative change applied downwards and upwards.}
 
 \item{inputs}{Which inputs to vary: \code{"prob"} (disease probabilities),
 \code{"assoc"} (association rows), \code{"impact"} (impact rows), and for event
-impacts \code{"risk"} (the overall risk).}
+impacts \code{"risk"} (the overall or baseline risk, whichever is given).}
 
 \item{...}{Not used.}
 }

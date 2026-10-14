@@ -1,7 +1,7 @@
 Package: deconflate
 Type: Package
 Title: Comorbidity Adjustment of Disease Impact Estimates
-Version: 0.5.0
+Version: 0.5.0.9000
 Authors@R:
     person("Philip", "Rasmussen", email = "phr@sund.ku.dk",
            role = c("aut", "cre"))
@@ -22,8 +22,7 @@ Description: Adjusts ("de-conflates") disease impact estimates for
     hazard model with the risk attributable to disease) are supported.
     Includes Shapley attribution, propagation of input uncertainty, a
     diagnosis of conflicting inputs, feasibility checks, threshold
-    searches, sensitivity screening, and reproduction of the published
-    analyses (whose proportional approximation is kept for comparison).
+    searches and sensitivity screening.
 License: MIT + file LICENSE
 Encoding: UTF-8
 Depends:

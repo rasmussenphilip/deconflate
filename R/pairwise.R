@@ -9,10 +9,7 @@
 #' @param or Odds ratio (positive).
 #' @param p1,p2 Marginal probabilities, strictly between 0 and 1.
 #' @return The joint probability `P(d1 and d2)`.
-#' @export
-#' @examples
-#' # Supplementary File, Rasmussen et al. (2022): P(1 | 2) = 0.163
-#' or_to_joint(2, 0.10, 0.15) / 0.15
+#' @noRd
 or_to_joint <- function(or, p1, p2) {
   if (!is.finite(or) || or <= 0) cm_abort("Odds ratios must be positive and finite.", class = "deconflate_infeasible")
   if (abs(or - 1) < 1e-10) return(p1 * p2)
@@ -37,7 +34,7 @@ or_to_joint <- function(or, p1, p2) {
 #' @param p11 Joint probability `P(d1 and d2)`.
 #' @param p1,p2 Marginal probabilities.
 #' @return The odds ratio.
-#' @export
+#' @noRd
 joint_to_or <- function(p11, p1, p2) {
   (p11 * (1 - p1 - p2 + p11)) / ((p1 - p11) * (p2 - p11))
 }
@@ -51,7 +48,7 @@ joint_to_or <- function(p11, p1, p2) {
 #' @param p1,p2 Marginal probabilities of disease 1 and disease 2.
 #' @return `P(d1 and d2)`. Errors with class `deconflate_infeasible` if the
 #'   measure is incompatible with the marginals.
-#' @export
+#' @noRd
 association_to_joint <- function(measure, value, p1, p2) {
   p11 <- switch(measure,
     OR = return(or_to_joint(value, p1, p2)),
@@ -87,7 +84,7 @@ association_to_joint <- function(measure, value, p1, p2) {
 #'   the joint probability `p11` (`NA` unless specified), the implied odds
 #'   ratio, and the excess probabilities
 #'   `ep_2_given_1 = P(d2 | d1) - P(d2 | not d1)` and `ep_1_given_2`.
-#' @export
+#' @noRd
 pair_tables <- function(model, pool = c("random", "fixed")) {
   check_population(model)
   pair_tables_at(model, cm_match_arg(pool))
@@ -150,40 +147,6 @@ pair_tables_at <- function(model, pool = "random", frozen = NULL, between = NULL
   )
   attr(out, "pooling") <- list(groups = groups, info = info, pool = pool,
                                frozen = freeze_pooling(groups, info))
-  out
-}
-
-#' Excess-probability matrix from pairwise tables
-#'
-#' @param model A [cm_population()] or [cm_model()].
-#' @return An n x n matrix `E` with `E[k, i] = P(k | i) - P(k | not i)`, the
-#'   excess probability of disease `k` among animals with disease `i`
-#'   (`ep_ki` in Rasmussen et al. 2022, eq. 14). The diagonal is 0. Errors if
-#'   any pair has no crude pair row: pairwise tables need every pair.
-#' @export
-excess_matrix <- function(model) {
-  pt <- pair_tables(model)
-  ids <- model$diseases$disease
-  if (anyNA(pt$p11)) {
-    unk <- paste(pt$disease1, pt$disease2, sep = "-")[is.na(pt$p11)]
-    cm_abort(sprintf(
-      "No crude pair row for %s: the excess matrix needs every pair. Give these pairs an association (an odds ratio of 1 if they are unrelated), or use deconflate(), which fills them in.",
-      paste(unk, collapse = ", ")), class = c("deconflate_unknown_pairs", "deconflate_unsupported"),
-      pairs = missing_pairs(pt))
-  }
-  E <- matrix(0, length(ids), length(ids), dimnames = list(ids, ids))
-  for (r in seq_len(nrow(pt))) {
-    E[pt$disease2[r], pt$disease1[r]] <- pt$ep_2_given_1[r]
-    E[pt$disease1[r], pt$disease2[r]] <- pt$ep_1_given_2[r]
-  }
-  E
-}
-
-# Pairs of pair_tables() without a crude pair row (field `pairs` of the
-# deconflate_unknown_pairs errors).
-missing_pairs <- function(pt) {
-  out <- pt[is.na(pt$p11), c("disease1", "disease2"), drop = FALSE]
-  rownames(out) <- NULL
   out
 }
 

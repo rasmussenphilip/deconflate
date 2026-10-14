@@ -115,21 +115,14 @@ test_that("a pole of a singular system is a discontinuity, not a threshold", {
   expect_equal(th2$summary$result, "none found where the range could be evaluated")
 })
 
-test_that("the published approximation is not a method of cm_threshold", {
+test_that("cm_threshold rejects the retired `method` argument", {
   m <- example_supplement()
   expect_error(cm_threshold(m, "impact:d1", c(-3, 3), conclusion = "sign", diseases = "d1",
-                            method = "published"),
-               class = "deconflate_unsupported")
-  expect_error(cm_threshold(m, "impact:d1", c(-3, 3), conclusion = "sign", diseases = "d1",
-                            method = "published"),
-               "compare_methods")
-  # Its pole (eq. 16 divides by zero at impact:d1 = -0.5266329181546854) is
-  # still a property of the internal approximation.
+                            method = "global"),
+               "`method` argument has been removed", class = "deconflate_unsupported")
+  # The model stays finite at impact:d1 = -0.5266329181546854, where eq. 16
+  # of the 2022 paper divides by zero.
   pole <- -0.5266329181546854
-  pub <- function(m1) adjust_published(supp_model(c(m1, 5, 7.5)), warn = FALSE)$adjusted$adjusted[1]
-  expect_lt(pub(pole - 1e-6), 0)
-  expect_gt(pub(pole + 1e-6), 0)
-  expect_equal(pub(0), 0)
   expect_true(all(is.finite(deconflate(supp_model(c(pole, 5, 7.5)), warn = FALSE)$adjusted$adjusted)))
 })
 
@@ -212,12 +205,11 @@ test_that("interaction inputs fit the full model", {
   # Ranked by contribution (interaction shares included).
   thr <- cm_threshold(example_supplement(), "inter:d1:d2", c(-1, 1), conclusion = "rank", n_grid = 5)
   expect_equal(thr$summary$item, c("d1 vs d2", "d1 vs d3", "d2 vs d3"))
-  expect_error(cm_threshold(example_supplement(), "inter:d1:d2", c(-1, 1), conclusion = "total",
-                            target = 2.12, method = "published"), class = "deconflate_unsupported")
-  # An interaction of event impacts is a row of the impact table.
+  # An interaction of event impacts is a hazard ratio (an HR row adjusted
+  # for all), so the range must be positive.
   expect_error(cm_threshold(supp_hr_model(), "inter:d1:d2", c(-1, 1), conclusion = "total",
                             target = 0.1, event_model = TRUE, overall_risk = 0.25),
-               class = "deconflate_unsupported")
+               class = "deconflate_invalid_input")
 })
 
 test_that("rows are varied by number and by alias", {

@@ -24,7 +24,7 @@ test_that("simulated crude raw impacts match the Python reference", {
   expect_error(simulate_raw_impacts(pop, c(d1 = 2, d2 = 4)), "named")
 })
 
-test_that("the model recovers the truth (shortcut and full); published does not", {
+test_that("the model recovers the truth (shortcut and full)", {
   pop <- t2_pop()
   m <- cm_model(pop, simulate_raw_impacts(pop, supp_truth))
   res <- deconflate(m)
@@ -32,11 +32,6 @@ test_that("the model recovers the truth (shortcut and full); published does not"
   expect_equal(res$adjusted$adjusted, unname(supp_truth), tolerance = 1e-8)
   expect_equal(adjust_additive(m, joint = fit_joint(m))$adjusted$adjusted, unname(supp_truth), tolerance = 1e-8)
   expect_lt(res$diagnostics$max_reconstruction_residual, 1e-10)
-  pub <- adjust_published(m)
-  expect_gt(max(abs(pub$adjusted$adjusted - supp_truth)), 0.1)
-  cmp <- compare_methods(m)
-  expect_equal(cmp$impacts$deconflate, unname(supp_truth), tolerance = 1e-8)
-  expect_equal(cmp$impacts$published, pub$adjusted$adjusted)
 })
 
 test_that("adjusted_linear estimands are simulated and recovered", {
@@ -77,9 +72,6 @@ test_that("results are in the units entered and rescale with them", {
   expect_equal(res_k$adjusted$adjusted, 1000 * unname(supp_truth), tolerance = 1e-8)
   expect_equal(res_k$totals$adjusted_total, 1000 * res$totals$adjusted_total, tolerance = 1e-10)
   expect_equal(res_k$units, "kg")
-  pub <- adjust_published(cm_model(pop, raw))
-  pub_k <- adjust_published(cm_model(pop, raw_k))
-  expect_equal(pub_k$adjusted$adjusted, 1000 * pub$adjusted$adjusted, tolerance = 1e-10)
 })
 
 test_that("the model recovers the truth with interactions", {
@@ -96,7 +88,6 @@ test_that("the model recovers the truth with interactions", {
   expect_equal(res$totals$adjusted_total, 2.1095698976771753, tolerance = 1e-8)
   expect_equal(res$contributions$total, c(0.2122396963, 0.6547849488, 1.2425452526), tolerance = 1e-8)
   expect_equal(sum(res$contributions$total), res$totals$adjusted_total)
-  expect_error(adjust_published(cm_model(pop, raw)), class = "deconflate_unsupported")
   # The interactions as rows adjusted for all (the interaction itself).
   rows <- data.frame(disease = c(t2_ids, "d1;d2", "d2;d3"), adjusted_for = c(NA, NA, NA, "all", "all"))
   raw_all <- simulate_raw_impacts(pop, supp_truth, interactions = ints, rows = rows)
@@ -115,7 +106,7 @@ test_that("Shapley shares sum to the total and split interactions equally", {
   pop <- t2_pop()
   m_int <- cm_model(pop, simulate_raw_impacts(pop, supp_truth, c("d1;d2" = 1)))
   res <- deconflate(m_int)
-  b <- attribute_burden(res)
+  b <- res$contributions
   P12 <- res$joint_pairs["d1", "d2"]
   expect_equal(b$interaction, c(0.5 * P12, 0.5 * P12, 0), tolerance = 1e-12)
   L <- sum(supp_truth * c(0.10, 0.15, 0.20)) + P12
@@ -143,11 +134,12 @@ test_that("recovery holds in a denser random 6-disease system with unknown pairs
   ids <- paste0("x", 1:6)
   pr <- t(utils::combn(ids, 2))
   keep <- stats::runif(nrow(pr)) < 0.6
-  pop <- cm_population(cm_diseases(ids, stats::runif(6, 0.03, 0.4)),
-                       cm_associations(pr[keep, 1], pr[keep, 2], exp(stats::runif(sum(keep), -0.5, log(6)))))
+  prev <- stats::runif(6, 0.03, 0.4)
+  ors <- exp(stats::runif(sum(keep), -0.5, log(6)))
+  pop <- cm_population(cm_diseases(ids, prev), cm_associations(pr[keep, 1], pr[keep, 2], ors))
   truth <- stats::setNames(stats::runif(6, 0.5, 8), ids)
   # The pairs without a row are unknown: the population follows the
-  # maximum-entropy fit, which the global method (chosen automatically) uses.
+  # maximum-entropy fit, which the full model (chosen automatically) uses.
   expect_gt(sum(!keep), 0)
   m <- cm_model(pop, simulate_raw_impacts(pop, truth))
   res <- deconflate(m, n_draws = 0)
@@ -156,9 +148,11 @@ test_that("recovery holds in a denser random 6-disease system with unknown pairs
   expect_equal(res$adjusted$adjusted, unname(truth), tolerance = 1e-7)
   adj <- simulate_raw_impacts(pop, truth, adjusted_for = "x1; x2")
   expect_equal(deconflate(cm_model(pop, adj))$adjusted$adjusted, unname(truth), tolerance = 1e-7)
-  # With the unlisted pairs independent, the simultaneous method recovers
-  # the truth of that population.
-  pop_i <- with_independent_pairs(pop)
+  # With the unlisted pairs given an odds ratio of 1 (independent), the
+  # pairwise shortcut recovers the truth of that population.
+  or_all <- rep(1, nrow(pr))
+  or_all[keep] <- ors
+  pop_i <- cm_population(cm_diseases(ids, prev), cm_associations(pr[, 1], pr[, 2], or_all))
   mi <- cm_model(pop_i, simulate_raw_impacts(pop_i, truth))
   ri <- deconflate(mi)
   expect_equal(ri$method, "pairwise shortcut")

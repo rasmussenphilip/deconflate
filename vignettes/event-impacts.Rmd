@@ -58,6 +58,23 @@ res <- deconflate(cull, event_model = TRUE, overall_risk = 0.25, n_draws = 0)
 res
 ```
 
+The table has, for each disease, the raw estimate, the adjusted hazard
+ratio (its own hazard multiplier) and the relative change. It also gives the
+adjusted result on the risk scale: the risk of an animal with only that
+disease (`risk_alone`), and its risk ratio and risk difference against a
+disease-free animal (`rr_alone`, `rd_alone`; the odds ratio `or_alone` is
+stored in `$adjusted` too). For a raw risk ratio, odds ratio or risk
+difference, `change` compares like with like: the raw estimate against the
+adjusted value on its own measure. These are the event counterparts of the
+additive adjusted impacts, which are also "this disease alone against a
+healthy animal" when there are no interactions.
+
+The raw attributable risk below the table is the same calculation with the
+diseases unrelated (the same prevalences and estimates, no associations):
+what the raw estimates imply if the double counting is ignored. As for
+additive impacts (`raw_total` in `$totals`), the difference from the
+adjusted attributable risk is the double counting removed.
+
 The kind of impacts and the call must agree. Event impacts without
 `event_model = TRUE`, additive impacts with it, or a missing
 `overall_risk` are errors:
@@ -113,10 +130,19 @@ conversion the package makes. It is reasonable when follow-up is short
 relative to the hazards or the diseases are rare, and it should be reported
 and checked.
 
-## The overall risk
+## The overall risk, or the risk of disease-free animals
 
 `overall_risk` is the proportion of animals with the event over the period
-(e.g. the annual culling rate). It is required. For hazard and rate ratios
+(e.g. the annual culling rate). Instead, `baseline_risk` can give the risk
+of disease-free animals, which many studies report; the overall risk then
+follows from the model. One of the two is required:
+
+```{r}
+res_b <- deconflate(cull, event_model = TRUE, baseline_risk = 0.18, n_draws = 0)
+res_b$attributable$summary
+```
+
+For hazard and rate ratios
 it fixes the baseline hazard, and so the attributable risk, but not the
 adjusted hazard ratios:
 
@@ -203,8 +229,25 @@ res_int$adjusted
 res_int$attributable$by_disease
 ```
 
-The interaction's share of the attributable risk is split between its
-diseases, as part of their Shapley values.
+The interaction's share of the attributable risk is split equally between
+its diseases, as part of their Shapley values. As for additive impacts
+(`$contributions`), `by_disease` splits each disease's share into its own
+part (`main`: the allocation with the interaction terms set to zero) and its
+share of the interactions (`interaction`: the rest). On the risk scale, risks
+do not add up, so the interaction terms also change the shares of diseases
+outside them slightly; for those diseases `interaction` is small but not
+zero.
+
+`$conflation$A` gives the row equations at the adjusted values: how much
+each row's estimate (on its measure's scale, e.g. the log hazard ratio)
+changes with each disease's log hazard multiplier. A crude hazard ratio row
+contains a share of every associated disease's effect, as an additive row
+does; for crude hazard ratio rows, at hazard ratios of 1, the coefficients
+are exactly those of the additive model:
+
+```{r}
+round(res_int$conflation$A, 3)
+```
 
 ## Risk attributable to disease
 
@@ -213,7 +256,7 @@ disease-free animal, `1 - exp(-h0)`. An animal's risk cannot exceed 1, so an
 animal with several diseases is counted once, and the attributable risk is
 smaller than the sum of per-disease excess risks when diseases co-occur. It
 is allocated to diseases by Shapley values over all disease combinations
-(`shapley_by_cell()`); the allocation adds up to the attributable risk
+(cell by cell); the allocation adds up to the attributable risk
 (`unallocated` is zero up to rounding):
 
 ```{r}
@@ -226,40 +269,21 @@ risks are proportions of animals with the event in the period. Converting
 them into numbers of animals or a value (e.g. times the replacement price
 less salvage value) is left to the user.
 
-## Comparing methods
-
-`compare_methods(event_model = TRUE)` sets the snapshot model beside two
-approximations, each with the attributable risk at `overall_risk`:
-
-* `"deconflate"`: the snapshot model of `deconflate()`;
-* `"first_order"`: the log-linear approximation `log(HR_raw) = A beta`, with
-  the conflation matrix `A` of the additive model. It needs only the
-  pairwise tables, so every pair needs an association;
-* `"published"`: the approach of Rasmussen et al. (2024), HR - 1 adjusted
-  with the proportional approximation (eq. 16 of Rasmussen et al. 2022) and
-  1 added back. It is not a method of `deconflate()`; it is kept for
-  comparison and reproduction only.
-
-The first-order and published methods need hazard (or rate) ratios, and the
-published approach one crude row per disease. Methods that cannot be run
-are listed with the reason:
-
-```{r}
-compare_methods(cull, event_model = TRUE, overall_risk = 0.25)
-compare_methods(cull_adj, event_model = TRUE, overall_risk = 0.25)$failed
-```
-
 ## Sensitivity tools
 
-`screen_associations()`, `screen_three_way()`, `sensitivity_oat()` and
-`cm_threshold()` take `event_model = TRUE` and `overall_risk` as well. Their
-total is then the attributable risk, and disease rankings use its Shapley
-allocation. They report point estimates (a distribution of the overall risk
-is used at its mean). `sensitivity_oat()` also varies the overall risk:
+`screen_associations()`, `screen_interactions()`, `screen_three_way()`,
+`sensitivity_oat()` and `cm_threshold()` take `event_model = TRUE` and
+`overall_risk` (or `baseline_risk`) as well. Their total is then the
+attributable risk, and disease rankings use its Shapley allocation. They
+report point estimates (a risk given as a distribution is used at its
+mean). `sensitivity_oat()` also varies the overall or baseline risk, and
+`screen_interactions()` sets interactions as hazard ratio multipliers of a
+combination (`set_interaction()`):
 
 ```{r}
 screen_associations(cull, event_model = TRUE, overall_risk = 0.25)
 sensitivity_oat(cull, event_model = TRUE, overall_risk = 0.25)
+screen_interactions(cull, c(0.5, 2), event_model = TRUE, overall_risk = 0.25)
 ```
 
 In `cm_threshold()`, the overall risk is the input `"risk"`. At what overall
@@ -274,6 +298,24 @@ cm_threshold(cull, "impact:d1", c(0.5, 3), conclusion = "rank",
 ```
 
 See `vignette("thresholds-and-scaling")` for how threshold searches work.
+
+## Simulated raw estimates
+
+`simulate_raw_impacts(event_model = TRUE)` computes what studies would
+report, given each disease's true hazard multiplier (and interactions) and
+the overall or baseline risk. Adjusting these values recovers the truth
+exactly. With `n`, animals are sampled with event times over the period:
+risk ratios, odds ratios and risk differences come from counts of events,
+and hazard and rate ratios from events per animal-time (rate ratios, which
+approximate the snapshot hazard ratios well when events are uncommon).
+
+```{r}
+sim <- simulate_raw_impacts(pop, c(d1 = 1.2, d2 = 1.5, d3 = 1.1), interactions = c("d1;d2" = 1.4),
+                            event_model = TRUE, measure = c("HR", "RR", "OR", "RD"),
+                            overall_risk = 0.2)
+sim[, c("disease", "measure", "value")]
+deconflate(cm_model(pop, sim), event_model = TRUE, overall_risk = 0.2, n_draws = 0)$adjusted$adjusted
+```
 
 ## Five diseases, mixed measures
 
@@ -305,11 +347,6 @@ deconflate(five, event_model = TRUE, overall_risk = 0.25, n_draws = 0)
 
 The tables have distributions (the `dist` columns), so the default call,
 without `n_draws = 0`, would also report 95% intervals from 1000 draws.
-Only the snapshot model applies to these measures:
-
-```{r}
-compare_methods(five, event_model = TRUE, overall_risk = 0.25)$failed
-```
 
 ## The global dairy example
 
@@ -346,9 +383,8 @@ c(excess_risk_sum = sum(p * (h * 0.2366 / (h * 0.2366 + 1 - 0.2366) - 0.2366)),
   attributable = gd$attributable$summary$attributable)
 ```
 
-The paper treated unlisted pairs as independent and used the published
-approximation; `reproduce_rasmussen_2024()` recomputes its tables
-(`vignette("reproducing-published")`).
+The paper also treated unlisted pairs as independent and adjusted HR - 1
+with the proportional approximation of Rasmussen et al. (2022, eq. 16).
 
 ## Event impacts alongside additive impacts
 
@@ -373,10 +409,10 @@ The warning says that, with the unknown pairs filled in by the fit,
 the raw yield impacts of four diseases are smaller than their associated
 diseases alone would produce under the additive model.
 
-## Methods that are not available for new analyses
+## Methods that the package does not use
 
 The published analyses converted hazard ratios in ways that the package
-does not offer for new analyses:
+does not use:
 
 * Rasmussen et al. (2022) treated each HR as an odds ratio of a 2x2 table of
   disease by culling, to obtain an excess annual culling risk, and recovered
@@ -384,10 +420,6 @@ does not offer for new analyses:
 * Rasmussen et al. (2024) adjusted HR - 1 as if it were an additive impact,
   and valued culling with the excess risk relative to the overall rate given
   above.
-
-These conversions are used only inside `reproduce_rasmussen_2022()` and
-`reproduce_rasmussen_2024()`, so that the published tables can be recomputed
-(see `vignette("reproducing-published")`).
 
 ## Caveats
 
@@ -397,7 +429,7 @@ These conversions are used only inside `reproduce_rasmussen_2022()` and
 * Hazard ratios and odds ratios are not collapsible: even without
   confounding, an average ratio differs from the ratio within subgroups. The
   snapshot model accounts for this given the distribution of disease
-  combinations; the first-order method and the published approach do not.
+  combinations; approximations that adjust the ratios directly do not.
 * The snapshot model and the attributable risk use the whole distribution
   of disease combinations, so they depend on the maximum-entropy assumption,
   on how unknown pairs are filled in, and on any rows about combinations or

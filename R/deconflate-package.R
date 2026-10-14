@@ -25,31 +25,29 @@
 #'    unknowns). When the pairwise tables give the same answer, they are used
 #'    directly. Event impacts (hazard ratios, rate ratios, risk ratios, odds
 #'    ratios or risk differences of e.g. culling) use the snapshot hazard
-#'    model (`event_model = TRUE`, with the overall risk), which also gives
+#'    model (`event_model = TRUE`, with the overall risk or the risk of
+#'    disease-free animals), which also gives
 #'    the risk attributable to disease. When inputs have distributions,
 #'    `deconflate()` also reports intervals (`n_draws`).
-#' 3. Inspect each disease's contribution ([attribute_burden()],
-#'    [contribution_table()], [plot_burden()]), in the units of the impacts,
-#'    and how well the rows fit together (`$estimates`, `$heterogeneity`).
-#'    Converting the results into other quantities (e.g. a productivity gap
-#'    or a monetary value) is left to the user. [compare_methods()] sets the
-#'    model beside the proportional approximation of Rasmussen et al. (2022,
-#'    eq. 16), which is kept for comparison and reproduction only.
+#' 3. Inspect each disease's contribution ([contribution_table()],
+#'    [summary()][summary.cm_result]), in the units of the impacts, and how
+#'    well the rows fit together (`$estimates`, `$heterogeneity`). Converting
+#'    the results into other quantities (e.g. a productivity gap or a
+#'    monetary value) is left to the user.
 #' 4. Check joint feasibility with [check_feasibility()].
 #' 5. Explore the inputs with [sensitivity_oat()], [screen_associations()]
 #'    (also without any association estimates), [screen_interactions()] and
 #'    [screen_three_way()], and find where a conclusion (a ranking, a sign
 #'    or the total) changes as one input varies with [cm_threshold()].
 #'
-#' [reproduce_rasmussen_2022()] and [reproduce_rasmussen_2024()] recompute
-#' the published tables. See `vignette("deconflate")` to get started.
+#' See `vignette("deconflate")` to get started.
 #'
 #' @section Conventions:
 #' * Additive impacts are in any units, the same within an impact table;
 #'   results come back in those units. Event impacts are adjusted to hazard
 #'   ratios, and risks are proportions of animals over the period.
-#' * `E[k, i]` (see [excess_matrix()]) is the excess probability of disease
-#'   `k` among animals with disease `i`: `P(k | i) - P(k | not i)`.
+#' * `E[k, i]` is the excess probability of disease `k` among animals with
+#'   disease `i`: `P(k | i) - P(k | not i)`.
 #' * Under additive impacts, the crude impact of disease `i` satisfies
 #'   `m_raw[i] = m[i] + sum_k E[k, i] * m[k]` exactly.
 #' * Errors are condition objects of class `deconflate_error`. Failures that
@@ -58,12 +56,10 @@
 #'   `deconflate_singular` (an estimate that is not identifiable, or rows
 #'   that do not determine the impacts), `deconflate_nonconvergence` (a fit
 #'   that did not converge), `deconflate_unsupported` (a combination of
-#'   inputs and options that is not supported; with
-#'   `deconflate_unknown_pairs` when a calculation needs a crude pair row for
-#'   every pair), `deconflate_nonfinite` (non-finite results) and
-#'   `deconflate_invalid_input` (an argument, table, row or input value that
-#'   is not valid). Problems
-#'   found by [cm_read_inputs()] have class `deconflate_input_problems`
+#'   inputs and options that is not supported), `deconflate_nonfinite`
+#'   (non-finite results) and `deconflate_invalid_input` (an argument, table,
+#'   row or input value that is not valid). Problems found by
+#'   [cm_read_inputs()] have class `deconflate_input_problems`
 #'   (also `deconflate_invalid_input`).
 #' * Warnings are condition objects of class `deconflate_warning`, with the
 #'   subclasses `deconflate_sign_change` (an adjusted impact on the other
@@ -71,7 +67,7 @@
 #'   its raw estimate), `deconflate_nonfinite_warning` (non-finite adjusted
 #'   impacts), `deconflate_nonconvergence` (a joint distribution that did not
 #'   converge) and `deconflate_incomplete_allocation` (a Shapley allocation
-#'   that skipped combinations; see [shapley_by_cell()]).
+#'   that skipped combinations).
 #' * Messages are of class `deconflate_message`; the notes of
 #'   [cm_read_inputs()] are also `deconflate_input_notes`.
 #'
