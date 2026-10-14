@@ -1,27 +1,29 @@
 Package: deconflate
 Type: Package
 Title: Comorbidity Adjustment of Disease Impact Estimates
-Version: 0.3.0.9000
+Version: 0.5.0
 Authors@R:
     person("Philip", "Rasmussen", email = "phr@sund.ku.dk",
            role = c("aut", "cre"))
-Description: Adjusts ("de-conflates") single-disease impact estimates for
+Description: Adjusts ("de-conflates") disease impact estimates for
     statistical associations between diseases, so that impacts can be
-    aggregated without double counting. Implements an exact simultaneous
-    solution of the additive impact equations of Rasmussen et al. (2022)
-    <doi:10.1016/j.prevetmed.2022.105617> for crude estimates and for
-    coefficients of additive regressions with recorded adjustment sets
-    (the published proportional approximation is kept for comparison and
-    reproduction), and a global model that fits a maximum-entropy
-    distribution of disease combinations by iterative proportional fitting,
-    fills in pairs without an association estimate, and incorporates
-    specified pairwise impact interactions and three-way association
-    scenarios. Event impacts (hazard ratios, rate ratios, risk ratios, odds
-    ratios and risk differences of, e.g., culling) are adjusted with a
-    snapshot hazard model, with the risk attributable to disease. Includes
-    Shapley attribution, feasibility checks, propagation of input
-    uncertainty with stability diagnostics, threshold searches, sensitivity
-    screening and reproduction of the published analyses.
+    aggregated without double counting (Rasmussen et al. 2022
+    <doi:10.1016/j.prevetmed.2022.105617>). One model: a maximum-entropy
+    distribution of disease combinations fitted to the disease
+    prevalences and every association row (odds ratios, risk ratios, risk
+    differences, phi, prevalences and odds ratio ratios, about pairs,
+    combinations or subgroups, crude or adjusted), with pairs without an
+    estimate filled in. Every impact row (crude, adjusted, within a
+    subgroup, or about a combination of diseases) is an equation in each
+    disease's own impact and the interactions; several estimates of one
+    quantity are pooled or fitted together. Additive impacts (e.g. milk
+    yield) and event impacts (hazard ratios, rate ratios, risk ratios,
+    odds ratios and risk differences of, e.g., culling, through a snapshot
+    hazard model with the risk attributable to disease) are supported.
+    Includes Shapley attribution, propagation of input uncertainty, a
+    diagnosis of conflicting inputs, feasibility checks, threshold
+    searches, sensitivity screening, and reproduction of the published
+    analyses (whose proportional approximation is kept for comparison).
 License: MIT + file LICENSE
 Encoding: UTF-8
 Depends:

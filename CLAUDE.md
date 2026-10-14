@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-`deconflate` is an R package (base R only) that adjusts ("de-conflates") disease impact estimates for associations between diseases, so impacts can be summed without double counting (Rasmussen et al. 2022, 2024). Version 0.4 is being built item by item, following `ROADMAP.md`; `NEWS.md` records each item's breaking changes. Read the current ROADMAP item before changing behaviour.
+`deconflate` is an R package (base R only) that adjusts ("de-conflates") disease impact estimates for associations between diseases, so impacts can be summed without double counting (Rasmussen et al. 2022, 2024). Version 0.5.0 is released (the work planned as 0.4); the next version is built item by item, following `ROADMAP.md` (v0.6); `NEWS.md` records each item's breaking changes. Read the current ROADMAP item before changing behaviour.
 
 ## Commands
 
@@ -43,6 +43,7 @@ The package has one model. Every input row becomes a constraint on a maximum-ent
    - Event impacts (`hazard.R`, `event_model = TRUE`): the snapshot hazard model with log-hazard terms, `h0` set from `overall_risk`, plus the attributable risk and its Shapley split.
 5. **Orchestration** (`deconflate.R`): `plan_model()` chooses between the full model and the **pairwise shortcut** (`pairwise.R`: 2x2 tables, eq. 14 of 2022). `shortcut_ok()` says when the shortcut is exact: additive impacts, a crude pair row for every pair, and single-disease impact rows. Any change to row semantics must keep the two paths giving the same answer. Even with the shortcut, the central estimate fits the joint once (up to 20 diseases) as a feasibility check. `finish_result()` adds `$estimates`, `$heterogeneity` and `$unknown_pairs`.
 6. **Uncertainty** (`draws.R`, `distributions.R`): `n_draws` input sets go through `run_point()` with the pooling frozen at the central estimate. Rejected draws are counted, not replaced.
-7. **Downstream tools:** these build on `deconflate()`. The sensitivity tools (`cm_threshold()`, `sensitivity_oat()` and the screens) work on point estimates, and the ROADMAP plans a redesign of them.
+7. **Diagnosis** (`check_inputs.R`, `deconflate(diagnose = TRUE)`): flags diseases whose adjusted impact is on the other side of zero (of 1 for event impacts) from the raw impact or has shrunk by more than 90%, and reruns `run_point()` with one input changed at a time (pooling frozen, as in the draws): effects per SD of each uncertain input, threshold values of exact inputs, and rows with a standardised residual of 2 or more. Result: `$problems` (class `cm_diagnosis`; not to be confused with `cm_check_inputs()`, which checks the input files).
+8. **Downstream tools:** these build on `deconflate()`. The sensitivity tools (`cm_threshold()`, `sensitivity_oat()` and the screens) work on point estimates, and the ROADMAP plans a redesign of them.
 
 The result classes are `cm_result` (additive impacts) and `cm_event_result` (event impacts). `example_supplement()` (three diseases) is the quickest model to experiment with. `tests/testthat/helper-models.R` has the shared fixtures `supp_model()`, `supp_hr_model()` and `read_five()`.

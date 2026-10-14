@@ -359,6 +359,80 @@ p <- cm_check_inputs(diseases = file.path(err, "diseases.csv"),
 p[p$table == "impacts", ]
 ```
 
+## When adjusted impacts change sign
+
+An adjusted impact on the other side of zero from its raw impact (a disease
+that seems to raise yield once its associated diseases are accounted for),
+or one that has almost vanished, usually means that the inputs contradict
+each other under the model: the raw impact is smaller than what the
+diseases that come with it account for. `deconflate()` warns about sign
+changes. With `diagnose = TRUE`, it also shows which inputs drive them.
+
+As an example, take the five-disease yield table with a raw SCK impact of
+1.0 instead of 2.5:
+
+```{r}
+five <- system.file("extdata", "five_diseases", package = "deconflate")
+low <- cm_read_inputs(diseases = file.path(five, "diseases.csv"),
+                      associations = file.path(five, "associations.csv"),
+                      impacts = file.path(five, "impacts_yield.csv"))
+low$impacts$value[low$impacts$disease == "SCK"] <- 1.0
+res <- deconflate(low, n_draws = 0, diagnose = TRUE)
+res$problems
+```
+
+How to read it:
+
+* SCK is flagged: its adjusted impact is below zero. A disease is also
+  flagged when its adjusted impact has shrunk by more than 90%.
+* Each input with a distribution gets the change in the flagged impact when
+  it moves up by one SD of its own uncertainty. The MAS-SCK prevalence row
+  (the share of SCK cows with MAS) lowers SCK's adjusted impact by about
+  0.19 per SD; on its own, a value 1.5 SD lower would remove the flag (the
+  flag goes when the adjusted impact reaches 10% of the raw impact). The
+  effects are in the impact's own units for every kind of input, so
+  prevalences, associations and impacts can be compared directly.
+* An input without a distribution gets the value at which the flag
+  disappears instead: here SCK's own raw impact would have to be about 1.3.
+* A flagged impact that no single input fixes (within 3 SD, or within a
+  quarter to three times the value of an input without a distribution)
+  points to several inputs together, or to a structural problem such as
+  units.
+
+The listed inputs are worth checking, not necessarily wrong. Common causes:
+
+* units or measurement windows that differ between tables (kg vs %, a
+  305-day yield vs a test-day yield);
+* estimates that measure different things. A study of "cows with the
+  disease alone vs healthy cows" estimates something close to the disease's
+  own impact, so it belongs in a row with `among = "no others"`, not in a
+  crude row; an estimate from a regression adjusted for other diseases
+  belongs in a row with `adjusted_for`. Pooling such estimates into one
+  crude value before entering it mixes them up. Enter them as separate
+  rows instead (see "Several rows for one item" above);
+* source populations with different comorbidity patterns.
+
+Setting a negative adjusted impact to zero does not fix it: the
+contradiction stays in the inputs and in the other adjusted impacts.
+
+The check also lists rows that disagree with other rows for the same
+quantity (a standardised residual of 2 or more), with what changes without
+each. Here the crude MAS row of the calving-interval table is changed from
+9 to 20 days:
+
+```{r}
+ci <- cm_read_inputs(diseases = file.path(five, "diseases.csv"),
+                     associations = file.path(five, "associations.csv"),
+                     impacts = file.path(five, "impacts_calving_interval.csv"))
+ci$impacts$value[3] <- 20
+deconflate(ci, n_draws = 0, diagnose = TRUE)$problems
+```
+
+The check reruns the central estimate about twice for every input with a
+distribution and a few times for every input without one, so it takes
+longer than `deconflate()` itself (a few minutes for the twelve diseases of
+the 2024 global dairy example). It does not change the results.
+
 ## Tables typed in R
 
 Any table can be a data frame instead of a file, with the same columns,

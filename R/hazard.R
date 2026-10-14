@@ -73,7 +73,7 @@ adjust_event <- function(model, overall_risk, joint, warn = TRUE, allocate = TRU
   sign_change <- !combo & is.finite(adj) & adj > 0 & raw_dir != 0 & abs(adj - 1) > 1e-12 &
     sign(theta) != raw_dir
   if (warn && any(sign_change)) {
-    cm_warn(sprintf("Adjusted hazard ratios are on the other side of 1 from the raw estimates for %s. The raw estimates are weaker than the associated diseases alone would produce; check the estimates and source populations.",
+    cm_warn(sprintf("Adjusted hazard ratios are on the other side of 1 from the raw estimates for %s. The raw estimates are weaker than the associated diseases alone would produce; check the estimates and source populations. deconflate(diagnose = TRUE) shows which inputs drive this.",
                     paste(terms[sign_change], collapse = ", ")), class = "deconflate_sign_change",
             terms = terms[sign_change])
   }

@@ -1,11 +1,41 @@
-# deconflate (development version)
+# deconflate 0.5.0
 
-Version 0.4 is being built in steps (see `ROADMAP.md`). So far: the
-interface is slimmed to de-conflation itself; everything runs through one
-function, `deconflate()`, with one impact table per call; and there is one
+The work planned as version 0.4 is released as 0.5.0 (there is no 0.4.0).
+The interface is slimmed to de-conflation itself; everything runs through
+one function, `deconflate()`, with one impact table per call; there is one
 model and one input layout, in which a row can be about a combination of
 diseases or a subgroup, crude or adjusted, and several rows can describe
-the same thing.
+the same thing; and `deconflate(diagnose = TRUE)` shows which inputs drive
+problematic adjusted impacts. See `ROADMAP.md` for what comes next.
+
+## New features: diagnosing the inputs
+
+* `deconflate(diagnose = TRUE)` (off by default) adds `$problems`,
+  printed with the result. It flags every disease whose adjusted impact is
+  on the other side of zero from its raw impact (for event impacts, of 1),
+  or has shrunk by more than 90%, and shows which inputs drive this:
+  * for each input with a distribution (prevalences, associations, impacts
+    and the overall risk), the change in each flagged impact when the input
+    moves up by one SD, and the shift that alone would remove the flag
+    (shown within 3 SD);
+  * for each input without a distribution, the value at which the flag
+    disappears (searched from a quarter to three times its value);
+  * flagged impacts that no single input fixes, which points to several
+    inputs together or a structural problem (such as units).
+
+  A separate table lists rows that disagree with other rows for the same
+  quantity (standardised residual of 2 or more), with the adjusted impact
+  that changes most without each. Works for additive and event impacts
+  (see `?deconflate`, "Diagnosing the inputs"). Reference values come from an
+  independent Python implementation
+  (`inst/validation/reference_v05_input_check.py`).
+* The sign-change warning points to `diagnose = TRUE`.
+* Not added, after a prototype (ROADMAP, item 6): an `anchor` argument,
+  constraints on adjusted impacts, MCMC and importance sampling. A negative
+  adjusted impact means the inputs contradict each other; a lower bound of
+  zero only parks it at zero, and narrowing the distributions makes it more
+  certain. Such conflicts are fixed in the inputs, which the check helps to
+  find.
 
 ## Errors and warnings
 

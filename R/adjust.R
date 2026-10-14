@@ -216,7 +216,7 @@ adjust_additive <- function(model, joint = NULL, pt = NULL, warn = TRUE, frozen_
     sign(theta) != sign(raw)
   if (warn && any(sign_change)) {
     cm_warn(sprintf(
-      "Adjusted impacts change sign for %s. The raw impacts are smaller than the associated diseases alone would produce under the additive model; check the estimates, and whether they come from populations with different comorbidity patterns.",
+      "Adjusted impacts change sign for %s. The raw impacts are smaller than the associated diseases alone would produce under the additive model; check the estimates, and whether they come from populations with different comorbidity patterns. deconflate(diagnose = TRUE) shows which inputs drive this.",
       paste(terms[sign_change], collapse = ", ")), class = "deconflate_sign_change", terms = terms[sign_change])
   }
   if (warn && any(!is.finite(theta))) {

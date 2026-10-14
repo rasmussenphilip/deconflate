@@ -18,6 +18,7 @@ deconflate(model, ...)
   pool = c("random", "fixed"),
   joint = NULL,
   warn = TRUE,
+  diagnose = FALSE,
   ...
 )
 }
@@ -57,6 +58,12 @@ model (diseases, probabilities and association rows).}
 
 \item{warn}{Logical: warn when adjusted impacts change sign or are not
 finite?}
+
+\item{diagnose}{Logical (default \code{FALSE}): show which inputs drive
+problematic adjusted impacts, and which rows disagree with other rows
+(\verb{$problems}, printed with the result; see the section "Checking the
+inputs"). It reruns the central estimate many times (twice per input
+with a distribution, a few times per input without one).}
 }
 \value{
 For additive impacts, a \code{cm_result} with elements:
@@ -82,6 +89,12 @@ number of the row equations, sign changes and the feasibility check;
 fit gave them;
 \item \code{draws}: the uncertainty (summary, accepted draws, rejections, seed),
 or \code{NULL};
+\item \code{problems}: with \code{diagnose = TRUE}, a \code{cm_diagnosis} object:
+\code{flagged} (every disease with impact rows: raw, adjusted, the
+criterion and whether it is flagged), \code{inputs} (inputs with a
+distribution: effect per SD and SD needed, for each flagged disease;
+\code{listed} marks those printed), \code{thresholds} (inputs without a
+distribution), \code{no_single_fix}, \code{disagreeing} and \code{settings};
 \item \code{notes}, \code{conflation} (the row equations), \code{joint_pairs} (matrix of
 \verb{P(j and k)}), \code{model}, \code{joint}, \code{method}, \code{label} and \code{units}.
 }
@@ -91,6 +104,8 @@ ratios of diseases and interactions), \code{attributable} (\code{summary}:
 overall, disease-free and attributable risk and the attributable
 fraction; \code{by_disease}: the Shapley allocation; \code{baseline_hazard}),
 \code{estimates}, \code{heterogeneity}, \code{diagnostics}, \code{unknown_pairs}, \code{draws},
+\code{problems} (with \code{diagnose = TRUE}; effects on the adjusted hazard
+ratios),
 \code{notes}, \code{joint}, \code{model}, \code{method} and \code{overall_risk}. Risks are
 proportions of animals with the event during the period.
 }
@@ -204,6 +219,46 @@ errors and stability checks (\verb{$draws$summary}). Draws whose values cannot
 hold together are rejected and counted (\verb{$draws$rejections}), not
 replaced; notes in \verb{$notes} report a high rejection share and limited
 Monte Carlo precision. Without distributions, no draws are run.
+}
+
+\section{Diagnosing the inputs}{
+
+An adjusted impact on the other side of zero from its raw impact (for
+event impacts, of 1), or one that has shrunk by more than 90\%, usually
+means that the inputs contradict each other under the model: a raw impact
+smaller than what the associated diseases alone account for, an
+association or prevalence that is too strong, or estimates that measure
+different things (e.g. "disease alone vs healthy" entered as a crude
+comparison). With \code{diagnose = TRUE}, \verb{$problems} shows which inputs
+drive such flagged impacts:
+\itemize{
+\item for each input with a distribution, the change in each flagged impact
+when the input moves up by one SD (a shift of 1 in its normal score,
+\code{qnorm(F(x))}), and the shift that alone would remove the flag, when it
+is within 3 SD (from the local slope);
+\item for each input without a distribution, the value at which the flag
+disappears, searched from a quarter to three times its value (for RD
+and phi, within 0.5 of it); for additive impact rows it is solved
+exactly, and always shown for the flagged disease's own rows.
+}
+
+The flag disappears when the adjusted impact reaches 10\% of the raw impact
+as entered (on the log scale for ratios; for risk difference rows, when it
+crosses to the raw impact's side). With several rows for a disease, the
+raw impact is their inverse-variance weighted mean (for event impacts, of
+the ratio rows when there are any). Thresholds outside a quarter to three
+times the value (shown only for a disease's own rows) are marked, and do
+not count as a fix. The listed inputs are
+those that alone remove a flag within 3 SD, and the four with the largest
+effect on each flagged impact. Association pooling is fixed at the
+central estimate, as in the draws.
+
+A separate table lists rows that disagree with other rows for the same
+quantity (standardised residual of 2 or more), with the adjusted impact
+that changes most, and the aggregate, without each row.
+
+The check describes the central estimate; it does not change the results.
+A flagged input is worth checking, not necessarily wrong.
 }
 
 \section{Errors and warnings}{

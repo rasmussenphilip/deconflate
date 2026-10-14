@@ -73,12 +73,12 @@ of `deconflate()` and can also be a distribution (e.g. `dist_beta(250, 750)`).
    in the fitted distribution.
 3. `deconflate()` for each additive table: pooled association rows and
    their heterogeneity, the pairwise shortcut, several impact rows (weighted
-   least squares), adjusted and subgroup rows, interactions, and the
-   published approximation through `compare_methods()` (for comparison
-   only).
+   least squares), adjusted and subgroup rows, interactions, the diagnosis
+   of the inputs (`diagnose = TRUE`), and the published approximation through
+   `compare_methods()` (for comparison only).
 4. Event impacts: mixed measures, an interaction, the attributable risk and
-   its Shapley allocation, the `event_model` checks, and `compare_methods()`
-   for event impacts.
+   its Shapley allocation, the diagnosis, the `event_model` checks, and
+   `compare_methods()` for event impacts.
 5. Uncertainty: intervals from draws, rejections, Latin hypercube sampling,
    an uncertain overall risk, and methods compared on the same draws.
 6. Reporting (`contribution_table`, `summary`, `attribute_burden`), and

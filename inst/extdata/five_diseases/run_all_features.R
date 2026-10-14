@@ -166,6 +166,24 @@ res_welfare
 res_welfare$contributions                            # main and interaction parts
 res_welfare$conflation$A                             # what each row contains of each term
 
+# Diagnosing the inputs: with a raw SCK yield impact of 1.0 instead of 2.5,
+# SCK's adjusted impact changes sign (a warning). diagnose = TRUE shows
+# which inputs drive it: the change per SD of each uncertain input, the shift
+# that alone would remove the flag, and the value of each exact input at
+# which it disappears. It reruns the model about twice per uncertain input,
+# so it is off by default.
+m_low <- m_yield
+m_low$impacts$value[m_low$impacts$disease == "SCK"] <- 1.0
+res_low <- deconflate(m_low, n_draws = 0, diagnose = TRUE)
+res_low$problems
+res_low$problems$flagged                             # every disease: raw, adjusted, flagged?
+head(res_low$problems$inputs)                        # every uncertain input, per flagged disease
+# Rows that disagree with other rows: the crude MAS calving-interval row at
+# 20 days instead of 9
+m_ci20 <- m_ci
+m_ci20$impacts$value[3] <- 20
+deconflate(m_ci20, n_draws = 0, diagnose = TRUE)$problems
+
 # ---- 4. Event impacts (culling) ---------------------------------------------
 section("4. Event impacts")
 
@@ -180,6 +198,12 @@ res_cull
 res_cull$adjusted                  # adjusted hazard ratios: each term's own effect
 res_cull$attributable$summary      # overall, disease-free and attributable risk
 res_cull$attributable$by_disease   # the attributable risk split by disease (Shapley)
+# Diagnosing the inputs for event impacts: with an SCK odds ratio of 1.2, SCK's
+# adjusted hazard ratio falls below 1 and LAM's shrinks by more than 90% (on
+# the log scale); effects are on the adjusted hazard ratios
+m_cull_low <- m_cull
+m_cull_low$impacts$value[m_cull_low$impacts$disease == "SCK"] <- 1.2
+deconflate(m_cull_low, event_model = TRUE, overall_risk = 0.25, n_draws = 0, diagnose = TRUE)$problems
 # event_model must match the table
 try_show(deconflate(m_cull, n_draws = 0))
 try_show(deconflate(m_yield, event_model = TRUE, overall_risk = 0.25))

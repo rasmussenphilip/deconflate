@@ -40,20 +40,17 @@
 - [x] Run `devtools::document()`, `test()` and `check()` (0 errors, 0 warnings, 0 notes).
 - [x] Tag v0.3.0.
 
-## v0.4 (planned)
+## v0.5 (released as 0.5.0; planned as v0.4)
 
 Items 3-6 follow a separate design document (October 2026); its reference values come from `inst/validation/prototype_v04_part1.py` to `part3.py` and `reference_v040.py`.
 
 In this order:
 
-1. **Test 0.3.0 in use.**
-   - [ ] Run `run_all_features.R` end to end and review every printed result as a new user would.
-   - [ ] Have someone else work through the CSV workflow with their own data, without help.
-   - [ ] Optional: a short third review of the 0.3 additions (in-table uncertainty, `cm_threshold()`, the sampled backend).
+1. **Test 0.3.0 in use** (the remaining checks move to v0.6).
    - [x] `run_all_features.R`: optional `out_dir` that saves the printed output and a PDF of all plots.
    - [x] Rewrite `run_all_features.R` for item 3 (one `deconflate()` call per impact table; event impacts; draws inside `deconflate()`; no valuation section; the published method only in `compare_methods()`).
    - [x] Update `run_all_features.R` for item 4.
-   - [ ] Update `run_all_features.R` again after items 5-6.
+   - [x] Update `run_all_features.R` for item 5.
 2. **Slim the interface to de-conflation itself.**
 
    Demote the published method (eq. 16 of Rasmussen et al. 2022, and HR - 1 for hazard ratios):
@@ -85,15 +82,24 @@ In this order:
    - [x] Sensitivity tools: kept working on the new layout with as few changes as possible (no new features); their redesign is under "To discuss".
    - [x] Several rows per item: impacts fitted by weighted least squares (weights 1/SD²; a row without uncertainty is exact; residuals and heterogeneity reported); several association rows about the same quantity pooled on the log scale (random effects by default, `pool = "fixed"`; Q, I² and tau²); associations adjusted for diseases in the model are exact conditional associations, those adjusted for other factors are used as crude, with a note.
    - [x] Tests, vignettes (`vignette("interactions")` rewritten around combination and subgroup rows), the five-disease example and `run_all_features.R` updated.
-5. **The `anchor` argument and constraints.**
-   - [ ] `anchor = c("associations", "balanced", "impacts")`: what is held at its input value when the inputs over-determine the model (several impact rows per disease, or constraints). `"associations"` (default, the current behaviour) fits the impacts; `"balanced"` moves both kinds of input in proportion to their SDs; `"impacts"` moves the associations as little as needed. Without over-determination all three give the same results as 0.3.
-   - [ ] Diagnostics in the result: a standardised residual for each input row, heterogeneity per disease and pair, and how far each input moved in SD units (shifts of 2 SD or more flagged).
-   - [ ] Constraints on adjusted impacts as a `deconflate()` argument only (e.g. `constraints = list(lower = 0)` or `list(lower = c(CM = 0, DA = 0))`; no CSV columns), applied probabilistically with `n_draws`: draw combinations that break them are dropped and the rest weighted according to `anchor`. Reports means and intervals (never exactly at the bound), how often each constraint was broken without it, and the input shifts.
-   - [ ] When few draws satisfy the constraints, return the results anyway with a warning, together with the best-fit diagnostic in the result (`$conflict`): the smallest shift of the inputs, in SD units, that satisfies the constraints, and the inputs that have to move most.
-6. **Probabilistic machinery** (MCMC or directed importance sampling), for where too few draw combinations satisfy the constraints, constraints on the mortality model, and `anchor = "impacts"` with several impact rows per disease.
-   - [ ] Probabilistic thresholds: combine `cm_threshold()` with the Monte Carlo draws, e.g. the input value at which a disease ranks first (or the aggregate exceeds a target) in a given share of draws, with Monte Carlo error.
+5. **Diagnosing the inputs.** `deconflate(diagnose = TRUE)` (off by default) adds `$problems`: which inputs drive problematic adjusted impacts, and rows that disagree with other rows. Design: section 14 of the v0.4 design note; reference values: `inst/validation/reference_v05_input_check.py`.
+   - [x] Flagged impacts: an adjusted impact on the other side of zero from its raw impact (for event impacts, of 1), or shrunk by more than 90%.
+   - [x] Inputs with a distribution (prevalences, associations, impacts, the overall risk): the change in each flagged adjusted impact when the input moves by one SD, and the shift (in SD) that alone would remove the flag, shown when within 3 SD.
+   - [x] Inputs without a distribution: the value at which the flag disappears, searched from a quarter to three times the value.
+   - [x] A separate table of rows that disagree with other rows for the same quantity (standardised residual of 2 or more), with the adjusted impacts without each.
+   - [x] Printed with the result; the sign-change warning points to it. Additive and event impacts.
+6. **Dropped (October 2026): the `anchor` argument, constraints on adjusted impacts, MCMC and importance sampling.** A Python prototype showed that they cannot fix what they were meant to fix: a negative adjusted impact means the inputs contradict each other, a lower bound of zero only parks the impact at zero, and narrowing the distributions makes the negative values more certain. Such conflicts are fixed in the inputs (item 5 shows where). Probabilistic thresholds move to the sensitivity redesign (To discuss).
+- [ ] Run `devtools::document()`, `test()` and `check()` (0 errors, 0 warnings, 0 notes).
+- [ ] Tag v0.5.0.
+
+## v0.6 (planned)
+
+0. **Test 0.5.0 in use.**
+   - [ ] Run `run_all_features.R` end to end and review every printed result as a new user would.
+   - [ ] Have someone else work through the CSV workflow with their own data, without help.
+   - [ ] Optional: a short external review of the 0.5 additions (rows about combinations and subgroups, several rows per item, `diagnose = TRUE`).
 7. **Revised 2024 inputs**, separate from `reproduce_rasmussen_2024()`, which stays a faithful reproduction.
-   - [ ] `example_global_dairy(inputs = "revised")`, using the features of items 4-5.
+   - [ ] `example_global_dairy(inputs = "revised")`, using the features of items 4-5 (several rows per disease with their own estimands, e.g. the clinical mastitis sources).
    - [ ] A vignette section documenting each correction: the SCK conversion from kg to percent, the milk fever and ketosis estimates of Bareille et al. (2003) as direct effects, the adjusted SCK estimates and odds ratios of Raboisson et al. (2014), the clinical mastitis sources by estimand, and the displaced abomasum sources. Unit and measurement-window corrections are made here only, not in the main pipeline.
 8. **Simpler, more intuitive input tables.**
    - [ ] Accept missing optional columns everywhere with sensible defaults, and fewer required columns.
@@ -105,13 +111,13 @@ In this order:
    - [ ] Raw vs adjusted attributable risk for mortality files (the same calculation with the raw estimates), so that the double counting removed is visible, as with the raw and adjusted aggregates of impact files.
 10. **Better plots.** The same rule as for tables (the user's labels and units only); a consistent look across plot methods, and plots for uncertainty, thresholds and the estimate diagnostics.
     - [ ] Documentation examples from more than dairy cattle (e.g. another livestock system and a human-health example), so that the generality is visible.
-11. **Dependencies.** Keep the package on base R (see the Dependencies section of the README); list any new dependency there with its reason (the MCMC in item 6 is the most likely candidate).
+11. **Dependencies.** Keep the package on base R (see the Dependencies section of the README); list any new dependency there with its reason.
 
 Afterwards: a Zenodo DOI for each release, and possibly a CRAN submission and a short software paper.
 
 ## To discuss
 
-- A redesign of the sensitivity tools (`cm_threshold()`, `sensitivity_oat()` and the screens) after item 4: what they should answer, how they name the input they vary (e.g. by file and row), and how they handle combination rows, subgroup rows and several rows per item.
+- A redesign of the sensitivity tools (`cm_threshold()`, `sensitivity_oat()` and the screens) after item 4: what they should answer, how they name the input they vary (e.g. by file and row), and how they handle combination rows, subgroup rows and several rows per item. Includes probabilistic thresholds (with the Monte Carlo draws, e.g. the input value at which a disease ranks first in a given share of draws).
 - Pairwise-only bounds as a complementary sensitivity output for large systems; pseudo-likelihood fitting when individual-level disease records are available.
 - Higher-order and non-linear interaction models in the adjustment itself.
 

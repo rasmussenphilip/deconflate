@@ -101,6 +101,42 @@
 #' replaced; notes in `$notes` report a high rejection share and limited
 #' Monte Carlo precision. Without distributions, no draws are run.
 #'
+#' @section Diagnosing the inputs:
+#' An adjusted impact on the other side of zero from its raw impact (for
+#' event impacts, of 1), or one that has shrunk by more than 90%, usually
+#' means that the inputs contradict each other under the model: a raw impact
+#' smaller than what the associated diseases alone account for, an
+#' association or prevalence that is too strong, or estimates that measure
+#' different things (e.g. "disease alone vs healthy" entered as a crude
+#' comparison). With `diagnose = TRUE`, `$problems` shows which inputs
+#' drive such flagged impacts:
+#' * for each input with a distribution, the change in each flagged impact
+#'   when the input moves up by one SD (a shift of 1 in its normal score,
+#'   `qnorm(F(x))`), and the shift that alone would remove the flag, when it
+#'   is within 3 SD (from the local slope);
+#' * for each input without a distribution, the value at which the flag
+#'   disappears, searched from a quarter to three times its value (for RD
+#'   and phi, within 0.5 of it); for additive impact rows it is solved
+#'   exactly, and always shown for the flagged disease's own rows.
+#'
+#' The flag disappears when the adjusted impact reaches 10% of the raw impact
+#' as entered (on the log scale for ratios; for risk difference rows, when it
+#' crosses to the raw impact's side). With several rows for a disease, the
+#' raw impact is their inverse-variance weighted mean (for event impacts, of
+#' the ratio rows when there are any). Thresholds outside a quarter to three
+#' times the value (shown only for a disease's own rows) are marked, and do
+#' not count as a fix. The listed inputs are
+#' those that alone remove a flag within 3 SD, and the four with the largest
+#' effect on each flagged impact. Association pooling is fixed at the
+#' central estimate, as in the draws.
+#'
+#' A separate table lists rows that disagree with other rows for the same
+#' quantity (standardised residual of 2 or more), with the adjusted impact
+#' that changes most, and the aggregate, without each row.
+#'
+#' The check describes the central estimate; it does not change the results.
+#' A flagged input is worth checking, not necessarily wrong.
+#'
 #' @section Errors and warnings:
 #' Errors and warnings are condition objects with classes (see
 #' [deconflate-package]). Those about particular inputs also hold them as
@@ -141,6 +177,11 @@
 #'   model (diseases, probabilities and association rows).
 #' @param warn Logical: warn when adjusted impacts change sign or are not
 #'   finite?
+#' @param diagnose Logical (default `FALSE`): show which inputs drive
+#'   problematic adjusted impacts, and which rows disagree with other rows
+#'   (`$problems`, printed with the result; see the section "Checking the
+#'   inputs"). It reruns the central estimate many times (twice per input
+#'   with a distribution, a few times per input without one).
 #' @param ... Passed to [fit_joint()] (e.g. `backend = "sampled"`). With
 #'   more than 20 diseases the sampled backend is used.
 #'
@@ -166,6 +207,12 @@
 #'     fit gave them;
 #'   * `draws`: the uncertainty (summary, accepted draws, rejections, seed),
 #'     or `NULL`;
+#'   * `problems`: with `diagnose = TRUE`, a `cm_diagnosis` object:
+#'     `flagged` (every disease with impact rows: raw, adjusted, the
+#'     criterion and whether it is flagged), `inputs` (inputs with a
+#'     distribution: effect per SD and SD needed, for each flagged disease;
+#'     `listed` marks those printed), `thresholds` (inputs without a
+#'     distribution), `no_single_fix`, `disagreeing` and `settings`;
 #'   * `notes`, `conflation` (the row equations), `joint_pairs` (matrix of
 #'     `P(j and k)`), `model`, `joint`, `method`, `label` and `units`.
 #'
@@ -174,6 +221,8 @@
 #'   overall, disease-free and attributable risk and the attributable
 #'   fraction; `by_disease`: the Shapley allocation; `baseline_hazard`),
 #'   `estimates`, `heterogeneity`, `diagnostics`, `unknown_pairs`, `draws`,
+#'   `problems` (with `diagnose = TRUE`; effects on the adjusted hazard
+#'   ratios),
 #'   `notes`, `joint`, `model`, `method` and `overall_risk`. Risks are
 #'   proportions of animals with the event during the period.
 #' @export
@@ -219,8 +268,12 @@ deconflate.default <- function(model, ...) {
 #' @export
 deconflate.cm_model <- function(model, event_model = FALSE, overall_risk = NULL, n_draws = 1000,
                                 seed = NULL, sampling = c("random", "lhs"), lhs_replicates = 10L,
-                                pool = c("random", "fixed"), joint = NULL, warn = TRUE, ...) {
+                                pool = c("random", "fixed"), joint = NULL, warn = TRUE,
+                                diagnose = FALSE, ...) {
   dots <- list(...)
+  if (!is.logical(diagnose) || length(diagnose) != 1L || is.na(diagnose)) {
+    cm_abort("`diagnose` must be TRUE or FALSE.", class = "deconflate_invalid_input")
+  }
   retired_args(dots)
   sampling <- cm_match_arg(sampling)
   pool <- cm_match_arg(pool)
@@ -240,6 +293,7 @@ deconflate.cm_model <- function(model, event_model = FALSE, overall_risk = NULL,
   }
   res <- run_point(model, plan, risk = risk$value, joint = joint, warn = warn, dots = dots, central = TRUE)
   res <- finish_result(res, model, plan)
+  if (diagnose) res$problems <- diagnose_inputs(model, plan, res, risk, dots)
   specs <- draw_specs(model, risk$dist, res$pooling$frozen)
   if (n_draws > 0L) {
     if (!length(specs)) {
@@ -328,9 +382,11 @@ join_and <- function(x) {
 # One adjustment of a model, as planned. `central`: also fit the joint
 # distribution to confirm the shortcut (draws use the shortcut alone).
 # `frozen`: pooling of association rows and impact-row SDs fixed at the
-# central estimate; `between`: between-study deviates of a draw.
+# central estimate; `between`: between-study deviates of a draw;
+# `allocate`: the Shapley allocation of the attributable risk (event
+# impacts).
 run_point <- function(model, plan, risk = NULL, joint = NULL, warn = TRUE, dots = list(),
-                      joint_start = NULL, start = NULL, frozen = NULL, central = FALSE) {
+                      joint_start = NULL, start = NULL, frozen = NULL, central = FALSE, allocate = TRUE) {
   fj <- utils::modifyList(dots[intersect(names(dots), joint_arg_names)], plan$fit_args)
   between <- model$between
   pool <- plan$pool %||% "random"
@@ -359,7 +415,8 @@ run_point <- function(model, plan, risk = NULL, joint = NULL, warn = TRUE, dots 
   jt <- do.call(event_joint, c(list(as_population(model), joint, joint_start = joint_start, pool = pool,
                                     frozen = frozen$associations, between = between), fj))
   res <- if (isTRUE(plan$event)) {
-    adjust_event(model, overall_risk = risk, joint = jt, warn = warn, start = start, frozen_se = frozen$impacts)
+    adjust_event(model, overall_risk = risk, joint = jt, warn = warn, start = start, frozen_se = frozen$impacts,
+                 allocate = allocate)
   } else {
     r <- adjust_additive(model, joint = jt, warn = warn, frozen_se = frozen$impacts)
     r$diagnostics$feasibility <- sprintf("joint distribution fitted (max residual %.1e)", jt$max_residual)

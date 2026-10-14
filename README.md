@@ -2,7 +2,7 @@
 
 Comorbidity adjustment ("de-conflation") of disease impact estimates, so that the impacts of multiple associated diseases can be aggregated without double counting. Based on Rasmussen et al. (2022, *Prev. Vet. Med.* 203:105617) and Rasmussen et al. (2024, *J. Dairy Sci.* 107:6945–6970).
 
-> **Status:** latest release [v0.3.0](https://github.com/rasmussenphilip/deconflate/releases); changes are listed in `NEWS.md` and plans in `ROADMAP.md`. The test reference values were computed independently in Python (`inst/validation/`).
+> **Status:** latest release [v0.5.0](https://github.com/rasmussenphilip/deconflate/releases); changes are listed in `NEWS.md` and plans in `ROADMAP.md`. The test reference values were computed independently in Python (`inst/validation/`).
 
 ## Installation
 
@@ -81,7 +81,7 @@ reproduce_rasmussen_2022()
 ## Features
 
 - **Inputs:** `cm_read_inputs()` reads CSV files or data frames (each table a named argument) and reports every problem at once (`cm_check_inputs()`); uncertain values carry their distribution in their own row (`dist`, `p1`-`p4`), mixed freely with point values. `cm_template()` writes example files, and `system.file("extdata", "five_diseases", package = "deconflate")` holds a five-disease example that uses every feature, with a script (`run_all_features.R`) that runs them all. In R: `cm_diseases()`, `cm_associations()` (OR, RR, RD, phi, prevalence, OR ratio; about pairs, combinations and subgroups, crude or adjusted), `cm_population()`, `cm_impacts()` and `cm_model()`.
-- **Adjustment:** `deconflate()` for additive and event impacts, with interactions, several rows per item (pooling with random or fixed effects, weighted least squares; `$heterogeneity`), and intervals (`n_draws`); `compare_methods()` (which also shows the published approximation, for comparison); contributions of each disease (closed-form Shapley values) in `attribute_burden()` and `contribution_table()`; the attributable risk of event impacts.
+- **Adjustment:** `deconflate()` for additive and event impacts, with interactions, several rows per item (pooling with random or fixed effects, weighted least squares; `$heterogeneity`), intervals (`n_draws`), and a diagnosis (`diagnose = TRUE`) that shows which inputs drive adjusted impacts that change sign or nearly vanish, and which rows disagree with others; `compare_methods()` (which also shows the published approximation, for comparison); contributions of each disease (closed-form Shapley values) in `attribute_burden()` and `contribution_table()`; the attributable risk of event impacts.
 - **Joint distribution and feasibility:** `fit_joint()` (exact, or sampled for many diseases), `combination_probs()` and `check_feasibility()`.
 - **Attribution of non-additive losses:** `shapley_by_cell()`.
 - **Sensitivity and thresholds:** `cm_threshold()` (where a ranking, a sign or the aggregate changes as one input varies), `sensitivity_oat()`, `screen_associations()`, `screen_interactions()` and `screen_three_way()`; they also run without any association estimates, to show which associations would matter.

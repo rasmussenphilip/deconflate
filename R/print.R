@@ -72,6 +72,10 @@ print.cm_result <- function(x, ...) {
   cat("\n")
   print_diagnostics(x)
   print_unknown_pairs(x$unknown_pairs)
+  if (!is.null(x$problems)) {
+    cat("\n")
+    print(x$problems)
+  }
   print_draws_and_notes(x)
   invisible(x)
 }
@@ -129,6 +133,10 @@ print.cm_event_result <- function(x, ...) {
   cat("\n")
   print_diagnostics(x)
   print_unknown_pairs(x$unknown_pairs)
+  if (!is.null(x$problems)) {
+    cat("\n")
+    print(x$problems)
+  }
   print_draws_and_notes(x)
   invisible(x)
 }
