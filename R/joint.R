@@ -102,8 +102,8 @@ fit_joint <- function(model, tol = 1e-10, max_iter = 10000L, max_diseases = 20L,
                       burn_in = 50L, fit_iter = 300L, calibrate = TRUE, seed = NULL,
                       start = NULL, pool = c("random", "fixed")) {
   check_population(model)
-  backend <- match.arg(backend)
-  pool <- match.arg(pool)
+  backend <- cm_match_arg(backend)
+  pool <- cm_match_arg(pool)
   fit_joint_at(model, tol = tol, max_iter = max_iter, max_diseases = max_diseases, backend = backend,
                n_samples = n_samples, n_chains = n_chains, burn_in = burn_in, fit_iter = fit_iter,
                calibrate = calibrate, seed = seed, start = start, pool = pool)
@@ -136,7 +136,7 @@ fit_joint_at <- function(model, tol = 1e-10, max_iter = 10000L, max_diseases = 2
     return(out)
   }
   if (n > max_diseases) {
-    cm_abort(sprintf("%d diseases give 2^%d cells; use backend = \"sampled\", or increase `max_diseases` if intended.", n, n))
+    cm_abort(sprintf("%d diseases give 2^%d cells; use backend = \"sampled\", or increase `max_diseases` if intended.", n, n), class = "deconflate_unsupported")
   }
   cells <- disease_cells(n)
   colnames(cells) <- ids
@@ -149,7 +149,7 @@ fit_joint_at <- function(model, tol = 1e-10, max_iter = 10000L, max_diseases = 2
   if (!fit$converged) {
     cm_warn(sprintf(
       "The joint distribution did not converge after %d sweeps (max residual %.2e). The association rows may not be able to hold together; see check_feasibility().",
-      fit$iterations, fit$residual), class = "deconflate_nonconvergence")
+      fit$iterations, fit$residual), class = "deconflate_nonconvergence", residual = fit$residual)
   }
   structure(list(cells = cells, prob = fit$prob, diseases = ids,
                  converged = fit$converged, iterations = fit$iterations, max_residual = fit$residual,
@@ -279,7 +279,7 @@ fit_joint_sampled <- function(model, ids, p, cons, targets, tol, max_iter, n_sam
   if (!is.null(seed)) set.seed(seed)
   n <- length(ids)
   n_chains <- as.integer(n_chains)
-  if (n_chains < 10L) cm_abort("`n_chains` must be at least 10.")
+  if (n_chains < 10L) cm_abort("`n_chains` must be at least 10.", class = "deconflate_invalid_input")
   i1 <- match(cons$disease1, ids)
   i2 <- match(cons$disease2, ids)
   p11 <- cons$p11
@@ -435,7 +435,7 @@ fit_joint_sampled <- function(model, ids, p, cons, targets, tol, max_iter, n_sam
       "The sampled joint distribution is unresolved (calibration %s; sample residual %.2e; %s). This does not show that the inputs are infeasible; try more samples, chains or iterations, or check_feasibility().",
       if (fit_converged) "converged" else "did not converge", resid_raw,
       if (calibrate) sprintf("raking residual %.2e", cal$residual) else "no raking"),
-      class = "deconflate_nonconvergence")
+      class = "deconflate_nonconvergence", residual = resid_raw)
   }
   structure(list(cells = cells, prob = prob, diseases = ids, converged = converged,
                  iterations = it, max_residual = resid_final,
@@ -448,15 +448,15 @@ fit_joint_sampled <- function(model, ids, p, cons, targets, tol, max_iter, n_sam
 # the same order, the same disease probabilities and association rows, and
 # converged. Impact-only changes do not invalidate a joint.
 validate_joint <- function(joint, model, pool = "random") {
-  if (!inherits(joint, "cm_joint")) cm_abort("`joint` must come from fit_joint().")
+  if (!inherits(joint, "cm_joint")) cm_abort("`joint` must come from fit_joint().", class = "deconflate_invalid_input")
   ids <- model$diseases$disease
   stale <- function(why) {
-    cm_abort(sprintf("The supplied joint distribution does not match the model (%s); refit it with fit_joint().", why))
+    cm_abort(sprintf("The supplied joint distribution does not match the model (%s); refit it with fit_joint().", why), class = "deconflate_invalid_input")
   }
   if (!identical(joint$diseases, ids)) stale("different diseases or order")
   if (!isTRUE(joint$converged)) {
     cm_abort("The supplied joint distribution did not converge; its probabilities cannot be used.",
-             class = "deconflate_nonconvergence")
+             class = "deconflate_nonconvergence", residual = joint$max_residual)
   }
   tp <- joint$targets$prob
   if (is.null(tp) || length(tp) != length(ids) || max(abs(tp - model$diseases$prob)) > 1e-7) {
@@ -478,7 +478,7 @@ validate_joint <- function(joint, model, pool = "random") {
 #'   decreasing probability.
 #' @export
 combination_probs <- function(joint, min_prob = 0) {
-  if (!inherits(joint, "cm_joint")) cm_abort("`joint` must come from fit_joint().")
+  if (!inherits(joint, "cm_joint")) cm_abort("`joint` must come from fit_joint().", class = "deconflate_invalid_input")
   out <- as.data.frame(joint$cells)
   out$n_diseases <- rowSums(joint$cells)
   out$prob <- joint$prob

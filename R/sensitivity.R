@@ -23,7 +23,7 @@ sens_setup <- function(model, event_model, overall_risk, dots = list()) {
   check_model(model)
   retired_args(dots)
   if (length(dots)) cm_abort(sprintf("Unknown argument%s: %s.", if (length(dots) > 1L) "s" else "",
-                                     paste(names(dots), collapse = ", ")))
+                                     paste(names(dots), collapse = ", ")), class = "deconflate_invalid_input")
   check_event_model(model, event_model)
   risk <- check_overall_risk(overall_risk, event_model)$value
   list(event_model = event_model, risk = risk)
@@ -86,7 +86,8 @@ screen_row <- function(labels, res, base) {
 # be a finite estimate.
 check_baseline <- function(res) {
   if (!inherits(res, "cm_result") && !inherits(res, "cm_event_result")) {
-    cm_abort(sprintf("The baseline could not be adjusted (%s).", attr(res, "reason") %||% "failed"))
+    reason <- attr(res, "reason") %||% "failed"
+    cm_abort(sprintf("The baseline could not be adjusted (%s).", reason), class = type_class(reason))
   }
   if (!result_is_finite(res)) {
     cm_abort(sprintf("The baseline result is undefined (non-finite adjusted impacts for %s).",
@@ -97,7 +98,7 @@ check_baseline <- function(res) {
 
 check_disease_ids <- function(ids, model) {
   unk <- setdiff(ids, model$diseases$disease)
-  if (length(unk)) cm_abort(sprintf("Unknown diseases: %s.", paste(unk, collapse = ", ")))
+  if (length(unk)) cm_abort(sprintf("Unknown diseases: %s.", paste(unk, collapse = ", ")), class = "deconflate_invalid_input")
   invisible(ids)
 }
 
@@ -169,7 +170,7 @@ set_interaction <- function(model, disease1, disease2, value) {
              class = "deconflate_unsupported")
   }
   check_disease_ids(c(disease1, disease2), model)
-  if (disease1 == disease2) cm_abort("An interaction needs two different diseases.")
+  if (disease1 == disease2) cm_abort("An interaction needs two different diseases.", class = "deconflate_invalid_input")
   im <- model$impacts
   ids <- model$diseases$disease
   combo <- term_label(ids[ids %in% c(disease1, disease2)])
@@ -195,7 +196,7 @@ set_interaction <- function(model, disease1, disease2, value) {
 set_three_way <- function(model, disease1, disease2, disease3, ratio) {
   check_population(model)
   check_disease_ids(c(disease1, disease2, disease3), model)
-  if (anyDuplicated(c(disease1, disease2, disease3))) cm_abort("A three-way association needs three different diseases.")
+  if (anyDuplicated(c(disease1, disease2, disease3))) cm_abort("A three-way association needs three different diseases.", class = "deconflate_invalid_input")
   a <- model$associations
   hit <- if (is.null(a)) logical(0) else a$measure == "OR_ratio" & vapply(seq_len(nrow(a)), function(r) {
     setequal(c(a$disease[r], a$associated_with[r], sub("^no\\s+", "", a$among[r])), c(disease1, disease2, disease3))
@@ -297,7 +298,7 @@ check_pair_ids <- function(pairs, ids) {
   bad <- !vapply(ab, function(x) length(x) == 2L && all(x %in% ids) && x[1] != x[2], logical(1))
   if (any(bad)) {
     cm_abort(sprintf("Unknown or malformed pairs (use 'd1:d2' with disease ids of the model): %s.",
-                     paste(pairs[bad], collapse = ", ")))
+                     paste(pairs[bad], collapse = ", ")), class = "deconflate_invalid_input")
   }
   invisible(pairs)
 }
@@ -406,7 +407,7 @@ screen_three_way <- function(model, ratios = c(0.5, 2), triples = NULL, event_mo
     for (tr in triples) {
       if (length(tr) != 3L || anyDuplicated(tr) || !all(tr %in% ids)) {
         cm_abort(sprintf("Each triple must name three different diseases of the model (check: %s).",
-                         paste(tr, collapse = ", ")))
+                         paste(tr, collapse = ", ")), class = "deconflate_invalid_input")
       }
     }
   }
@@ -448,7 +449,7 @@ screen_three_way <- function(model, ratios = c(0.5, 2), triples = NULL, event_mo
 sensitivity_oat <- function(model, event_model = FALSE, overall_risk = NULL,
                             variation = 0.2, inputs = c("prob", "assoc", "impact", "risk"), ...) {
   st <- sens_setup(model, event_model, overall_risk, list(...))
-  inputs <- match.arg(inputs, several.ok = TRUE)
+  inputs <- cm_match_arg(inputs, several_ok = TRUE)
   base <- burden_metric(check_baseline(run_quiet(model, st)))
   vals <- model_inputs(model)
   if (event_model) vals <- c(vals, risk = st$risk)

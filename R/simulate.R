@@ -43,15 +43,15 @@ simulate_raw_impacts <- function(model, true_impacts, interactions = NULL, rows 
   check_population(model)
   ids <- model$diseases$disease
   if (is.null(names(true_impacts)) || !setequal(names(true_impacts), ids)) {
-    cm_abort("`true_impacts` must be named, with one value per disease.")
+    cm_abort("`true_impacts` must be named, with one value per disease.", class = "deconflate_invalid_input")
   }
   if (!is.null(interactions)) {
     if (!is.numeric(interactions) || is.null(names(interactions))) {
-      cm_abort("`interactions` must be a named numeric vector, named by combination (e.g. c(\"d1;d2\" = 0.5)).")
+      cm_abort("`interactions` must be a named numeric vector, named by combination (e.g. c(\"d1;d2\" = 0.5)).", class = "deconflate_invalid_input")
     }
   }
   combos <- lapply(names(interactions), function(t) parse_members(t, ids, "interactions", "name"))
-  if (any(lengths(combos) < 2L)) cm_abort("Each interaction must name a combination of two or more diseases.")
+  if (any(lengths(combos) < 2L)) cm_abort("Each interaction must name a combination of two or more diseases.", class = "deconflate_invalid_input")
   members <- c(as.list(ids), combos)
   names(members) <- c(ids, vapply(combos, term_label, character(1)))
   if (is.null(rows)) {
@@ -60,7 +60,7 @@ simulate_raw_impacts <- function(model, true_impacts, interactions = NULL, rows 
                                         rep(NA_character_, length(combos))),
                        stringsAsFactors = FALSE)
   }
-  if (!is.data.frame(rows) || is.null(rows$disease)) cm_abort("`rows` must be a data frame with a column `disease`.")
+  if (!is.data.frame(rows) || is.null(rows$disease)) cm_abort("`rows` must be a data frame with a column `disease`.", class = "deconflate_invalid_input")
   rows$row <- seq_len(nrow(rows))
   if (is.null(rows$among)) rows$among <- NA_character_
   if (is.null(rows$adjusted_for)) rows$adjusted_for <- NA_character_

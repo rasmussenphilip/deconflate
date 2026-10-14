@@ -37,7 +37,7 @@ set_inputs <- function(model, values) {
     switch(parts[1],
       prob = {
         r <- match(parts[2], model$diseases$disease)
-        if (is.na(r)) cm_abort(sprintf("Unknown disease in '%s'.", k))
+        if (is.na(r)) cm_abort(sprintf("Unknown disease in '%s'.", k), class = "deconflate_invalid_input")
         prob <- if (model$diseases$measure[r] == "incidence_rate") 1 - exp(-x) else x
         if (x < 0 || prob <= 0 || prob >= 1) invalid("disease value (it gives a probability outside (0, 1))")
         model$diseases$value[r] <- x
@@ -46,7 +46,7 @@ set_inputs <- function(model, values) {
       associations = {
         a <- model$associations
         r <- if (is.null(a)) NA_integer_ else match(as.integer(parts[2]), a$row)
-        if (is.na(r)) cm_abort(sprintf("No association row for '%s'.", k))
+        if (is.na(r)) cm_abort(sprintf("No association row for '%s'.", k), class = "deconflate_invalid_input")
         meas <- a$measure[r]
         ok <- switch(meas, OR = , RR = , OR_ratio = x > 0, prevalence = x > 0 && x < 1,
                      RD = , phi = x >= -1 && x <= 1, TRUE)
@@ -56,7 +56,7 @@ set_inputs <- function(model, values) {
       impacts = {
         im <- model$impacts
         r <- if (is.null(im)) NA_integer_ else match(as.integer(parts[2]), im$row)
-        if (is.na(r)) cm_abort(sprintf("No impact row for '%s'.", k))
+        if (is.na(r)) cm_abort(sprintf("No impact row for '%s'.", k), class = "deconflate_invalid_input")
         meas <- im$measure[r]
         if (!is.na(meas)) {
           if (meas == "RD" && (x <= -1 || x >= 1)) invalid("risk difference")
@@ -64,7 +64,7 @@ set_inputs <- function(model, values) {
         }
         model$impacts$value[r] <- x
       },
-      cm_abort(sprintf("Unknown input key '%s'.", k))
+      cm_abort(sprintf("Unknown input key '%s'.", k), class = "deconflate_invalid_input")
     )
   }
   model
@@ -73,14 +73,14 @@ set_inputs <- function(model, values) {
 # Check the arguments that control the draws (deconflate(), compare_methods()).
 check_draw_args <- function(n_draws, seed = NULL, sampling = "random", lhs_replicates = 10L) {
   whole <- function(x) is.numeric(x) && length(x) == 1L && is.finite(x) && x == round(x)
-  if (!whole(n_draws) || n_draws < 0) cm_abort("`n_draws` must be a single whole number, 0 or more.")
-  if (n_draws == 1) cm_abort("`n_draws` must be 0 (point estimates only) or at least 2.")
+  if (!whole(n_draws) || n_draws < 0) cm_abort("`n_draws` must be a single whole number, 0 or more.", class = "deconflate_invalid_input")
+  if (n_draws == 1) cm_abort("`n_draws` must be 0 (point estimates only) or at least 2.", class = "deconflate_invalid_input")
   if (!is.null(seed) && (!whole(seed) || abs(seed) > .Machine$integer.max)) {
-    cm_abort("`seed` must be a single whole number (as for set.seed()).")
+    cm_abort("`seed` must be a single whole number (as for set.seed()).", class = "deconflate_invalid_input")
   }
-  if (!whole(lhs_replicates) || lhs_replicates < 2) cm_abort("`lhs_replicates` must be a whole number, at least 2.")
+  if (!whole(lhs_replicates) || lhs_replicates < 2) cm_abort("`lhs_replicates` must be a whole number, at least 2.", class = "deconflate_invalid_input")
   if (identical(sampling, "lhs") && n_draws > 0 && n_draws < 4) {
-    cm_abort("Latin hypercube sampling needs at least 4 draws (2 blocks of 2).")
+    cm_abort("Latin hypercube sampling needs at least 4 draws (2 blocks of 2).", class = "deconflate_invalid_input")
   }
   invisible(TRUE)
 }
@@ -94,7 +94,7 @@ draw_uniforms <- function(n_draws, keys, sampling, lhs_replicates) {
     return(list(U = U, block = NULL))
   }
   R <- min(as.integer(lhs_replicates), n_draws %/% 2L)
-  if (R < 2L) cm_abort("Latin hypercube sampling needs at least 4 draws (2 blocks of 2).")
+  if (R < 2L) cm_abort("Latin hypercube sampling needs at least 4 draws (2 blocks of 2).", class = "deconflate_invalid_input")
   block <- sort(rep(seq_len(R), length.out = n_draws))
   U <- matrix(NA_real_, n_draws, k, dimnames = list(NULL, keys))
   for (b in seq_len(R)) {

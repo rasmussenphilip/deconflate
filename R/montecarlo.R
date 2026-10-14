@@ -38,7 +38,8 @@ run_draw <- function(make_model, method, ...) {
           exact = {
             pt <- pair_tables(model)
             tri <- triple_screen(pt, stats::setNames(model$diseases$prob, model$diseases$disease))
-            if (nrow(tri)) cm_abort("The pairwise associations are jointly infeasible.", class = "deconflate_infeasible")
+            if (nrow(tri)) cm_abort("The pairwise associations are jointly infeasible.", class = "deconflate_infeasible",
+                                    triples = tri)
             adjust_additive(model, pt = pt, warn = FALSE)
           },
           cm_abort(sprintf("Unknown method '%s'.", m)))

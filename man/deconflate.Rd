@@ -206,6 +206,27 @@ replaced; notes in \verb{$notes} report a high rejection share and limited
 Monte Carlo precision. Without distributions, no draws are run.
 }
 
+\section{Errors and warnings}{
+
+Errors and warnings are condition objects with classes (see
+\link{deconflate-package}). Those about particular inputs also hold them as
+fields, so that code can use them without reading the message:
+\itemize{
+\item \code{table} and \code{row} (or \code{rows}): the input rows concerned, e.g. an impact
+row that is not identifiable, or exact rows that contradict each other
+(with their \code{residuals} for impact rows);
+\item \code{terms}: diseases and interactions, e.g. those the impact rows do not
+determine (\code{deconflate_singular}), or those whose adjusted impact
+changes sign (the warning \code{deconflate_sign_change});
+\item \code{triples}: the conflicting triples when the crude pair rows cannot all
+hold (\code{deconflate_infeasible}), as in \code{\link[=check_feasibility]{check_feasibility()}};
+\item \code{pairs}: the pairs without a crude pair row, for the calculations that
+need every pair (\code{deconflate_unknown_pairs});
+\item \code{residual}: how far a fit was from converging
+(\code{deconflate_nonconvergence}).
+}
+}
+
 \examples{
 res <- deconflate(example_supplement())
 res$adjusted
@@ -230,4 +251,11 @@ cull <- cm_model(example_supplement(),
                  cm_impacts(c("d1", "d2", "d3"), c(1.5, 2.0, 1.2), measure = c("HR", "HR", "RR"),
                             label = "culling"))
 deconflate(cull, event_model = TRUE, overall_risk = 0.25)
+
+# Errors hold the inputs they are about
+bad <- cm_model(cm_population(cm_diseases(c("a", "b", "c"), c(0.5, 0.5, 0.5)),
+                              cm_associations(c("a", "a", "b"), c("b", "c", "c"), c(20, 20, 0.05))),
+                cm_impacts(c("a", "b", "c"), c(1, 1, 1)))
+e <- tryCatch(deconflate(bad), deconflate_infeasible = function(e) e)
+e$triples
 }

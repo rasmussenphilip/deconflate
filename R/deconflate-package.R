@@ -52,12 +52,28 @@
 #'   `k` among animals with disease `i`: `P(k | i) - P(k | not i)`.
 #' * Under additive impacts, the crude impact of disease `i` satisfies
 #'   `m_raw[i] = m[i] + sum_k E[k, i] * m[k]` exactly.
-#' * Errors have classes `deconflate_infeasible`, `deconflate_singular`,
-#'   `deconflate_nonconvergence`, `deconflate_unsupported` and
-#'   `deconflate_nonfinite` (all also `deconflate_error`); problems found
-#'   by [cm_read_inputs()] have class `deconflate_input_problems`. Warning classes
-#'   include `deconflate_sign_change`, `deconflate_nonconvergence` and
-#'   `deconflate_nonfinite_warning` (all also `deconflate_warning`).
+#' * Errors are condition objects of class `deconflate_error`. Failures that
+#'   code may want to handle separately have a subclass as well:
+#'   `deconflate_infeasible` (inputs that no population can have),
+#'   `deconflate_singular` (an estimate that is not identifiable, or rows
+#'   that do not determine the impacts), `deconflate_nonconvergence` (a fit
+#'   that did not converge), `deconflate_unsupported` (a combination of
+#'   inputs and options that is not supported; with
+#'   `deconflate_unknown_pairs` when a calculation needs a crude pair row for
+#'   every pair), `deconflate_nonfinite` (non-finite results) and
+#'   `deconflate_invalid_input` (an argument, table, row or input value that
+#'   is not valid). Problems
+#'   found by [cm_read_inputs()] have class `deconflate_input_problems`
+#'   (also `deconflate_invalid_input`).
+#' * Warnings are condition objects of class `deconflate_warning`, with the
+#'   subclasses `deconflate_sign_change` (an adjusted impact on the other
+#'   side of zero, or an adjusted hazard ratio on the other side of 1, from
+#'   its raw estimate), `deconflate_nonfinite_warning` (non-finite adjusted
+#'   impacts), `deconflate_nonconvergence` (a joint distribution that did not
+#'   converge) and `deconflate_incomplete_allocation` (a Shapley allocation
+#'   that skipped combinations; see [shapley_by_cell()]).
+#' * Messages are of class `deconflate_message`; the notes of
+#'   [cm_read_inputs()] are also `deconflate_input_notes`.
 #'
 #' @references
 #' Rasmussen P, Shaw APM, Munoz V, Bruce M, Torgerson PR (2022). Estimating the

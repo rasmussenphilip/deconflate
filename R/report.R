@@ -39,7 +39,7 @@ contribution_table <- function(result) {
     }
     return(out)
   }
-  if (!inherits(result, "cm_result")) cm_abort("`result` must come from deconflate().")
+  if (!inherits(result, "cm_result")) cm_abort("`result` must come from deconflate().", class = "deconflate_invalid_input")
   a <- result$adjusted
   ct <- result$contributions
   k <- match(ct$disease, a$disease)

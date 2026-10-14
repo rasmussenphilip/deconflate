@@ -53,7 +53,7 @@ row_coefficients <- function(s, cells, prob, Fm, members) {
     if (sum(w1) <= 0 || sum(w0) <= 0) {
       cm_abort(sprintf("%s: the comparison is not identifiable (no animals with %s, or none without, %s).",
                        s$where, s$term, if (length(c(s$apos, s$aneg))) "in the subgroup" else "in the population"),
-               class = "deconflate_singular")
+               class = "deconflate_singular", table = "impacts", row = s$row)
     }
     return(colSums(Fm * w1) / sum(w1) - colSums(Fm * w0) / sum(w0))
   }
@@ -75,7 +75,7 @@ row_coefficients <- function(s, cells, prob, Fm, members) {
   if (!(2L %in% keep)) {
     cm_abort(sprintf("%s: the estimate is not identifiable: %s is collinear with its adjustment set %s.",
                      s$where, s$term, if (length(c(s$apos, s$aneg))) "in the subgroup" else "in this population"),
-             class = "deconflate_singular")
+             class = "deconflate_singular", table = "impacts", row = s$row)
   }
   B <- qr.coef(qr(Z[, keep, drop = FALSE] * sw, tol = 1e-12), Fm[idx, , drop = FALSE] * sw)
   B <- matrix(B, nrow = length(keep))
@@ -96,6 +96,13 @@ impact_row_se <- function(model, specs, scale = function(v) v) {
   vapply(specs, function(s) row_se(row_dist(model, "impacts", s$row), scale), numeric(1))
 }
 
+# solve(A, y) for a square system, with a singular system as a classed error.
+solve_exact <- function(A, y) {
+  tryCatch(solve(A, y), error = function(e) {
+    cm_abort(sprintf("Could not solve the adjustment equations: %s", conditionMessage(e)), class = "deconflate_singular")
+  })
+}
+
 # Solve A theta = y: exactly (rows determine the unknowns exactly), or by
 # weighted least squares with weights 1 / se^2, rows with se = 0 being exact
 # constraints. `labels`: row labels for messages; `terms`: unknowns.
@@ -112,12 +119,11 @@ solve_rows <- function(A, y, se, labels, terms, check = TRUE) {
     cm_abort(sprintf("The impact rows %s cannot all hold (largest residuals %s); rows without uncertainty are exact. Give them distributions (they are then fitted by weighted least squares), or check them.",
                      paste(labels[rows][o][seq_len(min(4, length(o)))], collapse = ", "),
                      paste(signif(resid[o][seq_len(min(4, length(o)))], 3), collapse = ", ")),
-             class = "deconflate_infeasible")
+             class = "deconflate_infeasible", table = "impacts",
+             rows = as.integer(sub("^impacts:", "", rownames(A)[rows][o])), residuals = resid[o])
   }
   if (m == k) {
-    theta <- tryCatch(solve(A, y), error = function(e) {
-      cm_abort(sprintf("Could not solve the adjustment equations: %s", conditionMessage(e)), class = "deconflate_singular")
-    })
+    theta <- solve_exact(A, y)
   } else if (m < k) {
     theta <- qr.coef(qr(A), y)
     theta[!is.finite(theta)] <- 0
@@ -168,7 +174,7 @@ identify_terms <- function(A, terms) {
   N <- sv$v[, (r + 1):k, drop = FALSE]
   bad <- terms[apply(abs(N), 1, max) > 1e-8]
   cm_abort(sprintf("The impact rows do not determine %s separately (%d rows, %d unknowns, rank %d). Add a row that tells them apart (e.g. a row for a combination, or a row within a subgroup), or check for rows that repeat each other.",
-                   join_and(bad), nrow(A), k, r), class = "deconflate_singular")
+                   join_and(bad), nrow(A), k, r), class = "deconflate_singular", terms = bad)
 }
 
 # Adjust additive impacts. `ctx`: either the pairwise tables (shortcut) or a
@@ -211,11 +217,11 @@ adjust_additive <- function(model, joint = NULL, pt = NULL, warn = TRUE, frozen_
   if (warn && any(sign_change)) {
     cm_warn(sprintf(
       "Adjusted impacts change sign for %s. The raw impacts are smaller than the associated diseases alone would produce under the additive model; check the estimates, and whether they come from populations with different comorbidity patterns.",
-      paste(terms[sign_change], collapse = ", ")), class = "deconflate_sign_change")
+      paste(terms[sign_change], collapse = ", ")), class = "deconflate_sign_change", terms = terms[sign_change])
   }
   if (warn && any(!is.finite(theta))) {
     cm_warn(sprintf("Non-finite adjusted impacts for %s.", paste(terms[!is.finite(theta)], collapse = ", ")),
-            class = "deconflate_nonfinite_warning")
+            class = "deconflate_nonfinite_warning", terms = terms[!is.finite(theta)])
   }
 
   # Contributions (closed-form Shapley values): each disease's own term and
@@ -276,13 +282,13 @@ adjust_published <- function(model, warn = TRUE, pool = "random", frozen = NULL)
   if (anyNA(pt$p11)) {
     cm_abort(sprintf("The published approximation needs a crude pair row for every pair (missing: %s).",
                      paste(utils::head(paste(pt$disease1, pt$disease2, sep = "-")[is.na(pt$p11)], 5), collapse = ", ")),
-             class = c("deconflate_unknown_pairs", "deconflate_unsupported"))
+             class = c("deconflate_unknown_pairs", "deconflate_unsupported"), pairs = missing_pairs(pt))
   }
   P <- stats::setNames(model$diseases$prob, ids)
   tri <- triple_screen(pt, P)
   if (nrow(tri)) {
     cm_abort("The pairwise associations are jointly infeasible; see check_feasibility().",
-             class = "deconflate_infeasible")
+             class = "deconflate_infeasible", triples = tri)
   }
   J <- pairwise_joint_matrix(pt, ids, P)
   A <- pairwise_coefficients(pair_covariance(J), specs, ids)

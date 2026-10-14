@@ -101,6 +101,23 @@
 #' replaced; notes in `$notes` report a high rejection share and limited
 #' Monte Carlo precision. Without distributions, no draws are run.
 #'
+#' @section Errors and warnings:
+#' Errors and warnings are condition objects with classes (see
+#' [deconflate-package]). Those about particular inputs also hold them as
+#' fields, so that code can use them without reading the message:
+#' * `table` and `row` (or `rows`): the input rows concerned, e.g. an impact
+#'   row that is not identifiable, or exact rows that contradict each other
+#'   (with their `residuals` for impact rows);
+#' * `terms`: diseases and interactions, e.g. those the impact rows do not
+#'   determine (`deconflate_singular`), or those whose adjusted impact
+#'   changes sign (the warning `deconflate_sign_change`);
+#' * `triples`: the conflicting triples when the crude pair rows cannot all
+#'   hold (`deconflate_infeasible`), as in [check_feasibility()];
+#' * `pairs`: the pairs without a crude pair row, for the calculations that
+#'   need every pair (`deconflate_unknown_pairs`);
+#' * `residual`: how far a fit was from converging
+#'   (`deconflate_nonconvergence`).
+#'
 #' @param model A [cm_model()] (e.g. from [cm_read_inputs()]) with at least
 #'   one association.
 #' @param event_model `FALSE` (default) for additive impacts; `TRUE` for
@@ -184,11 +201,18 @@
 #'                  cm_impacts(c("d1", "d2", "d3"), c(1.5, 2.0, 1.2), measure = c("HR", "HR", "RR"),
 #'                             label = "culling"))
 #' deconflate(cull, event_model = TRUE, overall_risk = 0.25)
+#'
+#' # Errors hold the inputs they are about
+#' bad <- cm_model(cm_population(cm_diseases(c("a", "b", "c"), c(0.5, 0.5, 0.5)),
+#'                               cm_associations(c("a", "a", "b"), c("b", "c", "c"), c(20, 20, 0.05))),
+#'                 cm_impacts(c("a", "b", "c"), c(1, 1, 1)))
+#' e <- tryCatch(deconflate(bad), deconflate_infeasible = function(e) e)
+#' e$triples
 deconflate <- function(model, ...) UseMethod("deconflate")
 
 #' @export
 deconflate.default <- function(model, ...) {
-  cm_abort("`model` must be created with cm_model() or cm_read_inputs().")
+  cm_abort("`model` must be created with cm_model() or cm_read_inputs().", class = "deconflate_invalid_input")
 }
 
 #' @rdname deconflate
@@ -198,8 +222,8 @@ deconflate.cm_model <- function(model, event_model = FALSE, overall_risk = NULL,
                                 pool = c("random", "fixed"), joint = NULL, warn = TRUE, ...) {
   dots <- list(...)
   retired_args(dots)
-  sampling <- match.arg(sampling)
-  pool <- match.arg(pool)
+  sampling <- cm_match_arg(sampling)
+  pool <- cm_match_arg(pool)
   check_draw_args(n_draws, seed, sampling, lhs_replicates)
   n_draws <- as.integer(n_draws)
   check_event_model(model, event_model)
@@ -247,9 +271,9 @@ retired_args <- function(dots) {
 # Additive or event impacts, as the call says? A mismatch is an error.
 check_event_model <- function(model, event_model) {
   if (!is.logical(event_model) || length(event_model) != 1L || is.na(event_model)) {
-    cm_abort("`event_model` must be TRUE or FALSE.")
+    cm_abort("`event_model` must be TRUE or FALSE.", class = "deconflate_invalid_input")
   }
-  if (is.null(model$impacts)) cm_abort("The model has no impacts to adjust.")
+  if (is.null(model$impacts)) cm_abort("The model has no impacts to adjust.", class = "deconflate_invalid_input")
   kind <- impact_kind(model$impacts)
   if (event_model && kind != "event") {
     cm_abort("event_model = TRUE needs event impacts: an impact table with a measure column (HR, rate_ratio, RR, OR or RD; see ?cm_impacts).",
@@ -316,7 +340,7 @@ run_point <- function(model, plan, risk = NULL, joint = NULL, warn = TRUE, dots 
     if (nrow(tri)) {
       cm_abort(sprintf("The associations cannot all hold together: no population has all of them (conflicting triples: %s). See check_feasibility().",
                        paste(utils::head(paste(tri$disease1, tri$disease2, tri$disease3, sep = "-"), 5),
-                             collapse = ", ")), class = "deconflate_infeasible")
+                             collapse = ", ")), class = "deconflate_infeasible", triples = tri)
     }
     res <- adjust_additive(model, pt = pt, warn = warn, frozen_se = frozen$impacts)
     res$pooling <- attr(pt, "pooling")
@@ -325,7 +349,7 @@ run_point <- function(model, plan, risk = NULL, joint = NULL, warn = TRUE, dots 
       jt <- tryCatch(do.call(event_joint, c(list(as_population(model), joint, pool = pool), fj)),
                      deconflate_nonconvergence = function(e) {
                        cm_abort(sprintf("The associations cannot all hold together: %s", conditionMessage(e)),
-                                class = "deconflate_infeasible")
+                                class = "deconflate_infeasible", residual = e$residual)
                      })
       res$joint <- jt
       res$diagnostics$feasibility <- sprintf("joint distribution fitted (max residual %.1e)", jt$max_residual)
@@ -470,9 +494,9 @@ unknown_pairs_table <- function(model, joint) {
 #' @export
 attribute_burden <- function(result) {
   if (inherits(result, "cm_event_result")) {
-    if (is.null(result$attributable$by_disease)) cm_abort("The result has no allocation of the attributable risk.")
+    if (is.null(result$attributable$by_disease)) cm_abort("The result has no allocation of the attributable risk.", class = "deconflate_invalid_input")
     return(result$attributable$by_disease)
   }
-  if (!inherits(result, "cm_result")) cm_abort("`result` must come from deconflate().")
+  if (!inherits(result, "cm_result")) cm_abort("`result` must come from deconflate().", class = "deconflate_invalid_input")
   result$contributions
 }

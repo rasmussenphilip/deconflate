@@ -17,7 +17,9 @@ no disease is assumed. See \code{\link[=loss_additive]{loss_additive()}} and \co
 (the cost grows as 2^k for a cell with k diseases). The default skips
 nothing. Skipped cells are reported: their probability (\code{skipped_mass})
 and their expected loss (\code{skipped_loss}), which is the part of the total
-that is not allocated.}
+that is not allocated. The warning (class
+\code{deconflate_incomplete_allocation}) has the same values as fields
+(\code{skipped_mass}, \code{skipped_loss}, \code{total}).}
 }
 \value{
 A data frame with each disease's expected Shapley value and share

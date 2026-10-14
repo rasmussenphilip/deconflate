@@ -105,37 +105,37 @@ cm_threshold <- function(model, input, range, conclusion = c("rank", "sign", "to
   dots <- list(...)
   retired_args(dots)
   st <- sens_setup(model, event_model, overall_risk)
-  conclusion <- match.arg(conclusion)
-  by <- match.arg(by)
+  conclusion <- cm_match_arg(conclusion)
+  by <- cm_match_arg(by)
   if (!is.character(input) || length(input) != 1L || is.na(input)) {
-    cm_abort("`input` must be a single string such as \"assoc:d1:d2\".")
+    cm_abort("`input` must be a single string such as \"assoc:d1:d2\".", class = "deconflate_invalid_input")
   }
   check_numeric(range, "range")
-  if (length(range) != 2L || range[1] >= range[2]) cm_abort("`range` must be two increasing numbers.")
+  if (length(range) != 2L || range[1] >= range[2]) cm_abort("`range` must be two increasing numbers.", class = "deconflate_invalid_input")
   if (!is.numeric(n_grid) || length(n_grid) != 1L || !is.finite(n_grid) || n_grid < 3) {
-    cm_abort("`n_grid` must be a single number, at least 3.")
+    cm_abort("`n_grid` must be a single number, at least 3.", class = "deconflate_invalid_input")
   }
   n_grid <- as.integer(n_grid)
   if (!is.numeric(tol) || length(tol) != 1L || !is.finite(tol) || tol <= 0) {
-    cm_abort("`tol` must be a single positive number.")
+    cm_abort("`tol` must be a single positive number.", class = "deconflate_invalid_input")
   }
   if (!is.null(log_scale) && (!is.logical(log_scale) || length(log_scale) != 1L || is.na(log_scale))) {
-    cm_abort("`log_scale` must be NULL, TRUE or FALSE.")
+    cm_abort("`log_scale` must be NULL, TRUE or FALSE.", class = "deconflate_invalid_input")
   }
   if (conclusion %in% c("total", "change")) {
     if (is.null(target) || !is.numeric(target) || length(target) != 1L || !is.finite(target)) {
-      cm_abort(sprintf("conclusion = '%s' needs a single finite `target`.", conclusion))
+      cm_abort(sprintf("conclusion = '%s' needs a single finite `target`.", conclusion), class = "deconflate_invalid_input")
     }
   }
   ids <- model$diseases$disease
   if (!is.null(diseases)) {
-    if (!is.character(diseases) || !length(diseases)) cm_abort("`diseases` must be a character vector of disease ids.")
+    if (!is.character(diseases) || !length(diseases)) cm_abort("`diseases` must be a character vector of disease ids.", class = "deconflate_invalid_input")
     check_disease_ids(diseases, model)
     diseases <- unique(diseases)
   }
   setter <- threshold_setter(model, input, st)
   log_scale <- log_scale %||% (setter$ratio_scale && range[1] > 0)
-  if (log_scale && range[1] <= 0) cm_abort("A log-spaced grid needs a positive range.")
+  if (log_scale && range[1] <= 0) cm_abort("A log-spaced grid needs a positive range.", class = "deconflate_invalid_input")
   xs <- if (log_scale) exp(seq(log(range[1]), log(range[2]), length.out = n_grid)) else
     seq(range[1], range[2], length.out = n_grid)
   xs[c(1L, n_grid)] <- range   # exact ends (exp(log(x)) can differ from x)
@@ -147,7 +147,7 @@ cm_threshold <- function(model, input, range, conclusion = c("rank", "sign", "to
   fj <- dots[intersect(names(dots), joint_arg_names)]
   fixed_joint <- setter$type %in% c("impact", "inter", "risk")
   if (!is.null(joint) && !fixed_joint) {
-    cm_abort("A fixed `joint` can be used only when varying an impact row, an interaction or the overall risk; other inputs change the joint distribution.")
+    cm_abort("A fixed `joint` can be used only when varying an impact row, an interaction or the overall risk; other inputs change the joint distribution.", class = "deconflate_unsupported")
   }
   # (Planned on the model at the start of the range: varying an interaction
   # can add a combination row.)
@@ -199,10 +199,12 @@ cm_threshold <- function(model, input, range, conclusion = c("rank", "sign", "to
   if (conclusion == "change" && !is.finite(base_total)) {
     # (The baseline is the model as given, with the input at its own value.)
     cm_abort(sprintf("The baseline result is not usable (%s), so a relative change cannot be computed.",
-                     base_eval$status))
+                     base_eval$status),
+             class = type_class(switch(base_eval$status, unresolved = "nonconvergence", undefined = "nonfinite",
+                                       base_eval$status)))
   }
   if (conclusion == "change" && base_total == 0) {
-    cm_abort("The baseline aggregate is zero, so a relative change is undefined; use conclusion = 'total'.")
+    cm_abort("The baseline aggregate is zero, so a relative change is undefined; use conclusion = 'total'.", class = "deconflate_nonfinite")
   }
   items <- threshold_items(conclusion, ids, diseases, target, base_total)
   metric <- function(res) {
@@ -360,7 +362,7 @@ threshold_items <- function(conclusion, ids, diseases, target, base_total) {
                         level = base_total + target * abs(base_total), stringsAsFactors = FALSE),
     sign = data.frame(item = use, a = use, b = NA_character_, level = 0, stringsAsFactors = FALSE),
     rank = {
-      if (length(use) < 2L) cm_abort("conclusion = 'rank' needs at least two diseases.")
+      if (length(use) < 2L) cm_abort("conclusion = 'rank' needs at least two diseases.", class = "deconflate_invalid_input")
       pr <- utils::combn(use, 2)
       data.frame(item = paste(pr[1, ], pr[2, ], sep = " vs "), a = pr[1, ], b = pr[2, ],
                  level = 0, stringsAsFactors = FALSE)
@@ -407,13 +409,13 @@ threshold_setter <- function(model, input, st) {
   parts <- strsplit(input, ":", fixed = TRUE)[[1]]
   type <- if (length(parts)) parts[1] else ""
   if (!(type %in% c("assoc", "inter", "three", "prob", "impact", "risk", "associations", "impacts"))) {
-    cm_abort(sprintf("Unknown input '%s' (use assoc:, inter:, prob:, impact:, three:, associations:, impacts: or risk).", input))
+    cm_abort(sprintf("Unknown input '%s' (use assoc:, inter:, prob:, impact:, three:, associations:, impacts: or risk).", input), class = "deconflate_invalid_input")
   }
   ids <- model$diseases$disease
   need <- function(k) {
-    if (length(parts) != k + 1L) cm_abort(sprintf("`input` '%s' has the wrong number of parts.", input))
+    if (length(parts) != k + 1L) cm_abort(sprintf("`input` '%s' has the wrong number of parts.", input), class = "deconflate_invalid_input")
     check_disease_ids(parts[-1], model)
-    if (anyDuplicated(parts[-1])) cm_abort(sprintf("`input` '%s' names the same disease twice.", input))
+    if (anyDuplicated(parts[-1])) cm_abort(sprintf("`input` '%s' names the same disease twice.", input), class = "deconflate_invalid_input")
   }
   with_st <- function(m) list(model = m, st = st)
   by_row <- function(key) {
@@ -434,7 +436,7 @@ threshold_setter <- function(model, input, st) {
       if (sum(hit) > 1L) {
         cm_abort(sprintf("The pair %s:%s has %d crude pair rows (rows %s); vary one of them, e.g. 'associations:%d'.",
                          parts[2], parts[3], sum(hit), paste(model$associations$row[hit], collapse = ", "),
-                         model$associations$row[hit][1]))
+                         model$associations$row[hit][1]), class = "deconflate_invalid_input")
       }
       if (sum(hit) == 1L) return(by_row(paste0("associations:", model$associations$row[hit])))
       # A pair without a crude pair row is varied as an odds ratio.
@@ -483,12 +485,12 @@ threshold_setter <- function(model, input, st) {
            set = function(x) with_st(set_inputs(model, stats::setNames(x, input))))
     },
     impact = {
-      if (length(parts) != 2L) cm_abort(sprintf("`input` '%s' has the wrong number of parts.", input))
+      if (length(parts) != 2L) cm_abort(sprintf("`input` '%s' has the wrong number of parts.", input), class = "deconflate_invalid_input")
       by_row(input)
     },
     risk = {
-      if (length(parts) != 1L) cm_abort("`input` 'risk' has no further parts.")
-      if (!isTRUE(st$event_model)) cm_abort("The overall risk can be varied only with event_model = TRUE.")
+      if (length(parts) != 1L) cm_abort("`input` 'risk' has no further parts.", class = "deconflate_invalid_input")
+      if (!isTRUE(st$event_model)) cm_abort("The overall risk can be varied only with event_model = TRUE.", class = "deconflate_unsupported")
       list(type = type, baseline = st$risk, baseline_set = st$risk, ratio_scale = FALSE,
            set = function(x) {
              if (!(x > 0 && x < 1)) {
@@ -551,7 +553,7 @@ plot.cm_threshold <- function(x, items = NULL, ...) {
   unk <- setdiff(items, colnames(v))
   if (length(unk)) {
     cm_abort(sprintf("Unknown items: %s (available: %s).", paste(unk, collapse = ", "),
-                     paste(colnames(v), collapse = ", ")))
+                     paste(colnames(v), collapse = ", ")), class = "deconflate_invalid_input")
   }
   v <- v[, items, drop = FALSE]
   xs <- x$scan$value

@@ -49,11 +49,11 @@ legacy_gap <- function(result, observed, direction = c("decrease", "increase"),
     factor <- 1
     xh <- if (direction == "decrease") x + L else x - L
   } else if (direction == "decrease") {
-    if (!(L < 1)) cm_abort(sprintf("The aggregate proportional loss is %g; it must be below 1.", L))
+    if (!(L < 1)) cm_abort(sprintf("The aggregate proportional loss is %g; it must be below 1.", L), class = "deconflate_infeasible")
     factor <- x / (1 - L)
     xh <- x / (1 - L)
   } else {
-    if (!(L > -1)) cm_abort(sprintf("The aggregate proportional increase is %g; it must be above -1.", L))
+    if (!(L > -1)) cm_abort(sprintf("The aggregate proportional increase is %g; it must be above -1.", L), class = "deconflate_infeasible")
     factor <- x / (1 + L)
     xh <- x / (1 + L)
   }

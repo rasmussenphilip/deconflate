@@ -82,7 +82,11 @@
 #' @param ... Not used (arguments of earlier versions give a message).
 #' @return A [cm_model()], with the distributions of uncertain values in
 #'   `$distributions` (keyed by table and row, e.g. `"associations:3"`) and
-#'   any notes from the checks in attribute `"problems"`.
+#'   any notes from the checks in attribute `"problems"`. When a check finds
+#'   an error, the error (class `deconflate_input_problems`) holds every
+#'   problem found in `$problems`, as [cm_check_inputs()] returns them. The notes are also
+#'   shown as a message of class `deconflate_input_notes`, which holds them
+#'   in `$problems`; `suppressMessages()` hides it.
 #' @export
 #' @examples
 #' dir <- file.path(tempdir(), "deconflate-inputs")
@@ -114,15 +118,15 @@
 cm_read_inputs <- function(diseases, associations = NULL, impacts, ...) {
   old_args(list(...), c(three_way = three_way_message, interactions = interactions_message,
                         adjusted_associations = "`adjusted_associations` is no longer used: an association adjusted for diseases of the model is used exactly, and one adjusted only for other factors is used as crude (with a note)."))
-  if (missing(diseases)) cm_abort("`diseases` is required: a path to a CSV file or a data frame.")
-  if (missing(impacts)) cm_abort("`impacts` is required: a path to a CSV file or a data frame.")
+  if (missing(diseases)) cm_abort("`diseases` is required: a path to a CSV file or a data frame.", class = "deconflate_invalid_input")
+  if (missing(impacts)) cm_abort("`impacts` is required: a path to a CSV file or a data frame.", class = "deconflate_invalid_input")
   chk <- run_input_checks(diseases, associations, impacts)
   pr <- chk$problems
   if (any(pr$severity == "error")) {
     cm_abort(format_problems(pr[pr$severity == "error", , drop = FALSE]),
-             class = "deconflate_input_problems")
+             class = c("deconflate_input_problems", "deconflate_invalid_input"), problems = pr)
   }
-  if (nrow(pr)) message(format_problems(pr))
+  if (nrow(pr)) cm_inform(format_problems(pr), class = "deconflate_input_notes", problems = pr)
   m <- chk$model
   attr(m, "problems") <- pr
   m
@@ -165,8 +169,8 @@ cm_check_inputs <- function(diseases = NULL, associations = NULL, impacts = NULL
 #'                          p1 = c(2.5, 2), p2 = c(0.5, 1.4), p3 = c(NA, 2.9)))
 cm_dist_table <- function(x) {
   tab <- read_input_table(x)
-  if (is.null(tab) || !nrow(tab)) cm_abort("The uncertainty table is empty.")
-  if (!all(c("key", "dist") %in% names(tab))) cm_abort("The uncertainty table needs columns `key` and `dist`.")
+  if (is.null(tab) || !nrow(tab)) cm_abort("The uncertainty table is empty.", class = "deconflate_invalid_input")
+  if (!all(c("key", "dist") %in% names(tab))) cm_abort("The uncertainty table needs columns `key` and `dist`.", class = "deconflate_invalid_input")
   key <- clean_chr(tab$key)
   dist <- tolower(clean_chr(tab$dist))
   P <- dist_params(tab)
@@ -188,7 +192,7 @@ cm_dist_table <- function(x) {
       out[[key[r]]] <- d
     }
   }
-  if (length(errs)) cm_abort(paste(c("Problems in the uncertainty table:", errs), collapse = "\n  "))
+  if (length(errs)) cm_abort(paste(c("Problems in the uncertainty table:", errs), collapse = "\n  "), class = "deconflate_invalid_input")
   out
 }
 
@@ -260,10 +264,10 @@ cm_template <- function(dir, overwrite = FALSE) {
   exists <- file.exists(paths)
   if (any(exists) && !overwrite) {
     cm_abort(sprintf("Files already exist (use overwrite = TRUE): %s",
-                     paste(basename(paths[exists]), collapse = ", ")))
+                     paste(basename(paths[exists]), collapse = ", ")), class = "deconflate_invalid_input")
   }
   for (k in seq_along(tabs)) utils::write.csv(tabs[[k]], paths[k], row.names = FALSE, na = "")
-  message(sprintf("Wrote %d files to %s", length(paths), dir))
+  cm_inform(sprintf("Wrote %d files to %s", length(paths), dir))
   invisible(paths)
 }
 
@@ -300,7 +304,7 @@ input_table_specs <- list(
 read_input_table <- function(x) {
   if (is.null(x)) return(NULL)
   if (is.character(x) && length(x) == 1L) {
-    if (!file.exists(x)) cm_abort(sprintf("File not found: %s", x))
+    if (!file.exists(x)) cm_abort(sprintf("File not found: %s", x), class = "deconflate_invalid_input")
     # An empty file is an empty table. Columns are read as text and converted
     # by the checks, so that ids such as "T" or "01" are not type-converted.
     if (!isTRUE(file.size(x) > 0)) return(data.frame())
@@ -308,7 +312,7 @@ read_input_table <- function(x) {
                          strip.white = TRUE, check.names = FALSE,
                          colClasses = "character", fileEncoding = "UTF-8-BOM")
   }
-  if (!is.data.frame(x)) cm_abort("Each table must be a data frame or the path to a CSV file.")
+  if (!is.data.frame(x)) cm_abort("Each table must be a data frame or the path to a CSV file.", class = "deconflate_invalid_input")
   x <- as.data.frame(x, stringsAsFactors = FALSE)
   names(x) <- gsub("[ .]+", "_", tolower(trimws(names(x))))
   x
@@ -335,10 +339,10 @@ input_dist <- function(dist, p) {
   p <- as.numeric(p)
   length(p) <- 4L
   need <- function(k, what) {
-    if (any(is.na(p[seq_len(k)]))) cm_abort(sprintf("'%s' needs %s.", dist, what))
+    if (any(is.na(p[seq_len(k)]))) cm_abort(sprintf("'%s' needs %s.", dist, what), class = "deconflate_invalid_input")
   }
   opt <- function(i, default) if (is.na(p[i])) default else p[i]
-  if (is.na(dist)) cm_abort("Missing distribution name.")
+  if (is.na(dist)) cm_abort("Missing distribution name.", class = "deconflate_invalid_input")
   switch(dist,
     fixed = {
       need(1, "p1 (value)")
@@ -372,7 +376,7 @@ input_dist <- function(dist, p) {
       need(2, "p1 (min) and p2 (max)")
       dist_uniform(p[1], p[2])
     },
-    cm_abort(sprintf("Unknown distribution '%s' (use fixed, normal, lognormal, lognormal_ci, beta, pert, pert_mean or uniform).", dist))
+    cm_abort(sprintf("Unknown distribution '%s' (use fixed, normal, lognormal, lognormal_ci, beta, pert, pert_mean or uniform).", dist), class = "deconflate_invalid_input")
   )
 }
 

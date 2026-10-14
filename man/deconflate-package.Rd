@@ -63,12 +63,28 @@ ratios, and risks are proportions of animals over the period.
 \code{k} among animals with disease \code{i}: \verb{P(k | i) - P(k | not i)}.
 \item Under additive impacts, the crude impact of disease \code{i} satisfies
 \verb{m_raw[i] = m[i] + sum_k E[k, i] * m[k]} exactly.
-\item Errors have classes \code{deconflate_infeasible}, \code{deconflate_singular},
-\code{deconflate_nonconvergence}, \code{deconflate_unsupported} and
-\code{deconflate_nonfinite} (all also \code{deconflate_error}); problems found
-by \code{\link[=cm_read_inputs]{cm_read_inputs()}} have class \code{deconflate_input_problems}. Warning classes
-include \code{deconflate_sign_change}, \code{deconflate_nonconvergence} and
-\code{deconflate_nonfinite_warning} (all also \code{deconflate_warning}).
+\item Errors are condition objects of class \code{deconflate_error}. Failures that
+code may want to handle separately have a subclass as well:
+\code{deconflate_infeasible} (inputs that no population can have),
+\code{deconflate_singular} (an estimate that is not identifiable, or rows
+that do not determine the impacts), \code{deconflate_nonconvergence} (a fit
+that did not converge), \code{deconflate_unsupported} (a combination of
+inputs and options that is not supported; with
+\code{deconflate_unknown_pairs} when a calculation needs a crude pair row for
+every pair), \code{deconflate_nonfinite} (non-finite results) and
+\code{deconflate_invalid_input} (an argument, table, row or input value that
+is not valid). Problems
+found by \code{\link[=cm_read_inputs]{cm_read_inputs()}} have class \code{deconflate_input_problems}
+(also \code{deconflate_invalid_input}).
+\item Warnings are condition objects of class \code{deconflate_warning}, with the
+subclasses \code{deconflate_sign_change} (an adjusted impact on the other
+side of zero, or an adjusted hazard ratio on the other side of 1, from
+its raw estimate), \code{deconflate_nonfinite_warning} (non-finite adjusted
+impacts), \code{deconflate_nonconvergence} (a joint distribution that did not
+converge) and \code{deconflate_incomplete_allocation} (a Shapley allocation
+that skipped combinations; see \code{\link[=shapley_by_cell]{shapley_by_cell()}}).
+\item Messages are of class \code{deconflate_message}; the notes of
+\code{\link[=cm_read_inputs]{cm_read_inputs()}} are also \code{deconflate_input_notes}.
 }
 }
 

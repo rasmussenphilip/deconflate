@@ -76,7 +76,7 @@ plot.cm_event_result <- function(x, ...) {
 plot_burden <- function(result, ...) {
   if (inherits(result, "cm_event_result")) {
     by <- result$attributable$by_disease
-    if (is.null(by)) cm_abort("The result has no allocation of the attributable risk.")
+    if (is.null(by)) cm_abort("The result has no allocation of the attributable risk.", class = "deconflate_invalid_input")
     ids <- by$disease
     share <- 100 * by$share
     main <- "Risk attributable to disease, by disease"
@@ -87,7 +87,7 @@ plot_burden <- function(result, ...) {
     main <- "Burden by disease"
     ylab <- "Share of the aggregate (%)"
   } else {
-    cm_abort("`result` must come from deconflate().")
+    cm_abort("`result` must come from deconflate().", class = "deconflate_invalid_input")
   }
   mat <- matrix(share, nrow = length(ids), dimnames = list(ids, result$label %||% "impacts"))
   cols <- grDevices::hcl.colors(nrow(mat), "Set 2")
@@ -103,7 +103,7 @@ plot_burden <- function(result, ...) {
 #' @export
 plot.cm_screen <- function(x, top = 15, ...) {
   d <- x[!is.na(x$rel_change), , drop = FALSE]
-  if (!nrow(d)) cm_abort("No scenario has a relative change to plot.")
+  if (!nrow(d)) cm_abort("No scenario has a relative change to plot.", class = "deconflate_invalid_input")
   d <- utils::head(d, top)
   d <- d[rev(seq_len(nrow(d))), , drop = FALSE]
   op <- graphics::par(mar = c(4, 12, 3, 1))
@@ -120,7 +120,7 @@ plot.cm_screen <- function(x, top = 15, ...) {
 #' @export
 plot.cm_oat <- function(x, top = 15, ...) {
   d <- utils::head(x[!is.na(x$swing), , drop = FALSE], top)
-  if (!nrow(d)) cm_abort("No input has a swing to plot.")
+  if (!nrow(d)) cm_abort("No input has a swing to plot.", class = "deconflate_invalid_input")
   d <- d[rev(seq_len(nrow(d))), , drop = FALSE]
   base <- attr(x, "baseline_total")
   lo <- pmin(d$total_low, d$total_high) - base

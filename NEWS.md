@@ -7,6 +7,46 @@ model and one input layout, in which a row can be about a combination of
 diseases or a subgroup, crude or adjusted, and several rows can describe
 the same thing.
 
+## Errors and warnings
+
+* Errors and warnings about particular inputs hold them as fields, so code
+  can use them without reading the message (see `?deconflate`, "Errors and
+  warnings"): `table` and `row` or `rows` (with `residuals` for
+  contradicting impact rows), `terms`, `triples`, `pairs` and `residual`.
+  The error of `cm_read_inputs()` (class `deconflate_input_problems`) holds
+  every problem found in `$problems`, and the warning of an incomplete
+  Shapley allocation holds `skipped_mass`, `skipped_loss` and `total`.
+* Every error the package raises itself has a class beside
+  `deconflate_error`. The new class `deconflate_invalid_input` covers
+  arguments, tables, rows and input values that are not valid (an unknown
+  disease, a negative standard deviation, a missing table). Limits of the
+  package (too many diseases for the exact backend, the LP check or the
+  cell-wise Shapley allocation; the LP check without lpSolve) are
+  `deconflate_unsupported`. When every method of `compare_methods()` fails,
+  or the baseline of a screen or a threshold search cannot be used, the
+  error has the class of the failure that caused it. Rejected draws and
+  failed scenarios caused by invalid inputs are labelled `"invalid_input"`
+  instead of `"error"`.
+* Failures inside base R's root finding and linear solves are classed
+  errors, so draws, `compare_methods()` and the screens handle them like
+  any other failure instead of stopping. An `OR_ratio` row with a value
+  that the other inputs do not allow gave an unclassed error from
+  `uniroot()`, which stopped `deconflate()` with draws altogether; it is now
+  `deconflate_infeasible` (the draw is rejected). The baseline hazard of
+  non-finite hazard multipliers is `deconflate_nonfinite`, and a singular
+  system in the first-order event approximation of `compare_methods()` is
+  `deconflate_singular`.
+* Messages are classed conditions (`deconflate_message`), so that code can
+  hide them by class. The notes of `cm_read_inputs()` are also
+  `deconflate_input_notes` and hold the notes table in `$problems`. The
+  printed text is unchanged.
+* An invalid choice for an argument (e.g. `sampling = "x"` in
+  `deconflate()`, `pool`, `backend`, `outcome`, `conclusion`) is an error of
+  class `deconflate_invalid_input` that names the argument, instead of the
+  plain R error of `match.arg()`. Partial matching works as before. The
+  problems found by `cm_read_inputs()` (class `deconflate_input_problems`)
+  are also `deconflate_invalid_input`.
+
 ## Breaking changes: one model, one input layout
 
 * **One model.** The `method` argument is removed from `deconflate()`,

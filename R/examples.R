@@ -122,8 +122,8 @@ global_dairy_inputs <- function(inputs) {
 #' }
 example_global_dairy <- function(outcome = c("yield", "fertility", "culling"),
                                  inputs = c("analysis", "tables")) {
-  outcome <- match.arg(outcome)
-  inputs <- match.arg(inputs)
+  outcome <- cm_match_arg(outcome)
+  inputs <- cm_match_arg(inputs)
   g <- global_dairy_inputs(inputs)
   d <- global_dairy_dists(inputs)
   imp <- switch(outcome,
@@ -204,7 +204,7 @@ with_independent_pairs <- function(pop) {
 #' uk <- example_uk_dairy_2022()
 #' deconflate(uk)
 example_uk_dairy_2022 <- function(outcome = c("yield", "fertility", "culling"), yield_sck = 3.05) {
-  outcome <- match.arg(outcome)
+  outcome <- cm_match_arg(outcome)
   u <- uk_dairy_2022_inputs(yield_sck)
   imp <- switch(outcome,
     yield = u$yield, fertility = u$fertility,

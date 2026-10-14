@@ -111,15 +111,15 @@ dist_fixed <- function(value) {
 #' @export
 dist_normal <- function(mean, sd, lower = -Inf, upper = Inf) {
   check_numeric(c(mean, sd), "mean/sd")
-  if (sd <= 0) cm_abort("`sd` must be positive.")
+  if (sd <= 0) cm_abort("`sd` must be positive.", class = "deconflate_invalid_input")
   if (!is.numeric(c(lower, upper)) || anyNA(c(lower, upper))) {
-    cm_abort("`lower` and `upper` must be numbers (-Inf and Inf for no bound).")
+    cm_abort("`lower` and `upper` must be numbers (-Inf and Inf for no bound).", class = "deconflate_invalid_input")
   }
-  if (lower >= upper) cm_abort("`lower` must be below `upper`.")
+  if (lower >= upper) cm_abort("`lower` must be below `upper`.", class = "deconflate_invalid_input")
   Fl <- stats::pnorm(lower, mean, sd)
   Fu <- stats::pnorm(upper, mean, sd)
   Z <- Fu - Fl
-  if (Z <= 0) cm_abort("The truncation range has no probability mass.")
+  if (Z <= 0) cm_abort("The truncation range has no probability mass.", class = "deconflate_invalid_input")
   a <- (lower - mean) / sd
   b <- (upper - mean) / sd
   m <- mean + sd * (stats::dnorm(a) - stats::dnorm(b)) / Z
@@ -135,7 +135,7 @@ dist_normal <- function(mean, sd, lower = -Inf, upper = Inf) {
 #' @export
 dist_lognormal <- function(meanlog, sdlog) {
   check_numeric(c(meanlog, sdlog), "meanlog/sdlog")
-  if (sdlog <= 0) cm_abort("`sdlog` must be positive.")
+  if (sdlog <= 0) cm_abort("`sdlog` must be positive.", class = "deconflate_invalid_input")
   new_dist("lognormal", list(meanlog = meanlog, sdlog = sdlog),
            q = function(u) stats::qlnorm(u, meanlog, sdlog),
            p = function(x) stats::plnorm(x, meanlog, sdlog),
@@ -148,9 +148,9 @@ dist_lognormal <- function(meanlog, sdlog) {
 dist_lognormal_ci <- function(estimate, ci_lower, ci_upper, level = 0.95) {
   check_numeric(c(estimate, ci_lower, ci_upper, level), "estimate/ci_lower/ci_upper/level")
   if (!(ci_lower > 0 && ci_lower < estimate && estimate < ci_upper)) {
-    cm_abort("Need 0 < ci_lower < estimate < ci_upper.")
+    cm_abort("Need 0 < ci_lower < estimate < ci_upper.", class = "deconflate_invalid_input")
   }
-  if (!(level > 0 && level < 1)) cm_abort("`level` must be between 0 and 1 (e.g. 0.95).")
+  if (!(level > 0 && level < 1)) cm_abort("`level` must be between 0 and 1 (e.g. 0.95).", class = "deconflate_invalid_input")
   z <- stats::qnorm(1 - (1 - level) / 2)
   dist_lognormal(log(estimate), (log(ci_upper) - log(ci_lower)) / (2 * z))
 }
@@ -159,8 +159,8 @@ dist_lognormal_ci <- function(estimate, ci_lower, ci_upper, level = 0.95) {
 #' @export
 dist_beta <- function(shape1, shape2, min = 0, max = 1) {
   check_numeric(c(shape1, shape2, min, max), "shape1/shape2/min/max")
-  if (shape1 <= 0 || shape2 <= 0) cm_abort("Beta shape parameters must be positive.")
-  if (min >= max) cm_abort("`min` must be below `max`.")
+  if (shape1 <= 0 || shape2 <= 0) cm_abort("Beta shape parameters must be positive.", class = "deconflate_invalid_input")
+  if (min >= max) cm_abort("`min` must be below `max`.", class = "deconflate_invalid_input")
   w <- max - min
   new_dist("beta", list(shape1 = shape1, shape2 = shape2, min = min, max = max),
            q = function(u) min + w * stats::qbeta(u, shape1, shape2),
@@ -174,7 +174,7 @@ dist_beta <- function(shape1, shape2, min = 0, max = 1) {
 dist_pert <- function(min, mode, max, lambda = 4) {
   check_numeric(c(min, mode, max, lambda), "min/mode/max/lambda")
   if (!(min < max && mode >= min && mode <= max)) {
-    cm_abort("PERT needs min <= mode <= max and min < max.")
+    cm_abort("PERT needs min <= mode <= max and min < max.", class = "deconflate_invalid_input")
   }
   a <- 1 + lambda * (mode - min) / (max - min)
   b <- 1 + lambda * (max - mode) / (max - min)
@@ -190,7 +190,7 @@ dist_pert_mean <- function(min, mean, max, lambda = 4) {
   check_numeric(c(min, mean, max, lambda), "min/mean/max/lambda")
   mode <- ((lambda + 2) * mean - min - max) / lambda
   if (mode < min || mode > max) {
-    cm_abort(sprintf("No PERT distribution on [%g, %g] has mean %g.", min, max, mean))
+    cm_abort(sprintf("No PERT distribution on [%g, %g] has mean %g.", min, max, mean), class = "deconflate_invalid_input")
   }
   dist_pert(min, mode, max, lambda)
 }
@@ -199,7 +199,7 @@ dist_pert_mean <- function(min, mean, max, lambda = 4) {
 #' @export
 dist_uniform <- function(min, max) {
   check_numeric(c(min, max), "min/max")
-  if (min >= max) cm_abort("`min` must be below `max`.")
+  if (min >= max) cm_abort("`min` must be below `max`.", class = "deconflate_invalid_input")
   new_dist("uniform", list(min = min, max = max),
            q = function(u) stats::qunif(u, min, max),
            p = function(x) stats::punif(x, min, max),
@@ -212,11 +212,11 @@ dist_uniform <- function(min, max) {
 dist_mixture <- function(..., weights = NULL) {
   comps <- list(...)
   if (!length(comps) || !all(vapply(comps, inherits, logical(1), "cm_dist"))) {
-    cm_abort("Mixture components must be cm_dist objects.")
+    cm_abort("Mixture components must be cm_dist objects.", class = "deconflate_invalid_input")
   }
   k <- length(comps)
   w <- weights %||% rep(1 / k, k)
-  if (length(w) != k || any(w < 0) || sum(w) <= 0) cm_abort("Invalid mixture weights.")
+  if (length(w) != k || any(w < 0) || sum(w) <= 0) cm_abort("Invalid mixture weights.", class = "deconflate_invalid_input")
   w <- w / sum(w)
   pos <- which(w > 0)
   pfun <- function(x) {

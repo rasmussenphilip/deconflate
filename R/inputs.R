@@ -41,11 +41,11 @@ cm_diseases <- function(disease, value, measure = "prevalence", label = NA_chara
                         id = "`id` is now called `disease`."))
   disease <- as.character(disease)
   n <- length(disease)
-  if (n < 1L) cm_abort("At least one disease is required.")
+  if (n < 1L) cm_abort("At least one disease is required.", class = "deconflate_invalid_input")
   check_ids(disease)
-  if (length(value) != n) cm_abort("`value` must have one entry per disease.")
+  if (length(value) != n) cm_abort("`value` must have one entry per disease.", class = "deconflate_invalid_input")
   check_numeric(value, "value")
-  if (any(value < 0)) cm_abort("`value` must be non-negative.")
+  if (any(value < 0)) cm_abort("`value` must be non-negative.", class = "deconflate_invalid_input")
   measure <- as.character(recycle_arg(measure, n, "measure"))
   check_choices(measure, disease_measures, "measure")
 
@@ -144,13 +144,13 @@ cm_associations <- function(disease, associated_with = NA_character_, value, mea
     disease2 = "`disease1` and `disease2` are now called `disease` and `associated_with`."))
   disease <- as.character(disease)
   n <- length(disease)
-  if (!n) cm_abort("At least one association row is required (or leave the associations out).")
-  if (missing(value)) cm_abort("Give each association a `value`.")
+  if (!n) cm_abort("At least one association row is required (or leave the associations out).", class = "deconflate_invalid_input")
+  if (missing(value)) cm_abort("Give each association a `value`.", class = "deconflate_invalid_input")
   value <- as.numeric(recycle_arg(value, n, "value"))
   if (anyNA(value)) {
-    cm_abort("Association `value` is missing for some rows. Leave a pair out (no row) if its association is unknown.")
+    cm_abort("Association `value` is missing for some rows. Leave a pair out (no row) if its association is unknown.", class = "deconflate_invalid_input")
   }
-  if (any(!is.finite(value))) cm_abort("Association values must be finite.")
+  if (any(!is.finite(value))) cm_abort("Association values must be finite.", class = "deconflate_invalid_input")
   measure <- as.character(recycle_arg(measure, n, "measure"))
   old <- intersect(measure, names(retired_measures))
   if (length(old)) cm_abort(retired_measures[[old[1]]], class = "deconflate_unsupported")
@@ -210,11 +210,11 @@ retired_measures <- c(
 cm_population <- function(diseases, associations = NULL, ...) {
   old_args(list(...), c(three_way = three_way_message,
                         adjusted_associations = "`adjusted_associations` is no longer used: an association adjusted for diseases of the model is used exactly, and one adjusted only for other factors is used as crude (with a note)."))
-  if (!inherits(diseases, "cm_diseases")) cm_abort("`diseases` must be created with cm_diseases().")
+  if (!inherits(diseases, "cm_diseases")) cm_abort("`diseases` must be created with cm_diseases().", class = "deconflate_invalid_input")
   ids <- diseases$disease
   if (!is.null(associations)) {
     if (!inherits(associations, "cm_associations")) {
-      cm_abort("`associations` must be created with cm_associations().")
+      cm_abort("`associations` must be created with cm_associations().", class = "deconflate_invalid_input")
     }
     if (!nrow(associations)) associations <- NULL
   }
@@ -314,8 +314,8 @@ cm_impacts <- function(disease, value, ..., among = NA_character_, adjusted_for 
   old_args(list(...), c(estimand = estimand_message))
   disease <- as.character(disease)
   n <- length(disease)
-  if (!n) cm_abort("At least one impact is required.")
-  if (length(value) != n) cm_abort("`value` must have one entry per row.")
+  if (!n) cm_abort("At least one impact is required.", class = "deconflate_invalid_input")
+  if (length(value) != n) cm_abort("`value` must have one entry per row.", class = "deconflate_invalid_input")
   check_numeric(value, "value")
   event <- !is.null(measure)
   if (event) {
@@ -323,11 +323,11 @@ cm_impacts <- function(disease, value, ..., among = NA_character_, adjusted_for 
     check_choices(measure, event_measures, "measure")
     bad <- measure != "RD" & value <= 0
     if (any(bad)) {
-      cm_abort(sprintf("Ratios must be positive (check: %s).", paste(disease[bad], collapse = ", ")))
+      cm_abort(sprintf("Ratios must be positive (check: %s).", paste(disease[bad], collapse = ", ")), class = "deconflate_invalid_input")
     }
     bad <- measure == "RD" & (value <= -1 | value >= 1)
     if (any(bad)) {
-      cm_abort(sprintf("Risk differences must lie between -1 and 1 (check: %s).", paste(disease[bad], collapse = ", ")))
+      cm_abort(sprintf("Risk differences must lie between -1 and 1 (check: %s).", paste(disease[bad], collapse = ", ")), class = "deconflate_invalid_input")
     }
   } else {
     measure <- rep(NA_character_, n)
@@ -393,11 +393,11 @@ cm_model <- function(population, impacts = NULL, associations = NULL, distributi
                         adjusted_associations = "`adjusted_associations` is no longer used."))
   if (inherits(population, "cm_diseases")) population <- cm_population(population, associations)
   if (!inherits(population, "cm_population")) {
-    cm_abort("`population` must be created with cm_population() (or be a cm_diseases object).")
+    cm_abort("`population` must be created with cm_population() (or be a cm_diseases object).", class = "deconflate_invalid_input")
   }
   ids <- population$diseases$disease
   if (!is.null(impacts)) {
-    if (!inherits(impacts, "cm_impacts")) cm_abort("`impacts` must be created with cm_impacts().")
+    if (!inherits(impacts, "cm_impacts")) cm_abort("`impacts` must be created with cm_impacts().", class = "deconflate_invalid_input")
     if (is.null(impacts$row)) impacts$row <- seq_len(nrow(impacts))
     impacts <- check_impact_rows(impacts, ids)
   }
@@ -427,7 +427,7 @@ check_impact_rows <- function(impacts, ids) {
   if (length(miss)) {
     cm_abort(sprintf("No impact for: %s. Every disease needs a row of its own (for no effect: %s).",
                      paste(miss, collapse = ", "),
-                     if (kind == "event") "1 for ratios, 0 for risk differences" else "0"))
+                     if (kind == "event") "1 for ratios, 0 for risk differences" else "0"), class = "deconflate_invalid_input")
   }
   rownames(impacts) <- NULL
   attr(impacts, "kind") <- kind
@@ -442,8 +442,8 @@ old_args <- function(dots, messages) {
   hit <- intersect(nm, names(messages))
   if (length(hit)) cm_abort(messages[[hit[1]]], class = "deconflate_unsupported")
   bad <- nm[nzchar(nm)]
-  if (length(bad)) cm_abort(sprintf("Unknown argument%s: %s.", if (length(bad) > 1L) "s" else "", paste(bad, collapse = ", ")))
-  cm_abort("Unexpected unnamed argument.")
+  if (length(bad)) cm_abort(sprintf("Unknown argument%s: %s.", if (length(bad) > 1L) "s" else "", paste(bad, collapse = ", ")), class = "deconflate_invalid_input")
+  cm_abort("Unexpected unnamed argument.", class = "deconflate_invalid_input")
 }
 
 clean_na <- function(x) {
@@ -458,16 +458,16 @@ check_distributions <- function(d, model) {
   if (is.null(d) || !length(d)) return(NULL)
   if (!is.list(d) || is.null(names(d)) || any(!nzchar(names(d))) ||
       !all(vapply(d, inherits, logical(1), "cm_dist"))) {
-    cm_abort("`distributions` must be a named list of distributions (see ?distributions).")
+    cm_abort("`distributions` must be a named list of distributions (see ?distributions).", class = "deconflate_invalid_input")
   }
   if (anyDuplicated(names(d))) {
     cm_abort(sprintf("`distributions` names an input more than once: %s.",
-                     paste(unique(names(d)[duplicated(names(d))]), collapse = ", ")))
+                     paste(unique(names(d)[duplicated(names(d))]), collapse = ", ")), class = "deconflate_invalid_input")
   }
   out <- list()
   for (k in names(d)) {
     ck <- canonical_key(k, model)
-    if (!is.null(out[[ck]])) cm_abort(sprintf("The input '%s' is given more than once in `distributions`.", k))
+    if (!is.null(out[[ck]])) cm_abort(sprintf("The input '%s' is given more than once in `distributions`.", k), class = "deconflate_invalid_input")
     out[[ck]] <- d[[k]]
   }
   out
@@ -483,7 +483,7 @@ canonical_key <- function(key, model) {
   parts <- strsplit(key, ":", fixed = TRUE)[[1]]
   type <- parts[1]
   ids <- model$diseases$disease
-  bad <- function(why) cm_abort(sprintf("Input '%s': %s.", key, why))
+  bad <- function(why) cm_abort(sprintf("Input '%s': %s.", key, why), class = "deconflate_invalid_input")
   by_row <- function(tab, what) {
     if (length(parts) != 2L) bad(sprintf("use '%s:<row>'", type))
     if (is.null(tab) || !nrow(tab)) bad(sprintf("the model has no %s", what))
@@ -566,12 +566,12 @@ is_all <- function(x) !is.na(x) & tolower(trimws(x)) == "all"
 
 check_population <- function(x) {
   if (!inherits(x, "cm_population")) {
-    cm_abort("Expected a cm_population() or cm_model() object.")
+    cm_abort("Expected a cm_population() or cm_model() object.", class = "deconflate_invalid_input")
   }
   invisible(x)
 }
 
 check_model <- function(model) {
-  if (!inherits(model, "cm_model")) cm_abort("`model` must be created with cm_model().")
+  if (!inherits(model, "cm_model")) cm_abort("`model` must be created with cm_model().", class = "deconflate_invalid_input")
   invisible(model)
 }

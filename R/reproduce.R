@@ -118,7 +118,7 @@ reproduce_rasmussen_2022 <- function(yield_sck = 3.05) {
 #' @export
 reproduce_rasmussen_2024 <- function(n_draws = 5000, seed = 2024,
                                      inputs = c("analysis", "tables")) {
-  inputs <- match.arg(inputs)
+  inputs <- cm_match_arg(inputs)
   mc <- mc_batch(global_dairy_sampler(inputs, culling = TRUE), n_draws,
                  method = "published", seed = seed)
   s <- mc_batch_summary(mc)
