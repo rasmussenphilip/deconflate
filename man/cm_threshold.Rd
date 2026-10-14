@@ -22,17 +22,20 @@ cm_threshold(
 )
 }
 \arguments{
-\item{model}{A \code{\link[=cm_model]{cm_model()}}.}
+\item{model}{A \code{\link[=deconflate]{deconflate()}} result (its settings are used), or a
+\code{\link[=cm_model]{cm_model()}}.}
 
-\item{input}{The input to vary: \code{"assoc:<d1>:<d2>"} (the pair's crude
-pair row, on its measure; a pair without one is varied as an odds
-ratio, so unknown pairs can be explored), \code{"inter:<d1>:<d2>"} (an
-interaction, see \code{\link[=set_interaction]{set_interaction()}}), \code{"prob:<disease>"} (the disease's
-\code{value}, on the scale it was entered), \code{"impact:<disease>"} (the impact
-row of a disease, when it has one), \code{"three:<d1>:<d2>:<d3>"} (an
-OR_ratio, see \code{\link[=set_three_way]{set_three_way()}}), \code{"associations:<row>"} or
-\code{"impacts:<row>"} (any row, by its number), or, for event impacts,
-\code{"risk"} (the overall or baseline risk, whichever is given).}
+\item{input}{The input to vary, named as in \code{\link[=cm_sensitivity]{cm_sensitivity()}}:
+\code{"prob:<disease>"} (the disease's \code{value}, on the scale it was
+entered), \code{"associations:<row>"} or \code{"impacts:<row>"} (any row, by its
+number), \code{"risk"} (event impacts: the overall or baseline risk,
+whichever is given), or an input that is not entered:
+\code{"pair:<d1>:<d2>"} (a pair's crude pair row on its measure; a pair
+without one is varied as an odds ratio, so unknown pairs can be
+explored), \code{"interaction:<d1>;<d2>"} (an interaction: a row for the
+combination adjusted for all; for event impacts a hazard ratio) or
+\code{"or_ratio:<d1>:<d2>|<d3>"} (how much disease 3 changes the
+association of diseases 1 and 2).}
 
 \item{range}{Two numbers: the range of the input to search.}
 
@@ -47,8 +50,9 @@ them) and \code{"sign"}.}
 
 \item{by}{For \code{"rank"}: \code{"contribution"} (default) or \code{"adjusted"}.}
 
-\item{event_model, overall_risk, baseline_risk}{As in \code{\link[=deconflate]{deconflate()}} (a distribution of
-the risk is used at its mean).}
+\item{event_model, overall_risk, baseline_risk}{With a model: as in
+\code{\link[=deconflate]{deconflate()}} (a distribution of the risk is used at its mean). With a
+result they are taken from it.}
 
 \item{n_grid}{Number of grid points.}
 
@@ -128,15 +132,19 @@ not change the joint distribution) and the adjustment uses the joint
 distribution, it is fitted once and reused (or the \code{joint} passed through
 \code{...} is used).
 
-Thresholds are deterministic: they are for the model's input values.
+Thresholds are deterministic: they are for the model's input values. To
+see first which inputs matter, use \code{\link[=cm_sensitivity]{cm_sensitivity()}}.
 }
 
 \examples{
 m <- example_supplement()
 # At what odds ratio between d1 and d2 does the ranking change?
-th <- cm_threshold(m, "assoc:d1:d2", c(0.2, 20), conclusion = "rank")
+th <- cm_threshold(m, "pair:d1:d2", c(0.2, 20), conclusion = "rank")
 th
 # What odds ratio between d1 and d3 (an odds ratio of 1 in the example)
 # would reduce the aggregate by 10\%?
-cm_threshold(m, "assoc:d1:d3", c(1, 50), conclusion = "change", target = -0.1)$thresholds
+cm_threshold(m, "pair:d1:d3", c(1, 50), conclusion = "change", target = -0.1)$thresholds
+# From a result: its settings are used
+res <- deconflate(m, n_draws = 0)
+cm_threshold(res, "interaction:d2;d3", c(-2, 2), conclusion = "rank")$summary
 }

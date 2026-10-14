@@ -228,6 +228,8 @@
 #'     fit gave them;
 #'   * `draws`: the uncertainty (summary, accepted draws, rejections, seed),
 #'     or `NULL`;
+#'   * `ranks`: with draws, how often each disease ranks 1st, 2nd, ... by its
+#'     contribution (`rank_1`, `rank_2`, ...), and its mean rank;
 #'   * `problems`: with `diagnose = TRUE`, a `cm_diagnosis` object:
 #'     `flagged` (every disease with impact rows: raw, adjusted, the
 #'     criterion and whether it is flagged), `inputs` (inputs with a
@@ -235,7 +237,9 @@
 #'     `listed` marks those printed), `thresholds` (inputs without a
 #'     distribution), `no_single_fix`, `disagreeing` and `settings`;
 #'   * `notes`, `conflation` (the row equations), `joint_pairs` (matrix of
-#'     `P(j and k)`), `model`, `joint`, `method`, `label` and `units`.
+#'     `P(j and k)`), `model`, `joint`, `method`, `label`, `units` and
+#'     `settings` (what [cm_sensitivity()] and [cm_threshold()] need to
+#'     rerun the model).
 #'
 #'   For event impacts, a `cm_event_result` with `adjusted` (adjusted hazard
 #'   ratios of diseases and interactions, the change from the raw estimate,
@@ -244,9 +248,11 @@
 #'   adjusted attributable risk and the attributable fraction; `by_disease`:
 #'   the Shapley allocation with its `main` and `interaction` parts;
 #'   `baseline_hazard`), `conflation` (the local row equations), `estimates`,
-#'   `heterogeneity`, `diagnostics`, `unknown_pairs`, `draws`, `problems`
+#'   `heterogeneity`, `diagnostics`, `unknown_pairs`, `draws`, `ranks` (by
+#'   share of the attributable risk), `problems`
 #'   (with `diagnose = TRUE`), `notes`, `joint`, `model`, `method`,
-#'   `overall_risk` and `risk_given` (`"overall"` or `"baseline"`). Risks are
+#'   `overall_risk`, `risk_given` (`"overall"` or `"baseline"`) and
+#'   `settings`. Risks are
 #'   proportions of animals with the event during the period.
 #' @export
 #' @examples
@@ -306,7 +312,7 @@ deconflate.cm_model <- function(model, event_model = FALSE, overall_risk = NULL,
   risk <- check_overall_risk(overall_risk, event_model, baseline_risk)
   a <- model$associations
   if (is.null(a) || !nrow(a)) {
-    cm_abort("No association estimates were given, so there is nothing to de-conflate (the diseases would be treated as independent). To see how much associations could change the results, use screen_associations() or cm_threshold().",
+    cm_abort("No association estimates were given, so there is nothing to de-conflate (the diseases would be treated as independent). To see how much associations could change the results, use cm_sensitivity(model) or cm_threshold().",
              class = "deconflate_unsupported")
   }
   plan <- plan_model(model, event_model, dots, has_joint = !is.null(joint), pool = pool,
@@ -317,6 +323,8 @@ deconflate.cm_model <- function(model, event_model = FALSE, overall_risk = NULL,
   }
   res <- run_point(model, plan, risk = risk$value, joint = joint, warn = warn, dots = dots, central = TRUE)
   res <- finish_result(res, model, plan)
+  # What cm_sensitivity(), cm_threshold() and the diagnosis need to rerun it.
+  res$settings <- list(plan = plan, risk = risk, dots = dots)
   if (diagnose) res$problems <- diagnose_inputs(model, plan, res, risk, dots)
   specs <- draw_specs(model, risk$dist, res$pooling$frozen)
   if (n_draws > 0L) {
@@ -326,6 +334,7 @@ deconflate.cm_model <- function(model, event_model = FALSE, overall_risk = NULL,
       res$draws <- deconflate_draws(model, specs, plan, res, risk$value, n_draws, seed, sampling,
                                     lhs_replicates, dots)
       res <- attach_intervals(res)
+      res$ranks <- draw_ranks(res)
       res$notes <- c(res$notes, draw_notes(res$draws))
     }
   }

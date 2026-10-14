@@ -88,9 +88,8 @@ test_that("negative risk differences give no spurious warnings", {
 test_that("interaction setters for event impacts take hazard ratios", {
   expect_error(set_interaction(supp_hr_model(), "d1", "d2", -1), class = "deconflate_invalid_input")
   # event_model must match the table, as in deconflate()
-  expect_error(screen_interactions(supp_hr_model(), values = 1), "event_model = TRUE",
-               class = "deconflate_unsupported")
-  expect_error(cm_threshold(supp_hr_model(), "inter:d1:d2", c(-1, 1), conclusion = "total", target = 0.05,
+  expect_error(cm_sensitivity(supp_hr_model()), "event_model = TRUE", class = "deconflate_unsupported")
+  expect_error(cm_threshold(supp_hr_model(), "interaction:d1;d2", c(-1, 1), conclusion = "total", target = 0.05,
                             event_model = TRUE, overall_risk = 0.25), "must be positive",
                class = "deconflate_invalid_input")
 })

@@ -10,8 +10,8 @@ cm_population(diseases, associations = NULL, ...)
 \item{diseases}{A \code{\link[=cm_diseases]{cm_diseases()}} object.}
 
 \item{associations}{Optional \code{\link[=cm_associations]{cm_associations()}} object. \code{\link[=deconflate]{deconflate()}}
-needs at least one association; the sensitivity tools (e.g.
-\code{\link[=screen_associations]{screen_associations()}}) also run without any.}
+needs at least one association; \code{\link[=cm_sensitivity]{cm_sensitivity()}} and
+\code{\link[=cm_threshold]{cm_threshold()}} also run without any.}
 
 \item{...}{Not used (arguments of earlier versions give a message).}
 }

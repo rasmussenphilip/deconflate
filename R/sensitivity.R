@@ -1,4 +1,7 @@
-# Sensitivity and scenario tools ------------------------------------------------
+# Sensitivity of the results to the inputs ------------------------------------
+#
+# cm_sensitivity(): design note section 17; reference values:
+# inst/validation/reference_v06_sensitivity.py.
 
 # Metric used by the screening tools: the total and each disease's
 # contribution. Additive impacts: the adjusted aggregate and the
@@ -15,8 +18,6 @@ burden_metric <- function(result) {
        by_disease = stats::setNames(result$contributions$total, result$contributions$disease))
 }
 
-metric_label <- function(event_model) if (isTRUE(event_model)) "attributable risk" else "aggregate"
-
 # Common checks of the sensitivity tools: the model, the kind of impacts and
 # the overall or baseline risk (its central value and kind).
 sens_setup <- function(model, event_model, overall_risk, dots = list(), baseline_risk = NULL) {
@@ -27,73 +28,6 @@ sens_setup <- function(model, event_model, overall_risk, dots = list(), baseline
   check_event_model(model, event_model)
   risk <- check_overall_risk(overall_risk, event_model, baseline_risk)
   list(event_model = event_model, risk = risk$value, risk_kind = risk$kind %||% "overall")
-}
-
-compare_to_base <- function(m, base) {
-  if (is.null(m)) {
-    return(data.frame(total = NA_real_, change = NA_real_, rel_change = NA_real_,
-                      max_rank_shift = NA_integer_, rank_corr = NA_real_))
-  }
-  rb <- rank(-base$by_disease, ties.method = "min")
-  rm <- rank(-m$by_disease, ties.method = "min")
-  data.frame(total = m$total, change = m$total - base$total,
-             rel_change = if (isTRUE(abs(base$total) > 0)) (m$total - base$total) / abs(base$total) else NA_real_,
-             max_rank_shift = as.integer(max(abs(rb - rm))),
-             rank_corr = suppressWarnings(stats::cor(base$by_disease, m$by_disease,
-                                                     method = "spearman")))
-}
-
-# Adjust a scenario as deconflate() would (point estimates), returning an
-# empty list with the reason as an attribute when the scenario fails.
-run_quiet <- function(model, st, joint = NULL) {
-  tryCatch(
-    withCallingHandlers({
-      plan <- plan_model(model, st$event_model, has_joint = !is.null(joint), risk_kind = st$risk_kind)
-      if (!is.null(joint)) plan$shortcut <- FALSE
-      run_point(model, plan, risk = st$risk, joint = joint, warn = FALSE, raw = FALSE)
-    }, deconflate_nonconvergence = function(w) {
-      if (inherits(w, "warning")) invokeRestart("muffleWarning")
-    }),
-    deconflate_error = function(e) structure(list(), reason = condition_type(e))
-  )
-}
-failed_run <- function(res) {
-  is.null(res) || !(inherits(res, "cm_result") || inherits(res, "cm_event_result")) || !result_is_finite(res)
-}
-
-# Metric of a scenario run, or NULL with the reason the scenario failed.
-scenario_metric <- function(res) {
-  if (failed_run(res)) {
-    reason <- if (inherits(res, "cm_result") || inherits(res, "cm_event_result")) {
-      sprintf("undefined: non-finite adjusted values (%s)", nonfinite_diseases(res))
-    } else {
-      attr(res, "reason") %||% "failed"
-    }
-    return(list(met = NULL, reason = reason))
-  }
-  list(met = burden_metric(res), reason = NA_character_)
-}
-
-# One row of a screen: the scenario's labels, its comparison with the
-# baseline and the reason it failed (NA if it ran).
-screen_row <- function(labels, res, base) {
-  sm <- scenario_metric(res)
-  cbind(labels, compare_to_base(sm$met, base),
-        data.frame(failed = sm$reason, stringsAsFactors = FALSE))
-}
-
-# A screen compares scenarios with the baseline, so the baseline itself must
-# be a finite estimate.
-check_baseline <- function(res) {
-  if (!inherits(res, "cm_result") && !inherits(res, "cm_event_result")) {
-    reason <- attr(res, "reason") %||% "failed"
-    cm_abort(sprintf("The baseline could not be adjusted (%s).", reason), class = type_class(reason))
-  }
-  if (!result_is_finite(res)) {
-    cm_abort(sprintf("The baseline result is undefined (non-finite adjusted impacts for %s).",
-                     nonfinite_diseases(res)), class = "deconflate_nonfinite")
-  }
-  res
 }
 
 check_disease_ids <- function(ids, model) {
@@ -114,7 +48,7 @@ check_disease_ids <- function(ids, model) {
 #' @param measure Measure (see [cm_associations()]).
 #' @return The modified object. Distributions of replaced rows are dropped
 #'   (the scenario value is fixed).
-#' @export
+#' @noRd
 set_association <- function(model, disease1, disease2, value, measure = "OR") {
   check_population(model)
   check_disease_ids(c(disease1, disease2), model)
@@ -166,7 +100,7 @@ replace_rows <- function(model, table, hit, new) {
 #' @param value Interaction value: in the units of the impacts, or for event
 #'   impacts a positive hazard ratio multiplier.
 #' @return The modified model. Distributions of replaced rows are dropped.
-#' @export
+#' @noRd
 set_interaction <- function(model, disease1, disease2, value) {
   check_model(model)
   event <- impact_kind(model$impacts) == "event"
@@ -201,7 +135,7 @@ set_interaction <- function(model, disease1, disease2, value) {
 #' @param disease1,disease2,disease3 Disease ids.
 #' @param ratio Positive ratio of the two odds ratios.
 #' @return The modified object. Distributions of replaced rows are dropped.
-#' @export
+#' @noRd
 set_three_way <- function(model, disease1, disease2, disease3, ratio) {
   check_population(model)
   check_disease_ids(c(disease1, disease2, disease3), model)
@@ -214,304 +148,645 @@ set_three_way <- function(model, disease1, disease2, disease3, ratio) {
   replace_rows(model, "associations", hit, new)
 }
 
-#' Screen disease pairs for influential associations
-#'
-#' Re-runs the adjustment with each disease pair's association changed, one
-#' pair at a time, and reports how much the total and the ranking of
-#' diseases change. Pairs without an association (unknown) are set to each
-#' of `or_values`; given associations of any measure are multiplied by each
-#' of `multipliers`. Scenarios whose inputs are invalid or infeasible are
-#' kept, with `NA` results and the reason, so that no scenario is skipped
-#' silently. This identifies associations worth estimating, as in Rasmussen
-#' et al. (2022), Fig. 3 and Rasmussen et al. (2024), Fig. 7C-D.
-#'
-#' The model needs no associations: with none, the baseline has every
-#' disease independent (adjusted impacts equal the raw ones), and the screen
-#' shows which pairs would matter if they were associated. Each scenario is
-#' adjusted as [deconflate()] would (point estimates).
-#'
-#' The total is the adjusted aggregate for additive impacts, and the risk
-#' attributable to disease for event impacts (`event_model = TRUE`); disease
-#' rankings use the contributions to it.
-#'
-#' @param model A [cm_model()].
-#' @param event_model,overall_risk,baseline_risk As in [deconflate()] (a distribution of
-#'   the risk is used at its mean).
-#' @param or_values Odds ratios tried for pairs without a crude pair row.
-#' @param multipliers Factors applied to the crude pair rows of a pair (all
-#'   of them, when a pair has several).
-#' @param pairs Optional character vector of pairs (`"d1:d2"`); default all.
-#' @param ... Not used.
-#' @return A `cm_screen` data frame sorted by the absolute relative change in
-#'   the total, with the scenario, total, change, relative change, the
-#'   largest shift in any disease's rank, the Spearman correlation of disease
-#'   contributions with the baseline, and `failed` (the reason a scenario
-#'   could not be run).
-#' @export
-#' @examples
-#' screen_associations(example_supplement(), or_values = c(0.5, 3))
-#'
-#' # Without any association estimates: which pairs would matter?
-#' m <- example_supplement()
-#' m$associations <- NULL
-#' screen_associations(m, or_values = c(0.5, 2, 4))
-screen_associations <- function(model, event_model = FALSE, overall_risk = NULL,
-                                or_values = c(0.5, 2), multipliers = c(0.5, 2),
-                                pairs = NULL, baseline_risk = NULL, ...) {
-  st <- sens_setup(model, event_model, overall_risk, list(...), baseline_risk)
-  base <- burden_metric(check_baseline(run_quiet(model, st)))
-  pt <- pair_tables(model)
-  if (!is.null(pairs)) {
-    check_pair_ids(pairs, model$diseases$disease)
-    ab <- strsplit(pairs, ":", fixed = TRUE)
-    want <- vapply(ab, function(x) pair_key(x[1], x[2]), character(1))
-    pt <- pt[pair_key(pt$disease1, pt$disease2) %in% want, , drop = FALSE]
-  }
-  key <- paste(pt$disease1, pt$disease2, sep = ":")
-  a <- model$associations
-  rows <- list()
-  for (r in seq_len(nrow(pt))) {
-    if (pt$status[r] == "specified") {
-      hit <- which(pair_row_hits(a, pt$disease1[r], pt$disease2[r], model$diseases$disease))
-      meas <- unique(a$measure[hit])
-      labels <- sprintf("%s x %g", paste(meas, collapse = "/"), multipliers)
-      setter <- function(x) {   # x: the multiplier
-        m2 <- model
-        for (h in hit) m2 <- set_inputs(m2, stats::setNames(a$value[h] * x, paste0("associations:", a$row[h])))
-        m2
-      }
-      vals <- multipliers
-    } else {
-      labels <- sprintf("OR = %g", or_values)
-      d1 <- pt$disease1[r]
-      d2 <- pt$disease2[r]
-      setter <- function(x) set_association(model, d1, d2, x, "OR")   # x: the odds ratio
-      vals <- or_values
-    }
-    for (v in seq_along(vals)) {
-      m2 <- tryCatch(setter(vals[v]),
-                     deconflate_error = function(e) structure(list(), reason = "invalid value"))
-      res <- if (inherits(m2, "cm_model")) run_quiet(m2, st) else m2
-      rows[[length(rows) + 1L]] <- screen_row(
-        data.frame(pair = key[r], status = pt$status[r], scenario = labels[v],
-                   stringsAsFactors = FALSE),
-        res, base)
-    }
-  }
-  finish_screen(rows, base, event_model)
-}
 
-# Pairs given as "d1:d2" must name two different diseases of the model.
-check_pair_ids <- function(pairs, ids) {
-  ab <- strsplit(as.character(pairs), ":", fixed = TRUE)
-  bad <- !vapply(ab, function(x) length(x) == 2L && all(x %in% ids) && x[1] != x[2], logical(1))
-  if (any(bad)) {
-    cm_abort(sprintf("Unknown or malformed pairs (use 'd1:d2' with disease ids of the model): %s.",
-                     paste(pairs[bad], collapse = ", ")), class = "deconflate_invalid_input")
-  }
-  invisible(pairs)
-}
+# ---- Shared engine: rerunning a central result -------------------------------
+#
+# cm_sensitivity(), cm_threshold() and the diagnosis rerun the model of a
+# central result with one input changed. `ctx` holds what that needs: the
+# model, the plan, the risk (value, distribution, kind), the arguments of
+# the joint fit and the central result.
 
-finish_screen <- function(rows, base, event_model = FALSE) {
-  if (!length(rows)) {
-    out <- data.frame(pair = character(0), status = character(0), scenario = character(0),
-                      total = numeric(0), change = numeric(0), rel_change = numeric(0),
-                      max_rank_shift = integer(0), rank_corr = numeric(0),
-                      failed = character(0), stringsAsFactors = FALSE)
-  } else {
-    out <- do.call(rbind, rows)
-    out <- out[order(-abs(out$rel_change), na.last = TRUE), , drop = FALSE]
-    rownames(out) <- NULL
-  }
-  attr(out, "baseline_total") <- base$total
-  attr(out, "metric") <- metric_label(event_model)
-  class(out) <- c("cm_screen", "data.frame")
-  out
-}
-
-#' Screen disease pairs for influential impact interactions
-#'
-#' Sets the interaction of each disease pair to each size in `values`, one
-#' at a time (see [set_interaction()]), re-runs the adjustment and reports
-#' the change in the aggregate (for event impacts, the attributable risk)
-#' and rankings. The joint distribution is fitted once and reused.
-#'
-#' @param model A [cm_model()].
-#' @param values Interaction sizes: for additive impacts in the units of the
-#'   impacts (positive synergistic, negative antagonistic); for event impacts
-#'   hazard ratio multipliers of the combination (above 1 synergistic, below
-#'   1 antagonistic).
-#' @param pairs Optional character vector of pairs (`"d1:d2"`).
-#' @param event_model,overall_risk,baseline_risk As in [deconflate()].
-#' @param ... Passed to [fit_joint()] (e.g. `backend = "sampled"` for many
-#'   diseases).
-#' @return A `cm_screen` data frame as in [screen_associations()].
-#' @export
-screen_interactions <- function(model, values, pairs = NULL, event_model = FALSE, overall_risk = NULL,
-                                baseline_risk = NULL, ...) {
-  check_model(model)
-  st <- sens_setup(model, event_model, overall_risk, baseline_risk = baseline_risk)
-  if (event_model && (!is.numeric(values) || any(!is.finite(values)) || any(values <= 0))) {
-    cm_abort("For event impacts, `values` are hazard ratio multipliers: positive numbers (1: no interaction).",
+# The context of a deconflate() result.
+result_context <- function(res) {
+  s <- res$settings
+  if (is.null(s)) {
+    cm_abort("This result does not carry the settings of deconflate(); run deconflate() again with this version of the package.",
              class = "deconflate_invalid_input")
   }
-  # One joint distribution serves every scenario (interactions do not change
-  # it); `...` goes to fit_joint(), e.g. backend = "sampled" (the default
-  # beyond 20 diseases, as in deconflate()).
-  fa <- list(...)
-  if (nrow(model$diseases) > 20L && is.null(fa$backend)) fa$backend <- "sampled"
-  joint <- do.call(fit_joint, c(list(as_population(model)), fa))
-  base <- burden_metric(check_baseline(run_quiet(model, st, joint = joint)))
-  ids <- model$diseases$disease
-  pr <- if (!is.null(pairs)) {
-    check_pair_ids(pairs, ids)
-    matrix(unlist(strsplit(pairs, ":", fixed = TRUE)), ncol = 2, byrow = TRUE)
-  } else if (length(ids) >= 2L) {
-    t(utils::combn(ids, 2))
-  } else {
-    matrix(character(0), 0, 2)
+  plan <- s$plan
+  dots <- s$dots %||% list()
+  # With the sampled backend, every rerun uses the same seed, so that the
+  # differences between runs are not Monte Carlo noise.
+  if (identical(plan$fit_args$backend %||% dots$backend, "sampled") && is.null(plan$fit_args$seed) &&
+      is.null(dots$seed)) {
+    plan$fit_args$seed <- 1L
   }
-  rows <- list()
-  for (r in seq_len(nrow(pr))) {
-    for (v in values) {
-      res <- run_quiet(set_interaction(model, pr[r, 1], pr[r, 2], v), st, joint = joint)
-      rows[[length(rows) + 1L]] <- screen_row(
-        data.frame(pair = paste(pr[r, 1], pr[r, 2], sep = ":"), status = "interaction",
-                   scenario = sprintf(if (event_model) "interaction HR = %g" else "delta = %g", v),
-                   stringsAsFactors = FALSE),
-        res, base)
-    }
-  }
-  finish_screen(rows, base, event_model)
+  list(model = res$model, plan = plan, risk = s$risk, dots = dots, res = res,
+       event = inherits(res, "cm_event_result"))
 }
 
-#' Screen three-way association scenarios
-#'
-#' Pairwise associations do not identify how often three diseases occur
-#' together; the model assumes as little as possible (maximum entropy). This
-#' screen sets, for each triple in turn, how much the third disease changes
-#' the association of the first two (an `OR_ratio` row, see
-#' [set_three_way()]), refits the joint distribution (the other rows are
-#' still matched) and reports the change in the aggregate and rankings.
-#'
-#' When the pairs of a triple all have crude pair rows, such a row keeps
-#' their tables fixed, so it changes additive results only through
-#' interactions or rows about combinations or subgroups. When a pair is
-#' unknown, its fitted table changes, and additive results can change even
-#' without interactions. Three-way associations also matter for event
-#' impacts (`event_model = TRUE`).
-#'
-#' @param model A [cm_model()].
-#' @param event_model,overall_risk,baseline_risk As in [deconflate()].
-#' @param ratios Odds ratio ratios to try.
-#' @param triples Optional list of character vectors of three disease ids
-#'   (the association of the first two, among the third); default all
-#'   triples (which can be many).
-#' @return A `cm_screen` data frame as in [screen_associations()].
-#' @export
-screen_three_way <- function(model, ratios = c(0.5, 2), triples = NULL, event_model = FALSE,
-                             overall_risk = NULL, baseline_risk = NULL) {
-  st <- sens_setup(model, event_model, overall_risk, baseline_risk = baseline_risk)
-  base <- burden_metric(check_baseline(run_quiet(model, st)))
-  ids <- model$diseases$disease
-  if (is.null(triples)) {
-    triples <- if (length(ids) >= 3L) utils::combn(ids, 3, simplify = FALSE) else list()
-  } else {
-    if (is.character(triples)) triples <- list(triples)
-    for (tr in triples) {
-      if (length(tr) != 3L || anyDuplicated(tr) || !all(tr %in% ids)) {
-        cm_abort(sprintf("Each triple must name three different diseases of the model (check: %s).",
-                         paste(tr, collapse = ", ")), class = "deconflate_invalid_input")
-      }
-    }
+# Adjust the context's model again, as the central result was: with some
+# inputs changed (`values`, by canonical key, "risk" for the overall or
+# baseline risk), or a changed model (`model`, e.g. with an added row; it is
+# planned again). The pooling of association rows and the impact-row SDs
+# stay at the central estimate (`frozen`; NULL recomputes them, the same
+# for rows that did not change). `same_joint`: the change leaves the joint
+# distribution as it is (impact rows only), so the central one is reused.
+# Returns the result, or the condition if the adjustment fails.
+rerun_result <- function(ctx, values = list(), model = NULL, allocate = TRUE, frozen = "central",
+                         same_joint = NULL) {
+  res <- ctx$res
+  plan <- ctx$plan
+  if (identical(frozen, "central")) {
+    frozen <- if (is.null(model)) list(associations = res$pooling$frozen, impacts = res$row_se)
   }
-  rows <- list()
-  for (tr in triples) {
-    for (rt in ratios) {
-      m2 <- set_three_way(model, tr[1], tr[2], tr[3], rt)
-      res <- run_quiet(m2, st)
-      rows[[length(rows) + 1L]] <- screen_row(
-        data.frame(pair = paste(tr, collapse = ":"), status = "three-way",
-                   scenario = sprintf("ratio = %g", rt), stringsAsFactors = FALSE),
-        res, base)
+  tryCatch(withCallingHandlers({
+    m <- if (is.null(model)) {
+      set_inputs(ctx$model, values[names(values) != "risk"])
+    } else {
+      plan <- plan_model(model, ctx$event, ctx$dots, pool = ctx$plan$pool %||% "random",
+                         risk_kind = ctx$risk$kind %||% "overall")
+      if (!is.null(ctx$plan$fit_args$seed)) plan$fit_args$seed <- ctx$plan$fit_args$seed
+      model
     }
-  }
-  finish_screen(rows, base, event_model)
+    rk <- if ("risk" %in% names(values)) values[["risk"]] else ctx$risk$value
+    if (!is.null(rk) && !(is.finite(rk) && rk > 0 && rk < 1)) {
+      cm_abort(sprintf("The %s must lie between 0 and 1.", risk_label(ctx$risk$kind)), class = "deconflate_infeasible")
+    }
+    same_joint <- same_joint %||% (is.null(model) && length(values) > 0L &&
+                                     all(startsWith(names(values), "impacts:") | names(values) == "risk"))
+    jt <- if (same_joint && !isTRUE(plan$shortcut)) res$joint
+    joint_start <- if (!is.null(res$joint) && identical(res$joint$backend, "exact")) res$joint
+    beta_start <- if (ctx$event && is.null(model)) log(res$adjusted$adjusted)
+    run_point(m, plan, risk = rk, joint = jt, warn = FALSE, dots = ctx$dots, joint_start = joint_start,
+              start = beta_start, frozen = frozen, allocate = allocate, raw = FALSE)
+  }, deconflate_nonconvergence = function(w) {
+    if (inherits(w, "warning")) invokeRestart("muffleWarning")
+  }), deconflate_error = function(e) e)
 }
 
-#' One-at-a-time sensitivity analysis
+# The value of an input with distribution `d` at `shift` SDs from `x0`, on the
+# normal score u = qnorm(F(x)) (clamped to [-5, 5]).
+shifted_value <- function(d, x0, shift) {
+  tryCatch({
+    u0 <- stats::qnorm(d$p(x0))
+    u0 <- if (is.finite(u0)) min(max(u0, -5), 5) else if (is.na(u0)) 0 else sign(u0) * 5
+    d$q(stats::pnorm(u0 + shift))
+  }, error = function(e) NA_real_)
+}
+
+# The inputs of a model that have a distribution, by canonical key (with
+# "risk" for the overall or baseline risk); fixed distributions are left out.
+input_dists <- function(model, risk_dist = NULL) {
+  dists <- model$distributions %||% list()
+  if (length(dists)) {
+    dists <- dists[!startsWith(names(dists), "between:")]
+    keys <- vapply(names(dists), function(k) {
+      if (grepl("^(prob|associations|impacts):", k)) k else
+        tryCatch(canonical_key(k, model), deconflate_error = function(e) NA_character_)
+    }, character(1), USE.NAMES = FALSE)
+    names(dists) <- keys
+    dists <- dists[!is.na(keys)]
+  }
+  if (!is.null(risk_dist)) dists[["risk"]] <- risk_dist
+  dists[!vapply(dists, function(d) identical(d$type, "fixed"), logical(1))]
+}
+
+# ---- cm_sensitivity() -------------------------------------------------------
+
+sens_unknown_pair <- c(0.5, 3)
+sens_unknown_or_ratio <- c(0.5, 2)
+sens_unknown_hr <- c(0.67, 1.5)
+sens_unknown_share <- 0.5
+
+#' Sensitivity of the results to entered and unknown inputs
 #'
-#' Varies each input by `variation` (e.g. +/- 20%) with everything else
-#' fixed, as in Rasmussen et al. (2024), Fig. 7, and reports the resulting
-#' range of the total: the adjusted aggregate for additive impacts, the risk
-#' attributable to disease for event impacts.
+#' Reruns the adjustment with one input at a time at a low and a high value,
+#' everything else at its central value, and reports how much the total
+#' (the adjusted aggregate; for event impacts, the risk attributable to
+#' disease), each disease's adjusted impact and the ranking of diseases
+#' change. Inputs you entered and inputs you did not enter (unknown
+#' associations, interactions, three-way associations) are varied in the
+#' same table, so you can see which missing estimates would matter most
+#' next to the uncertainty of the ones you have.
 #'
-#' @param model A [cm_model()].
-#' @param event_model,overall_risk,baseline_risk As in [deconflate()].
-#' @param variation Relative change applied downwards and upwards.
-#' @param inputs Which inputs to vary: `"prob"` (disease probabilities),
-#'   `"assoc"` (association rows), `"impact"` (impact rows), and for event
-#'   impacts `"risk"` (the overall or baseline risk, whichever is given).
-#' @param ... Not used.
-#' @return A `cm_oat` data frame with one row per input: the input key
-#'   (`"prob:<disease>"`, `"associations:<row>"`, `"impacts:<row>"` or
-#'   `"risk"`), totals at the low and high values and the swing, sorted by
-#'   swing.
+#' @section Inputs and their ranges:
+#' Entered inputs (`inputs = "entered"`), named as in the input tables:
+#' `prob:<disease>`, `associations:<row>`, `impacts:<row>`, and for event
+#' impacts `risk` (the overall or baseline risk, whichever was given).
+#' * With a distribution: one SD down and up, on the normal score of the
+#'   distribution (the 16% and 84% quantiles when the value is the median).
+#' * Without one: the value times `1 - change` and `1 + change`
+#'   (probabilities stay inside (0, 1), risk differences and phi inside
+#'   (-1, 1)). A value of zero has no relative change: give it a range with
+#'   `ranges`.
+#'
+#' Unknown inputs (`inputs = "unknown"`), which are not in the tables:
+#' * `pair:<d1>:<d2>`: a pair that no association row mentions, as a crude
+#'   odds ratio from 0.5 to 3 (a pair mentioned only by other rows, e.g.
+#'   within a subgroup or in an `OR_ratio` row, is not varied);
+#' * `interaction:<d1>;<d2>`: an interaction of two diseases that have no
+#'   combination row, as a row for the combination adjusted for all (see
+#'   [cm_impacts()]): for additive impacts from minus to plus half the
+#'   smaller of the two adjusted impacts (in absolute value), for event
+#'   impacts a hazard ratio from 0.67 to 1.5;
+#' * `or_ratio:<d1>:<d2>|<d3>`: only on request (`three_way`), how much
+#'   disease 3 changes the association of diseases 1 and 2 (an `OR_ratio`
+#'   row), from 0.5 to 2. Triples that already have an `OR_ratio` row are
+#'   entered inputs (`associations:<row>`).
+#'
+#' Any range can be changed with `ranges`. With crude impact rows, a
+#' positive interaction lowers the aggregate: the rows already contain it,
+#' once in each disease's row, so the model takes it out twice and adds it
+#' back once.
+#'
+#' @section Variance shares:
+#' When the result has draws (`n_draws` in [deconflate()]), each uncertain
+#' input's share of the variance of the total is estimated from them: the
+#' total is regressed on the normal scores of all drawn inputs, and the share
+#' of an input is its squared standardised coefficient. `r_squared` says how
+#' much of the variance the linear fit explains; below 0.8 the shares are
+#' rough (the response is far from linear, or inputs interact). Only inputs
+#' with a distribution have a share.
+#'
+#' @param x A [deconflate()] result, or a [cm_model()]: a model is adjusted
+#'   first (point estimates; it may have no association rows, to see which
+#'   associations would matter).
+#' @param inputs `"entered"`, `"unknown"` or both (default).
+#' @param change Relative change of entered inputs without a distribution
+#'   (default 0.2: 20% down and up).
+#' @param ranges Optional data frame with columns `input` (a key as above),
+#'   `low` and `high`, replacing the default range of those inputs. A key
+#'   `or_ratio:<d1>:<d2>|<d3>` adds that three-way input.
+#' @param three_way Three-way inputs to add: a list of character vectors of
+#'   three disease ids (the association of the first two, among the third),
+#'   or `"all"` (every triple, which can be many). Default none.
+#' @param keys Optional input keys: vary only these (to save time).
+#' @param event_model,overall_risk,baseline_risk With a model: as in
+#'   [deconflate()]. With a result they are taken from it.
+#' @param ... With a model: `pool`, `joint`, or arguments of [fit_joint()].
+#' @return A `cm_sensitivity` object:
+#' * `inputs`: one row per input, sorted by swing: `input` (key), `label`,
+#'   `kind` (`"entered"` or `"unknown"`), `range` (how the range was set),
+#'   `value` (entered inputs), `low`, `high`, `total_low`, `total_high`,
+#'   `swing` (`|total_high - total_low|`), `rank_shift` (the most places any
+#'   disease moves in the ranking by contribution, at low or high),
+#'   `first` (the disease ranked first at low or high, when it is not the
+#'   central one), `var_share` and `failed` (why a run could not be used);
+#' * `by_disease`: each input's effect on each disease (`adjusted_low`,
+#'   `adjusted_high`; hazard ratios for event impacts; `contribution_low`,
+#'   `contribution_high`);
+#' * `variance`: the variance shares of all drawn inputs (with
+#'   `r_squared`), or `NULL` without draws;
+#' * `central`: the central total, contributions and ranking.
+#' @seealso [cm_threshold()] for the value of one input at which a
+#'   conclusion changes; `$ranks` of a [deconflate()] result for how often
+#'   each disease ranks first over the draws.
 #' @export
 #' @examples
-#' sensitivity_oat(example_supplement())
-sensitivity_oat <- function(model, event_model = FALSE, overall_risk = NULL,
-                            variation = 0.2, inputs = c("prob", "assoc", "impact", "risk"),
-                            baseline_risk = NULL, ...) {
-  st <- sens_setup(model, event_model, overall_risk, list(...), baseline_risk)
+#' res <- deconflate(example_supplement(), n_draws = 0)
+#' s <- cm_sensitivity(res)
+#' s
+#' print(s, n = Inf)
+#' # An unknown association from 1 to 5 instead of 0.5 to 3
+#' m <- example_supplement()
+#' m$associations <- m$associations[m$associations$associated_with != "d3" |
+#'                                    m$associations$disease != "d1", ]
+#' cm_sensitivity(deconflate(m, n_draws = 0),
+#'                ranges = data.frame(input = "pair:d1:d3", low = 1, high = 5))
+cm_sensitivity <- function(x, inputs = c("entered", "unknown"), change = 0.2, ranges = NULL,
+                           three_way = NULL, keys = NULL, event_model = FALSE, overall_risk = NULL,
+                           baseline_risk = NULL, ...) {
+  dots <- list(...)
+  retired_args(dots)
   inputs <- cm_match_arg(inputs, several_ok = TRUE)
-  base <- burden_metric(check_baseline(run_quiet(model, st)))
-  vals <- model_inputs(model)
-  if (event_model) vals <- c(vals, risk = st$risk)
-  keys <- names(vals)
-  type <- c(prob = "prob", associations = "assoc", impacts = "impact", risk = "risk")[sub(":.*$", "", keys)]
-  keep <- type %in% inputs & vals != 0
-  keys <- keys[keep]
-  rows <- lapply(keys, function(k) {
-    x <- vals[[k]]
-    tot <- vapply(c(1 - variation, 1 + variation), function(f) {
-      st2 <- st
-      m2 <- model
-      if (k == "risk") {
-        if (!(x * f > 0 && x * f < 1)) return(NA_real_)
-        st2$risk <- x * f
-      } else {
-        m2 <- tryCatch(set_inputs(model, stats::setNames(x * f, k)), deconflate_error = function(e) NULL)
-        if (is.null(m2)) return(NA_real_)
-      }
-      sm <- scenario_metric(run_quiet(m2, st2))
-      if (is.null(sm$met)) NA_real_ else sm$met$total
-    }, numeric(1))
-    data.frame(input = k, value = x, total_low = tot[1], total_high = tot[2],
-               swing = abs(tot[2] - tot[1]),
-               rel_swing = if (isTRUE(abs(base$total) > 0)) abs(tot[2] - tot[1]) / abs(base$total) else NA_real_,
-               stringsAsFactors = FALSE)
-  })
-  if (!length(rows)) {
-    rows <- list(data.frame(input = character(0), value = numeric(0), total_low = numeric(0),
-                            total_high = numeric(0), swing = numeric(0), rel_swing = numeric(0),
-                            stringsAsFactors = FALSE))
+  if (!is.numeric(change) || length(change) != 1L || !is.finite(change) || change <= 0 || change >= 1) {
+    cm_abort("`change` must be a single number between 0 and 1 (e.g. 0.2 for 20%).", class = "deconflate_invalid_input")
   }
-  out <- do.call(rbind, rows)
-  out <- out[order(-out$swing, na.last = TRUE), , drop = FALSE]
-  rownames(out) <- NULL
-  attr(out, "baseline_total") <- base$total
-  attr(out, "metric") <- metric_label(event_model)
-  class(out) <- c("cm_oat", "data.frame")
+  if (inherits(x, "cm_result") || inherits(x, "cm_event_result")) {
+    if (!isFALSE(event_model) || !is.null(overall_risk) || !is.null(baseline_risk) || length(dots)) {
+      cm_abort("With a deconflate() result, the settings come from the result: leave out event_model, overall_risk, baseline_risk and other arguments.",
+               class = "deconflate_invalid_input")
+    }
+    res <- x
+  } else {
+    res <- sens_central(x, event_model, overall_risk, baseline_risk, dots)
+  }
+  ctx <- result_context(res)
+  model <- ctx$model
+  ids <- model$diseases$disease
+  base <- burden_metric(res)
+  if (!result_is_finite(res) || !all(is.finite(base$by_disease))) {
+    cm_abort("The central result is not finite, so there is nothing to compare with.", class = "deconflate_nonfinite")
+  }
+  rank0 <- rank(-base$by_disease, ties.method = "first")
+  first0 <- names(base$by_disease)[which.min(rank0)]
+
+  # The inputs and their ranges.
+  todo <- list()
+  if ("entered" %in% inputs) todo <- sens_entered(ctx, change)
+  if ("unknown" %in% inputs) todo <- c(todo, sens_unknowns(ctx, res, three_way))
+  todo <- sens_apply_ranges(todo, ranges, ctx)
+  if (!is.null(keys)) {
+    if (!is.character(keys)) cm_abort("`keys` must be a character vector of input keys.", class = "deconflate_invalid_input")
+    have <- vapply(todo, `[[`, character(1), "key")
+    unk <- setdiff(keys, have)
+    if (length(unk)) {
+      cm_abort(sprintf("Unknown input keys: %s (see ?cm_sensitivity for the keys).", paste(unk, collapse = ", ")),
+               class = "deconflate_invalid_input")
+    }
+    todo <- todo[have %in% keys]
+  }
+
+  # One input at a time.
+  term_ids <- res$adjusted$disease[res$adjusted$kind == "disease"]
+  rows <- list()
+  long <- list()
+  for (inp in todo) {
+    outs <- lapply(c(inp$low, inp$high), function(v) sens_run(ctx, inp, v))
+    tot <- vapply(outs, function(o) if (inherits(o, "condition")) NA_real_ else burden_metric(o)$total, numeric(1))
+    bad <- vapply(outs, function(o) inherits(o, "condition") || !result_is_finite(o), logical(1))
+    tot[bad] <- NA_real_
+    shifts <- vapply(seq_along(outs), function(j) {
+      if (bad[j]) return(NA_real_)
+      bd <- burden_metric(outs[[j]])$by_disease[names(base$by_disease)]
+      max(abs(rank(-bd, ties.method = "first") - rank0))
+    }, numeric(1))
+    firsts <- vapply(seq_along(outs), function(j) {
+      if (bad[j]) return(NA_character_)
+      bd <- burden_metric(outs[[j]])$by_disease[names(base$by_disease)]
+      names(bd)[which.max(bd)]
+    }, character(1))
+    changed <- !is.na(firsts) & firsts != first0
+    first <- if (any(changed)) paste(sprintf("%s (%s)", firsts[changed], c("low", "high")[changed]), collapse = ", ") else ""
+    reason <- vapply(seq_along(outs), function(j) {
+      o <- outs[[j]]
+      if (!bad[j]) return(NA_character_)
+      sprintf("%s: %s", c("low", "high")[j], if (inherits(o, "condition")) condition_type(o) else "non-finite result")
+    }, character(1))
+    rows[[length(rows) + 1L]] <- data.frame(
+      input = inp$key, label = inp$label, kind = inp$kind, range = inp$how,
+      value = inp$value %||% NA_real_, low = inp$low, high = inp$high,
+      total_low = tot[1], total_high = tot[2], swing = abs(tot[2] - tot[1]),
+      rank_shift = if (all(is.na(shifts))) NA_integer_ else as.integer(max(shifts, na.rm = TRUE)),
+      first = first, var_share = NA_real_,
+      failed = if (all(is.na(reason))) NA_character_ else paste(reason[!is.na(reason)], collapse = "; "),
+      stringsAsFactors = FALSE)
+    adj_of <- function(j) {
+      if (bad[j]) return(stats::setNames(rep(NA_real_, length(term_ids)), term_ids))
+      a <- outs[[j]]$adjusted
+      stats::setNames(a$adjusted[match(term_ids, a$disease)], term_ids)
+    }
+    con_of <- function(j) {
+      if (bad[j]) return(stats::setNames(rep(NA_real_, length(ids)), ids))
+      burden_metric(outs[[j]])$by_disease[ids]
+    }
+    long[[length(long) + 1L]] <- data.frame(
+      input = inp$key, disease = term_ids, adjusted_low = unname(adj_of(1)), adjusted_high = unname(adj_of(2)),
+      contribution_low = unname(con_of(1)[term_ids]), contribution_high = unname(con_of(2)[term_ids]),
+      stringsAsFactors = FALSE)
+  }
+  tab <- if (length(rows)) do.call(rbind, rows) else
+    data.frame(input = character(0), label = character(0), kind = character(0), range = character(0),
+               value = numeric(0), low = numeric(0), high = numeric(0), total_low = numeric(0),
+               total_high = numeric(0), swing = numeric(0), rank_shift = integer(0), first = character(0),
+               var_share = numeric(0), failed = character(0), stringsAsFactors = FALSE)
+  variance <- sens_variance(res, model)
+  if (!is.null(variance)) tab$var_share <- variance$share[match(tab$input, variance$input)]
+  tab <- tab[order(-tab$swing, na.last = TRUE), , drop = FALSE]
+  rownames(tab) <- NULL
+  by_disease <- if (length(long)) do.call(rbind, long) else NULL
+  if (!is.null(by_disease)) {
+    by_disease <- by_disease[order(match(by_disease$input, tab$input)), , drop = FALSE]
+    rownames(by_disease) <- NULL
+  }
+  structure(list(inputs = tab, by_disease = by_disease, variance = variance,
+                 r_squared = attr(variance, "r_squared"),
+                 central = list(total = base$total, contributions = base$by_disease, first = first0,
+                                adjusted = stats::setNames(res$adjusted$adjusted, res$adjusted$disease)),
+                 metric = if (ctx$event) "attributable risk" else "aggregate",
+                 units = res$units, label = res$label, event = ctx$event,
+                 settings = list(change = change, inputs = inputs)),
+            class = "cm_sensitivity")
+}
+
+# The central result for cm_sensitivity(model): as deconflate() (point
+# estimates), but a model without association rows is allowed (the diseases
+# are then unrelated).
+sens_central <- function(model, event_model, overall_risk, baseline_risk, dots) {
+  check_model(model)
+  check_event_model(model, event_model)
+  risk <- check_overall_risk(overall_risk, event_model, baseline_risk)
+  pool <- dots$pool %||% "random"
+  if (!(identical(pool, "random") || identical(pool, "fixed"))) {
+    cm_abort("`pool` must be \"random\" or \"fixed\".", class = "deconflate_invalid_input")
+  }
+  joint <- dots$joint
+  dots$pool <- NULL
+  dots$joint <- NULL
+  unknown <- setdiff(names(dots), joint_arg_names)
+  if (length(unknown)) {
+    cm_abort(sprintf("Unknown argument%s: %s.", if (length(unknown) > 1L) "s" else "", paste(unknown, collapse = ", ")),
+             class = "deconflate_invalid_input")
+  }
+  plan <- plan_model(model, event_model, dots, has_joint = !is.null(joint), pool = pool,
+                     risk_kind = risk$kind %||% "overall")
+  res <- run_point(model, plan, risk = risk$value, joint = joint, warn = FALSE, dots = dots, central = TRUE)
+  res <- finish_result(res, model, plan)
+  res$settings <- list(plan = plan, risk = risk, dots = dots)
+  res
+}
+
+# Entered inputs with their ranges.
+sens_entered <- function(ctx, change) {
+  model <- ctx$model
+  dists <- input_dists(model, ctx$risk$dist)
+  keys <- c(paste0("prob:", model$diseases$disease),
+            if (!is.null(model$associations) && nrow(model$associations)) paste0("associations:", model$associations$row),
+            paste0("impacts:", model$impacts$row),
+            if (ctx$event) "risk")
+  labels <- input_labels(model, keys, ctx$risk$kind %||% "overall")
+  out <- vector("list", length(keys))
+  for (i in seq_along(keys)) {
+    k <- keys[i]
+    v <- input_value(model, k, ctx$risk$value)
+    d <- dists[[k]]
+    if (!is.null(d)) {
+      lo <- shifted_value(d, v, -1)
+      hi <- shifted_value(d, v, 1)
+      how <- "1 SD"
+    } else {
+      lo <- v * (1 - change)
+      hi <- v * (1 + change)
+      meas <- input_measure(model, k)
+      if (k == "risk" || meas %in% c("prevalence", "probability")) {
+        lo <- max(lo, 1e-6)
+        hi <- min(hi, 1 - 1e-6)
+      }
+      if (meas %in% c("RD", "phi")) {
+        lo <- max(lo, -1 + 1e-6)
+        hi <- min(hi, 1 - 1e-6)
+      }
+      how <- sprintf("%g%%", 100 * change)
+      # A value of zero has no relative change: it needs a range.
+      if (v == 0) {
+        lo <- hi <- NA_real_
+        how <- "value 0: give a range"
+      }
+    }
+    out[[i]] <- list(key = k, label = labels[i], kind = "entered", how = how, value = v,
+                     low = if (anyNA(c(lo, hi))) NA_real_ else min(lo, hi),
+                     high = if (anyNA(c(lo, hi))) NA_real_ else max(lo, hi))
+  }
   out
 }
 
-# The numeric inputs of a model, keyed as in cm_model(distributions = ).
-model_inputs <- function(model) {
-  v <- stats::setNames(model$diseases$value, paste0("prob:", model$diseases$disease))
-  a <- model$associations
-  if (!is.null(a) && nrow(a)) v <- c(v, stats::setNames(a$value, paste0("associations:", a$row)))
-  i <- model$impacts
-  if (!is.null(i) && nrow(i)) v <- c(v, stats::setNames(i$value, paste0("impacts:", i$row)))
-  v
+# Unknown inputs: pairs that no row mentions, interactions of pairs without
+# a combination term, and the requested three-way associations.
+sens_unknowns <- function(ctx, res, three_way = NULL) {
+  model <- ctx$model
+  ids <- model$diseases$disease
+  out <- list()
+  pt <- pair_tables(as_population(model))
+  for (r in which(pt$status == "unknown")) {
+    a <- pt$disease1[r]
+    b <- pt$disease2[r]
+    out[[length(out) + 1L]] <- list(key = sprintf("pair:%s:%s", a, b), label = sprintf("%s-%s OR (unknown)", a, b),
+                                    kind = "unknown", how = sprintf("OR %g-%g", sens_unknown_pair[1], sens_unknown_pair[2]),
+                                    value = NA_real_, low = sens_unknown_pair[1], high = sens_unknown_pair[2])
+  }
+  terms <- res$adjusted$disease
+  adj <- stats::setNames(res$adjusted$adjusted, res$adjusted$disease)
+  if (length(ids) >= 2L) {
+    pr <- utils::combn(ids, 2)
+    for (j in seq_len(ncol(pr))) {
+      a <- pr[1, j]
+      b <- pr[2, j]
+      if (term_label(c(a, b)) %in% terms) next
+      if (ctx$event) {
+        lo <- sens_unknown_hr[1]
+        hi <- sens_unknown_hr[2]
+        how <- sprintf("HR %g-%g", lo, hi)
+      } else {
+        half <- sens_unknown_share * min(abs(adj[[a]]), abs(adj[[b]]))
+        lo <- -half
+        hi <- half
+        how <- sprintf("%g%% of smaller impact", 100 * sens_unknown_share)
+      }
+      out[[length(out) + 1L]] <- list(key = sprintf("interaction:%s;%s", a, b),
+                                      label = sprintf("%s;%s interaction (unknown)", a, b),
+                                      kind = "unknown", how = how, value = NA_real_, low = lo, high = hi)
+    }
+  }
+  if (!is.null(three_way)) {
+    if (identical(three_way, "all")) {
+      three_way <- if (length(ids) >= 3L) utils::combn(ids, 3, simplify = FALSE) else list()
+    }
+    if (is.character(three_way)) three_way <- list(three_way)
+    for (tr in three_way) {
+      if (!is.character(tr) || length(tr) != 3L || anyDuplicated(tr) || !all(tr %in% ids)) {
+        cm_abort(sprintf("Each element of `three_way` must name three different diseases of the model (check: %s).",
+                         paste(tr, collapse = ", ")), class = "deconflate_invalid_input")
+      }
+      if (!or_ratio_entered(model, tr)) out[[length(out) + 1L]] <- sens_or_ratio_input(tr)
+    }
+  }
+  out
 }
+
+# Is there an OR_ratio row about these three diseases (in any order)? It is
+# then an entered input (associations:<row>), not an unknown one.
+or_ratio_entered <- function(model, tr) {
+  a <- model$associations
+  if (is.null(a) || !nrow(a)) return(FALSE)
+  any(a$measure == "OR_ratio" & vapply(seq_len(nrow(a)), function(r) {
+    setequal(c(a$disease[r], a$associated_with[r], sub("^no\\s+", "", a$among[r])), tr)
+  }, logical(1)))
+}
+
+sens_or_ratio_input <- function(tr) {
+  list(key = sprintf("or_ratio:%s:%s|%s", tr[1], tr[2], tr[3]),
+       label = sprintf("%s-%s OR ratio among %s (unknown)", tr[1], tr[2], tr[3]),
+       kind = "unknown", how = sprintf("ratio %g-%g", sens_unknown_or_ratio[1], sens_unknown_or_ratio[2]),
+       value = NA_real_, low = sens_unknown_or_ratio[1], high = sens_unknown_or_ratio[2])
+}
+
+# Ranges given by the user replace the defaults (an or_ratio key adds that
+# input).
+sens_apply_ranges <- function(todo, ranges, ctx) {
+  if (is.null(ranges)) return(todo)
+  if (!is.data.frame(ranges) || !all(c("input", "low", "high") %in% names(ranges))) {
+    cm_abort("`ranges` must be a data frame with columns input, low and high.", class = "deconflate_invalid_input")
+  }
+  have <- vapply(todo, `[[`, character(1), "key")
+  ids <- ctx$model$diseases$disease
+  for (i in seq_len(nrow(ranges))) {
+    k <- as.character(ranges$input[i])
+    lo <- ranges$low[i]
+    hi <- ranges$high[i]
+    if (!is.numeric(lo) || !is.numeric(hi) || !is.finite(lo) || !is.finite(hi) || lo >= hi) {
+      cm_abort(sprintf("The range of '%s' must be two finite numbers, low below high.", k), class = "deconflate_invalid_input")
+    }
+    j <- match(k, have)
+    if (is.na(j) && grepl("^(assoc|impact):", k)) {
+      # Keys of the distributions' older form name an entered row.
+      ck <- tryCatch(canonical_key(k, ctx$model), deconflate_error = function(e) NA_character_)
+      j <- match(ck, have)
+    }
+    if (is.na(j) && startsWith(k, "or_ratio:")) {
+      tr <- strsplit(sub("^or_ratio:", "", k), "[:|]")[[1]]
+      if (length(tr) != 3L || anyDuplicated(tr) || !all(tr %in% ids)) {
+        cm_abort(sprintf("'%s' must be 'or_ratio:<d1>:<d2>|<d3>' with three diseases of the model.", k),
+                 class = "deconflate_invalid_input")
+      }
+      if (or_ratio_entered(ctx$model, tr)) {
+        cm_abort(sprintf("The model has an OR_ratio row about %s: vary it as 'associations:<row>'.",
+                         paste(tr, collapse = ", ")), class = "deconflate_invalid_input")
+      }
+      same <- vapply(todo, function(t) startsWith(t$key, "or_ratio:") &&
+                       setequal(strsplit(sub("^or_ratio:", "", t$key), "[:|]")[[1]], tr), logical(1))
+      if (any(same)) {
+        j <- which(same)[1]
+      } else {
+        todo[[length(todo) + 1L]] <- sens_or_ratio_input(tr)
+        have <- c(have, k)
+        j <- length(todo)
+      }
+    }
+    if (is.na(j)) {
+      cm_abort(sprintf("No input '%s' to set a range for (see ?cm_sensitivity for the keys).", k),
+               class = "deconflate_invalid_input")
+    }
+    todo[[j]]$low <- lo
+    todo[[j]]$high <- hi
+    todo[[j]]$how <- "given"
+  }
+  todo
+}
+
+# One run of cm_sensitivity(): the result, or the condition.
+sens_run <- function(ctx, inp, v) {
+  k <- inp$key
+  if (!is.finite(v)) {
+    return(errorCondition("The range of this input could not be set.",
+                          class = c("deconflate_invalid_input", "deconflate_error")))
+  }
+  if (inp$kind == "entered") return(rerun_result(ctx, stats::setNames(list(v), k)))
+  model <- ctx$model
+  m2 <- tryCatch({
+    if (startsWith(k, "pair:")) {
+      p <- strsplit(sub("^pair:", "", k), ":", fixed = TRUE)[[1]]
+      set_association(model, p[1], p[2], v, "OR")
+    } else if (startsWith(k, "interaction:")) {
+      p <- strsplit(sub("^interaction:", "", k), ";", fixed = TRUE)[[1]]
+      set_interaction(model, p[1], p[2], v)
+    } else {
+      p <- strsplit(sub("^or_ratio:", "", k), "[:|]")[[1]]
+      set_three_way(model, p[1], p[2], p[3], v)
+    }
+  }, deconflate_error = function(e) e)
+  if (inherits(m2, "condition")) return(m2)
+  rerun_result(ctx, model = m2, frozen = NULL, same_joint = startsWith(k, "interaction:"))
+}
+
+# Variance shares of the drawn inputs: the total regressed on their normal
+# scores over the accepted draws (squared standardised coefficients).
+sens_variance <- function(res, model) {
+  dr <- res$draws
+  if (is.null(dr) || is.null(dr$values) || is.null(dr$uniforms) || !("total" %in% colnames(dr$values))) return(NULL)
+  y <- dr$values[, "total"]
+  U <- dr$uniforms
+  fixed <- vapply(colnames(U), function(k) identical(dr$specs[[k]]$type, "fixed"), logical(1))
+  U <- U[, !fixed, drop = FALSE]
+  if (!ncol(U)) return(NULL)
+  ok <- is.finite(y) & apply(U, 1, function(u) all(is.finite(u)))
+  y <- y[ok]
+  U <- U[ok, , drop = FALSE]
+  if (length(y) < ncol(U) + 3L || stats::sd(y) == 0) return(NULL)
+  Z <- stats::qnorm(pmin(pmax(U, 1e-12), 1 - 1e-12))
+  vary <- apply(Z, 2, stats::sd) > 0
+  Z <- Z[, vary, drop = FALSE]
+  fit <- stats::lm.fit(cbind(1, Z), y)
+  beta <- fit$coefficients[-1]
+  beta[is.na(beta)] <- 0
+  share <- (beta * apply(Z, 2, stats::sd) / stats::sd(y))^2
+  r2 <- 1 - sum(fit$residuals^2) / sum((y - mean(y))^2)
+  keys <- vapply(colnames(Z), function(k) {
+    if (k == "risk" || startsWith(k, "between:") || grepl("^(prob|associations|impacts):", k)) k else
+      tryCatch(canonical_key(k, model), deconflate_error = function(e) k)
+  }, character(1), USE.NAMES = FALSE)
+  lab <- vapply(keys, function(k) {
+    if (startsWith(k, "between:")) sprintf("between-study variation (%s)", sub("^between:", "", k)) else
+      tryCatch(input_labels(model, k, res$settings$risk$kind %||% "overall"), error = function(e) k)
+  }, character(1), USE.NAMES = FALSE)
+  out <- data.frame(input = keys, label = lab, share = unname(share), stringsAsFactors = FALSE)
+  out <- out[order(-out$share), , drop = FALSE]
+  rownames(out) <- NULL
+  attr(out, "r_squared") <- r2
+  out
+}
+
+#' @export
+print.cm_sensitivity <- function(x, n = 10, digits = 3, ...) {
+  tab <- x$inputs
+  units <- if (!is.null(x$units) && !is.na(x$units) && !x$event) sprintf(" [%s]", x$units) else ""
+  cat(sprintf("Sensitivity of the %s%s: central value %s (ranked first: %s)\n", x$metric, units,
+              format(signif(x$central$total, digits + 1)), x$central$first))
+  if (!nrow(tab)) {
+    cat("No inputs were varied.\n")
+    return(invisible(x))
+  }
+  show <- utils::head(tab, if (is.finite(n)) n else nrow(tab))
+  cat(sprintf("%d inputs varied one at a time (%d entered, %d unknown)%s:\n", nrow(tab), sum(tab$kind == "entered"),
+              sum(tab$kind == "unknown"),
+              if (nrow(show) < nrow(tab)) sprintf("; the %d largest swings", nrow(show)) else ""))
+  f <- function(v) ifelse(is.finite(v), formatC(signif(v, digits), digits = digits, format = "fg"), "")
+  out <- data.frame(input = formatC(show$label, width = -max(nchar(show$label), 5L)),
+                    low = f(show$low), high = f(show$high), `at low` = f(show$total_low),
+                    `at high` = f(show$total_high), swing = f(show$swing),
+                    rank = ifelse(is.na(show$rank_shift), "", show$rank_shift),
+                    check.names = FALSE, stringsAsFactors = FALSE)
+  if (any(is.finite(show$var_share))) {
+    out$share <- ifelse(is.finite(show$var_share), sprintf("%.0f%%", 100 * show$var_share), "")
+  }
+  if (any(!is.na(show$failed))) out$failed <- ifelse(is.na(show$failed), "", show$failed)
+  names(out)[1] <- formatC("input", width = -nchar(out$input[1]))
+  print(out, row.names = FALSE)
+  if (nrow(tab) > nrow(show)) cat(sprintf("... %d more: print(x, n = Inf) shows all; keys and ranges in x$inputs.\n",
+                                          nrow(tab) - nrow(show)))
+  notes <- c(sprintf("low, high: entered inputs move 1 SD (with a distribution) or by %g%%; unknown inputs over their default ranges (see ?cm_sensitivity) or the ranges given. at low, at high: the %s. rank: the most places any disease moves in the ranking by contribution.",
+                     100 * x$settings$change, x$metric))
+  ch <- nzchar(show$first)
+  if (any(ch)) {
+    notes <- c(notes, sprintf("First place changes: %s.",
+                              paste(sprintf("%s: %s", trimws(show$label[ch]), show$first[ch]), collapse = "; ")))
+  }
+  if (!is.null(x$variance)) {
+    r2 <- x$r_squared
+    notes <- c(notes, sprintf("share: share of the variance of the %s over the draws (linear fit R^2 = %.2f%s).",
+                              x$metric, r2, if (is.finite(r2) && r2 < 0.8) "; the shares are rough" else ""))
+  }
+  for (nt in notes) cat(strwrap(nt, width = min(getOption("width"), 90L)), sep = "\n")
+  invisible(x)
+}
+
+#' @rdname plots
+#' @param n For `cm_sensitivity` plots: the number of inputs to show.
+#' @param main For `cm_sensitivity` plots: the title.
+#' @export
+plot.cm_sensitivity <- function(x, n = 10, main = "Sensitivity (one input at a time)", ...) {
+  d <- x$inputs[is.finite(x$inputs$swing), , drop = FALSE]
+  if (!nrow(d)) cm_abort("No input has a swing to plot.", class = "deconflate_invalid_input")
+  d <- utils::head(d, n)
+  d <- d[rev(seq_len(nrow(d))), , drop = FALSE]
+  base <- x$central$total
+  lo <- pmin(d$total_low, d$total_high)
+  hi <- pmax(d$total_low, d$total_high)
+  k <- nrow(d)
+  op <- graphics::par(mar = c(4, 14, 3, 1))
+  on.exit(graphics::par(op))
+  graphics::plot(base, 1, type = "n", xlim = range(c(lo, hi, base)), ylim = c(0.5, k + 0.5),
+                 yaxt = "n", xlab = sprintf("%s%s", tools_title(x$metric),
+                                            if (!is.null(x$units) && !is.na(x$units) && !x$event) sprintf(" (%s)", x$units) else ""),
+                 ylab = "", main = main, ...)
+  cols <- ifelse(d$kind == "unknown", "#DDCC77", "#88CCEE")
+  graphics::rect(lo, seq_len(k) - 0.4, hi, seq_len(k) + 0.4, col = cols, border = NA)
+  graphics::axis(2, at = seq_len(k), labels = d$label, las = 1, cex.axis = 0.7)
+  graphics::abline(v = base)
+  kinds <- intersect(c("entered", "unknown"), d$kind)
+  graphics::legend("bottomright", legend = kinds, fill = c(entered = "#88CCEE", unknown = "#DDCC77")[kinds],
+                   border = NA, bty = "n", cex = 0.8)
+  invisible(x)
+}
+
+tools_title <- function(s) paste0(toupper(substring(s, 1, 1)), substring(s, 2))

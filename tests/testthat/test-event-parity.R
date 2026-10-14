@@ -100,8 +100,9 @@ test_that("a baseline risk instead of the overall risk", {
   expect_true("risk" %in% colnames(rd$draws$params))
   expect_equal(rd$risk_given, "baseline")
   # The other tools.
-  o <- sensitivity_oat(m, event_model = TRUE, baseline_risk = 0.18, inputs = "risk")
-  expect_equal(o$value, 0.18)
+  o <- cm_sensitivity(deconflate(m, event_model = TRUE, baseline_risk = 0.18, n_draws = 0), keys = "risk")
+  expect_equal(o$inputs$value, 0.18)
+  expect_equal(o$inputs$label, "baseline risk")
   th <- cm_threshold(m, "risk", c(0.05, 0.6), conclusion = "total", target = 0.05, event_model = TRUE,
                      baseline_risk = 0.18, n_grid = 11)
   expect_equal(th$thresholds$status, "threshold")
@@ -148,13 +149,17 @@ test_that("interactions of event impacts in the sensitivity tools", {
   r2 <- suppressWarnings(deconflate(m2, event_model = TRUE, overall_risk = 0.25, n_draws = 0))
   expect_equal(r2$adjusted$adjusted[r2$adjusted$disease == "MET;SCK"], 1.5, tolerance = 1e-10)
   expect_error(set_interaction(m, "MET", "SCK", 0), class = "deconflate_invalid_input")
-  si <- screen_interactions(m, c(0.5, 2), pairs = "MET:SCK", event_model = TRUE, overall_risk = 0.25)
-  expect_equal(si$scenario, c("interaction HR = 0.5", "interaction HR = 2"))
-  expect_true(all(is.finite(si$total)))
-  expect_equal(attr(si, "metric"), "attributable risk")
-  expect_error(screen_interactions(m, c(-1, 2), event_model = TRUE, overall_risk = 0.25),
-               class = "deconflate_invalid_input")
-  th <- cm_threshold(m, "inter:MET:SCK", c(0.5, 3), conclusion = "total", target = 0.054,
+  res <- deconflate(m, event_model = TRUE, overall_risk = 0.25, n_draws = 0)
+  si <- cm_sensitivity(res, keys = "interaction:MET;SCK")
+  expect_equal(c(si$inputs$low, si$inputs$high), c(0.67, 1.5))
+  expect_true(all(is.finite(c(si$inputs$total_low, si$inputs$total_high))))
+  expect_equal(si$metric, "attributable risk")
+  # A hazard ratio below zero is not a valid interaction: the run is reported as failed.
+  bad <- cm_sensitivity(res, keys = "interaction:MET;SCK",
+                        ranges = data.frame(input = "interaction:MET;SCK", low = -1, high = 2))
+  expect_match(bad$inputs$failed, "low: invalid_input")
+  expect_true(is.finite(bad$inputs$total_high))
+  th <- cm_threshold(m, "interaction:MET;SCK", c(0.5, 3), conclusion = "total", target = 0.054,
                      event_model = TRUE, overall_risk = 0.25, n_grid = 11)
   expect_true(th$thresholds$status %in% c("threshold", "none"))
 })

@@ -84,9 +84,10 @@ of `deconflate()` and can also be a distribution (e.g. `dist_beta(250, 750)`).
 6. Reporting (`contribution_table`, `summary`, `$contributions`), and
    gaps and values computed from the results in a few lines of base R
    (also over the draws).
-7. `sensitivity_oat`, `screen_associations`, `screen_interactions`,
-   `screen_three_way` (also for event impacts and without any associations),
-   and scenarios built with the `set_*` functions.
+7. `cm_sensitivity`: entered and unknown inputs (pairs, interactions, a
+   three-way association on request) one at a time, variance shares and
+   rank probabilities from the draws, event impacts, and a model without
+   any associations.
 8. `cm_threshold` for every conclusion (`rank`, `sign`, `total`, `change`)
    and input type (association, impact, interaction, OR_ratio, any row by
    number, disease probability, overall risk); poles are reported as

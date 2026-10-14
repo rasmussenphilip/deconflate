@@ -68,10 +68,12 @@ deconflate(cull, event_model = TRUE, overall_risk = 0.25)
 
 # Global dairy inputs, Rasmussen et al. (2024); unlisted pairs are unknown
 gd <- example_global_dairy("yield")
-deconflate(gd, n_draws = 0)
+res_gd <- deconflate(gd, n_draws = 0)
+# Which inputs matter, including the associations nobody estimated?
+cm_sensitivity(res_gd)
 
 # At what odds ratio between d2 and d3 does the ranking of d1 and d2 change?
-cm_threshold(example_supplement(), "assoc:d2:d3", c(0.1, 100), conclusion = "rank")
+cm_threshold(example_supplement(), "pair:d2:d3", c(0.1, 100), conclusion = "rank")
 ```
 
 ## Features
@@ -79,7 +81,7 @@ cm_threshold(example_supplement(), "assoc:d2:d3", c(0.1, 100), conclusion = "ran
 - **Inputs:** `cm_read_inputs()` reads CSV files or data frames (each table a named argument) and reports every problem at once (`cm_check_inputs()`); uncertain values carry their distribution in their own row (`dist`, `p1`-`p4`), mixed freely with point values. `cm_template()` writes example files, and `system.file("extdata", "five_diseases", package = "deconflate")` holds a five-disease example that uses every feature, with a script (`run_all_features.R`) that runs them all. In R: `cm_diseases()`, `cm_associations()` (OR, RR, RD, phi, prevalence, OR ratio; about pairs, combinations and subgroups, crude or adjusted), `cm_population()`, `cm_impacts()` and `cm_model()`.
 - **Adjustment:** `deconflate()` for additive and event impacts, with interactions, several rows per item (pooling with random or fixed effects, weighted least squares; `$heterogeneity`), intervals (`n_draws`), and a diagnosis (`diagnose = TRUE`) that shows which inputs drive adjusted impacts that change sign or nearly vanish, and which rows disagree with others; contributions of each disease (closed-form Shapley values), split into the disease's own part and its share of interactions, in `$contributions`, `contribution_table()` and `summary()`; the attributable risk of event impacts; the raw total (the result if the diseases were unrelated) beside the adjusted one.
 - **Joint distribution and feasibility:** `fit_joint()` (exact, or sampled for many diseases) and `check_feasibility()`.
-- **Sensitivity and thresholds:** `cm_threshold()` (where a ranking, a sign or the aggregate changes as one input varies), `sensitivity_oat()`, `screen_associations()`, `screen_interactions()` and `screen_three_way()`; they also run without any association estimates, to show which associations would matter.
+- **Sensitivity and thresholds:** `cm_sensitivity()` varies every input one at a time, entered inputs (by their own SD, or by a relative change) and inputs you did not enter (unknown associations, interactions, three-way associations) in one table, with each input's share of the variance over the draws; `$ranks` gives how often each disease ranks first, second, ... over the draws; `cm_threshold()` finds where a ranking, a sign or the aggregate changes as one input varies. Both also run without any association estimates, to show which associations would matter.
 - **Validation:** `simulate_raw_impacts()` shows what studies would report given true impacts, so you can check that the model recovers them.
 - **Plots** (base graphics) and six vignettes. Start with `vignette("deconflate")`.
 

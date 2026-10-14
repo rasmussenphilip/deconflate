@@ -174,7 +174,7 @@ finds the input values at which the conclusion changes, for example the odds
 ratio of d2 and d3 at which d1 would contribute more than d2:
 
 ```{r}
-cm_threshold(m, "assoc:d2:d3", c(0.1, 100), conclusion = "rank")$thresholds[
+cm_threshold(m, "pair:d2:d3", c(0.1, 100), conclusion = "rank")$thresholds[
   , c("item", "status", "threshold", "description")]
 ```
 
@@ -408,8 +408,9 @@ deconflate(m_sim)$adjusted[, c("disease", "raw", "adjusted")]
 * `vignette("interactions")`: the joint distribution, unknown associations,
   rows about combinations and subgroups, several rows per item, impact
   interactions and attribution.
-* `vignette("uncertainty")`: draws and intervals, stability checks and
-  sensitivity screening.
+* `vignette("uncertainty")`: draws and intervals, stability checks, rank
+  shares and the sensitivity of the results to each input
+  (`cm_sensitivity()`).
 * `vignette("thresholds-and-scaling")`: threshold searches with
   `cm_threshold()` (at what input value does a ranking, a sign or the
   aggregate change?), and the sampled backend of `fit_joint()` for more

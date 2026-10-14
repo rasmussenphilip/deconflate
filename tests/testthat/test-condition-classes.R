@@ -11,7 +11,7 @@ test_that("invalid arguments, tables and values are deconflate_invalid_input", {
   expect_error(dist_normal(0, -1), class = cls)
   expect_error(dist_pert(2, 1, 0), class = cls)
   expect_error(cm_read_inputs(impacts = data.frame(disease = "a", value = 1)), class = cls)
-  expect_error(cm_threshold(example_supplement(), "assoc:d2:d3", c(3, 1)), class = cls)
+  expect_error(cm_threshold(example_supplement(), "pair:d2:d3", c(3, 1)), class = cls)
   expect_error(cm_threshold(example_supplement(), "nothing:d2", c(1, 3)), class = cls)
   e <- tryCatch(dist_beta(-1, 1), deconflate_error = function(e) e)
   expect_s3_class(e, c("deconflate_invalid_input", "deconflate_error", "error", "condition"), exact = TRUE)
@@ -32,10 +32,10 @@ test_that("condition labels include invalid_input", {
 })
 
 test_that("errors about a failed baseline or run are of the kind that caused them", {
-  expect_error(check_baseline(structure(list(), reason = "singular")), "singular", class = "deconflate_singular")
-  e <- tryCatch(check_baseline(structure(list(), reason = "error")), deconflate_error = function(e) e)
-  expect_s3_class(e, c("deconflate_error", "error", "condition"), exact = TRUE)
+  bad <- deconflate(supp_model(c(1, 1, 1)), n_draws = 0)
+  bad$adjusted$adjusted[1] <- Inf
+  expect_error(cm_sensitivity(bad), class = "deconflate_nonfinite")
   zero <- supp_model(c(0, 0, 0))
-  expect_error(cm_threshold(zero, "assoc:d2:d3", c(1, 5), conclusion = "change", target = 0.1), "zero",
+  expect_error(cm_threshold(zero, "pair:d2:d3", c(1, 5), conclusion = "change", target = 0.1), "zero",
                class = "deconflate_nonfinite")
 })

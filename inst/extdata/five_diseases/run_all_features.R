@@ -267,56 +267,54 @@ quantile(10000 / (1 - tot / 100) - 10000, c(0.025, 0.5, 0.975))
 data.frame(disease = res_ci$contributions$disease, days = res_ci$contributions$total,
            value = res_ci$contributions$total * 3)
 
-# ---- 7. Sensitivity and screens -----------------------------------------------
-section("7. Sensitivity and screens")
+# ---- 7. Sensitivity: which inputs matter? -----------------------------------
+section("7. Sensitivity")
 
-oat <- sensitivity_oat(m_yield, variation = 0.2)
-head(oat, 10)
-scr_a <- screen_associations(m_yield, or_values = c(0.5, 3))
-scr_a
-scr_i <- screen_interactions(m_yield, values = c(-1, 1))
-scr_i
-scr_t <- screen_three_way(m_welfare, ratios = c(0.5, 2))
-scr_t
-# Event impacts (the aggregate is the attributable risk), including an
-# interaction between two diseases as a hazard ratio
-head(sensitivity_oat(m_cull, event_model = TRUE, overall_risk = 0.25), 10)
-screen_interactions(m_cull, values = c(0.5, 2), pairs = c("MET:SCK", "SCK:RP"), event_model = TRUE,
-                    overall_risk = 0.25)
+# One input at a time, entered and unknown inputs together. Entered inputs
+# move 1 SD (with a distribution) or 20%; interactions of pairs without a
+# combination row move from -50% to +50% of the smaller adjusted impact
+# (with crude rows, a positive interaction lowers the aggregate: the rows
+# already contain it)
+sens_yield <- cm_sensitivity(res_yield)
+sens_yield                          # the 10 largest swings
+print(sens_yield, n = Inf)          # all of them
+head(sens_yield$by_disease)         # each disease's adjusted impact at low and high
+# With draws: each uncertain input's share of the variance of the aggregate,
+# and how often each disease ranks first, second, ...
+sens_unc <- cm_sensitivity(unc_yield, inputs = "entered")
+sens_unc$variance
+unc_yield$ranks
+# Other ranges, and a three-way association on request
+cm_sensitivity(res_welfare, inputs = "unknown", three_way = list(c("MAS", "RP", "MET")),
+               ranges = data.frame(input = "interaction:MAS;SCK", low = -2, high = 2))
+# Event impacts: the attributable risk; interactions as hazard ratios 0.67-1.5
+cm_sensitivity(res_cull)
 # Without any association estimates: which associations would matter?
 m_none <- cm_read_inputs(diseases = f("diseases.csv"), impacts = f("impacts_yield.csv"))
 try_show(deconflate(m_none))
-screen_associations(m_none, or_values = c(0.5, 3))
-
-# Scenarios built with the set_* functions, adjusted like any model
-strong <- set_association(m_yield, "LAM", "RP", 3)                 # an unrelated pair made associated
-no_three <- set_three_way(m_welfare, "LAM", "MAS", "SCK", 1)       # replaces the OR_ratio row
-syn <- set_interaction(m_welfare, "MAS", "SCK", 1.5)               # an extra interaction
-sapply(list(base = m_yield, strong_LAM_RP = strong),
-       function(m) deconflate(m, n_draws = 0)$totals$adjusted_total)
-sapply(list(base = m_welfare, no_three_way = no_three, extra_interaction = syn),
-       function(m) deconflate(m, n_draws = 0)$totals$adjusted_total)
+cm_sensitivity(m_none, inputs = "unknown")
 
 # ---- 8. Thresholds: when does a conclusion change? -------------------------
 section("8. Thresholds")
 
-# rank: at what LAM-SCK odds ratio do two diseases swap places?
-th_rank <- cm_threshold(m_yield, "assoc:LAM:SCK", c(0.5, 10), conclusion = "rank")
+# rank: at what LAM-SCK odds ratio do two diseases swap places? (A result
+# or a model; a result brings its settings.)
+th_rank <- cm_threshold(res_yield, "pair:LAM:SCK", c(0.5, 10), conclusion = "rank")
 th_rank
 # sign: how small a raw SCK yield impact makes its adjusted impact negative?
-th_sign <- cm_threshold(m_yield, "impact:SCK", c(0, 2.5), conclusion = "sign")
+th_sign <- cm_threshold(m_yield, "impacts:4", c(0, 2.5), conclusion = "sign")
 th_sign$thresholds
 # total: what raw MET impact gives an adjusted aggregate of 3% of yield?
-th_total <- cm_threshold(m_yield, "impact:MET", c(0, 15), conclusion = "total", target = 3)
+th_total <- cm_threshold(m_yield, "impacts:3", c(0, 15), conclusion = "total", target = 3)
 th_total$thresholds
 # change: what LAM-MAS interaction lowers the welfare aggregate by 10%? (The
 # raw impacts stay fixed, so a larger interaction leaves less to the main
 # effects.)
-th_change <- cm_threshold(m_welfare, "inter:LAM:MAS", c(-5, 20), conclusion = "change",
+th_change <- cm_threshold(m_welfare, "interaction:LAM;MAS", c(-5, 20), conclusion = "change",
                           target = -0.1)
 th_change$thresholds
 # the OR_ratio row, searched on a log scale
-th_three <- cm_threshold(m_welfare, "three:LAM:MAS:SCK", c(0.2, 5), conclusion = "rank")
+th_three <- cm_threshold(m_welfare, "or_ratio:LAM:MAS|SCK", c(0.2, 5), conclusion = "rank")
 th_three$summary
 # any row by its number: the second LAM-MAS study
 th_row <- cm_threshold(m_yield, "associations:2", c(0.5, 10), conclusion = "change", target = -0.05)
@@ -383,7 +381,8 @@ m_u <- read_five("impacts_yield.csv", associations = assoc[-r, ])
 res_u <- deconflate(m_u, n_draws = 0)
 res_u$unknown_pairs
 # With an unknown pair, an OR_ratio row can change additive results
-screen_three_way(m_u, ratios = c(0.5, 2), triples = list(c("MAS", "RP", "MET")))
+cm_sensitivity(res_u, inputs = "unknown", three_way = list(c("MAS", "RP", "MET")),
+               keys = c("pair:MAS:RP", "or_ratio:MAS:RP|MET"))
 
 # An odds ratio adjusted for other diseases of the model (MET-SCK given LAM,
 # from a logistic regression): matched as the regression coefficient. Ids
@@ -413,8 +412,7 @@ section("11. Plots")
 try_plot(plot(res_yield))
 try_plot(plot(unc_yield))
 try_plot(plot(res_cull))
-try_plot(plot(oat))
-try_plot(plot(scr_a))
+try_plot(plot(sens_yield))
 try_plot(plot(th_rank))
 try_plot(plot(th_change))
 

@@ -42,10 +42,11 @@ well the rows fit together (\verb{$estimates}, \verb{$heterogeneity}). Convertin
 the results into other quantities (e.g. a productivity gap or a
 monetary value) is left to the user.
 \item Check joint feasibility with \code{\link[=check_feasibility]{check_feasibility()}}.
-\item Explore the inputs with \code{\link[=sensitivity_oat]{sensitivity_oat()}}, \code{\link[=screen_associations]{screen_associations()}}
-(also without any association estimates), \code{\link[=screen_interactions]{screen_interactions()}} and
-\code{\link[=screen_three_way]{screen_three_way()}}, and find where a conclusion (a ranking, a sign
-or the total) changes as one input varies with \code{\link[=cm_threshold]{cm_threshold()}}.
+\item See which inputs matter, entered or not (unknown associations,
+interactions), with \code{\link[=cm_sensitivity]{cm_sensitivity()}} (also without any association
+estimates); how often each disease ranks first over the draws in
+\verb{$ranks}; and where a conclusion (a ranking, a sign or the total)
+changes as one input varies with \code{\link[=cm_threshold]{cm_threshold()}}.
 }
 
 See \code{vignette("deconflate")} to get started.

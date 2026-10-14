@@ -41,27 +41,15 @@ test_that("the stand-alone Monte Carlo and reweighting functions are gone", {
 
 # ---- 2. Undefined results are never successful estimates ----------------------
 
-test_that("sensitivity tools report undefined scenarios with a reason", {
-  # The model does not give non-finite results for these inputs, so the
-  # scenario helpers are tested on a result made non-finite by hand.
-  bad <- deconflate(t2_model(c(1, 1, 1)))
+test_that("cm_sensitivity() needs a finite central result and reports failed runs", {
+  bad <- deconflate(t2_model(c(1, 1, 1)), n_draws = 0)
   bad$adjusted$adjusted[1] <- Inf
-  expect_true(failed_run(bad))
-  sm <- scenario_metric(bad)
-  expect_null(sm$met)
-  expect_match(sm$reason, "^undefined: non-finite adjusted values \\(d1\\)")
-  expect_true(is.na(scenario_metric(deconflate(t2_model(c(1, 1, 1))))$reason))
-  base <- burden_metric(deconflate(t2_model(c(1, 1, 1))))
-  row <- screen_row(data.frame(scenario = "bad", stringsAsFactors = FALSE), bad, base)
-  expect_true(is.na(row$total))
-  expect_true(is.na(row$rel_change))
-  expect_match(row$failed, "^undefined")
-  # A failed run carries its reason.
-  sm2 <- scenario_metric(structure(list(), reason = "infeasible"))
-  expect_equal(sm2$reason, "infeasible")
-  # A screen's baseline must be a finite estimate.
-  expect_error(check_baseline(bad), class = "deconflate_nonfinite")
-  expect_error(check_baseline(structure(list(), reason = "singular")), "singular")
+  expect_error(cm_sensitivity(bad), "not finite", class = "deconflate_nonfinite")
+  ok <- deconflate(t2_model(c(1, 1, 1)), n_draws = 0)
+  s <- cm_sensitivity(ok, keys = "associations:1", ranges = data.frame(input = "associations:1", low = -1, high = 2))
+  expect_match(s$inputs$failed, "^low: infeasible")
+  expect_true(is.na(s$inputs$total_low))
+  expect_true(is.finite(s$inputs$total_high))
 })
 
 # ---- 3. Unavailable precision is not "ok" -------------------------------------
@@ -138,10 +126,10 @@ test_that("with unknown pairs, a three-way association can change additive resul
                tolerance = 1e-7)
   # The OR_ratio row is about a and b; a:c and b:c are unknown.
   expect_equal(paste(r4$unknown_pairs$disease1, r4$unknown_pairs$disease2), c("a c", "b c"))
-  st <- screen_three_way(m1, ratios = 4, triples = list(c("a", "b", "c")))
-  expect_equal(attr(st, "baseline_total"), 3, tolerance = 1e-8)
-  expect_equal(st$total, 2.157155621241, tolerance = 1e-7)
-  expect_equal(st$rel_change, (2.157155621241 - 3) / 3, tolerance = 1e-7)
+  st <- cm_sensitivity(m1, inputs = "unknown", keys = "or_ratio:a:b|c",
+                       ranges = data.frame(input = "or_ratio:a:b|c", low = 4, high = 5))
+  expect_equal(st$central$total, 3, tolerance = 1e-8)
+  expect_equal(st$inputs$total_low, 2.157155621241, tolerance = 1e-7)
 })
 
 test_that("with crude pair rows, a three-way association leaves additive results unchanged", {

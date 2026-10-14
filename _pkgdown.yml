@@ -19,9 +19,6 @@ reference:
   - cm_population
   - cm_impacts
   - cm_model
-  - set_association
-  - set_interaction
-  - set_three_way
 - title: Reading inputs
   contents:
   - cm_read_inputs
@@ -43,11 +40,8 @@ reference:
   - distributions
 - title: Sensitivity and thresholds
   contents:
+  - cm_sensitivity
   - cm_threshold
-  - sensitivity_oat
-  - screen_associations
-  - screen_interactions
-  - screen_three_way
 - title: Plots
   contents: plots
 - title: Examples and validation

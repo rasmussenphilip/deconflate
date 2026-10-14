@@ -4,7 +4,7 @@
 test_that("a relative change in the aggregate is found for an association", {
   m <- example_supplement()
   # d1:d3 is independent in the example (baseline OR 1).
-  th <- cm_threshold(m, "assoc:d1:d3", c(1, 50), conclusion = "change", target = -0.1)
+  th <- cm_threshold(m, "pair:d1:d3", c(1, 50), conclusion = "change", target = -0.1)
   expect_s3_class(th, "cm_threshold")
   expect_equal(th$baseline, 1)
   expect_true(th$log_scale)
@@ -20,13 +20,13 @@ test_that("a relative change in the aggregate is found for an association", {
   expect_equal(length(th$details), 1)
   expect_true(all(c("below", "above") %in% names(th$details[[1]])))
   expect_output(print(th), "Crossings")
-  th2 <- cm_threshold(m, "assoc:d2:d3", c(0.2, 20), conclusion = "change", target = 0.1)
+  th2 <- cm_threshold(m, "pair:d2:d3", c(0.2, 20), conclusion = "change", target = 0.1)
   expect_equal(th2$thresholds$threshold[th2$thresholds$status == "threshold"],
                1.4333305414665463, tolerance = 1e-6)
 })
 
 test_that("a model-implied sign change of an adjusted impact is found", {
-  th <- cm_threshold(example_supplement(), "impact:d1", c(-5, 5), conclusion = "sign",
+  th <- cm_threshold(example_supplement(), "impacts:1", c(-5, 5), conclusion = "sign",
                      diseases = "d1")
   expect_false(th$log_scale)
   expect_equal(th$thresholds$item, "d1")
@@ -40,7 +40,7 @@ test_that("varying a probability or an impact draws no random numbers", {
   set.seed(1)
   r1 <- stats::runif(1)
   set.seed(1)
-  cm_threshold(example_supplement(), "impact:d1", c(-5, 5), conclusion = "sign", diseases = "d1",
+  cm_threshold(example_supplement(), "impacts:1", c(-5, 5), conclusion = "sign", diseases = "d1",
                n_grid = 5)
   cm_threshold(example_supplement(), "prob:d1", c(0.05, 0.5), conclusion = "rank", n_grid = 5)
   expect_equal(stats::runif(1), r1)
@@ -64,7 +64,7 @@ singular_pole_model <- function() {
 test_that("an infeasible part of the range is a region, not a crossing", {
   m <- singular_pole_model()
   # The joint fit reports the region below the pole as infeasible.
-  th0 <- cm_threshold(m, "assoc:b:c", c(0.05, 100), conclusion = "sign", diseases = "a",
+  th0 <- cm_threshold(m, "pair:b:c", c(0.05, 100), conclusion = "sign", diseases = "a",
                       n_grid = 3)
   expect_equal(th0$scan$status, c("infeasible", "infeasible", "ok"))
   expect_equal(nrow(th0$thresholds), 0)
@@ -72,7 +72,7 @@ test_that("an infeasible part of the range is a region, not a crossing", {
   expect_true(th0$log_scale)
   expect_equal(th0$baseline, 20)
   # The feasibility argument is gone.
-  expect_error(cm_threshold(m, "assoc:b:c", c(0.05, 100), feasibility = "none"),
+  expect_error(cm_threshold(m, "pair:b:c", c(0.05, 100), feasibility = "none"),
                class = "deconflate_unsupported")
 })
 
@@ -117,7 +117,7 @@ test_that("a pole of a singular system is a discontinuity, not a threshold", {
 
 test_that("cm_threshold rejects the retired `method` argument", {
   m <- example_supplement()
-  expect_error(cm_threshold(m, "impact:d1", c(-3, 3), conclusion = "sign", diseases = "d1",
+  expect_error(cm_threshold(m, "impacts:1", c(-3, 3), conclusion = "sign", diseases = "d1",
                             method = "global"),
                "`method` argument has been removed", class = "deconflate_unsupported")
   # The model stays finite at impact:d1 = -0.5266329181546854, where eq. 16
@@ -139,15 +139,15 @@ test_that("exact zeros on the grid count only when the sign differs on both side
 })
 
 test_that("the aggregate crossing a target is found", {
-  th <- cm_threshold(example_supplement(), "impact:d2", c(0, 20), conclusion = "total", target = 3)
+  th <- cm_threshold(example_supplement(), "impacts:2", c(0, 20), conclusion = "total", target = 3)
   expect_equal(th$thresholds$threshold, 13.03899186228618, tolerance = 1e-6)
   expect_match(th$thresholds$description, "rises above")
-  expect_error(cm_threshold(example_supplement(), "impact:d2", c(0, 20), conclusion = "total"),
+  expect_error(cm_threshold(example_supplement(), "impacts:2", c(0, 20), conclusion = "total"),
                "target")
 })
 
 test_that("a change in ranking is found, by contribution", {
-  th <- cm_threshold(example_supplement(), "assoc:d2:d3", c(0.1, 100), conclusion = "rank",
+  th <- cm_threshold(example_supplement(), "pair:d2:d3", c(0.1, 100), conclusion = "rank",
                      n_grid = 201)
   expect_equal(th$summary$item, c("d1 vs d2", "d1 vs d3", "d2 vs d3"))
   expect_equal(th$summary$n_thresholds, c(1L, 0L, 0L))
@@ -183,7 +183,7 @@ test_that("unusable parts of the range are reported, not mistaken for thresholds
 
 test_that("an invalid value of the input itself is an infeasible point", {
   # Odds ratios <= 0 on a linear grid.
-  th <- cm_threshold(example_supplement(), "assoc:d1:d2", c(-1, 5), conclusion = "rank",
+  th <- cm_threshold(example_supplement(), "pair:d1:d2", c(-1, 5), conclusion = "rank",
                      log_scale = FALSE)
   expect_equal(th$regions$status, "infeasible")
   expect_equal(th$regions$n_points, 17L)
@@ -193,7 +193,7 @@ test_that("an invalid value of the input itself is an infeasible point", {
 
 test_that("interaction inputs fit the full model", {
   skip_on_cran()
-  th <- cm_threshold(example_supplement(), "inter:d1:d2", c(-1, 1), conclusion = "total",
+  th <- cm_threshold(example_supplement(), "interaction:d1;d2", c(-1, 1), conclusion = "total",
                      target = 2.12, n_grid = 11)
   # Every point (with or without the interaction row) uses one joint fit.
   expect_equal(th$method, "full model")
@@ -203,59 +203,59 @@ test_that("interaction inputs fit the full model", {
   expect_equal(th$thresholds$threshold, -0.5347852259874342, tolerance = 1e-5)
   expect_match(th$thresholds$description, "falls below")
   # Ranked by contribution (interaction shares included).
-  thr <- cm_threshold(example_supplement(), "inter:d1:d2", c(-1, 1), conclusion = "rank", n_grid = 5)
+  thr <- cm_threshold(example_supplement(), "interaction:d1;d2", c(-1, 1), conclusion = "rank", n_grid = 5)
   expect_equal(thr$summary$item, c("d1 vs d2", "d1 vs d3", "d2 vs d3"))
   # An interaction of event impacts is a hazard ratio (an HR row adjusted
   # for all), so the range must be positive.
-  expect_error(cm_threshold(supp_hr_model(), "inter:d1:d2", c(-1, 1), conclusion = "total",
+  expect_error(cm_threshold(supp_hr_model(), "interaction:d1;d2", c(-1, 1), conclusion = "total",
                             target = 0.1, event_model = TRUE, overall_risk = 0.25),
                class = "deconflate_invalid_input")
 })
 
 test_that("rows are varied by number and by alias", {
   m <- example_supplement()
-  a <- cm_threshold(m, "assoc:d2:d3", c(0.2, 20), conclusion = "change", target = 0.1, n_grid = 21)
+  a <- cm_threshold(m, "pair:d2:d3", c(0.2, 20), conclusion = "change", target = 0.1, n_grid = 21)
   b <- cm_threshold(m, "associations:3", c(0.2, 20), conclusion = "change", target = 0.1, n_grid = 21)
   expect_equal(a$thresholds$threshold, b$thresholds$threshold)
   expect_equal(a$baseline, b$baseline)
-  i1 <- cm_threshold(m, "impact:d2", c(0, 20), conclusion = "total", target = 3, n_grid = 11)
+  i1 <- cm_threshold(m, "impacts:2", c(0, 20), conclusion = "total", target = 3, n_grid = 11)
   i2 <- cm_threshold(m, "impacts:2", c(0, 20), conclusion = "total", target = 3, n_grid = 11)
   expect_equal(i1$thresholds$threshold, 13.03899186228618, tolerance = 1e-6)
   expect_equal(i2$thresholds$threshold, i1$thresholds$threshold)
   # A three-way ratio changes additive results only through combinations:
   # with an interaction it moves the total.
   mi <- set_interaction(m, "d1", "d2", 1)
-  t3 <- cm_threshold(mi, "three:d1:d2:d3", c(0.5, 2), conclusion = "total", target = 2.0890878497857703,
+  t3 <- cm_threshold(mi, "or_ratio:d1:d2|d3", c(0.5, 2), conclusion = "total", target = 2.0890878497857703,
                      n_grid = 5)
   expect_true(is.na(t3$baseline))   # no OR_ratio row in the model
   expect_equal(t3$scan$total[c(1, 5)], c(2.0913976662985534, 2.086745618267496), tolerance = 1e-7)
   # Two crude rows of a pair: assoc: is ambiguous; vary a row by number.
   m5 <- read_five()
-  expect_error(cm_threshold(m5, "assoc:LAM:MAS", c(1, 3)), "associations:")
+  expect_error(cm_threshold(m5, "pair:LAM:MAS", c(1, 3)), "associations:")
   expect_error(cm_threshold(m, "impacts:9", c(0, 1)), "row")
 })
 
 test_that("descriptions of relative changes give the level", {
-  th <- cm_threshold(example_supplement(), "assoc:d2:d3", c(0.2, 20), conclusion = "change", target = 0.1)
+  th <- cm_threshold(example_supplement(), "pair:d2:d3", c(0.2, 20), conclusion = "change", target = 0.1)
   expect_match(th$thresholds$description, "the aggregate (rises above|falls below) the baseline \\+ 10%")
 })
 
 test_that("inputs are validated", {
   m <- example_supplement()
-  expect_error(cm_threshold(m, "assoc:d1", c(1, 2)), "wrong number of parts")
-  expect_error(cm_threshold(m, "assoc:d1:zz", c(1, 2)), "Unknown diseases")
+  expect_error(cm_threshold(m, "pair:d1", c(1, 2)), "wrong number of parts")
+  expect_error(cm_threshold(m, "pair:d1:zz", c(1, 2)), "Unknown diseases")
   expect_error(cm_threshold(m, "foo:d1", c(1, 2)), "Unknown input")
-  expect_error(cm_threshold(m, "impact:d1", c(2, 1)), "increasing")
-  expect_error(cm_threshold(m, "impact:d1", c(-1, 1), log_scale = TRUE), "positive range")
-  expect_error(cm_threshold(m, "impact:d1", c(0, 1), conclusion = "rank", diseases = "d1"),
+  expect_error(cm_threshold(m, "impacts:1", c(2, 1)), "increasing")
+  expect_error(cm_threshold(m, "impacts:1", c(-1, 1), log_scale = TRUE), "positive range")
+  expect_error(cm_threshold(m, "impacts:1", c(0, 1), conclusion = "rank", diseases = "d1"),
                "at least two")
-  expect_error(cm_threshold(m, "impact:d1", c(0, 1), conclusion = "rank", diseases = c("d1", "d1")),
+  expect_error(cm_threshold(m, "impacts:1", c(0, 1), conclusion = "rank", diseases = c("d1", "d1")),
                "at least two")
-  expect_error(cm_threshold(m, "assoc:d1:d1", c(1, 2)), "same disease twice")
-  expect_error(cm_threshold(m, c("impact:d1", "impact:d2"), c(1, 2)), "single string")
-  expect_error(cm_threshold(m, "impact:d1", c(0, 1), n_grid = NA), "n_grid")
-  expect_error(cm_threshold(m, "impact:d1", c(0, 1), log_scale = NA), "log_scale")
-  expect_error(cm_threshold(supp_model(c(0, 0, 0)), "impact:d1", c(0, 1), conclusion = "change",
+  expect_error(cm_threshold(m, "pair:d1:d1", c(1, 2)), "same disease twice")
+  expect_error(cm_threshold(m, c("impacts:1", "impacts:2"), c(1, 2)), "single string")
+  expect_error(cm_threshold(m, "impacts:1", c(0, 1), n_grid = NA), "n_grid")
+  expect_error(cm_threshold(m, "impacts:1", c(0, 1), log_scale = NA), "log_scale")
+  expect_error(cm_threshold(supp_model(c(0, 0, 0)), "impacts:1", c(0, 1), conclusion = "change",
                             target = 0.1), "zero")
   expect_error(cm_threshold(m, "prob:d1", c(0.05, 0.5), joint = fit_joint(m)), "fixed `joint`")
 })
@@ -263,6 +263,6 @@ test_that("inputs are validated", {
 test_that("threshold plots draw", {
   grDevices::pdf(NULL)
   on.exit(grDevices::dev.off())
-  th <- cm_threshold(example_supplement(), "assoc:d2:d3", c(0.1, 100), conclusion = "rank")
+  th <- cm_threshold(example_supplement(), "pair:d2:d3", c(0.1, 100), conclusion = "rank")
   expect_invisible(plot(th))
 })

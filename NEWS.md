@@ -4,7 +4,54 @@ Event impacts now have the same results and tools as additive impacts
 (ROADMAP v0.6, item 1; design note section 15). Reference values come from
 an independent Python implementation
 (`inst/validation/reference_v06_event_parity.py`). Everything that is not
-the package's one model has been removed (item 2).
+the package's one model has been removed (item 2), and the sensitivity tools
+are replaced by one function, `cm_sensitivity()` (item 3).
+
+## New features: sensitivity
+
+* **`cm_sensitivity()`** takes a `deconflate()` result (or a model) and
+  varies one input at a time to a low and a high value, reporting the
+  aggregate (for event impacts, the attributable risk), each disease's
+  adjusted impact and how far the ranking moves. Entered inputs and inputs
+  you did not enter are in one table, so missing estimates can be compared
+  with the uncertainty of the ones you have:
+  * entered inputs (`prob:<disease>`, `associations:<row>`,
+    `impacts:<row>`, `risk`): one SD down and up when they have a
+    distribution, otherwise a relative `change` (20% by default);
+  * unknown inputs: pairs that no row mentions (`pair:<d1>:<d2>`, odds ratio
+    0.5 to 3), interactions of pairs without a combination row
+    (`interaction:<d1>;<d2>`, plus or minus half the smaller adjusted
+    impact; hazard ratio 0.67 to 1.5 for event impacts) and, on request,
+    three-way associations (`or_ratio:<d1>:<d2>|<d3>`, 0.5 to 2);
+  * any range can be set with `ranges`; `keys` limits the inputs;
+  * with draws, each uncertain input's share of the variance of the total
+    (squared standardised regression coefficients on the normal scores,
+    with R^2).
+
+  `print()` shows the 10 largest swings (`print(x, n = Inf)` all), and
+  `plot()` a tornado plot. Reference values come from an independent Python
+  implementation (`inst/validation/reference_v06_sensitivity.py`).
+* **Rank probabilities:** `deconflate()` results with draws have `$ranks`:
+  how often each disease ranks 1st, 2nd, ... by contribution, and its mean
+  rank; `summary()` shows them.
+* **`cm_threshold()`** also takes a `deconflate()` result (its settings are
+  used), and uses the same input keys as `cm_sensitivity()`.
+* The diagnosis (`diagnose = TRUE`) runs on the same engine as
+  `cm_sensitivity()`.
+
+## Breaking changes: sensitivity tools
+
+* `sensitivity_oat()`, `screen_associations()`, `screen_interactions()` and
+  `screen_three_way()` are removed: use `cm_sensitivity()`.
+* `set_association()`, `set_interaction()` and `set_three_way()` are no
+  longer exported: add rows to the input tables instead (an interaction is
+  a combination row adjusted for `all`; a three-way association an
+  `OR_ratio` row), or vary them with `cm_sensitivity()`.
+* `cm_threshold()` input keys: `"assoc:d1:d2"` is now `"pair:d1:d2"`,
+  `"inter:d1:d2"` is `"interaction:d1;d2"`, `"three:d1:d2:d3"` is
+  `"or_ratio:d1:d2|d3"` and `"impact:<disease>"` is `"impacts:<row>"`; the
+  old keys give an error that says what to write. (Distribution keys in
+  `cm_model()` are unchanged.)
 
 ## Breaking changes: one model only
 

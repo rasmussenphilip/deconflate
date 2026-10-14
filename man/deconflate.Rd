@@ -96,6 +96,8 @@ number of the row equations, sign changes and the feasibility check;
 fit gave them;
 \item \code{draws}: the uncertainty (summary, accepted draws, rejections, seed),
 or \code{NULL};
+\item \code{ranks}: with draws, how often each disease ranks 1st, 2nd, ... by its
+contribution (\code{rank_1}, \code{rank_2}, ...), and its mean rank;
 \item \code{problems}: with \code{diagnose = TRUE}, a \code{cm_diagnosis} object:
 \code{flagged} (every disease with impact rows: raw, adjusted, the
 criterion and whether it is flagged), \code{inputs} (inputs with a
@@ -103,7 +105,9 @@ distribution: effect per SD and SD needed, for each flagged disease;
 \code{listed} marks those printed), \code{thresholds} (inputs without a
 distribution), \code{no_single_fix}, \code{disagreeing} and \code{settings};
 \item \code{notes}, \code{conflation} (the row equations), \code{joint_pairs} (matrix of
-\verb{P(j and k)}), \code{model}, \code{joint}, \code{method}, \code{label} and \code{units}.
+\verb{P(j and k)}), \code{model}, \code{joint}, \code{method}, \code{label}, \code{units} and
+\code{settings} (what \code{\link[=cm_sensitivity]{cm_sensitivity()}} and \code{\link[=cm_threshold]{cm_threshold()}} need to
+rerun the model).
 }
 
 For event impacts, a \code{cm_event_result} with \code{adjusted} (adjusted hazard
@@ -113,9 +117,11 @@ and the risk-scale results \code{risk_alone}, \code{rr_alone}, \code{rd_alone} a
 adjusted attributable risk and the attributable fraction; \code{by_disease}:
 the Shapley allocation with its \code{main} and \code{interaction} parts;
 \code{baseline_hazard}), \code{conflation} (the local row equations), \code{estimates},
-\code{heterogeneity}, \code{diagnostics}, \code{unknown_pairs}, \code{draws}, \code{problems}
+\code{heterogeneity}, \code{diagnostics}, \code{unknown_pairs}, \code{draws}, \code{ranks} (by
+share of the attributable risk), \code{problems}
 (with \code{diagnose = TRUE}), \code{notes}, \code{joint}, \code{model}, \code{method},
-\code{overall_risk} and \code{risk_given} (\code{"overall"} or \code{"baseline"}). Risks are
+\code{overall_risk}, \code{risk_given} (\code{"overall"} or \code{"baseline"}) and
+\code{settings}. Risks are
 proportions of animals with the event during the period.
 }
 \description{

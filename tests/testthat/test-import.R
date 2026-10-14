@@ -131,16 +131,16 @@ test_that("tables without associations are read; deconflate() then needs one", {
   expect_true(all(is.na(pair_tables(m)$measure)))
   expect_output(print(m), "3 unknown")
   expect_error(deconflate(m), "No association estimates", class = "deconflate_unsupported")
-  expect_error(deconflate(m), "screen_associations")
+  expect_error(deconflate(m), "cm_sensitivity")
   # An associations table without rows is the same as none.
   m0 <- cm_read_inputs(diseases = tabs$diseases, impacts = tabs$yield,
                        associations = tabs$associations[0, ])
   expect_null(m0$associations)
   expect_equal(nrow(cm_check_inputs(diseases = tabs$diseases, impacts = tabs$yield)), 0)
   # The sensitivity tools run without associations.
-  sc <- screen_associations(m)
-  expect_s3_class(sc, "cm_screen")
-  expect_true(all(sc$status == "unknown"))
+  sc <- cm_sensitivity(m, inputs = "unknown")
+  expect_s3_class(sc, "cm_sensitivity")
+  expect_equal(sum(startsWith(sc$inputs$input, "pair:")), 3)
 })
 
 test_that("adjusted impacts are read with their adjustment sets", {
@@ -672,18 +672,18 @@ test_that("the five-disease example reads without problems and matches the refer
   expect_equal(ev$attributable$summary$attributable, 0.0541469811, tolerance = 1e-8)
 
   # Thresholds used in run_all_features.R (the ten pair rows).
-  th <- cm_threshold(y10, "impact:SCK", c(0, 2.5), conclusion = "sign")
+  th <- cm_threshold(y10, "impacts:4", c(0, 2.5), conclusion = "sign")
   t1 <- th$thresholds[th$thresholds$status == "threshold", ]
   expect_equal(nrow(t1), 1)
   expect_equal(t1$threshold, 1.1935832731450715, tolerance = 1e-6)
-  th <- cm_threshold(y10, "impact:MET", c(0, 15), conclusion = "total", target = 3)
+  th <- cm_threshold(y10, "impacts:3", c(0, 15), conclusion = "total", target = 3)
   expect_equal(th$thresholds$threshold[th$thresholds$status == "threshold"], 9.730627246165994,
                tolerance = 1e-6)
   th <- cm_threshold(y10, "prob:SCK", c(0.1, 0.6), conclusion = "rank", diseases = c("MET", "SCK"))
   expect_equal(th$thresholds$threshold[th$thresholds$status == "threshold"], 0.33002218486278845,
                tolerance = 1e-6)
   skip_on_cran()
-  th <- cm_threshold(w, "inter:LAM:MAS", c(-5, 20), conclusion = "change", target = -0.1)
+  th <- cm_threshold(w, "interaction:LAM;MAS", c(-5, 20), conclusion = "change", target = -0.1)
   expect_equal(sum(th$thresholds$status == "threshold"), 1)
   # Draws of every input: almost every draw is usable.
   dr <- deconflate(w, n_draws = 30, seed = 1)$draws

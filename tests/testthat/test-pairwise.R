@@ -168,5 +168,5 @@ test_that("deconflate() needs at least one association", {
   m <- cm_model(cm_diseases(c("a", "b"), c(0.2, 0.3)), cm_impacts(c("a", "b"), c(1, 2)))
   expect_null(m$associations)
   expect_error(deconflate(m), class = "deconflate_unsupported")
-  expect_error(deconflate(m), "screen_associations")
+  expect_error(deconflate(m), "cm_sensitivity")
 })

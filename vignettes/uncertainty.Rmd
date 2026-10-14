@@ -246,21 +246,50 @@ The central gap uses the central total:
 10000 / (1 - r$totals$adjusted_total / 100) - 10000
 ```
 
-## Sensitivity
+## Ranks over the draws
 
-The sensitivity tools give point estimates (they do not run draws), and
-adjust each scenario as `deconflate()` does. They also accept
-`event_model = TRUE` with `overall_risk`. One-at-a-time sensitivity (as in
-Rasmussen et al. 2024, Fig. 7):
+With draws, `$ranks` gives the share of draws in which each disease ranks
+first, second and so on by its contribution, and its mean rank.
+`summary()` prints it with the totals and contributions:
 
 ```{r}
-sensitivity_oat(example_supplement(), variation = 0.2)
+summary(r)
 ```
 
-Screening associations, including pairs with no estimate, finds those
-worth estimating. Specified associations are multiplied by each of
-`multipliers`; pairs without an estimate (here d1 and d3) are set to each of
-`or_values`:
+## Sensitivity
+
+The draws give the joint uncertainty of the results. `cm_sensitivity()`
+shows where it comes from, and what inputs that were not entered could
+do. It reruns the adjustment with one input at a time at a low and a high
+value, everything else at its central value (point estimates, adjusted as
+`deconflate()` adjusts them; as in Rasmussen et al. 2024, Fig. 7):
+
+* entered inputs move one SD down and up when they have a distribution,
+  otherwise by `change` (20% by default);
+* inputs that were not entered are set over a default range: an odds ratio
+  from 0.5 to 3 for each pair that no row mentions, an interaction for each
+  pair without a combination row, and, with `three_way`, `OR_ratio` rows
+  (see `?cm_sensitivity`).
+
+Given a result with draws, the column `share` adds each uncertain input's
+share of the variance of the total over the draws (from a linear fit of
+the total on the drawn inputs; `$r_squared` says how well it fits):
+
+```{r}
+s <- cm_sensitivity(r)
+s
+s$variance
+```
+
+The prevalence of d3 has a large swing, but it has no distribution, so it
+adds nothing to the intervals. Of the uncertain inputs, the impact of d3
+explains about half of the variance. `plot(s)` draws the swings as a
+tornado plot.
+
+The pairs that no row mentions (here d1 and d3) are varied too, so the
+table shows which missing estimates would matter, next to the uncertainty
+of those entered. `ranges` sets other ranges, and a model can be given
+instead of a result:
 
 ```{r}
 m_pairs <- cm_model(
@@ -268,20 +297,25 @@ m_pairs <- cm_model(
   cm_impacts(c("d1", "d2", "d3"), c(2.5, 5, 7.5)),
   associations = cm_associations(c("d1", "d2"), c("d2", "d3"), c(2, 3))
 )
-screen_associations(m_pairs, or_values = c(0.5, 2), multipliers = c(0.5, 2))
+cm_sensitivity(m_pairs, ranges = data.frame(input = "pair:d1:d3", low = 0.5, high = 5))
 ```
 
-The screens report scenarios that cannot be run, with the reason in column
-`failed`, rather than skipping them. Here, weakening any of the three strong
-associations above makes the pairs jointly infeasible:
+Here an unknown odds ratio of d1 and d3 between 0.5 and 5 would change the
+aggregate more than any entered association.
+
+Runs that cannot be adjusted are reported, with the reason in column
+`failed`, not skipped. In the strong model above, an odds ratio of 1
+between a and c (or b and c) cannot hold with the other two at 20:
 
 ```{r}
-screen_associations(strong, multipliers = c(0.05, 2))
+keys <- c("associations:2", "associations:3")
+cm_sensitivity(deconflate(strong, n_draws = 0, warn = FALSE), keys = keys,
+               ranges = data.frame(input = keys, low = 1, high = 40))
 ```
 
-The screens also work without any association estimates: the baseline then
-has every disease independent, and the screen shows which pairs would
-matter if they were associated. `screen_interactions()` and
-`screen_three_way()` (see `vignette("interactions")`) work in the same way,
-and `cm_threshold()` finds the association at which a result changes (see
-`vignette("thresholds-and-scaling")`).
+`cm_sensitivity()` also works on a model without any association rows:
+the diseases are then unrelated, and the table shows which pairs would
+matter if they were associated. `cm_threshold()` finds the value of one
+input at which a result changes (see `vignette("thresholds-and-scaling")`),
+and `vignette("interactions")` covers interactions and three-way
+associations.

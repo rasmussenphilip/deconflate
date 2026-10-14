@@ -96,8 +96,7 @@ test_that("plots draw without error", {
   on.exit(grDevices::dev.off())
   expect_invisible(plot(deconflate(example_supplement())))
   expect_invisible(plot(deconflate(read_five("impacts_welfare.csv"), n_draws = 0)))
-  expect_invisible(plot(screen_associations(example_supplement())))
-  expect_invisible(plot(sensitivity_oat(example_supplement())))
+  expect_invisible(plot(cm_sensitivity(deconflate(example_supplement(), n_draws = 0))))
   m <- cm_model(example_supplement(), example_supplement()$impacts,
                 distributions = list("impact:d1" = dist_normal(2.5, 0.5)))
   expect_invisible(plot(deconflate(m, n_draws = 20, seed = 1)))

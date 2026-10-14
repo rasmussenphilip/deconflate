@@ -160,34 +160,23 @@ check_values <- function(r) {
 # The diagnosis of a central result.
 diagnose_inputs <- function(model, plan, res, risk, dots) {
   event <- inherits(res, "cm_event_result")
-  joint_start <- if (!is.null(res$joint) && identical(res$joint$backend, "exact")) res$joint
-  beta_start <- if (event) log(res$adjusted$adjusted)
-  frozen <- list(associations = res$pooling$frozen, impacts = res$row_se)
   sampled <- identical(plan$fit_args$backend %||% dots$backend, "sampled")
   if (sampled && is.null(plan$fit_args$seed) && is.null(dots$seed)) plan$fit_args$seed <- 1L
+  # The same engine as cm_sensitivity() (see rerun_result()).
+  ctx <- list(model = model, plan = plan, risk = risk, dots = dots, res = res, event = event)
   n_runs <- 0L
   last_error <- NULL
-  # One adjustment with some inputs changed (named by key); NULL if it fails
-  # (the condition is kept in `last_error`).
-  run_with <- function(values, m0 = model, fz = frozen) {
+  # One adjustment with some inputs changed (named by key), or of another
+  # model (`m0`); NULL if it fails (the condition is kept in `last_error`).
+  run_with <- function(values, m0 = NULL, fz = "central") {
     n_runs <<- n_runs + 1L
-    tryCatch(withCallingHandlers({
-      m <- set_inputs(m0, values[names(values) != "risk"])
-      rk <- if ("risk" %in% names(values)) values[["risk"]] else risk$value
-      if (!is.null(rk) && !(rk > 0 && rk < 1)) {
-        cm_abort(sprintf("The %s must lie between 0 and 1.", risk_label(risk$kind)), class = "deconflate_infeasible")
-      }
-      only_impacts <- length(values) > 0L && all(startsWith(names(values), "impacts:"))
-      jt <- if (only_impacts && identical(m0, model) && !isTRUE(plan$shortcut)) res$joint
-      check_values(run_point(m, plan, risk = rk, joint = jt, warn = FALSE, dots = dots,
-                             joint_start = joint_start, start = beta_start, frozen = fz, allocate = FALSE,
-                             raw = FALSE))
-    }, deconflate_nonconvergence = function(w) {
-      if (inherits(w, "warning")) invokeRestart("muffleWarning")
-    }), deconflate_error = function(e) {
-      last_error <<- e
-      NULL
-    })
+    out <- if (is.null(m0)) rerun_result(ctx, values, allocate = FALSE, frozen = fz) else
+      rerun_result(ctx, model = m0, allocate = FALSE, frozen = fz)
+    if (inherits(out, "condition")) {
+      last_error <<- out
+      return(NULL)
+    }
+    check_values(out)
   }
 
   central <- check_values(res)
@@ -211,28 +200,14 @@ diagnose_inputs <- function(model, plan, res, risk, dots) {
   }
 
   # Inputs with a distribution (keys in their canonical form).
-  dists <- model$distributions %||% list()
-  if (length(dists)) {
-    dists <- dists[!startsWith(names(dists), "between:")]
-    keys <- vapply(names(dists), function(k) {
-      if (grepl("^(prob|associations|impacts):", k)) k else
-        tryCatch(canonical_key(k, model), deconflate_error = function(e) NA_character_)
-    }, character(1), USE.NAMES = FALSE)
-    names(dists) <- keys
-    dists <- dists[!is.na(keys)]
-  }
-  if (!is.null(risk$dist)) dists[["risk"]] <- risk$dist
-  uncertain <- names(dists)[!vapply(dists, function(d) identical(d$type, "fixed"), logical(1))]
+  dists <- input_dists(model, risk$dist)
+  uncertain <- names(dists)
   effects <- NULL
   if (length(flag) && length(uncertain)) {
     rows <- lapply(uncertain, function(k) {
       d <- dists[[k]]
       x0 <- input_value(model, k, risk$value)
-      xs <- tryCatch({
-        u0 <- stats::qnorm(d$p(x0))
-        u0 <- if (is.finite(u0)) min(max(u0, -5), 5) else if (is.na(u0)) 0 else sign(u0) * 5
-        c(d$q(stats::pnorm(u0 + check_h)), d$q(stats::pnorm(u0 - check_h)))
-      }, error = function(e) c(NA_real_, NA_real_))
+      xs <- c(shifted_value(d, x0, check_h), shifted_value(d, x0, -check_h))
       op <- if (is.finite(xs[1])) run_with(stats::setNames(xs[1], k))
       om <- if (is.finite(xs[2])) run_with(stats::setNames(xs[2], k))
       eff <- if (is.null(op) || is.null(om)) rep(NA_real_, length(flag)) else

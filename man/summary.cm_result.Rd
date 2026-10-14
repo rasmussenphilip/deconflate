@@ -19,7 +19,10 @@ A \code{summary.cm_result} list with \code{method}, \code{label}, \code{units},
 \code{totals} (additive impacts: raw aggregate (the diseases unrelated),
 adjusted aggregate and the reduction; event impacts: overall,
 disease-free, raw and adjusted attributable risk and the reduction),
-\code{diagnostics}, \code{contributions} (see \code{\link[=contribution_table]{contribution_table()}}) and \code{notes}.
+\code{diagnostics}, \code{contributions} (see \code{\link[=contribution_table]{contribution_table()}}), \code{ranks}
+(with draws: how often each disease ranks 1st, 2nd, ... by
+contribution, and its mean rank; see \verb{$ranks} of \code{\link[=deconflate]{deconflate()}}) and
+\code{notes}.
 }
 \description{
 Summarise an adjustment result

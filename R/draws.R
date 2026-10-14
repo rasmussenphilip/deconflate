@@ -147,7 +147,8 @@ run_draws <- function(model, specs, n_draws, seed, sampling, lhs_replicates, eva
   keep <- !vapply(vals, is.null, logical(1))
   values <- if (any(keep)) do.call(rbind, vals[keep]) else NULL
   rej <- data.frame(draw = rej_draw, type = rej_type, reason = rej_reason, stringsAsFactors = FALSE)
-  list(values = values, params = params[keep, , drop = FALSE], draw = which(keep),
+  list(values = values, params = params[keep, , drop = FALSE], uniforms = U[keep, , drop = FALSE],
+       draw = which(keep),
        block = if (is.null(uu$block)) NULL else uu$block[keep],
        n_blocks = if (is.null(uu$block)) NULL else length(unique(uu$block)),
        n_draws = n_draws, n_rejected = sum(!keep), rejections = rej, seed = seed,
@@ -348,4 +349,26 @@ print_draws_and_notes <- function(x) {
     }
   }
   invisible(x)
+}
+
+# How often each disease ranks 1st, 2nd, ... by its contribution (for event
+# impacts, its share of the attributable risk) over the accepted draws, and
+# its mean rank. NULL without draws.
+draw_ranks <- function(res) {
+  v <- res$draws$values
+  if (is.null(v) || nrow(v) < 2L) return(NULL)
+  ids <- if (inherits(res, "cm_event_result")) res$attributable$by_disease$disease else res$contributions$disease
+  cols <- paste0("contribution:", ids)
+  if (is.null(ids) || !all(cols %in% colnames(v))) return(NULL)
+  C <- v[, cols, drop = FALSE]
+  C <- C[apply(C, 1, function(x) all(is.finite(x))), , drop = FALSE]
+  if (nrow(C) < 2L) return(NULL)
+  R <- t(apply(C, 1, function(x) rank(-x, ties.method = "first")))
+  if (length(ids) == 1L) R <- matrix(R, ncol = 1L)
+  k <- length(ids)
+  P <- vapply(seq_len(k), function(r) colMeans(R == r), numeric(k))
+  P <- matrix(P, nrow = k, dimnames = list(NULL, paste0("rank_", seq_len(k))))
+  out <- data.frame(disease = ids, mean_rank = unname(colMeans(R)), P, stringsAsFactors = FALSE)
+  rownames(out) <- NULL
+  out
 }

@@ -271,30 +271,36 @@ less salvage value) is left to the user.
 
 ## Sensitivity tools
 
-`screen_associations()`, `screen_interactions()`, `screen_three_way()`,
-`sensitivity_oat()` and `cm_threshold()` take `event_model = TRUE` and
-`overall_risk` (or `baseline_risk`) as well. Their total is then the
-attributable risk, and disease rankings use its Shapley allocation. They
-report point estimates (a risk given as a distribution is used at its
-mean). `sensitivity_oat()` also varies the overall or baseline risk, and
-`screen_interactions()` sets interactions as hazard ratio multipliers of a
-combination (`set_interaction()`):
+`cm_sensitivity()` and `cm_threshold()` work on event impacts too. Given a
+`deconflate()` result, they take the event model and the overall (or
+baseline) risk from it. Their total is then the attributable risk, and
+disease rankings use its Shapley allocation. They report point estimates
+(a risk given as a distribution is used at its mean).
+
+`cm_sensitivity()` varies one input at a time to a low and a high value:
+the entered inputs, including the overall or baseline risk, and inputs
+that were not entered, such as an interaction of two diseases without a
+combination row, set as a hazard ratio of the combination from 0.67 to
+1.5:
 
 ```{r}
-screen_associations(cull, event_model = TRUE, overall_risk = 0.25)
-sensitivity_oat(cull, event_model = TRUE, overall_risk = 0.25)
-screen_interactions(cull, c(0.5, 2), event_model = TRUE, overall_risk = 0.25)
+cm_sensitivity(res)
 ```
+
+The impact rows here are crude, so they already contain any interaction.
+An interaction above 1 then lowers the attributable risk: more of each
+crude hazard ratio is attributed to the combination, and less to each
+disease alone.
 
 In `cm_threshold()`, the overall risk is the input `"risk"`. At what overall
 risk does the attributable risk reach 0.04, and what raw hazard ratio of d1
 would change the ranking of diseases?
 
 ```{r}
-cm_threshold(cull, "risk", c(0.05, 0.6), conclusion = "total", target = 0.04,
-             event_model = TRUE, overall_risk = 0.25)$thresholds[, c("item", "status", "threshold")]
-cm_threshold(cull, "impact:d1", c(0.5, 3), conclusion = "rank",
-             event_model = TRUE, overall_risk = 0.25)$thresholds[, c("item", "status", "threshold")]
+cm_threshold(res, "risk", c(0.05, 0.6), conclusion = "total",
+             target = 0.04)$thresholds[, c("item", "status", "threshold")]
+cm_threshold(res, "impacts:1", c(0.5, 3),
+             conclusion = "rank")$thresholds[, c("item", "status", "threshold")]
 ```
 
 See `vignette("thresholds-and-scaling")` for how threshold searches work.

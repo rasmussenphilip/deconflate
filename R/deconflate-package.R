@@ -35,10 +35,11 @@
 #'    the results into other quantities (e.g. a productivity gap or a
 #'    monetary value) is left to the user.
 #' 4. Check joint feasibility with [check_feasibility()].
-#' 5. Explore the inputs with [sensitivity_oat()], [screen_associations()]
-#'    (also without any association estimates), [screen_interactions()] and
-#'    [screen_three_way()], and find where a conclusion (a ranking, a sign
-#'    or the total) changes as one input varies with [cm_threshold()].
+#' 5. See which inputs matter, entered or not (unknown associations,
+#'    interactions), with [cm_sensitivity()] (also without any association
+#'    estimates); how often each disease ranks first over the draws in
+#'    `$ranks`; and where a conclusion (a ranking, a sign or the total)
+#'    changes as one input varies with [cm_threshold()].
 #'
 #' See `vignette("deconflate")` to get started.
 #'

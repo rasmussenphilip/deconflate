@@ -32,9 +32,9 @@ Each table is a named argument of `cm_read_inputs()`:
 | `impacts` | the raw impact estimates of one outcome, one row per estimate | `disease`, `value` |
 
 `diseases` and `impacts` are required. `deconflate()` also needs at least
-one association; without any, the sensitivity tools (`screen_associations()`,
-`cm_threshold()`) show how much associations could matter. The optional
-columns are described in `?cm_read_inputs`:
+one association; without any, `cm_sensitivity()` and `cm_threshold()`
+show how much associations could matter. The optional columns are
+described in `?cm_read_inputs`:
 
 * `diseases`: `measure` (`prevalence` (default), `probability` or
   `incidence_rate`), `label`, `time_horizon`, `reference_population`;

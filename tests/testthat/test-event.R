@@ -116,8 +116,8 @@ test_that("additive and event impacts must match event_model, which needs overal
   # The internal engines check the kind of impacts too.
   expect_error(adjust_event(example_supplement(), overall_risk = 0.25, joint = fit_joint(example_supplement())),
                class = "deconflate_unsupported")
-  expect_error(screen_associations(m), class = "deconflate_unsupported")
-  expect_error(screen_associations(example_supplement(), event_model = TRUE, overall_risk = 0.25),
+  expect_error(cm_sensitivity(m), class = "deconflate_unsupported")
+  expect_error(cm_sensitivity(example_supplement(), event_model = TRUE, overall_risk = 0.25),
                class = "deconflate_unsupported")
 })
 

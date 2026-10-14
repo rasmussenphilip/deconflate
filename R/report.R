@@ -79,7 +79,10 @@ contribution_table <- function(result) {
 #'   `totals` (additive impacts: raw aggregate (the diseases unrelated),
 #'   adjusted aggregate and the reduction; event impacts: overall,
 #'   disease-free, raw and adjusted attributable risk and the reduction),
-#'   `diagnostics`, `contributions` (see [contribution_table()]) and `notes`.
+#'   `diagnostics`, `contributions` (see [contribution_table()]), `ranks`
+#'   (with draws: how often each disease ranks 1st, 2nd, ... by
+#'   contribution, and its mean rank; see `$ranks` of [deconflate()]) and
+#'   `notes`.
 #' @export
 summary.cm_result <- function(object, ...) {
   tt <- object$totals
@@ -92,7 +95,7 @@ summary.cm_result <- function(object, ...) {
   }
   structure(list(method = object$method, label = object$label, units = object$units,
                  totals = totals, diagnostics = object$diagnostics,
-                 contributions = contribution_table(object),
+                 contributions = contribution_table(object), ranks = object$ranks,
                  notes = object$notes),
             class = "summary.cm_result")
 }
@@ -106,7 +109,7 @@ summary.cm_event_result <- function(object, ...) {
   }
   structure(list(method = object$method, label = object$label, units = "hazard ratio; risks as proportions",
                  totals = s, diagnostics = object$diagnostics,
-                 contributions = contribution_table(object),
+                 contributions = contribution_table(object), ranks = object$ranks,
                  notes = c(if (identical(object$risk_given, "baseline"))
                    "The disease-free risk was given; the model computed the overall risk.", object$notes)),
             class = "summary.cm_result")
@@ -120,6 +123,15 @@ print.summary.cm_result <- function(x, ...) {
   print(x$totals, row.names = FALSE, digits = 4)
   cat("\n")
   print(x$contributions, row.names = FALSE, digits = 4)
+  if (!is.null(x$ranks)) {
+    cat("\nRank by contribution over the draws (share of draws in each place):\n")
+    r <- x$ranks[order(x$ranks$mean_rank), , drop = FALSE]
+    p <- as.matrix(r[, grep("^rank_", names(r)), drop = FALSE])
+    tab <- data.frame(disease = r$disease, `mean rank` = sprintf("%.2f", r$mean_rank),
+                      matrix(sprintf("%.2f", p), nrow = nrow(p), dimnames = list(NULL, sub("^rank_", "", colnames(p)))),
+                      check.names = FALSE, stringsAsFactors = FALSE)
+    print(tab, row.names = FALSE, right = TRUE)
+  }
   d <- x$diagnostics
   if (d$n_sign_changes > 0) cat(sprintf("\nSign changes: %s\n", d$sign_changes))
   cat(sprintf("Feasibility: %s\n", d$feasibility))

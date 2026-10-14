@@ -10,9 +10,10 @@ test_that("an invalid choice is deconflate_invalid_input and names the argument"
   expect_error(fit_joint(example_supplement(), backend = "x"), "`backend`", class = cls)
   expect_error(check_feasibility(example_supplement(), method = "x"), "`method`", class = cls)
   expect_error(example_global_dairy("x"), "`outcome`", class = cls)
-  expect_error(cm_threshold(example_supplement(), "assoc:d2:d3", c(1, 3), conclusion = "x"), "`conclusion`",
+  expect_error(cm_threshold(example_supplement(), "pair:d2:d3", c(1, 3), conclusion = "x"), "`conclusion`",
                class = cls)
-  expect_error(sensitivity_oat(example_supplement(), inputs = "x"), "`inputs` must be one or more of", class = cls)
+  expect_error(cm_sensitivity(deconflate(example_supplement(), n_draws = 0), inputs = "x"), "`inputs` must be one or more of",
+               class = cls)
 })
 
 test_that("valid choices are matched as by match.arg()", {

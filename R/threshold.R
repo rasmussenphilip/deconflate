@@ -48,18 +48,22 @@
 #' distribution, it is fitted once and reused (or the `joint` passed through
 #' `...` is used).
 #'
-#' Thresholds are deterministic: they are for the model's input values.
+#' Thresholds are deterministic: they are for the model's input values. To
+#' see first which inputs matter, use [cm_sensitivity()].
 #'
-#' @param model A [cm_model()].
-#' @param input The input to vary: `"assoc:<d1>:<d2>"` (the pair's crude
-#'   pair row, on its measure; a pair without one is varied as an odds
-#'   ratio, so unknown pairs can be explored), `"inter:<d1>:<d2>"` (an
-#'   interaction, see [set_interaction()]), `"prob:<disease>"` (the disease's
-#'   `value`, on the scale it was entered), `"impact:<disease>"` (the impact
-#'   row of a disease, when it has one), `"three:<d1>:<d2>:<d3>"` (an
-#'   OR_ratio, see [set_three_way()]), `"associations:<row>"` or
-#'   `"impacts:<row>"` (any row, by its number), or, for event impacts,
-#'   `"risk"` (the overall or baseline risk, whichever is given).
+#' @param model A [deconflate()] result (its settings are used), or a
+#'   [cm_model()].
+#' @param input The input to vary, named as in [cm_sensitivity()]:
+#'   `"prob:<disease>"` (the disease's `value`, on the scale it was
+#'   entered), `"associations:<row>"` or `"impacts:<row>"` (any row, by its
+#'   number), `"risk"` (event impacts: the overall or baseline risk,
+#'   whichever is given), or an input that is not entered:
+#'   `"pair:<d1>:<d2>"` (a pair's crude pair row on its measure; a pair
+#'   without one is varied as an odds ratio, so unknown pairs can be
+#'   explored), `"interaction:<d1>;<d2>"` (an interaction: a row for the
+#'   combination adjusted for all; for event impacts a hazard ratio) or
+#'   `"or_ratio:<d1>:<d2>|<d3>"` (how much disease 3 changes the
+#'   association of diseases 1 and 2).
 #' @param range Two numbers: the range of the input to search.
 #' @param conclusion `"rank"`, `"sign"`, `"total"` or `"change"`.
 #' @param target For `"total"`, the value of the aggregate (for event
@@ -68,8 +72,9 @@
 #' @param diseases Optional disease ids to restrict `"rank"` (pairs among
 #'   them) and `"sign"`.
 #' @param by For `"rank"`: `"contribution"` (default) or `"adjusted"`.
-#' @param event_model,overall_risk,baseline_risk As in [deconflate()] (a distribution of
-#'   the risk is used at its mean).
+#' @param event_model,overall_risk,baseline_risk With a model: as in
+#'   [deconflate()] (a distribution of the risk is used at its mean). With a
+#'   result they are taken from it.
 #' @param n_grid Number of grid points.
 #' @param log_scale Use a log-spaced grid? Default `TRUE` for associations
 #'   measured as ratios and three-way ratios with a positive range.
@@ -93,22 +98,39 @@
 #' @examples
 #' m <- example_supplement()
 #' # At what odds ratio between d1 and d2 does the ranking change?
-#' th <- cm_threshold(m, "assoc:d1:d2", c(0.2, 20), conclusion = "rank")
+#' th <- cm_threshold(m, "pair:d1:d2", c(0.2, 20), conclusion = "rank")
 #' th
 #' # What odds ratio between d1 and d3 (an odds ratio of 1 in the example)
 #' # would reduce the aggregate by 10%?
-#' cm_threshold(m, "assoc:d1:d3", c(1, 50), conclusion = "change", target = -0.1)$thresholds
+#' cm_threshold(m, "pair:d1:d3", c(1, 50), conclusion = "change", target = -0.1)$thresholds
+#' # From a result: its settings are used
+#' res <- deconflate(m, n_draws = 0)
+#' cm_threshold(res, "interaction:d2;d3", c(-2, 2), conclusion = "rank")$summary
 cm_threshold <- function(model, input, range, conclusion = c("rank", "sign", "total", "change"),
                          target = NULL, diseases = NULL, by = c("contribution", "adjusted"),
                          event_model = FALSE, overall_risk = NULL,
                          n_grid = 101L, log_scale = NULL, tol = 1e-8, baseline_risk = NULL, ...) {
   dots <- list(...)
   retired_args(dots)
-  st <- sens_setup(model, event_model, overall_risk, baseline_risk = baseline_risk)
+  if (inherits(model, "cm_result") || inherits(model, "cm_event_result")) {
+    if (!isFALSE(event_model) || !is.null(overall_risk) || !is.null(baseline_risk)) {
+      cm_abort("With a deconflate() result, the settings come from the result: leave out event_model, overall_risk and baseline_risk.",
+               class = "deconflate_invalid_input")
+    }
+    ctx <- result_context(model)
+    st <- list(event_model = ctx$event, risk = ctx$risk$value, risk_kind = ctx$risk$kind %||% "overall",
+               pool = ctx$plan$pool %||% "random")
+    dots <- utils::modifyList(ctx$dots, dots)
+    model <- ctx$model
+    event_model <- ctx$event
+  } else {
+    st <- sens_setup(model, event_model, overall_risk, baseline_risk = baseline_risk)
+    st$pool <- "random"
+  }
   conclusion <- cm_match_arg(conclusion)
   by <- cm_match_arg(by)
   if (!is.character(input) || length(input) != 1L || is.na(input)) {
-    cm_abort("`input` must be a single string such as \"assoc:d1:d2\".", class = "deconflate_invalid_input")
+    cm_abort("`input` must be a single string such as \"pair:d1:d2\".", class = "deconflate_invalid_input")
   }
   check_numeric(range, "range")
   if (length(range) != 2L || range[1] >= range[2]) cm_abort("`range` must be two increasing numbers.", class = "deconflate_invalid_input")
@@ -156,7 +178,7 @@ cm_threshold <- function(model, input, range, conclusion = c("rank", "sign", "to
   # (Planned on the model at the start of the range: varying an interaction
   # can add a combination row.)
   m_plan <- tryCatch(setter$set(range[1])$model, deconflate_error = function(e) model)
-  base_plan <- plan_model(m_plan, st$event_model, dots = fj, risk_kind = st$risk_kind)
+  base_plan <- plan_model(m_plan, st$event_model, dots = fj, pool = st$pool, risk_kind = st$risk_kind)
   uses_joint <- isTRUE(base_plan$event) || !base_plan$shortcut
   if (is.null(joint) && fixed_joint && uses_joint) {
     fa <- utils::modifyList(fj, base_plan$fit_args)
@@ -182,7 +204,7 @@ cm_threshold <- function(model, input, range, conclusion = c("rank", "sign", "to
     res <- tryCatch(
       withCallingHandlers({
         plan <- plan_model(m2, st2$event_model, dots = fj, has_joint = fixed_joint && !is.null(joint),
-                           risk_kind = st2$risk_kind)
+                           pool = st2$pool, risk_kind = st2$risk_kind)
         if (fixed_joint && !is.null(joint)) plan$shortcut <- FALSE
         r <- run_point(m2, plan, risk = st2$risk, joint = if (fixed_joint) joint, warn = FALSE, dots = fj,
                        raw = FALSE)
@@ -414,8 +436,24 @@ threshold_regions <- function(xs, status) {
 threshold_setter <- function(model, input, st) {
   parts <- strsplit(input, ":", fixed = TRUE)[[1]]
   type <- if (length(parts)) parts[1] else ""
-  if (!(type %in% c("assoc", "inter", "three", "prob", "impact", "risk", "associations", "impacts"))) {
-    cm_abort(sprintf("Unknown input '%s' (use assoc:, inter:, prob:, impact:, three:, associations:, impacts: or risk).", input), class = "deconflate_invalid_input")
+  old <- c(assoc = "'pair:<d1>:<d2>' (or 'associations:<row>')", inter = "'interaction:<d1>;<d2>'",
+           three = "'or_ratio:<d1>:<d2>|<d3>'", impact = "'impacts:<row>'")
+  if (type %in% names(old)) {
+    cm_abort(sprintf("'%s' is a key of earlier versions: write %s.", input, old[[type]]), class = "deconflate_invalid_input")
+  }
+  # Inputs that are not entered: parsed into the internal types.
+  if (type == "pair") {
+    type <- parts[1] <- "assoc"
+  } else if (type == "interaction") {
+    if (length(parts) != 2L) cm_abort(sprintf("`input` '%s' must be 'interaction:<d1>;<d2>'.", input), class = "deconflate_invalid_input")
+    parts <- c("inter", strsplit(parts[2], ";", fixed = TRUE)[[1]])
+    type <- "inter"
+  } else if (type == "or_ratio") {
+    parts <- c("three", strsplit(sub("^or_ratio:", "", input), "[:|]")[[1]])
+    type <- "three"
+  } else if (!(type %in% c("prob", "risk", "associations", "impacts"))) {
+    cm_abort(sprintf("Unknown input '%s' (use prob:, associations:, impacts:, risk, pair:, interaction: or or_ratio:).", input),
+             class = "deconflate_invalid_input")
   }
   ids <- model$diseases$disease
   need <- function(k) {
@@ -488,10 +526,6 @@ threshold_setter <- function(model, input, st) {
       b <- model$diseases$value[match(parts[2], ids)]
       list(type = type, baseline = b, baseline_set = b, ratio_scale = FALSE,
            set = function(x) with_st(set_inputs(model, stats::setNames(x, input))))
-    },
-    impact = {
-      if (length(parts) != 2L) cm_abort(sprintf("`input` '%s' has the wrong number of parts.", input), class = "deconflate_invalid_input")
-      by_row(input)
     },
     risk = {
       if (length(parts) != 1L) cm_abort("`input` 'risk' has no further parts.", class = "deconflate_invalid_input")

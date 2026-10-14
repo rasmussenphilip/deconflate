@@ -1,6 +1,6 @@
 # Shapley attribution (R/shapley.R) and sensitivity / scenario tools
-# (R/sensitivity.R). The sensitivity tools are kept working on the v0.4
-# layout; their redesign is on the roadmap. Supplement impacts are in percent (2.5, 5, 7.5);
+# (R/sensitivity.R): cm_sensitivity() and the set_*() helpers.
+# Supplement impacts are in percent (2.5, 5, 7.5);
 # reference values from inst/validation/reference_v020_tests.py,
 # reference_2022_shapley.py (multiplicative Shapley values) and
 # reference_v040.py (sections 6-8: unknown pairs, models without
@@ -104,146 +104,6 @@ test_that("skipped combinations are reported, not silently dropped", {
   expect_equal(sum(sh$share), 1)
 })
 
-test_that("association screening reports influential pairs", {
-  sc <- screen_associations(example_supplement(), or_values = c(0.5, 2), multipliers = c(0.5, 2))
-  expect_s3_class(sc, "cm_screen")
-  expect_equal(nrow(sc), 6)
-  expect_true(all(c("pair", "status", "scenario", "total", "change", "rel_change", "max_rank_shift",
-                    "rank_corr", "failed") %in% names(sc)))
-  expect_true(all(is.na(sc$failed)))
-  expect_equal(unique(sc$status), "specified")
-  expect_equal(attr(sc, "baseline_total"), supp_base_total, tolerance = 1e-10)
-  expect_equal(attr(sc, "metric"), "aggregate")
-  # d1:d3 is specified (OR = 1), so it is scaled: 1 x 2 = 2.
-  up <- sc[sc$pair == "d1:d3" & sc$scenario == "OR x 2", ]
-  expect_equal(up$total, 2.0128810813034628, tolerance = 1e-10)
-  expect_lt(up$rel_change, 0)
-  expect_equal(up$change, up$total - supp_base_total, tolerance = 1e-10)
-  dn <- sc[sc$pair == "d2:d3" & sc$scenario == "OR x 0.5", ]
-  expect_equal(dn$total, 2.306649129926649, tolerance = 1e-10)
-  # Sorted by the absolute relative change.
-  expect_equal(sc$pair[1], "d2:d3")
-  expect_true(all(diff(abs(sc$rel_change)) <= 0))
-  expect_output(print(sc), "cm_screen")
-  # Restricting to pairs (in either order).
-  sp <- screen_associations(example_supplement(), pairs = "d3:d1")
-  expect_equal(unique(sp$pair), "d1:d3")
-  expect_equal(nrow(sp), 2)
-  expect_equal(attr(sp, "baseline_total"), supp_base_total, tolerance = 1e-10)
-  expect_equal(sp$total[sp$scenario == "OR x 2"], 2.0128810813034628, tolerance = 1e-10)
-  # The same scenario adjusted directly.
-  d13 <- deconflate(set_association(example_supplement(), "d1", "d3", 2), n_draws = 0)
-  expect_equal(d13$totals$adjusted_total, 2.0128810813034628, tolerance = 1e-10)
-  # The method argument is gone.
-  expect_error(screen_associations(example_supplement(), method = "global"), "method")
-  # The metric is always the adjusted aggregate: there is no valuation.
-  expect_false("valuation" %in% names(formals(screen_associations)))
-  expect_error(screen_associations(example_supplement(), pairs = "d1:d3",
-                                   valuation = list(observed = 10000)),
-               "Unknown argument: valuation")
-})
-
-test_that("association screening keeps failed scenarios with the reason", {
-  m <- cm_model(cm_population(cm_diseases(t2_ids, c(0.10, 0.15, 0.20)),
-                              cm_associations(c("d1", "d2"), c("d2", "d3"), c(0.3, 3),
-                                              measure = c("prevalence", "OR"))),
-                cm_impacts(t2_ids, c(2.5, 5, 7.5)))
-  sc <- screen_associations(m, multipliers = c(-1, 0.5, 3), pairs = c("d1:d2", "d2:d3"))
-  expect_equal(nrow(sc), 6)
-  key <- paste(sc$pair, sc$scenario)
-  failed <- stats::setNames(sc$failed, key)
-  # A prevalence of -0.3 and a negative odds ratio are invalid values;
-  # P(d1 | d2) = 0.9 is a valid value but impossible with P(d1) = 0.10 and
-  # P(d2) = 0.15 (0.9 x 0.15 > 0.10).
-  expect_equal(unname(failed[c("d1:d2 prevalence x -1", "d1:d2 prevalence x 3", "d2:d3 OR x -1")]),
-               c("invalid value", "infeasible", "invalid value"))
-  ok <- c("d1:d2 prevalence x 0.5", "d2:d3 OR x 0.5", "d2:d3 OR x 3")
-  expect_true(all(is.na(failed[ok])))
-  expect_true(all(is.finite(sc$total[key %in% ok])))
-  expect_true(all(is.na(sc$total[!is.na(sc$failed)])))
-  # Failed scenarios come last.
-  expect_true(all(!is.na(sc$failed[4:6])))
-})
-
-test_that("screens report the adjusted aggregate, whatever its size", {
-  # Impacts 45 times the supplement's (percent): an aggregate of 94.9%, and
-  # 103.8% when the d2:d3 odds ratio is halved (reference_v020_tests.py
-  # screen values, scaled). The aggregate is linear in the impacts and is
-  # not converted into anything else, so every scenario is kept.
-  m <- t2_model(45 * c(2.5, 5, 7.5))
-  sc <- screen_associations(m)
-  expect_equal(nrow(sc), 6)
-  expect_true(all(is.na(sc$failed)))
-  expect_true(all(is.finite(sc$total)))
-  expect_equal(attr(sc, "baseline_total"), 45 * supp_base_total, tolerance = 1e-9)
-  big <- sc$pair == "d2:d3" & sc$scenario == "OR x 0.5"
-  expect_equal(sum(big), 1)
-  expect_equal(sc$total[big], 45 * 2.306649129926649, tolerance = 1e-9)
-  expect_gt(sc$total[big], 100)
-  # The same scenario adjusted directly.
-  weak <- deconflate(set_association(m, "d2", "d3", 1.5))
-  expect_equal(weak$totals$adjusted_total, 45 * 2.306649129926649, tolerance = 1e-9)
-})
-
-test_that("screens without scenarios return an empty screen", {
-  two <- cm_model(cm_population(cm_diseases(c("a", "b"), c(0.1, 0.2)), cm_associations("a", "b", 2)),
-                  cm_impacts(c("a", "b"), c(1, 2)))
-  st <- screen_three_way(two)
-  expect_s3_class(st, "cm_screen")
-  expect_equal(nrow(st), 0)
-  expect_true(all(c("pair", "total", "failed") %in% names(st)))
-  expect_equal(nrow(screen_interactions(two, values = 1)), 1)
-  expect_error(screen_interactions(two, values = 1, pairs = "a:c"), "Unknown or malformed pairs")
-  expect_error(screen_associations(two, pairs = "a:a"), "Unknown or malformed pairs")
-  expect_error(screen_three_way(cm_model(t2_pop(), cm_impacts(t2_ids, c(1, 2, 3))),
-                                triples = list(c("d1", "d1", "d2"))),
-               "three different diseases")
-  oat <- sensitivity_oat(t2_model(c(0, 0, 0)), inputs = "impact")
-  expect_s3_class(oat, "cm_oat")
-  expect_equal(nrow(oat), 0)
-})
-
-test_that("interaction screening runs every pair and value", {
-  si <- screen_interactions(example_supplement(), values = c(-0.5, 0.5))
-  expect_s3_class(si, "cm_screen")
-  expect_equal(nrow(si), 6)
-  expect_true(all(is.finite(si$total)))
-  expect_true(all(is.na(si$failed)))
-  expect_equal(unique(si$status), "interaction")
-  expect_equal(attr(si, "baseline_total"), supp_base_total, tolerance = 1e-8)
-  s1 <- screen_interactions(example_supplement(), values = 1, pairs = "d1:d2")
-  expect_equal(nrow(s1), 1)
-  expect_equal(s1$scenario, "delta = 1")
-  expect_equal(s1$total, supp_int_total, tolerance = 1e-8)
-  # Interactions apply to additive impacts only.
-  expect_error(screen_interactions(t2_event(), values = 1), class = "deconflate_unsupported")
-})
-
-test_that("three-way terms change global results with interactions only", {
-  base <- example_supplement()
-  # Without interactions, the global result depends on the pairs alone.
-  st <- screen_three_way(base)
-  expect_s3_class(st, "cm_screen")
-  expect_equal(nrow(st), 2)
-  expect_equal(st$pair, rep("d1:d2:d3", 2))
-  expect_equal(unique(st$status), "three-way")
-  expect_true(all(is.na(st$failed)))
-  expect_lt(max(abs(st$rel_change)), 1e-7)
-  tw <- set_three_way(base, "d1", "d2", "d3", 2)
-  res_tw0 <- deconflate(tw)
-  expect_equal(res_tw0$diagnostics$method, "full model")
-  expect_equal(res_tw0$adjusted$adjusted, deconflate(base)$adjusted$adjusted, tolerance = 1e-7)
-  # With an interaction, the probability of the triple matters.
-  int <- set_interaction(base, "d1", "d2", 1)
-  sti <- screen_three_way(int, ratios = c(0.5, 2), triples = list(c("d1", "d2", "d3")))
-  expect_equal(attr(sti, "baseline_total"), supp_int_total, tolerance = 1e-8)
-  expect_true(all(abs(sti$rel_change) > 1e-4))
-  tot <- stats::setNames(sti$total, sti$scenario)
-  expect_equal(unname(tot[c("ratio = 0.5", "ratio = 2")]), unname(supp_int_tw_total), tolerance = 1e-7)
-  res_tw <- deconflate(set_three_way(int, "d1", "d2", "d3", 2))
-  expect_equal(res_tw$totals$adjusted_total, supp_int_tw_total[["2"]], tolerance = 1e-7)
-})
-
 test_that("set_three_way, set_interaction and set_association edit models", {
   base <- example_supplement()
   tw <- set_three_way(base, "d1", "d2", "d3", 2)
@@ -304,127 +164,175 @@ test_that("set_three_way, set_interaction and set_association edit models", {
   expect_error(set_association(base, "d1", "d3", 1, measure = "independent"), class = "deconflate_unsupported")
 })
 
-test_that("one-at-a-time sensitivity varies every input", {
-  oat <- sensitivity_oat(example_supplement(), variation = 0.2)
-  expect_s3_class(oat, "cm_oat")
-  expect_equal(names(oat), c("input", "value", "total_low", "total_high", "swing", "rel_swing"))
-  expect_equal(nrow(oat), 9)
-  expect_setequal(oat$input, c("prob:d1", "prob:d2", "prob:d3", "associations:1", "associations:2",
-                               "associations:3", "impacts:1", "impacts:2", "impacts:3"))
-  expect_true(all(oat$swing >= 0))
-  expect_true(all(diff(oat$swing) <= 0))
-  expect_equal(attr(oat, "baseline_total"), supp_base_total, tolerance = 1e-10)
-  expect_equal(attr(oat, "metric"), "aggregate")
-  imp <- oat[grepl("^impacts:", oat$input), ]
-  expect_true(all(imp$total_high > imp$total_low))
-  # The aggregate is linear in the impacts: low and high are symmetric.
-  expect_equal((imp$total_low + imp$total_high) / 2, rep(supp_base_total, 3), tolerance = 1e-10)
-  ov <- sensitivity_oat(example_supplement(), inputs = "impact")
-  expect_equal(nrow(ov), 3)
-  expect_equal(attr(ov, "baseline_total"), supp_base_total, tolerance = 1e-10)
-  # The overall risk is an input of event models only.
-  expect_equal(nrow(sensitivity_oat(example_supplement(), inputs = "risk")), 0)
-  expect_error(sensitivity_oat(example_supplement(), inputs = "impact",
-                               valuation = list(observed = 10000)),
-               "Unknown argument: valuation")
-  expect_error(sensitivity_oat(example_supplement(), method = "global"), "method")
+# The sensitivity tool (cm_sensitivity(); more in test-sensitivity.R), with
+# reference values of the earlier screens: each scenario is one end of an
+# input's range.
+sens_total <- function(s, key, end = c("low", "high")) {
+  end <- match.arg(end)
+  s$inputs[[paste0("total_", end)]][s$inputs$input == key]
+}
+
+test_that("entered associations: the supplement's scenarios", {
+  res <- deconflate(example_supplement(), n_draws = 0)
+  s <- cm_sensitivity(res, inputs = "entered", keys = c("associations:2", "associations:3"),
+                      ranges = data.frame(input = c("associations:2", "associations:3"), low = c(0.5, 1.5),
+                                          high = c(2, 6)))
+  expect_s3_class(s, "cm_sensitivity")
+  expect_equal(s$central$total, supp_base_total, tolerance = 1e-10)
+  expect_equal(s$metric, "aggregate")
+  # d1:d3 (OR 1) at 2; d2:d3 (OR 3) at 1.5.
+  expect_equal(sens_total(s, "associations:2", "high"), 2.0128810813034628, tolerance = 1e-10)
+  expect_equal(sens_total(s, "associations:3", "low"), 2.306649129926649, tolerance = 1e-10)
+  expect_equal(s$inputs$range, c("given", "given"))
+  expect_true(all(is.na(s$inputs$failed)))
+  expect_output(print(s), "Sensitivity of the aggregate")
+  # The same scenario adjusted directly.
+  d13 <- deconflate(set_association(example_supplement(), "d1", "d3", 2), n_draws = 0)
+  expect_equal(d13$totals$adjusted_total, 2.0128810813034628, tolerance = 1e-10)
+  # The aggregate is linear in the impacts: impact rows give symmetric totals.
+  si <- cm_sensitivity(res, keys = c("impacts:1", "impacts:2", "impacts:3"))
+  expect_equal((si$inputs$total_low + si$inputs$total_high) / 2, rep(supp_base_total, 3), tolerance = 1e-10)
+  expect_equal(si$inputs$range, rep("20%", 3))
 })
 
-test_that("with unknown pairs the screens fit the full model", {
+test_that("runs that cannot be adjusted are kept with the reason", {
+  m <- cm_model(cm_population(cm_diseases(t2_ids, c(0.10, 0.15, 0.20)),
+                              cm_associations(c("d1", "d2"), c("d2", "d3"), c(0.3, 3),
+                                              measure = c("prevalence", "OR"))),
+                cm_impacts(t2_ids, c(2.5, 5, 7.5)))
+  # P(d1 | d2) = 0.9 is a valid value but impossible with P(d1) = 0.10 and
+  # P(d2) = 0.15 (0.9 x 0.15 > 0.10); a negative odds ratio is invalid.
+  s <- cm_sensitivity(deconflate(m, n_draws = 0), keys = c("associations:1", "associations:2"),
+                      ranges = data.frame(input = c("associations:1", "associations:2"), low = c(0.15, -3),
+                                          high = c(0.9, 1.5)))
+  f <- stats::setNames(s$inputs$failed, s$inputs$input)
+  expect_equal(unname(f["associations:1"]), "high: infeasible")
+  expect_equal(unname(f["associations:2"]), "low: infeasible")
+  expect_true(is.finite(sens_total(s, "associations:1", "low")))
+  expect_true(is.na(s$inputs$swing[s$inputs$input == "associations:1"]))
+  # Inputs without a swing come last.
+  expect_true(all(is.na(utils::tail(s$inputs$swing, 2))))
+})
+
+test_that("the aggregate is reported whatever its size", {
+  # Impacts 45 times the supplement's (percent): 103.8% when the d2:d3 odds
+  # ratio is halved (reference_v020_tests.py screen values, scaled).
+  m <- t2_model(45 * c(2.5, 5, 7.5))
+  s <- cm_sensitivity(deconflate(m, n_draws = 0), keys = "associations:3",
+                      ranges = data.frame(input = "associations:3", low = 1.5, high = 6))
+  expect_equal(s$central$total, 45 * supp_base_total, tolerance = 1e-9)
+  expect_equal(sens_total(s, "associations:3", "low"), 45 * 2.306649129926649, tolerance = 1e-9)
+})
+
+test_that("interactions: every pair without a combination row, at the default range", {
+  res <- deconflate(example_supplement(), n_draws = 0)
+  s <- cm_sensitivity(res, inputs = "unknown")
+  expect_setequal(s$inputs$input, c("interaction:d1;d2", "interaction:d1;d3", "interaction:d2;d3"))
+  half <- 0.5 * min(abs(res$adjusted$adjusted[1:2]))
+  expect_equal(s$inputs$high[s$inputs$input == "interaction:d1;d2"], half)
+  expect_equal(s$inputs$low[s$inputs$input == "interaction:d1;d2"], -half)
+  expect_true(all(is.finite(s$inputs$swing)))
+  s1 <- cm_sensitivity(res, keys = "interaction:d1;d2",
+                       ranges = data.frame(input = "interaction:d1;d2", low = 0.5, high = 1))
+  expect_equal(sens_total(s1, "interaction:d1;d2", "high"), supp_int_total, tolerance = 1e-8)
+  expect_error(cm_sensitivity(res, keys = "interaction:d1;zz"), "Unknown input keys")
+  expect_error(cm_sensitivity(res, ranges = data.frame(input = "pair:d1:d2", low = 1, high = 2)),
+               "No input 'pair:d1:d2'")
+})
+
+test_that("three-way terms change global results with interactions only", {
+  base <- example_supplement()
+  st <- cm_sensitivity(deconflate(base, n_draws = 0), inputs = "unknown", three_way = list(c("d1", "d2", "d3")),
+                       keys = "or_ratio:d1:d2|d3")
+  expect_equal(st$inputs$range, "ratio 0.5-2")
+  expect_lt(abs(st$inputs$swing), 1e-7 * supp_base_total)
+  tw <- set_three_way(base, "d1", "d2", "d3", 2)
+  res_tw0 <- deconflate(tw)
+  expect_equal(res_tw0$diagnostics$method, "full model")
+  expect_equal(res_tw0$adjusted$adjusted, deconflate(base)$adjusted$adjusted, tolerance = 1e-7)
+  # With an interaction, the probability of the triple matters.
+  int <- set_interaction(base, "d1", "d2", 1)
+  sti <- cm_sensitivity(deconflate(int, n_draws = 0), inputs = "unknown", three_way = "all")
+  expect_equal(sti$central$total, supp_int_total, tolerance = 1e-8)
+  expect_equal(c(sens_total(sti, "or_ratio:d1:d2|d3", "low"), sens_total(sti, "or_ratio:d1:d2|d3", "high")),
+               unname(supp_int_tw_total), tolerance = 1e-7)
+  expect_error(cm_sensitivity(deconflate(base, n_draws = 0), three_way = list(c("d1", "d1", "d2"))),
+               "three different diseases")
+})
+
+test_that("unknown pairs fit the full model", {
   m <- cm_model(cm_diseases(c("a", "b", "c"), c(0.2, 0.3, 0.25)),
                 cm_impacts(c("a", "b", "c"), c(3, 4, 5)),
                 associations = cm_associations(c("a", "b"), c("b", "c"), c(3, 2)))
-  sc <- screen_associations(m, or_values = c(0.5, 2), multipliers = 2)
-  expect_equal(attr(sc, "baseline_total"), 2.4364966316833225, tolerance = 1e-9)
-  expect_equal(nrow(sc), 4)
-  st <- stats::setNames(sc$status, sc$pair)
-  expect_equal(unname(st[c("a:b", "a:c", "b:c")]), c("specified", "unknown", "specified"))
-  expect_setequal(sc$scenario[sc$pair == "a:c"], c("OR = 0.5", "OR = 2"))
-  expect_true(all(is.na(sc$failed)))
-  # A scenario that gives the unknown pair an odds ratio is adjusted as
-  # deconflate() would (here: every pair given, so the pairwise shortcut).
+  s <- cm_sensitivity(deconflate(m, n_draws = 0), ranges = data.frame(input = "pair:a:c", low = 0.5, high = 2))
+  expect_equal(s$central$total, 2.4364966316833225, tolerance = 1e-9)
+  expect_true("pair:a:c" %in% s$inputs$input)
+  expect_false(any(c("pair:a:b", "pair:b:c") %in% s$inputs$input))
   ac2 <- deconflate(set_association(m, "a", "c", 2))
   expect_equal(ac2$diagnostics$method, "pairwise shortcut")
-  expect_equal(sc$total[sc$pair == "a:c" & sc$scenario == "OR = 2"], ac2$totals$adjusted_total,
-               tolerance = 1e-8)
-  oat <- sensitivity_oat(m)
-  expect_setequal(oat$input, c("prob:a", "prob:b", "prob:c", "associations:1", "associations:2",
-                               "impacts:1", "impacts:2", "impacts:3"))
-  expect_equal(attr(oat, "baseline_total"), 2.4364966316833225, tolerance = 1e-9)
+  expect_equal(sens_total(s, "pair:a:c", "high"), ac2$totals$adjusted_total, tolerance = 1e-8)
+  expect_setequal(s$inputs$input[s$inputs$kind == "entered"],
+                  c("prob:a", "prob:b", "prob:c", "associations:1", "associations:2", "impacts:1", "impacts:2",
+                    "impacts:3"))
 })
 
-test_that("the screens run without any association: the baseline is the raw impacts", {
+test_that("without any association, the baseline is the raw impacts", {
   m0 <- t2_no_assoc()
   expect_error(deconflate(m0), class = "deconflate_unsupported")
-  sc <- screen_associations(m0, or_values = c(0.5, 2))
-  expect_equal(nrow(sc), 6)
-  expect_equal(unique(sc$status), "unknown")
+  s <- cm_sensitivity(m0, inputs = "unknown",
+                      ranges = data.frame(input = c("pair:d1:d2", "pair:d1:d3", "pair:d2:d3"), low = 0.5, high = 2))
   # Everything independent: the aggregate is sum(p * raw) = 2.5.
-  expect_equal(attr(sc, "baseline_total"), 2.5, tolerance = 1e-9)
-  tot <- stats::setNames(sc$total, paste(sc$pair, sc$scenario))
+  expect_equal(s$central$total, 2.5, tolerance = 1e-9)
   # One pair at a time, the others unknown (reference_v040.py, section 7).
-  expect_equal(unname(tot[c("d1:d2 OR = 0.5", "d1:d2 OR = 2", "d1:d3 OR = 0.5", "d1:d3 OR = 2",
-                            "d2:d3 OR = 0.5", "d2:d3 OR = 2")]),
-               c(2.558837937037114, 2.4267130832998585, 2.6041868147508, 2.382923828238541,
-                 2.698420923951448, 2.2841996245852565), tolerance = 1e-8)
-  expect_equal(sc$pair[1], "d2:d3")
-  # Interactions and three-way terms can be screened too.
-  si <- screen_interactions(m0, values = 1, pairs = "d1:d2")
-  expect_equal(attr(si, "baseline_total"), 2.5, tolerance = 1e-9)
-  expect_true(is.finite(si$total))
-  expect_equal(nrow(screen_three_way(m0, ratios = 2)), 1)
-  # One-at-a-time: probabilities and impacts only, with equal swings per
-  # disease (the aggregate is sum(p * raw)).
-  oat <- sensitivity_oat(m0)
-  expect_equal(nrow(oat), 6)
-  sw <- stats::setNames(oat$swing, oat$input)
+  got <- c(sens_total(s, "pair:d1:d2", "low"), sens_total(s, "pair:d1:d2", "high"),
+           sens_total(s, "pair:d1:d3", "low"), sens_total(s, "pair:d1:d3", "high"),
+           sens_total(s, "pair:d2:d3", "low"), sens_total(s, "pair:d2:d3", "high"))
+  expect_equal(got, c(2.558837937037114, 2.4267130832998585, 2.6041868147508, 2.382923828238541,
+                      2.698420923951448, 2.2841996245852565), tolerance = 1e-8)
+  expect_equal(s$inputs$input[1], "pair:d2:d3")
+  # Entered inputs: equal swings per disease (the aggregate is sum(p * raw)).
+  se <- cm_sensitivity(m0, inputs = "entered")
+  sw <- stats::setNames(se$inputs$swing, se$inputs$input)
   expect_equal(unname(sw[c("impacts:1", "impacts:2", "impacts:3")]), c(0.1, 0.3, 0.6), tolerance = 1e-8)
   expect_equal(unname(sw[c("prob:d1", "prob:d2", "prob:d3")]), c(0.1, 0.3, 0.6), tolerance = 1e-8)
 })
 
-test_that("event models: the screens use the attributable risk", {
+test_that("event models: the attributable risk", {
   ev <- t2_event()
-  sc <- screen_associations(ev, event_model = TRUE, overall_risk = 0.25, pairs = "d2:d3")
-  expect_equal(attr(sc, "metric"), "attributable risk")
-  expect_equal(attr(sc, "baseline_total"), supp_ar, tolerance = 1e-8)
-  tot <- stats::setNames(sc$total, sc$scenario)
-  expect_equal(unname(tot[c("OR x 0.5", "OR x 2")]), c(0.04039585852943817, 0.03337529500836167),
-               tolerance = 1e-8)
-  expect_error(screen_associations(ev, pairs = "d2:d3"), class = "deconflate_unsupported")
-  expect_error(screen_associations(ev, event_model = TRUE, pairs = "d2:d3"), "overall_risk")
+  res <- deconflate(ev, event_model = TRUE, overall_risk = 0.25, n_draws = 0)
+  s <- cm_sensitivity(res, three_way = "all",
+                      ranges = data.frame(input = "associations:3", low = 1.5, high = 6))
+  expect_equal(s$metric, "attributable risk")
+  expect_equal(s$central$total, supp_ar, tolerance = 1e-8)
+  expect_equal(c(sens_total(s, "associations:3", "low"), sens_total(s, "associations:3", "high")),
+               c(0.04039585852943817, 0.03337529500836167), tolerance = 1e-8)
   # Three-way terms change the event model even with every pair given.
-  st <- screen_three_way(ev, event_model = TRUE, overall_risk = 0.25)
-  expect_equal(attr(st, "metric"), "attributable risk")
-  tt <- stats::setNames(st$total, st$scenario)
-  expect_equal(unname(tt[c("ratio = 0.5", "ratio = 2")]), c(0.03685486412032779, 0.036447342123939075),
-               tolerance = 1e-8)
-  expect_true(all(abs(st$rel_change) > 1e-3))
-  # Contributions are the Shapley allocation of the attributable risk.
-  bm <- burden_metric(deconflate(ev, event_model = TRUE, overall_risk = 0.25, n_draws = 0))
-  expect_equal(sum(bm$by_disease), bm$total, tolerance = 1e-10)
-  # One-at-a-time, with the overall risk as an input.
-  oat <- sensitivity_oat(ev, event_model = TRUE, overall_risk = 0.25, inputs = c("impact", "risk"))
-  expect_equal(attr(oat, "metric"), "attributable risk")
-  expect_setequal(oat$input, c("impacts:1", "impacts:2", "impacts:3", "risk"))
-  r <- oat[oat$input == "risk", ]
+  expect_equal(c(sens_total(s, "or_ratio:d1:d2|d3", "low"), sens_total(s, "or_ratio:d1:d2|d3", "high")),
+               c(0.03685486412032779, 0.036447342123939075), tolerance = 1e-8)
+  # The overall risk is an input (20% down and up).
+  r <- s$inputs[s$inputs$input == "risk", ]
   expect_equal(r$value, 0.25)
   expect_equal(c(r$total_low, r$total_high), c(0.030686662060154746, 0.041864593971753294), tolerance = 1e-8)
-  expect_equal(nrow(sensitivity_oat(ev, event_model = TRUE, overall_risk = 0.25)), 10)
-  # An overall risk given as a distribution is used at its mean.
-  od <- sensitivity_oat(ev, event_model = TRUE, overall_risk = dist_beta(250, 750), inputs = "risk")
-  expect_equal(od$total_low, r$total_low, tolerance = 1e-10)
+  # Interactions as hazard ratios from 0.67 to 1.5.
+  expect_equal(unique(s$inputs$range[startsWith(s$inputs$input, "interaction:")]), "HR 0.67-1.5")
+  bm <- burden_metric(res)
+  expect_equal(sum(bm$by_disease), bm$total, tolerance = 1e-10)
+  # A model needs the settings; a result brings them.
+  expect_error(cm_sensitivity(ev, keys = "risk"), class = "deconflate_unsupported")
+  expect_error(cm_sensitivity(ev, event_model = TRUE, keys = "risk"), "overall_risk")
+  expect_error(cm_sensitivity(res, overall_risk = 0.3), "settings come from the result")
 })
 
 test_that("event models without associations: the baseline hazard ratios are the raw ones", {
   ev0 <- t2_no_assoc(t2_event())
   expect_error(deconflate(ev0, event_model = TRUE, overall_risk = 0.25), class = "deconflate_unsupported")
-  base <- adjust_event(ev0, overall_risk = 0.25, joint = fit_joint(as_population(ev0)))
-  expect_equal(base$adjusted$adjusted, c(1.5, 2.0, 1.3), tolerance = 1e-9)
-  sc <- screen_associations(ev0, event_model = TRUE, overall_risk = 0.25, pairs = c("d1:d2", "d2:d3"))
-  expect_equal(attr(sc, "baseline_total"), 0.04539536116776455, tolerance = 1e-8)
-  expect_equal(unique(sc$status), "unknown")
-  tot <- stats::setNames(sc$total, paste(sc$pair, sc$scenario))
-  expect_equal(unname(tot[c("d1:d2 OR = 0.5", "d1:d2 OR = 2", "d2:d3 OR = 0.5", "d2:d3 OR = 2")]),
-               c(0.04781684106024564, 0.04271371201235663, 0.049357621033920274, 0.04136372148403489),
+  s <- cm_sensitivity(ev0, event_model = TRUE, overall_risk = 0.25, inputs = "unknown",
+                      keys = c("pair:d1:d2", "pair:d2:d3"),
+                      ranges = data.frame(input = c("pair:d1:d2", "pair:d2:d3"), low = 0.5, high = 2))
+  expect_equal(unname(s$central$adjusted), c(1.5, 2.0, 1.3), tolerance = 1e-9)
+  expect_equal(s$central$total, 0.04539536116776455, tolerance = 1e-8)
+  got <- c(sens_total(s, "pair:d1:d2", "low"), sens_total(s, "pair:d1:d2", "high"),
+           sens_total(s, "pair:d2:d3", "low"), sens_total(s, "pair:d2:d3", "high"))
+  expect_equal(got, c(0.04781684106024564, 0.04271371201235663, 0.049357621033920274, 0.04136372148403489),
                tolerance = 1e-8)
 })

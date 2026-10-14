@@ -89,8 +89,8 @@ In this order:
    - [x] A separate table of rows that disagree with other rows for the same quantity (standardised residual of 2 or more), with the adjusted impacts without each.
    - [x] Printed with the result; the sign-change warning points to it. Additive and event impacts.
 6. **Dropped (October 2026): the `anchor` argument, constraints on adjusted impacts, MCMC and importance sampling.** A Python prototype showed that they cannot fix what they were meant to fix: a negative adjusted impact means the inputs contradict each other, a lower bound of zero only parks the impact at zero, and narrowing the distributions makes the negative values more certain. Such conflicts are fixed in the inputs (item 5 shows where). Probabilistic thresholds move to the sensitivity redesign (To discuss).
-- [ ] Run `devtools::document()`, `test()` and `check()` (0 errors, 0 warnings, 0 notes).
-- [ ] Tag v0.5.0.
+- [x] Run `devtools::document()`, `test()` and `check()` (R-CMD-check passed on GitHub).
+- [x] Tag v0.5.0.
 
 ## v0.6 (planned)
 
@@ -106,16 +106,23 @@ In this order:
    - [x] `baseline_risk` (the risk of disease-free animals) as an alternative to `overall_risk`; exactly one is given.
    - [x] Simulated raw estimates of event impacts (`simulate_raw_impacts(event_model = TRUE)`), exact or from sampled animals (rate ratios for HR rows).
    - [x] Interactions of event impacts in `set_interaction()`, `screen_interactions()` and `cm_threshold()`.
-   - [ ] Run `devtools::document()`, `test()` and `check()`.
+   - [x] Run `devtools::document()`, `test()` and `check()`.
 2. **One model only.** Remove everything that is not the package's model (the sensitivity tools wait for their redesign).
    - [x] Remove `compare_methods()`, the published approximation (eq. 16, HR - 1), the first-order event method, `reproduce_rasmussen_2022()`/`_2024()`, `example_uk_dairy_2022()`, the reproduction vignette and the reproduction-only code.
    - [x] Remove helpers nothing uses (`attribute_burden()`, `plot_burden()`, `loss_*()`, `combination_probs()`, `excess_matrix()`, `cm_dist_table()`), and stop exporting the internals of the model (`or_to_joint()`, `joint_to_or()`, `association_to_joint()`, `pair_tables()`, `shapley_by_cell()`).
-   - [ ] Run `devtools::document()`, `test()` and `check()`.
+   - [x] Run `devtools::document()`, `test()` and `check()`.
+3. **Redesign of the sensitivity tools.** Design: section 17 of the v0.4 design note; reference values: `inst/validation/reference_v06_sensitivity.py`.
+   - [x] `cm_sensitivity()`: entered and unknown inputs (pairs, interactions, three-way on request) one at a time, in one table; ranges from each input's SD, a relative change, or defaults for unknowns; variance shares from the draws; print (top 10) and tornado plot.
+   - [x] Rank probabilities from the draws (`$ranks`, in `summary()`).
+   - [x] `cm_threshold()` takes a result and the same input keys; the diagnosis shares the engine.
+   - [x] Remove `sensitivity_oat()` and the three screens; `set_*()` internal.
+   - [x] Run `devtools::document()`, `test()` and `check()`.
 7. **Revised 2024 inputs**, beside the inputs of the 2024 analysis (`example_global_dairy()`).
    - [ ] `example_global_dairy(inputs = "revised")`, using the features of items 4-5 (several rows per disease with their own estimands, e.g. the clinical mastitis sources).
    - [ ] A vignette section documenting each correction: the SCK conversion from kg to percent, the milk fever and ketosis estimates of Bareille et al. (2003) as direct effects, the adjusted SCK estimates and odds ratios of Raboisson et al. (2014), the clinical mastitis sources by estimand, and the displaced abomasum sources. Unit and measurement-window corrections are made here only, not in the main pipeline.
 8. **Simpler, more intuitive input tables.**
    - [ ] Accept missing optional columns everywhere with sensible defaults, and fewer required columns.
+   - [ ] Adding a row to a model by hand (e.g. an interaction or an `OR_ratio` row, now that the `set_*()` functions are internal) should not need `rbind()` and renumbering the `row` column.
    - [ ] Disease labels (full names) next to the short ids, used in printed tables and plots.
    - [ ] Clearer column names and messages; review the template and the example folders accordingly (more important now that tables hold several estimates).
    - [ ] Make uncertainty visible: `deconflate()` notes when the inputs have distributions but `n_draws = 0`.
@@ -130,7 +137,7 @@ Afterwards: a Zenodo DOI for each release, and possibly a CRAN submission and a 
 
 ## To discuss
 
-- A redesign of the sensitivity tools (`cm_threshold()`, `sensitivity_oat()` and the screens) after item 4: what they should answer, how they name the input they vary (e.g. by file and row), and how they handle combination rows, subgroup rows and several rows per item. Includes probabilistic thresholds (with the Monte Carlo draws, e.g. the input value at which a disease ranks first in a given share of draws).
+- Probabilistic thresholds (with the Monte Carlo draws, e.g. the input value at which a disease ranks first in a given share of draws), now that `cm_sensitivity()` and `$ranks` exist (v0.6 item 3).
 - Pairwise-only bounds as a complementary sensitivity output for large systems; pseudo-likelihood fitting when individual-level disease records are available.
 - Higher-order and non-linear interaction models in the adjustment itself.
 

@@ -321,7 +321,7 @@ test_that("exact association rows that disagree stop every tool", {
   m2 <- cm_model(cm_population(dis, a2), cm_impacts(c("a", "b", "c"), c(2, 3, 4)))
   msg <- "rows 1 and 2 describe the same quantity"
   expect_error(deconflate(m2, n_draws = 0), msg, class = "deconflate_infeasible")
-  expect_error(screen_associations(m2), "baseline could not be adjusted")
+  expect_error(cm_sensitivity(m2), msg, class = "deconflate_infeasible")
   expect_error(pair_tables(m2), msg)
 })
 
@@ -330,9 +330,9 @@ test_that("a pair row adjusted only for outside factors is the pair's crude row 
   a <- cm_associations(c("a", "a", "b"), c("b", "c", "c"), c(3, 1.5, 1.8), adjusted_for = c("parity", NA, NA))
   m <- cm_model(cm_population(dis, a), cm_impacts(c("a", "b", "c"), c(2, 3, 4)))
   expect_equal(canonical_key("assoc:a:b", m), "associations:1")
-  sc <- screen_associations(m, multipliers = c(0.5, 2), pairs = "a:b")
-  expect_true(all(abs(sc$rel_change) > 0.01))
-  th <- cm_threshold(m, "assoc:a:b", c(1.5, 6), conclusion = "total", target = 1.8, n_grid = 5)
+  sc <- cm_sensitivity(m, keys = "associations:1")
+  expect_gt(sc$inputs$swing / abs(sc$central$total), 0.01)
+  th <- cm_threshold(m, "pair:a:b", c(1.5, 6), conclusion = "total", target = 1.8, n_grid = 5)
   expect_equal(th$baseline, 3)
   expect_true(diff(range(th$scan$total)) > 0.1)
   s <- set_association(m, "b", "a", 2)
@@ -369,7 +369,7 @@ test_that("OR_ratio rows are one quantity whichever disease is the subgroup", {
   expect_equal(h$rows, "4, 5")
   expect_equal(h$pooled, sqrt(1.5 * 2), tolerance = 1e-6)
   # The threshold baseline of a row among "no S" is its ratio among S.
-  th <- cm_threshold(mk("a", "b", "no c", 1 / 1.5), "three:a:b:c", c(0.5, 3), conclusion = "change",
+  th <- cm_threshold(mk("a", "b", "no c", 1 / 1.5), "or_ratio:a:b|c", c(0.5, 3), conclusion = "change",
                      target = 0.5, n_grid = 3)
   expect_equal(th$baseline, 1.5)
 })

@@ -15,10 +15,10 @@ knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
 library(deconflate)
 ```
 
-This vignette covers two extensions: threshold searches and screens, which
-show how much the conclusions depend on single inputs (including inputs
-that have not been estimated), and the sampled backend of the model, for
-more diseases than can be enumerated.
+This vignette covers two extensions: threshold searches and the
+sensitivity table, which show how much the conclusions depend on single
+inputs (including inputs that have not been estimated), and the sampled
+backend of the model, for more diseases than can be enumerated.
 
 ## Threshold searches
 
@@ -41,14 +41,18 @@ For event impacts (`event_model = TRUE`), the aggregate is the risk
 attributable to disease and the contributions are its Shapley allocation
 (`vignette("event-impacts")`).
 
-The input is keyed as in the `distributions` of `cm_model()`: any row by
-its number, `"associations:<row>"` or `"impacts:<row>"`, or a disease's
-probability, `"prob:<disease>"`. Shorter keys name the usual rows:
-`"assoc:<d1>:<d2>"` (the pair's crude row; a pair without one, unknown, is
-varied as an odds ratio), `"impact:<disease>"` (the disease's row, when it
-has one), `"inter:<d1>:<d2>"` (an interaction, as set by
-`set_interaction()`) and `"three:<d1>:<d2>:<d3>"` (an `OR_ratio` row, as
-set by `set_three_way()`). For event impacts, `"risk"` is the overall risk.
+The input is named as in `cm_sensitivity()` (below). An entered input is
+named by its table and row number, `"associations:<row>"` or
+`"impacts:<row>"`, or as a disease's probability, `"prob:<disease>"`; for
+event impacts, `"risk"` is the overall (or baseline) risk. Inputs that
+were not entered can be searched too: `"pair:<d1>:<d2>"` (the pair's crude
+row; a pair without one, unknown, is varied as an odds ratio),
+`"interaction:<d1>;<d2>"` (a row for the combination adjusted for `"all"`;
+for event impacts a hazard ratio) and `"or_ratio:<d1>:<d2>|<d3>"` (an
+`OR_ratio` row: how much d3 changes the association of d1 and d2).
+
+The first argument is a model or a `deconflate()` result. With a result,
+its settings (such as `event_model` and `overall_risk`) are used.
 
 Each point is adjusted as `deconflate()` would adjust it, with point
 estimates. When the input is an impact row, an interaction or the overall
@@ -81,8 +85,9 @@ refined by bisection. As a result:
 
 Thresholds are deterministic: they refer to the model's input values, one
 input at a time. Statements such as "the probability that d1 ranks first"
-need the draws of `deconflate()` (`n_draws`; `vignette("uncertainty")`);
-probabilistic thresholds are not implemented.
+need the draws of `deconflate()` (`n_draws`), whose `$ranks` give the
+share of draws in which each disease ranks first, second and so on
+(`vignette("uncertainty")`); probabilistic thresholds are not implemented.
 
 ### A relative change in the aggregate
 
@@ -92,7 +97,7 @@ and the adjusted aggregate is about 2.109 percent:
 ```{r}
 m <- example_supplement()
 deconflate(m, n_draws = 0)$totals
-th <- cm_threshold(m, "assoc:d1:d3", c(1, 50), conclusion = "change", target = -0.1)
+th <- cm_threshold(m, "pair:d1:d3", c(1, 50), conclusion = "change", target = -0.1)
 th
 ```
 
@@ -111,7 +116,7 @@ by 10%, because less of the raw impacts is then attributed to the associated
 disease:
 
 ```{r}
-cm_threshold(m, "assoc:d2:d3", c(0.2, 20), conclusion = "change", target = 0.1)$thresholds
+cm_threshold(m, "pair:d2:d3", c(0.2, 20), conclusion = "change", target = 0.1)$thresholds
 ```
 
 For a pair without an association, the baseline fills the pair in from the
@@ -126,7 +131,7 @@ m_unk <- cm_model(
   associations = cm_associations(c("d1", "d2"), c("d2", "d3"), c(2, 3))
 )
 deconflate(m_unk, n_draws = 0)$unknown_pairs
-th_unk <- cm_threshold(m_unk, "assoc:d1:d3", c(1, 50), conclusion = "change", target = -0.1)
+th_unk <- cm_threshold(m_unk, "pair:d1:d3", c(1, 50), conclusion = "change", target = -0.1)
 th_unk$thresholds[, c("item", "status", "threshold", "description")]
 ```
 
@@ -142,7 +147,7 @@ attributed to d3, and d2's contribution falls. Above an odds ratio of about
 whole range:
 
 ```{r}
-th_rank <- cm_threshold(m, "assoc:d2:d3", c(0.1, 100), conclusion = "rank", n_grid = 201)
+th_rank <- cm_threshold(m, "pair:d2:d3", c(0.1, 100), conclusion = "rank", n_grid = 201)
 th_rank
 th_rank$summary
 ```
@@ -161,7 +166,7 @@ The adjusted impact of d1 is negative when its raw impact is below about
 0.374 percent:
 
 ```{r}
-th_sign <- cm_threshold(m, "impact:d1", c(-5, 5), conclusion = "sign", diseases = "d1")
+th_sign <- cm_threshold(m, "impacts:1", c(-5, 5), conclusion = "sign", diseases = "d1")
 th_sign$thresholds[, c("item", "status", "threshold", "description")]
 ```
 
@@ -189,7 +194,7 @@ th_pole$thresholds[, c("item", "status", "lower", "upper", "below", "above")]
 What raw impact of d2 would make the aggregate 3 percent (about 13.04)?
 
 ```{r}
-th_total <- cm_threshold(m, "impact:d2", c(0, 20), conclusion = "total", target = 3)
+th_total <- cm_threshold(m, "impacts:2", c(0, 20), conclusion = "total", target = 3)
 th_total$thresholds[, c("item", "status", "threshold", "description")]
 ```
 
@@ -217,32 +222,43 @@ d3 falls below 1 when the odds ratio of d2 and d3 exceeds about 8.09:
 ```{r}
 cull <- cm_model(m, cm_impacts(c("d1", "d2", "d3"), c(1.5, 2.0, 1.3), measure = "HR",
                                label = "culling"))
-th_ev <- cm_threshold(cull, "assoc:d2:d3", c(1, 100), conclusion = "sign",
+th_ev <- cm_threshold(cull, "pair:d2:d3", c(1, 100), conclusion = "sign",
                       event_model = TRUE, overall_risk = 0.25)
 th_ev$thresholds[, c("item", "status", "threshold", "description")]
 ```
 
 The overall risk itself can be searched with the input `"risk"`.
 
-## Screens
+## Which inputs matter?
 
-The screens re-run the adjustment over a set of scenarios, one input at a
-time, and report how much the aggregate and the ranking of diseases
-change. Like `cm_threshold()`, they report point estimates, adjust each
-scenario as `deconflate()` would, and take `event_model = TRUE` with
-`overall_risk`:
+`cm_sensitivity()` reruns the adjustment with one input at a time at a low
+and a high value, everything else at its central value, and reports how
+much the aggregate changes (`swing`) and the most places any disease moves
+in the ranking by contribution (`rank`). Like `cm_threshold()`, it reports
+point estimates, adjusts each run as `deconflate()` would, and takes a
+result or a model. It varies two kinds of input:
 
-* `screen_associations()` multiplies the crude rows of each pair by each of
-  `multipliers`, and sets each pair without one to each of `or_values`;
-* `screen_interactions()` sets an interaction of each size in `values` for
-  each pair (additive impacts only; the joint distribution is fitted once);
-* `screen_three_way()` sets an `OR_ratio` row for each triple;
-* `sensitivity_oat()` varies every input (each disease probability and each
-  row) by `variation` (20% by default).
+* entered inputs, by one SD down and up when they have a distribution,
+  otherwise by `change` (20% by default);
+* inputs that were not entered: an odds ratio from 0.5 to 3 for each pair
+  that no row mentions (`pair:`), an interaction for each pair without a
+  combination row (`interaction:`, from minus to plus half the smaller of
+  the two adjusted impacts) and, when asked for with `three_way`, an
+  `OR_ratio` row (`or_ratio:`, from 0.5 to 2).
+
+`ranges` changes any range and `keys` limits the run to some inputs. The
+keys are those of `cm_threshold()`, so an input that matters can be
+followed up with a threshold search. `plot()` draws the swings as a
+tornado plot.
 
 ```{r}
-screen_associations(m, or_values = c(0.5, 3))
-sensitivity_oat(m)
+res_m <- deconflate(m, n_draws = 0)
+s <- cm_sensitivity(res_m)
+s
+```
+
+```{r, fig.width = 6, fig.height = 4}
+plot(s)
 ```
 
 An `OR_ratio` row keeps the pairwise tables of its triple fixed, so for
@@ -250,8 +266,10 @@ additive impacts without interactions it changes nothing when every pair of
 the triple has an association; with an unknown pair it can:
 
 ```{r}
-screen_three_way(m, ratios = c(0.5, 2))[, c("pair", "scenario", "total", "rel_change")]
-screen_three_way(m_unk, ratios = c(0.5, 2))[, c("pair", "scenario", "total", "rel_change")]
+keep <- c("input", "total_low", "total_high", "swing")
+cm_sensitivity(res_m, three_way = "all", keys = "or_ratio:d1:d2|d3")$inputs[, keep]
+cm_sensitivity(deconflate(m_unk, n_draws = 0), three_way = "all",
+               keys = "or_ratio:d1:d2|d3")$inputs[, keep]
 ```
 
 ### Without association estimates
@@ -265,16 +283,16 @@ m0$associations <- NULL
 tryCatch(deconflate(m0), deconflate_error = function(e) conditionMessage(e))
 ```
 
-The screens and `cm_threshold()` work without associations. The baseline
+`cm_sensitivity()` and `cm_threshold()` work on such a model. The baseline
 then has every pair unknown, and the maximum-entropy fit with no pairwise
 constraints makes the diseases independent, so the baseline aggregate is
-the raw one. `screen_associations()` shows which pairs would matter if they
-were associated, and `cm_threshold()` how strong an association would have
-to be to change the aggregate by a given amount:
+the raw one. `cm_sensitivity()` shows which pairs would matter if they were
+associated, and `cm_threshold()` how strong an association would have to
+be to change the aggregate by a given amount:
 
 ```{r}
-screen_associations(m0, or_values = c(0.5, 2, 4))
-th0 <- cm_threshold(m0, "assoc:d2:d3", c(1, 50), conclusion = "change", target = -0.1)
+cm_sensitivity(m0, inputs = "unknown")
+th0 <- cm_threshold(m0, "pair:d2:d3", c(1, 50), conclusion = "change", target = -0.1)
 th0$thresholds[, c("item", "status", "threshold", "description")]
 ```
 
@@ -374,7 +392,9 @@ With an interaction, the adjustment depends on probabilities of disease
 triples, which the sampled fit approximates:
 
 ```{r}
-mi <- set_interaction(m, "d1", "d2", 1)
+imp_i <- rbind(m$impacts, cm_impacts("d1;d2", 1, adjusted_for = "all"))
+imp_i$row <- seq_len(nrow(imp_i))
+mi <- cm_model(m, imp_i)
 rbind(exact = deconflate(mi, n_draws = 0, joint = je)$adjusted$adjusted,
       sampled = deconflate(mi, n_draws = 0, joint = js)$adjusted$adjusted)
 ```
@@ -449,11 +469,14 @@ adjusted impacts that depend on them:
 summary(r24$unknown_pairs$fitted_or)
 ```
 
-An interaction (1 percentage point when x12 and x13 occur together) does
-not change the joint distribution, so the fit is reused:
+An interaction (a row for x12;x13 adjusted for all: 1 percentage point
+when they occur together) does not change the joint distribution, so the
+fit is reused:
 
 ```{r}
-m24i <- set_interaction(m24, "x12", "x13", 1)
+imp24 <- rbind(m24$impacts, cm_impacts("x12;x13", 1, adjusted_for = "all"))
+imp24$row <- seq_len(nrow(imp24))
+m24i <- cm_model(m24, imp24)
 r_int <- deconflate(m24i, n_draws = 0, joint = r24$joint)
 near <- ids[10:15]
 data.frame(disease = near,
@@ -468,6 +491,19 @@ is now attributed to the interaction; the other diseases change little.
 These values carry Monte Carlo error from the sampled triples. In an
 analysis, refit the joint distribution with another seed (or more samples)
 and check that the conclusions do not change.
+
+With 24 diseases, `cm_sensitivity(r24)` would vary 24 probabilities, 47
+rows, 253 unknown pairs and 276 interactions, and every probability,
+association row and pair refits the sampled distribution. `keys` limits it
+to the inputs of interest; impact rows and interactions reuse the fitted
+distribution, so they are quick:
+
+```{r}
+cm_sensitivity(r24, keys = c("impacts:12", "impacts:13", "interaction:x12;x13"))
+```
+
+The swings carry Monte Carlo error from the sampled fit, as the adjusted
+impacts do.
 
 The run time of a sampled fit grows with `n_samples` and `n_chains`, and
 that of the raking step with the number of constrained pairs (the pairs

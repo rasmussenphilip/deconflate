@@ -196,8 +196,8 @@ retired_measures <- c(
 #'
 #' @param diseases A [cm_diseases()] object.
 #' @param associations Optional [cm_associations()] object. [deconflate()]
-#'   needs at least one association; the sensitivity tools (e.g.
-#'   [screen_associations()]) also run without any.
+#'   needs at least one association; [cm_sensitivity()] and
+#'   [cm_threshold()] also run without any.
 #' @param ... Not used (arguments of earlier versions give a message).
 #' @return A `cm_population` object.
 #' @export

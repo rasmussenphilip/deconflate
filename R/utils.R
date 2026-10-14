@@ -3,7 +3,7 @@
 `%||%` <- function(x, y) if (is.null(x)) y else x
 
 # Raise a classed error. All package errors inherit from "deconflate_error".
-# Classes used for failures that callers (draws, screens, the diagnosis)
+# Classes used for failures that callers (draws, sensitivity, the diagnosis)
 # handle separately:
 #   deconflate_infeasible      inputs that admit no valid probabilities
 #   deconflate_singular        a singular or non-identifiable system
@@ -89,7 +89,7 @@ check_ids <- function(id) {
 }
 
 # Is an adjustment result usable as an estimate? Non-finite values never
-# count as a successful estimate. Used by the draws, the sensitivity screens
+# count as a successful estimate. Used by the draws, cm_sensitivity()
 # and the threshold searches.
 result_is_finite <- function(r) {
   if (inherits(r, "cm_event_result")) {

@@ -129,11 +129,15 @@ a[, c("disease", "associated_with", "among", "measure", "value", "study")]
 
 Pairwise rows cannot identify how often three diseases occur together; an
 `OR_ratio` row can. A ratio of 1 is the maximum-entropy assumption.
-`set_three_way()` adds or replaces such a row (the ratio is the same
-whichever disease is the subgroup), and every other row is still matched:
+It is added like any other row (the ratio is the same whichever disease
+is the subgroup), and every other row is still matched. Here `rbind()`
+adds it to the rows of the example; `rbind()` keeps each table's own row
+numbers, so the rows are numbered again:
 
 ```{r}
-m3 <- set_three_way(m, "d1", "d2", "d3", ratio = 2)
+a3 <- rbind(m$associations, cm_associations("d1", "d2", 2, measure = "OR_ratio", among = "d3"))
+a3$row <- seq_len(nrow(a3))
+m3 <- cm_model(cm_population(m$diseases, a3), m$impacts)
 m3$associations
 j3 <- fit_joint(m3)
 c(maximum_entropy = sum(j$prob[rowSums(j$cells) == 3]),
@@ -216,10 +220,13 @@ they need evidence or explicit scenarios. An impact row about a combination
 * adjusted for `"all"`: the interaction itself (the coefficient of the
   product term in a regression with every disease and term of the model).
 
-`set_interaction()` adds or replaces a row adjusted for `"all"`:
+Here a row adjusted for `"all"` sets the interaction of d1 and d2 to 1
+percentage point:
 
 ```{r}
-mi <- set_interaction(m, "d1", "d2", 1)   # 1 percentage point
+imp_i <- rbind(m$impacts, cm_impacts("d1;d2", 1, adjusted_for = "all"))
+imp_i$row <- seq_len(nrow(imp_i))
+mi <- cm_model(m, imp_i)
 mi$impacts
 res <- deconflate(mi, n_draws = 0)
 res
@@ -297,14 +304,34 @@ allocated cell by cell over the joint distribution (see
 
 ## Which interactions or three-way associations would matter?
 
-`screen_interactions()` sets an interaction of each size for each pair in
-turn and reports the change in the aggregate and in the ranking of
-diseases; `screen_three_way()` does the same with an `OR_ratio` row for
-each triple. Without interactions, three-way rows change additive results
-only through unknown pairs:
+`cm_sensitivity()` (see `vignette("uncertainty")`) also varies inputs
+that were not entered. With `inputs = "unknown"`, it sets an interaction
+for each pair without a combination row, from minus to plus half the
+smaller of the two adjusted impacts, and with `three_way` an `OR_ratio`
+row for each triple asked for (`"all"`: every triple), from 0.5 to 2. It
+reports how much the aggregate changes (`swing`) and the most places any
+disease moves in the ranking (`rank`):
 
 ```{r}
-screen_interactions(m, values = c(-1, 1))
-screen_three_way(m, ratios = c(0.5, 2))
-screen_three_way(mi, ratios = c(0.5, 2))
+s_m <- cm_sensitivity(deconflate(m, n_draws = 0), inputs = "unknown", three_way = "all")
+s_i <- cm_sensitivity(res, inputs = "unknown", three_way = "all")
+s_i
 ```
+
+A positive interaction lowers the aggregate here: the impact rows are
+crude, so each already contains it. The model takes it out of both
+diseases' impacts and adds it back once. When every pair of the triple has
+an association, an `OR_ratio` row changes additive results only through
+interactions (or rows about combinations or subgroups). Its swing is zero
+without the d1;d2 interaction and small with it:
+
+```{r}
+three <- "or_ratio:d1:d2|d3"
+round(c(no_interaction = s_m$inputs$swing[s_m$inputs$input == three],
+        interaction = s_i$inputs$swing[s_i$inputs$input == three]), 4)
+```
+
+With a pair that no row mentions it matters more (see
+`vignette("thresholds-and-scaling")`). `cm_threshold()` then finds the
+value at which a conclusion changes, with the same keys, e.g.
+`cm_threshold(res, "interaction:d2;d3", c(-2, 2), conclusion = "rank")`.
