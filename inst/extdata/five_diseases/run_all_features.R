@@ -313,17 +313,18 @@ th_sign$thresholds
 # total: what raw MET impact gives an adjusted aggregate of 3% of yield?
 th_total <- cm_threshold(m_yield, "impacts:3", c(0, 15), conclusion = "total", target = 3)
 th_total$thresholds
-# change: what LAM-MAS interaction lowers the welfare aggregate by 10%? (The
-# raw impacts stay fixed, so a larger interaction leaves less to the main
-# effects.)
-th_change <- cm_threshold(m_welfare, "interaction:LAM;MAS", c(-5, 20), conclusion = "change",
-                          target = -0.1)
+# a relative target: what LAM-MAS interaction lowers the welfare aggregate by
+# 10%, to 0.9 times its adjusted value? (The raw impacts stay fixed, so a
+# larger interaction leaves less to the main effects.)
+th_change <- cm_threshold(m_welfare, "interaction:LAM;MAS", c(-5, 20), conclusion = "total",
+                          target = 0.9, relative_to = "adjusted")
 th_change$thresholds
 # the OR_ratio row, searched on a log scale
 th_three <- cm_threshold(m_welfare, "or_ratio:LAM:MAS|SCK", c(0.2, 5), conclusion = "rank")
 th_three$summary
 # any row by its number: the second LAM-MAS study
-th_row <- cm_threshold(m_yield, "associations:2", c(0.5, 10), conclusion = "change", target = -0.05)
+th_row <- cm_threshold(m_yield, "associations:2", c(0.5, 10), conclusion = "total", target = 0.95,
+                       relative_to = "adjusted")
 th_row$thresholds
 # a disease probability: where would SCK's yield contribution overtake MET's?
 th_prob <- cm_threshold(m_yield, "prob:SCK", c(0.1, 0.6), conclusion = "rank",
@@ -337,6 +338,26 @@ th_prob$regions
 th_risk <- cm_threshold(m_cull, "risk", c(0.1, 0.5), conclusion = "total", target = 0.08,
                         event_model = TRUE, overall_risk = 0.25)
 th_risk$thresholds
+# The loss of a set of diseases: where does the yield loss of LAM, MAS and
+# SCK fall below 2.05%? (Without `range`: the input's default range, here
+# the central 99% of the LAM-SCK odds ratio's distribution.)
+cm_threshold(res_yield, "associations:3", conclusion = "total", diseases = c("LAM", "MAS", "SCK"),
+             target = 2.05)
+# ... and where is it 25% below its raw value (the diseases unrelated)?
+cm_threshold(res_yield, "prob:SCK", c(0.2, 0.6), conclusion = "total", diseases = c("LAM", "MAS", "SCK"),
+             target = 0.75, relative_to = "raw")$thresholds
+# Without `input`: the 3 inputs that move the compared quantity most in
+# cm_sensitivity(), each searched over its default range
+th_auto <- cm_threshold(res_yield, conclusion = "rank", diseases = c("MAS", "SCK"), top = 3)
+th_auto
+th_auto$inputs                       # why each was chosen, its range and result
+# Probabilistic thresholds: how likely is the culling attributable risk of LAM
+# and MAS below 0.03 as MAS's hazard ratio varies, with the other uncertain
+# inputs drawn? (Few draws to keep the script fast; the default is 21 x 200.)
+thp <- cm_threshold_prob(res_cull, "impacts:2", c(0.8, 2.4), conclusion = "total", diseases = c("LAM", "MAS"),
+                         target = 0.03, n_draws = 40, n_grid = 7, seed = 1)
+thp
+head(thp$curves)
 
 # ---- 9. Simulation ------------------------------------------------------------
 section("9. Simulation")
@@ -415,12 +436,28 @@ cm_check_inputs(diseases = f("diseases.csv"), associations = old2, impacts = f("
 # ---- 11. Plots ---------------------------------------------------------------
 section("11. Plots")
 
+# Results: the impacts, the contributions (with the raw ones), the ranks over
+# the draws and the impact rows. Titles and axes use the impact table's
+# optional outcome and units.
 try_plot(plot(res_yield))
 try_plot(plot(unc_yield))
+try_plot(plot(unc_yield, type = "contributions"))
+try_plot(plot(unc_yield, type = "ranks"))
+try_plot(plot(deconflate(m_ci20, n_draws = 0), type = "rows"))   # the row at 20 days disagrees
 try_plot(plot(res_cull))
+try_plot(plot(res_cull, type = "contributions"))
+try_plot(plot(res_cull, type = "rows"))
+# Sensitivity and thresholds
 try_plot(plot(sens_yield))
 try_plot(plot(th_rank))
 try_plot(plot(th_change))
+try_plot(plot(th_auto))
+try_plot(plot(thp))
+
+# The data of each plot, to draw it with other tools (e.g. ggplot2)
+head(plot_data(unc_yield, "contributions"))
+head(plot_data(unc_yield, "ranks"))
+head(plot_data(th_auto))
 
 if (save_plots) {
   grDevices::dev.off()

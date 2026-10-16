@@ -192,7 +192,7 @@ test_that("event combinations are recovered", {
     (sum(j$prob[G] * mult[G]) / sum(j$prob[G])) / (sum(j$prob[N] * mult[N]) / sum(j$prob[N]))
   }
   vals <- c(vapply(ids5, hr, 1), hr(c("LAM", "MAS")))
-  ev <- cm_model(pop, cm_impacts(c(ids5, "LAM;MAS"), vals, measure = "HR", label = "culling"))
+  ev <- cm_model(pop, cm_impacts(c(ids5, "LAM;MAS"), vals, measure = "HR", outcome = "culling"))
   re <- deconflate(ev, event_model = TRUE, overall_risk = 0.25, n_draws = 0)
   expect_equal(re$adjusted$adjusted, unname(exp(c(beta, gam))), tolerance = 1e-7)
   expect_equal(re$adjusted$kind, c(rep("disease", 5), "interaction"))
@@ -369,9 +369,13 @@ test_that("OR_ratio rows are one quantity whichever disease is the subgroup", {
   expect_equal(h$rows, "4, 5")
   expect_equal(h$pooled, sqrt(1.5 * 2), tolerance = 1e-6)
   # The threshold baseline of a row among "no S" is its ratio among S.
-  th <- cm_threshold(mk("a", "b", "no c", 1 / 1.5), "or_ratio:a:b|c", c(0.5, 3), conclusion = "change",
-                     target = 0.5, n_grid = 3)
+  th <- cm_threshold(mk("a", "b", "no c", 1 / 1.5), "or_ratio:a:b|c", c(0.5, 3), conclusion = "total",
+                     target = 1.5, relative_to = "adjusted", n_grid = 3)
   expect_equal(th$baseline, 1.5)
+  # Its default search range is on the same scale (1.5, -50% to +50%).
+  th2 <- cm_threshold(mk("a", "b", "no c", 1 / 1.5), "or_ratio:a:b|c", conclusion = "total", target = 1.5,
+                      relative_to = "adjusted", n_grid = 3)
+  expect_equal(th2$range, c(0.75, 2.25))
 })
 
 test_that("an old interactions file passed as an impact table is recognised", {

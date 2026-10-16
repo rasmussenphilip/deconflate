@@ -6,12 +6,18 @@
 \usage{
 cm_threshold(
   model,
-  input,
-  range,
-  conclusion = c("rank", "sign", "total", "change"),
+  input = NULL,
+  range = NULL,
+  conclusion = c("rank", "sign", "total"),
   target = NULL,
   diseases = NULL,
+  relative_to = NULL,
   by = c("contribution", "adjusted"),
+  top = 3,
+  inputs = c("entered", "unknown"),
+  ranges = NULL,
+  sensitivity = NULL,
+  three_way = NULL,
   event_model = FALSE,
   overall_risk = NULL,
   n_grid = 101L,
@@ -35,20 +41,41 @@ without one is varied as an odds ratio, so unknown pairs can be
 explored), \code{"interaction:<d1>;<d2>"} (an interaction: a row for the
 combination adjusted for all; for event impacts a hazard ratio) or
 \code{"or_ratio:<d1>:<d2>|<d3>"} (how much disease 3 changes the
-association of diseases 1 and 2).}
+association of diseases 1 and 2). Several keys search each in turn;
+left out, the inputs are chosen automatically (see \code{top}).}
 
-\item{range}{Two numbers: the range of the input to search.}
+\item{range}{Two numbers: the range of the input to search (one input
+only). Left out, the default range (see Search ranges).}
 
-\item{conclusion}{\code{"rank"}, \code{"sign"}, \code{"total"} or \code{"change"}.}
+\item{conclusion}{\code{"rank"}, \code{"sign"} or \code{"total"}.}
 
-\item{target}{For \code{"total"}, the value of the aggregate (for event
-impacts, of the attributable risk); for \code{"change"}, the relative change
-from the baseline (e.g. \code{0.1}, or \code{-0.1}).}
+\item{target}{For \code{"total"}: the value of the set's loss (for event
+impacts, its attributable risk), or with \code{relative_to} a fraction of
+its adjusted or raw value (e.g. \code{0.8}).}
 
-\item{diseases}{Optional disease ids to restrict \code{"rank"} (pairs among
-them) and \code{"sign"}.}
+\item{diseases}{Disease ids: for \code{"total"}, the set whose loss is
+compared; for \code{"rank"} the pairs among them; for \code{"sign"} the diseases
+checked. Left out: all diseases.}
+
+\item{relative_to}{For \code{"total"}: \code{NULL} (default; \code{target} is a value),
+\code{"adjusted"} or \code{"raw"} (\code{target} is a fraction of the set's adjusted
+or raw value at the model's own inputs).}
 
 \item{by}{For \code{"rank"}: \code{"contribution"} (default) or \code{"adjusted"}.}
+
+\item{top}{Without \code{input}: how many inputs to search (default 3).}
+
+\item{inputs}{Without \code{input}: the candidates, \code{"entered"}, \code{"unknown"}
+or both (default), as in \code{\link[=cm_sensitivity]{cm_sensitivity()}}.}
+
+\item{ranges}{Optional data frame with columns \code{input}, \code{low} and \code{high}:
+the search ranges of those inputs (instead of the defaults).}
+
+\item{sensitivity}{Without \code{input}: a \code{\link[=cm_sensitivity]{cm_sensitivity()}} result of the
+same model to choose from (it is computed otherwise).}
+
+\item{three_way}{Without \code{input}: three-way inputs to consider, as in
+\code{\link[=cm_sensitivity]{cm_sensitivity()}}.}
 
 \item{event_model, overall_risk, baseline_risk}{With a model: as in
 \code{\link[=deconflate]{deconflate()}} (a distribution of the risk is used at its mean). With a
@@ -68,16 +95,26 @@ cannot be passed through \code{...}.}
 \code{backend = "sampled"}).}
 }
 \value{
-A \code{cm_threshold} object: \code{thresholds} (one row per crossing:
-conclusion, item, status, threshold, bracket \code{lower}/\code{upper}, the
-compared quantity just below and above, and a description), \code{details}
-(for each crossing, the adjusted results at the two ends of its
-bracket), \code{scan} (each grid point with its status, the aggregate and the
-condition number), \code{regions} (stretches of unusable grid points),
-\code{summary} (per item: number of thresholds, and whether part of the range
-could not be evaluated), and the settings (\code{input}, \code{range}, \code{baseline}
-value of the input, \code{method} (the computations used), \code{conclusion},
-\code{target}, \code{fixed}).
+For one input, a \code{cm_threshold} object: \code{thresholds} (one row per
+crossing: conclusion, item, status, threshold, bracket \code{lower}/\code{upper},
+the compared quantity just below and above, and a description),
+\code{details} (for each crossing, the adjusted results at the two ends of
+its bracket), \code{scan} (each grid point with its status, the aggregate and
+the condition number), \code{regions} (stretches of unusable grid points),
+\code{summary} (per item: number of thresholds, and whether part of the
+range could not be evaluated), and the settings (\code{input} and its
+\code{label}, \code{range}, \code{baseline} value of the input, \code{method} (the
+computations used), \code{conclusion}, \code{target}, \code{level} (the value the loss
+is compared with), \code{diseases}, \code{relative_to}, \code{fixed}, and the impact
+table's \code{outcome} and \code{units}).
+
+For several inputs (or none named), a \code{cm_threshold_set}: \code{inputs} (one
+row per input: key, label, kind, \code{effect} (how much it moved the
+compared quantity in \code{\link[=cm_sensitivity]{cm_sensitivity()}}, when chosen automatically),
+the range searched and how it was set, the baseline value, the number
+of thresholds and the result), \code{thresholds} (the crossings of all
+inputs, with an \code{input} column) and \code{searches} (each input's
+\code{cm_threshold}).
 }
 \description{
 Varies one input over a range, with everything else fixed at the model's
@@ -89,18 +126,47 @@ adjusted impact instead);
 \item \code{"sign"}: a disease's adjusted impact crosses zero (for event impacts,
 its adjusted hazard ratio crosses 1). This is a sign change implied by
 the model and its inputs, not by itself evidence of a protective effect;
-\item \code{"total"}: the total crosses \code{target};
-\item \code{"change"}: the total departs from its value at the model's own input
-by the relative amount \code{target} (e.g. \code{0.1} for +10\%), which answers
-questions such as "what association strength would increase the total
-by 10\%?".
+\item \code{"total"}: the loss of a set of diseases (the sum of their
+contributions; all diseases when \code{diseases} is left out, which is the
+adjusted aggregate) crosses \code{target}. The target is a value in the units
+of the impacts, or, with \code{relative_to}, a fraction of the set's adjusted
+value (\code{"adjusted"}, at the model's own inputs) or of its raw value
+(\code{"raw"}, the diseases unrelated): \verb{target = 0.8, relative_to = "adjusted"} finds where the loss is 20\% below its current value.
 }
 }
 \details{
-The total is the adjusted aggregate (in the units of the impacts) for
-additive impacts, and the risk attributable to disease for event impacts
-(\code{event_model = TRUE}), whose contributions are its Shapley allocation.
+For event impacts (\code{event_model = TRUE}) the total is the risk
+attributable to disease, and the contributions are its Shapley
+allocation. A set's loss includes its shares of the interactions with
+diseases outside the set; it is the set's part of the current total, not
+the loss there would be if only those diseases existed.
+
+Without \code{input}, the inputs are chosen automatically: the \code{top} inputs
+(3 by default) whose low and high values in \code{\link[=cm_sensitivity]{cm_sensitivity()}} move the
+compared quantity most (the set's loss for \code{"total"}, the difference
+between two diseases for \code{"rank"}, a disease's adjusted value for
+\code{"sign"}), each searched over its default range (see Search ranges).
+Several inputs can also be named. The result is then a
+\code{cm_threshold_set}: one table of the inputs and one of the crossings.
 }
+\section{Search ranges}{
+
+When \code{range} (or a row of \code{ranges}) is not given, each input is searched
+over a default range:
+\itemize{
+\item entered inputs with a distribution: its 0.5\% and 99.5\% quantiles;
+\item entered inputs without one: the value minus and plus 50\%
+(probabilities stay inside (0, 1), risk differences and phi inside
+(-1, 1)); a value of zero needs a range;
+\item a pair that no row mentions (\verb{pair:}): odds ratios 0.2 to 5;
+\item an interaction without a combination row (\verb{interaction:}): minus to
+plus the smaller of the two adjusted impacts (in absolute value); for
+event impacts a hazard ratio from 0.5 to 2;
+\item a three-way association without an \code{OR_ratio} row (\verb{or_ratio:}): 0.25
+to 4.
+}
+}
+
 \section{Method}{
 
 The response need not be monotonic, so the range is first scanned on a
@@ -132,8 +198,9 @@ not change the joint distribution) and the adjustment uses the joint
 distribution, it is fitted once and reused (or the \code{joint} passed through
 \code{...} is used).
 
-Thresholds are deterministic: they are for the model's input values. To
-see first which inputs matter, use \code{\link[=cm_sensitivity]{cm_sensitivity()}}.
+Thresholds are deterministic: they are for the model's input values. For
+the probability that a conclusion holds when the other inputs are
+uncertain, use \code{\link[=cm_threshold_prob]{cm_threshold_prob()}}.
 }
 
 \examples{
@@ -143,8 +210,11 @@ th <- cm_threshold(m, "pair:d1:d2", c(0.2, 20), conclusion = "rank")
 th
 # What odds ratio between d1 and d3 (an odds ratio of 1 in the example)
 # would reduce the aggregate by 10\%?
-cm_threshold(m, "pair:d1:d3", c(1, 50), conclusion = "change", target = -0.1)$thresholds
-# From a result: its settings are used
+cm_threshold(m, "pair:d1:d3", c(1, 50), conclusion = "total", target = 0.9,
+             relative_to = "adjusted")$thresholds
+# The loss of d2 and d3 together, from a result: its settings are used
 res <- deconflate(m, n_draws = 0)
-cm_threshold(res, "interaction:d2;d3", c(-2, 2), conclusion = "rank")$summary
+cm_threshold(res, "pair:d2:d3", conclusion = "total", diseases = c("d2", "d3"), target = 1.8)
+# The three inputs that matter most for the ranking of d1 and d2
+cm_threshold(res, conclusion = "rank", diseases = c("d1", "d2"), top = 3)
 }

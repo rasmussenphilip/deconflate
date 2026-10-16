@@ -59,7 +59,7 @@ the results come back in the units supplied.
 
 ```{r}
 yield <- cm_impacts(c("d1", "d2", "d3"), c(2.5, 5, 7.5),
-                    label = "milk yield loss", units = "% of yield")
+                    outcome = "milk yield loss", units = "% of yield")
 m <- cm_model(pop, yield)
 m
 ```
@@ -77,7 +77,7 @@ another model on the same population and call `deconflate()` again:
 
 ```{r}
 ci <- cm_model(pop, cm_impacts(c("d1", "d2", "d3"), c(4, 10, 2),
-                               label = "calving interval increase", units = "days"))
+                               outcome = "calving interval increase", units = "days"))
 deconflate(ci)$adjusted
 ```
 
@@ -163,8 +163,9 @@ res$totals
 `raw_total` is the raw aggregate: the same model with the diseases
 unrelated, which here (one crude row per disease) is `sum(p * raw)`. The
 difference from `adjusted_total` is the double counting removed. In
-`$contributions`, `main` is each disease's own term and `interaction` its
-share of the interactions. The shares are `NA` when the aggregate is zero,
+`$contributions`, `main` is each disease's own term, `interaction` its
+share of the interactions, and `raw_contribution` its contribution with the
+diseases unrelated (these add up to `raw_total`). The shares are `NA` when the aggregate is zero,
 since a share of zero is not defined.
 
 `print(res)` gives the short overview above. `summary(res)` gives the full
@@ -258,6 +259,29 @@ res_five
 Pass `n_draws = 0` for point estimates only. See `vignette("uncertainty")`
 for the draws, their stability checks and the sensitivity tools.
 
+## Plots
+
+`plot()` draws a result in base graphics; `type` chooses the plot:
+`"impacts"` (the default: raw and adjusted, with the intervals from the
+draws), `"contributions"` (with the raw contributions, the diseases
+unrelated), `"ranks"` (how often each disease ranks 1st, 2nd, ... over the
+draws) and `"rows"` (each impact row as entered and as the model fits it).
+Titles and axes use the impact table's `outcome` and `units`, which are
+optional.
+
+```{r, fig.width = 7, fig.height = 4.2}
+plot(res_five)
+plot(res_five, type = "contributions")
+plot(res_five, type = "ranks")
+```
+
+`plot_data()` returns the data frame a plot draws (one row per point or
+bar), so that the same plot can be drawn with other tools, such as ggplot2:
+
+```{r}
+head(plot_data(res_five, "ranks"))
+```
+
 ## Event impacts
 
 Impacts on the risk of an event, such as culling or death, are hazard
@@ -268,7 +292,7 @@ can be mixed), crude or adjusted as above, and adjusted with
 
 ```{r}
 cull <- cm_model(pop, cm_impacts(c("d1", "d2", "d3"), c(1.5, 2.0, 1.2),
-                                 measure = c("HR", "HR", "RR"), label = "culling"))
+                                 measure = c("HR", "HR", "RR"), outcome = "culling"))
 res_cull <- deconflate(cull, event_model = TRUE, overall_risk = 0.25)
 res_cull
 ```

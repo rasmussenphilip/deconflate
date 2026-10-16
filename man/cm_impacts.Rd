@@ -13,7 +13,7 @@ cm_impacts(
   measure = NULL,
   study = NA_character_,
   note = NA_character_,
-  label = NULL,
+  outcome = NULL,
   units = NULL
 )
 }
@@ -38,12 +38,15 @@ the diagnosis.}
 \item{note}{Optional free text (e.g. the citation); never used by the
 package.}
 
-\item{label, units}{Optional table-level metadata (e.g.
-\code{label = "milk yield loss"}, \code{units = "\% of yield"}), carried into the
-results.}
+\item{outcome, units}{Optional: what the impacts are about and their
+units, one text each (e.g. \code{outcome = "milk yield loss"},
+\code{units = "\% of yield"}). They are carried into the results and used in
+the printouts and plot titles; without them, these use general wording
+and the axes show no unit. (\code{label} is the old name of \code{outcome}: it
+still works, with a message.)}
 }
 \value{
-A \code{cm_impacts} data frame (attributes \code{label}, \code{units} and
+A \code{cm_impacts} data frame (attributes \code{outcome}, \code{units} and
 \code{kind}, \code{"additive"} or \code{"event"}).
 }
 \description{
@@ -108,11 +111,11 @@ risk differences refer to the period of the overall risk given to
 }
 
 \examples{
-cm_impacts(c("d1", "d2", "d3"), c(2.5, 5, 7.5), label = "yield", units = "\%")
+cm_impacts(c("d1", "d2", "d3"), c(2.5, 5, 7.5), outcome = "yield", units = "\%")
 # Two estimates for d1, and the interaction of d1 and d2
 cm_impacts(c("d1", "d1", "d2", "d3", "d1;d2"), c(2.5, 2.1, 5, 7.5, 1),
            adjusted_for = c(NA, "d2", NA, NA, "all"), units = "\%")
 # Event impacts: culling, with mixed measures
 cm_impacts(c("d1", "d2", "d3"), c(1.5, 1.3, 0.04), measure = c("HR", "RR", "RD"),
-           label = "culling")
+           outcome = "culling")
 }

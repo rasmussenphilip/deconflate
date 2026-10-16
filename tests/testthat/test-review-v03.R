@@ -170,7 +170,7 @@ test_that("the general examples keep the impacts on their own scale", {
   }
   gd <- example_global_dairy()
   expect_s3_class(gd, "cm_model")
-  expect_equal(attr(gd$impacts, "label"), "milk yield loss")
+  expect_equal(attr(gd$impacts, "outcome"), "milk yield loss")
   expect_null(attr(gd, "hazard_ratios"))
   expect_equal(names(formals(example_global_dairy)), c("outcome", "inputs"))
   # Culling is an event impact table of hazard ratios, not converted.

@@ -36,6 +36,6 @@ test_that("errors about a failed baseline or run are of the kind that caused the
   bad$adjusted$adjusted[1] <- Inf
   expect_error(cm_sensitivity(bad), class = "deconflate_nonfinite")
   zero <- supp_model(c(0, 0, 0))
-  expect_error(cm_threshold(zero, "pair:d2:d3", c(1, 5), conclusion = "change", target = 0.1), "zero",
+  expect_error(cm_threshold(zero, "pair:d2:d3", c(1, 5), conclusion = "total", target = 1.1, relative_to = "adjusted"), "zero",
                class = "deconflate_nonfinite")
 })

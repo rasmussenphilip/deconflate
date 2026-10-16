@@ -138,7 +138,7 @@ drop_row <- function(model, key) {
   r <- as.integer(parts[2])
   d <- model[[tab]]
   keep <- d$row != r
-  model[[tab]] <- structure(d[keep, , drop = FALSE], kind = attr(d, "kind"), label = attr(d, "label"),
+  model[[tab]] <- structure(d[keep, , drop = FALSE], kind = attr(d, "kind"), outcome = attr(d, "outcome"), label = attr(d, "label"),
                             units = attr(d, "units"))
   model$distributions[[key]] <- NULL
   model

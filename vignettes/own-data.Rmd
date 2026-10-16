@@ -40,9 +40,10 @@ described in `?cm_read_inputs`:
   `incidence_rate`);
 * `associations`: `among`, `adjusted_for`, `measure` (`OR` (default),
   `RR`, `RD`, `phi`, `prevalence` or `OR_ratio`), `study`;
-* `impacts`: `among`, `adjusted_for`, `study`, and one `label` and one
-  `units` per table; a `measure` column makes them event impacts (see
-  below).
+* `impacts`: `among`, `adjusted_for`, `study`, and optionally one
+  `outcome` (what the impacts are about, e.g. `milk yield loss`) and one
+  `units` per table, used in the printouts and plot titles; a `measure`
+  column makes them event impacts (see below).
 
 Every table can also have a `note` column for free text (for example the
 source of a value; the package never uses it), and the columns `dist` and

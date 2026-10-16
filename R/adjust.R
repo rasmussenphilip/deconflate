@@ -259,7 +259,7 @@ adjust_additive <- function(model, joint = NULL, pt = NULL, warn = TRUE, frozen_
                              sign_changes = paste(terms[sign_change], collapse = ", "),
                              feasibility = NA_character_, stringsAsFactors = FALSE),
     conflation = list(A = A, terms = members), joint_pairs = J, model = model, joint = joint,
-    method = method, label = attr(imp, "label"), units = attr(imp, "units"),
+    method = method, outcome = impact_meta(imp)$outcome, units = impact_meta(imp)$units,
     row_se = se
   ), class = "cm_result")
 }

@@ -43,7 +43,7 @@ subgroup (`among`), and a disease can have several rows (see
 ```{r}
 pop <- example_supplement()   # its yield impacts are not used here
 cull <- cm_model(pop, cm_impacts(c("d1", "d2", "d3"), c(1.5, 2.0, 1.3), measure = "HR",
-                                 label = "culling"))
+                                 outcome = "culling"))
 cull
 ```
 
@@ -223,7 +223,7 @@ and d2 against cows with neither:
 
 ```{r}
 cull_int <- cm_model(pop, cm_impacts(c("d1", "d2", "d3", "d1;d2"), c(1.5, 2.0, 1.3, 3.5),
-                                     measure = "HR", label = "culling"))
+                                     measure = "HR", outcome = "culling"))
 res_int <- deconflate(cull_int, event_model = TRUE, overall_risk = 0.25, n_draws = 0)
 res_int$adjusted
 res_int$contributions
@@ -262,6 +262,15 @@ is allocated to diseases by Shapley values over all disease combinations
 ```{r}
 res$attributable$summary
 res$contributions
+```
+
+`plot(res)` draws the adjusted hazard ratios (on a log scale), and
+`plot(res, type = "contributions")` each disease's share of the
+attributable risk, beside its share with the diseases unrelated:
+
+```{r, fig.width = 7, fig.height = 4}
+plot(res)
+plot(res, type = "contributions")
 ```
 
 A disease whose adjusted hazard ratio is below 1 gets a negative share. The

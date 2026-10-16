@@ -224,17 +224,17 @@ test_that("an OR_ratio row sets the stratum odds ratios and keeps the pair table
 })
 
 test_that("metadata is kept and impacts are put in disease order", {
-  imp <- cm_impacts(c("d3", "d1", "d2"), c(7.5, 2.5, 5), label = "yield", units = "%",
+  imp <- cm_impacts(c("d3", "d1", "d2"), c(7.5, 2.5, 5), outcome = "yield", units = "%",
                     note = "test")
   m <- cm_model(t2_pop(), imp)
   # Rows keep their order and numbers; results are in disease order.
   expect_equal(m$impacts$disease, c("d3", "d1", "d2"))
   expect_equal(m$impacts$row, 1:3)
-  expect_equal(attr(m$impacts, "label"), "yield")
+  expect_equal(attr(m$impacts, "outcome"), "yield")
   expect_equal(attr(m$impacts, "units"), "%")
   expect_equal(attr(m$impacts, "kind"), "additive")
   res <- deconflate(m)
-  expect_equal(res$label, "yield")
+  expect_equal(res$outcome, "yield")
   expect_equal(res$units, "%")
   expect_output(print(res), "yield")
   expect_output(print(m), "cm_model")
@@ -250,15 +250,15 @@ test_that("metadata is kept and impacts are put in disease order", {
 
 test_that("one population serves several outcomes, one impact table each", {
   pop <- t2_pop()
-  yield <- cm_model(pop, cm_impacts(t2_ids, c(2.5, 5, 7.5), label = "yield", units = "%"))
-  welfare <- cm_model(pop, cm_impacts(t2_ids, c(1, 0, 3), label = "welfare", units = "score"))
+  yield <- cm_model(pop, cm_impacts(t2_ids, c(2.5, 5, 7.5), outcome = "yield", units = "%"))
+  welfare <- cm_model(pop, cm_impacts(t2_ids, c(1, 0, 3), outcome = "welfare", units = "score"))
   expect_identical(yield$diseases, welfare$diseases)
   expect_identical(yield$associations, welfare$associations)
   ry <- deconflate(yield)
   rw <- deconflate(welfare)
   expect_equal(ry$adjusted$adjusted, deconflate(example_supplement())$adjusted$adjusted)
   expect_equal(rw$units, "score")
-  expect_equal(rw$label, "welfare")
+  expect_equal(rw$outcome, "welfare")
   # One joint fit can serve both.
   j <- fit_joint(pop)
   expect_equal(deconflate(welfare, joint = j)$adjusted$adjusted, rw$adjusted$adjusted, tolerance = 1e-8)

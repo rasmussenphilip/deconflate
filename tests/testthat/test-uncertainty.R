@@ -10,7 +10,7 @@ unc_model <- function(d1 = dist_normal(2.5, 0.5), d3 = dist_normal(7.5, 1)) {
 # The supplement population with event impacts (hazard ratios), d1 uncertain.
 unc_event_model <- function() {
   cm_model(supp_population(),
-           cm_impacts(ids3, c(1.5, 2.0, 1.3), measure = "HR", label = "culling"),
+           cm_impacts(ids3, c(1.5, 2.0, 1.3), measure = "HR", outcome = "culling"),
            distributions = list("impact:d1" = dist_lognormal_ci(1.5, 1.2, 1.9)))
 }
 

@@ -14,7 +14,7 @@ t2_pop <- function(extra = NULL) supp_population(extra)
 
 # Event model on a population (default: culling hazard ratios 1.5, 2.0, 1.3).
 t2_event <- function(values = c(1.5, 2.0, 1.3), measure = "HR", adjusted_for = NA_character_, pop = t2_pop()) {
-  cm_model(pop, cm_impacts(t2_ids, values, measure = measure, adjusted_for = adjusted_for, label = "culling"))
+  cm_model(pop, cm_impacts(t2_ids, values, measure = measure, adjusted_for = adjusted_for, outcome = "culling"))
 }
 
 # The snapshot model on the model's own joint distribution (internal).
@@ -136,7 +136,7 @@ test_that("the snapshot model matches the reference (supplement hazard ratios)",
   expect_s3_class(res$joint, "cm_joint")
   expect_equal(nrow(res$unknown_pairs), 0)
   expect_null(res$draws)
-  expect_equal(res$label, "culling")
+  expect_equal(res$outcome, "culling")
   # No input has a distribution: no draws, and a note says so.
   expect_length(res$notes, 1)
   expect_match(res$notes, "No input has a distribution")
@@ -321,7 +321,7 @@ test_that("the attributable risk and its Shapley allocation match the reference"
   expect_equal(ar$summary$attributable_fraction, t2_ar_ref / 0.25, tolerance = 1e-7)
   expect_equal(names(ar), c("summary", "baseline_hazard"))
   ctb <- res$contributions
-  expect_equal(names(ctb), c("disease", "contribution", "main", "interaction", "share"))
+  expect_equal(names(ctb), c("disease", "contribution", "main", "interaction", "share", "raw_contribution"))
   expect_equal(ctb$disease, t2_ids)
   expect_equal(ctb$contribution, c(0.0073707436, 0.0234877275, 0.0057905139), tolerance = 1e-7)
   expect_equal(sum(ctb$contribution), ar$summary$attributable, tolerance = 1e-10)

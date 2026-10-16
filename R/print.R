@@ -28,10 +28,10 @@ print.cm_model <- function(x, ...) {
   print_population_lines(x)
   im <- x$impacts
   if (!is.null(im)) {
-    lab <- attr(im, "label")
-    un <- attr(im, "units")
+    lab <- impact_meta(im)$outcome
+    un <- impact_meta(im)$units
     kind <- impact_kind(im)
-    cat(sprintf("  Impacts: %s%s (%s)\n", lab %||% "(unlabelled)",
+    cat(sprintf("  Impacts: %s%s (%s)\n", lab %||% "outcome not given",
                 if (is.null(un) || is.na(un)) "" else sprintf(" [%s]", un),
                 if (kind == "event") "event impacts: use event_model = TRUE" else "additive"))
     adj <- sum(!is.na(im$adjusted_for))
@@ -173,7 +173,7 @@ cat_wrapped <- function(lines, exdent = 2L) {
 #' @export
 print.cm_result <- function(x, ...) {
   cat(sprintf("<cm_result> %s", x$method))
-  if (!is.null(x$label)) cat(sprintf("; %s", x$label))
+  if (!is.null(x$outcome)) cat(sprintf("; %s", x$outcome))
   if (!is.null(x$units) && !is.na(x$units)) cat(sprintf(" [%s]", x$units))
   cat("\n\n")
   print_result_body(x)
@@ -182,7 +182,7 @@ print.cm_result <- function(x, ...) {
 
 #' @export
 print.cm_event_result <- function(x, ...) {
-  cat(sprintf("<cm_event_result> %s; %s", x$label %||% "event impacts", x$method))
+  cat(sprintf("<cm_event_result> %s; %s", x$outcome %||% "event impacts", x$method))
   cat("\n\n")
   print_result_body(x)
   invisible(x)

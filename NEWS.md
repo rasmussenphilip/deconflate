@@ -7,7 +7,88 @@ an independent Python implementation
 the package's one model has been removed (item 2), and the sensitivity tools
 are replaced by one function, `cm_sensitivity()` (item 3). The input tables
 are simpler and the output tables have one layout for both models (items 8
-and 9; design note section 18).
+and 9; design note section 18). Threshold searches take targets for any set
+of diseases, choose the inputs that matter, and come in a probabilistic
+version (item 12; design note section 19). Every result can be plotted,
+and `plot_data()` returns the data of each plot for other plotting tools
+(item 10; design note section 20).
+
+## Plots (item 10)
+
+* **One look for every plot,** in base graphics: a title, a subtitle and a
+  key above the plot, row labels on the left, a hairline grid, blue for the
+  estimates, grey rings for raw values and orange for what is unknown or
+  disagrees. Titles and axes use the impact table's `outcome` and `units`
+  when they are given.
+* **`plot()` of a result** has a `type`: `"impacts"` (raw and adjusted, with
+  intervals from the draws; hazard ratios on a log scale for event impacts),
+  `"contributions"` (with each disease's raw contribution), `"ranks"` (how
+  often each disease ranks 1st, 2nd, ... over the draws) and `"rows"` (each
+  impact row as entered, with its 95% range, and as fitted; rows the fit
+  disagrees with are marked).
+* **Plots of the sensitivity tools:** the tornado of `cm_sensitivity()`;
+  `cm_threshold()` with the compared quantity itself (e.g. the loss of the
+  set) against its target, the input's current value and the thresholds,
+  the input's label on the x-axis; a `cm_threshold_set` with one panel per
+  input on a common y-axis; and `cm_threshold_prob()` with the probability
+  over each input's range and where it crosses the levels.
+* **`plot_data()`** (new) returns the data frame each plot draws, so that it
+  can be drawn with ggplot2 or any other tool; every plot also returns it
+  invisibly. ggplot2 is not needed.
+* **Raw contributions:** `$contributions$raw_contribution` and the
+  `raw_contribution` column of `contribution_table()` give each disease's
+  contribution with the diseases unrelated (they add up to the raw total or
+  the raw attributable risk).
+* `cm_threshold()` results carry the input's `label`, and
+  `cm_threshold_prob()` inputs whether the grid was log-spaced
+  (`log_scale`).
+
+## Breaking changes: the outcome of an impact table (item 10)
+
+* The impact table's `label` is now called `outcome` (the column, the
+  argument of `cm_impacts()`, the attribute of the impact table and the
+  element of the results, `$outcome`). Like `units`, it is optional: without
+  it, printouts and plot titles use general wording and the axes show no
+  unit. Files with a `label` column still load, with a note to rename it,
+  and `cm_impacts(label = )` still works, with a message.
+* One outcome per impact table, as before: a table with several outcomes
+  gives an error that says to keep one impact table per outcome.
+* `plot()` methods no longer pass `...` to the graphics functions, and
+  return the plotted data instead of the object. `contribution_table()` has
+  the new column `raw_contribution` before `contribution`.
+
+## Thresholds (item 12)
+
+* **`cm_threshold_prob()`** (new): the probability that a conclusion holds
+  when the other inputs are uncertain, at each value of one input, and the
+  input values where it crosses chosen levels (0.5, 0.8 and 0.95 by
+  default). The other uncertain inputs are drawn as in `deconflate()`, with
+  the same draws at every value (`seed`). Reference values come from a
+  closed form (`inst/validation/reference_v06_threshold_prob.py`).
+* **The loss of a set of diseases:** `conclusion = "total"` compares the
+  sum of the contributions of `diseases` (all diseases when left out: the
+  aggregate) with `target`. The target is a value, or with `relative_to` a
+  fraction of the set's adjusted (`"adjusted"`) or raw (`"raw"`, the
+  diseases unrelated) value, which must then be positive. Reference values:
+  `inst/validation/reference_v06_thresholds.py`.
+* **Automatic choice of inputs:** without `input`, `cm_threshold()` and
+  `cm_threshold_prob()` search the `top` inputs (3 by default) that moved
+  the compared quantity most in `cm_sensitivity()`; several inputs can also
+  be named. The result is a `cm_threshold_set` with one table of inputs
+  and one of crossings.
+* **Default search ranges:** `range` can be left out (see Search ranges in
+  `?cm_threshold`).
+
+## Breaking changes: thresholds
+
+* `conclusion = "change"` is replaced by `conclusion = "total"` with
+  `relative_to = "adjusted"` and `target = 1 + change` (e.g. `target = 0.9`
+  for 10% below the current total); the old form gives an error that says
+  so.
+* `target` and `relative_to` are accepted only with `conclusion = "total"`.
+* `cm_threshold()` results keep `level` (the value compared with) and
+  `reference`; descriptions say "falls below 0.9 times its adjusted value
+  (1.90)".
 
 ## Output tables (item 9)
 
@@ -85,7 +166,8 @@ and 9; design note section 18).
   `note`."); the same arguments of `cm_diseases()`, `cm_associations()` and
   `cm_impacts()` give a message and are ignored. The diseases table has no
   disease labels: printed tables show the disease codes. The impact table's
-  `label` and `units` (the outcome's name and units) are unchanged.
+  `label` and `units` (the outcome's name and units) are unchanged (`label`
+  was later renamed `outcome`; item 10).
 * The warning about mixed time horizons is gone with `time_horizon`.
 * Simulated impacts (`simulate_raw_impacts()`) and the rows built by
   `cm_sensitivity()` describe themselves in `note` (was `source`).

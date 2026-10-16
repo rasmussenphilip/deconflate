@@ -17,6 +17,10 @@
 #'   risk attributable to disease (`contribution`: Shapley allocation, as a
 #'   proportion of animals).
 #'
+#' `raw_contribution` is the disease's contribution with the diseases
+#' unrelated (the same model without association rows; these add up to the
+#' raw total or raw attributable risk).
+#'
 #' In both cases the contribution is split into the disease's own part
 #' (`main`: its Shapley value with the interactions set to zero) and its
 #' share of the interactions (`interaction`: the rest; for event impacts it
@@ -28,8 +32,8 @@
 #' @return A data frame with the columns `disease`, (event impacts:
 #'   `measure`), `raw`, `adjusted`, `adjusted_lower`, `adjusted_upper`,
 #'   `change`, (event impacts: `risk_alone`, `rr_alone`, `rd_alone`),
-#'   `contribution`, `contribution_lower`, `contribution_upper`, `main`,
-#'   `interaction` and `share`.
+#'   `raw_contribution`, `contribution`, `contribution_lower`,
+#'   `contribution_upper`, `main`, `interaction` and `share`.
 #' @export
 #' @examples
 #' contribution_table(deconflate(example_supplement()))
@@ -56,6 +60,7 @@ contribution_table <- function(result) {
     out$rd_alone <- a$rd_alone[k]
   }
   j <- if (is.null(ct)) integer(0) else match(ids, ct$disease)
+  out$raw_contribution <- col(ct, "raw_contribution", j)
   out$contribution <- col(ct, "contribution", j)
   out$contribution_lower <- col(ct, "lower", j)
   out$contribution_upper <- col(ct, "upper", j)
@@ -76,7 +81,7 @@ contribution_table <- function(result) {
 #'
 #' @param object A [deconflate()] result.
 #' @param ... Unused.
-#' @return A `summary.cm_result` list with `method`, `label`, `units`,
+#' @return A `summary.cm_result` list with `method`, `outcome`, `units`,
 #'   `event`, `impacts` (one row per disease and interaction: raw, adjusted,
 #'   interval, change and, when some term has several rows, `rows`),
 #'   `alone` (event impacts: `risk_alone`, `rr_alone`, `rd_alone`),
@@ -162,7 +167,7 @@ summary_object <- function(object, totals, event) {
     if (!is.null(h) && nrow(h)) sprintf("Pooled or over-determined items: %d (see $heterogeneity and $estimates).", nrow(h)),
     unknown_pairs_line(object$unknown_pairs),
     uncertainty_line(object$draws))
-  structure(list(method = object$method, label = object$label, units = object$units, event = event,
+  structure(list(method = object$method, outcome = object$outcome, units = object$units, event = event,
                  impacts = impact_table(object, contributions = FALSE, rows = TRUE), alone = alone,
                  contributions = contributions, totals = totals, ranks = object$ranks,
                  diagnostics = diagnostics, notes = object$notes),
@@ -171,7 +176,7 @@ summary_object <- function(object, totals, event) {
 
 #' @export
 print.summary.cm_result <- function(x, ...) {
-  lab <- if (!is.null(x$label)) sprintf(" - %s", x$label) else ""
+  lab <- if (!is.null(x$outcome)) sprintf(" - %s", x$outcome) else ""
   un <- if (!is.null(x$units) && !is.na(x$units)) sprintf(" [%s]", x$units) else ""
   cat_wrapped(sprintf("Comorbidity adjustment (%s)%s%s", x$method, lab, un))
   cat("\nImpacts\n")

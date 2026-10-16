@@ -15,27 +15,37 @@ knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
 library(deconflate)
 ```
 
-This vignette covers two extensions: threshold searches and the
-sensitivity table, which show how much the conclusions depend on single
-inputs (including inputs that have not been estimated), and the sampled
-backend of the model, for more diseases than can be enumerated.
+This vignette covers two extensions: threshold searches (also as
+probabilities) and the sensitivity table, which show how much the
+conclusions depend on single inputs (including inputs that have not been
+estimated), and the sampled backend of the model, for more diseases than
+can be enumerated.
 
 ## Threshold searches
 
 `cm_threshold()` varies one input over a range, with every other input fixed
 at the model's values, and finds the values at which a conclusion changes.
-There are four kinds of conclusion:
+There are three kinds of conclusion:
 
 * `"rank"`: two diseases swap places, ranked by their contribution to the
   aggregate (`by = "adjusted"` ranks by adjusted impact instead);
 * `"sign"`: a disease's adjusted impact crosses zero (for event impacts,
   its adjusted hazard ratio crosses 1). This is a sign change implied by the
   model and its inputs; it is not by itself evidence of a protective effect;
-* `"total"`: the aggregate crosses `target`, in the units of the impacts;
-* `"change"`: the aggregate departs from its value at the model's own input
-  by the relative amount `target` (e.g. `-0.1` for a 10% reduction). This
-  answers questions such as "what association strength would reduce the
-  total by 10%?", which is useful for pairs without an association.
+* `"total"`: the loss of a set of diseases crosses `target`. The loss of a
+  set is the sum of their contributions; with `diseases` left out it is
+  the aggregate. The target is a value in the units of the impacts, or,
+  with `relative_to`, a fraction of the set's adjusted value (`"adjusted"`,
+  at the model's own inputs) or raw value (`"raw"`, the diseases
+  unrelated). `target = 0.9, relative_to = "adjusted"` answers questions
+  such as "what association strength would reduce the total by 10%?",
+  which is useful for pairs without an association.
+
+A set's loss includes its shares of the interactions with diseases outside
+the set: it is the set's part of the current total, not the loss there would
+be if only those diseases existed. `diseases` left out means all diseases
+for every conclusion (every pair for `"rank"`, every disease for
+`"sign"`).
 
 For event impacts (`event_model = TRUE`), the aggregate is the risk
 attributable to disease and the contributions are its Shapley allocation
@@ -84,10 +94,8 @@ refined by bisection. As a result:
 * a crossing whose bisection lands on an unusable point is `"unresolved"`.
 
 Thresholds are deterministic: they refer to the model's input values, one
-input at a time. Statements such as "the probability that d1 ranks first"
-need the draws of `deconflate()` (`n_draws`), whose `$ranks` give the
-share of draws in which each disease ranks first, second and so on
-(`vignette("uncertainty")`); probabilistic thresholds are not implemented.
+input at a time. `cm_threshold_prob()` (below) gives the probability that a
+conclusion holds when the other inputs are uncertain.
 
 ### A relative change in the aggregate
 
@@ -97,7 +105,7 @@ and the adjusted aggregate is about 2.109 percent:
 ```{r}
 m <- example_supplement()
 deconflate(m, n_draws = 0)$totals
-th <- cm_threshold(m, "pair:d1:d3", c(1, 50), conclusion = "change", target = -0.1)
+th <- cm_threshold(m, "pair:d1:d3", c(1, 50), conclusion = "total", target = 0.9, relative_to = "adjusted")
 th
 ```
 
@@ -116,7 +124,7 @@ by 10%, because less of the raw impacts is then attributed to the associated
 disease:
 
 ```{r}
-cm_threshold(m, "pair:d2:d3", c(0.2, 20), conclusion = "change", target = 0.1)$thresholds
+cm_threshold(m, "pair:d2:d3", c(0.2, 20), conclusion = "total", target = 1.1, relative_to = "adjusted")$thresholds
 ```
 
 For a pair without an association, the baseline fills the pair in from the
@@ -131,7 +139,7 @@ m_unk <- cm_model(
   associations = cm_associations(c("d1", "d2"), c("d2", "d3"), c(2, 3))
 )
 deconflate(m_unk, n_draws = 0)$unknown_pairs
-th_unk <- cm_threshold(m_unk, "pair:d1:d3", c(1, 50), conclusion = "change", target = -0.1)
+th_unk <- cm_threshold(m_unk, "pair:d1:d3", c(1, 50), conclusion = "total", target = 0.9, relative_to = "adjusted")
 th_unk$thresholds[, c("item", "status", "threshold", "description")]
 ```
 
@@ -153,8 +161,8 @@ th_rank$summary
 ```
 
 `plot()` shows the compared quantities over the scan (here the differences
-in contribution of each pair of diseases), the baseline value of the input
-(dotted) and the thresholds (dashed):
+in contribution of each pair of diseases; the pairs that swap places in
+colour), the input's current value ("now") and the thresholds (dots):
 
 ```{r, fig.width = 6, fig.height = 4}
 plot(th_rank)
@@ -198,6 +206,22 @@ th_total <- cm_threshold(m, "impacts:2", c(0, 20), conclusion = "total", target 
 th_total$thresholds[, c("item", "status", "threshold", "description")]
 ```
 
+### The loss of a set of diseases
+
+`diseases` chooses the set whose loss is compared. Where does the loss of d2
+and d3 together fall below 1.8 percent, and where is it 5% below its
+current value? Without `range`, the input is searched over its default
+range (here the entered odds ratio of 3 minus and plus 50%):
+
+```{r}
+cm_threshold(m, "pair:d2:d3", conclusion = "total", diseases = c("d2", "d3"), target = 1.8)
+cm_threshold(m, "pair:d2:d3", conclusion = "total", diseases = c("d2", "d3"), target = 0.95,
+             relative_to = "adjusted")$thresholds[, c("threshold", "description")]
+```
+
+`relative_to = "raw"` compares with the set's raw value instead: the loss
+with the diseases unrelated, the double counting not removed.
+
 ### Ranges that cannot be fully evaluated
 
 A probability of 1 or more is impossible, so the grid points from just above
@@ -221,7 +245,7 @@ d3 falls below 1 when the odds ratio of d2 and d3 exceeds about 8.09:
 
 ```{r}
 cull <- cm_model(m, cm_impacts(c("d1", "d2", "d3"), c(1.5, 2.0, 1.3), measure = "HR",
-                               label = "culling"))
+                               outcome = "culling"))
 th_ev <- cm_threshold(cull, "pair:d2:d3", c(1, 100), conclusion = "sign",
                       event_model = TRUE, overall_risk = 0.25)
 th_ev$thresholds[, c("item", "status", "threshold", "description")]
@@ -292,7 +316,7 @@ be to change the aggregate by a given amount:
 
 ```{r}
 cm_sensitivity(m0, inputs = "unknown")
-th0 <- cm_threshold(m0, "pair:d2:d3", c(1, 50), conclusion = "change", target = -0.1)
+th0 <- cm_threshold(m0, "pair:d2:d3", c(1, 50), conclusion = "total", target = 0.9, relative_to = "adjusted")
 th0$thresholds[, c("item", "status", "threshold", "description")]
 ```
 
@@ -300,6 +324,71 @@ An odds ratio of about 2.24 between d2 and d3 (with the other pairs
 unknown) would reduce the aggregate by 10%. Such results show which
 associations are worth estimating; they are not estimates themselves. Tables
 read with `cm_read_inputs()` can leave out `associations` for this purpose.
+
+### Threshold searches for the inputs that matter
+
+Without `input`, `cm_threshold()` runs `cm_sensitivity()` and searches the
+`top` inputs (3 by default) that moved the compared quantity most: the
+set's loss for `"total"`, the difference between the two diseases for
+`"rank"`, a disease's adjusted value for `"sign"`. Each is searched over
+its default range: the central 99% of its distribution, the value minus and
+plus 50% without one, odds ratios 0.2 to 5 for unknown pairs, and minus to
+plus the smaller adjusted impact for unknown interactions. Which inputs
+could make d1 overtake d2?
+
+```{r}
+ts <- cm_threshold(res_m, conclusion = "rank", diseases = c("d1", "d2"), top = 3)
+ts
+```
+
+Its plot has one panel per input, on a common y-axis:
+
+```{r, fig.width = 8, fig.height = 3.6}
+plot(ts)
+```
+
+`inputs = "unknown"` searches only the inputs nobody estimated,
+`sensitivity` reuses a `cm_sensitivity()` result, `ranges` sets any range,
+and several inputs can also be named (`input = c("pair:d1:d2",
+"impacts:1")`). Each input's full search is in `$searches`.
+
+## Probabilistic thresholds
+
+A threshold is a single value, found with every other input at its central
+value. `cm_threshold_prob()` asks how likely the conclusion is when the
+other inputs are uncertain: at each value of the input it draws the other
+uncertain inputs (as `deconflate()` does for its intervals) and gives the
+share of draws in which the conclusion holds, and it finds where that
+probability crosses chosen levels (0.5, 0.8 and 0.95 by default).
+
+With uncertain impacts of d1 and d2, how likely is the aggregate below 2.1
+percent, as the odds ratio of d2 and d3 varies?
+
+```{r}
+mu <- cm_model(m, m$impacts, distributions = list("impacts:1" = dist_normal(2.5, 0.5),
+                                                  "impacts:2" = dist_normal(5, 1)))
+p <- cm_threshold_prob(deconflate(mu, n_draws = 0), "pair:d2:d3", c(1, 10), conclusion = "total",
+                       target = 2.1, n_draws = 100, n_grid = 11, seed = 1)
+p
+```
+
+The deterministic threshold is where the probability is about 0.5; the
+other levels say how far the odds ratio has to move before the conclusion
+is likely. The same draws are used at every value of the input, so the
+curve (`$curves`) changes only through the input. Each probability has a
+Monte Carlo standard error of at most 0.5 / sqrt(n_draws), and the run
+takes about `n_grid * n_draws` adjustments per input (21 x 200 by
+default), so the automatic choice (`top`) searches few inputs. `plot(p)`
+draws the probability over the input's range, with the levels and where it
+crosses them:
+
+```{r, fig.width = 6, fig.height = 3.8}
+plot(p)
+```
+
+Every plot returns its data invisibly, and `plot_data()` gives the same
+data frames (`plot_data(ts)` for the curves, `plot_data(ts, "thresholds")`
+for the dots), to draw them with other tools.
 
 ## Many diseases
 

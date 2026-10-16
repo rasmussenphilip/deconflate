@@ -1,4 +1,4 @@
-disease,among,adjusted_for,value,label,units,study,dist,p1,p2,p3,p4,note
+disease,among,adjusted_for,value,outcome,units,study,dist,p1,p2,p3,p4,note
 LAM,,,12,calving interval increase,days,Study 1,normal,12,3,,,"crude; normal(mean, sd)"
 MAS,,SCK,6,calving interval increase,days,Study 2,normal,6,2,,,coefficient from a linear regression adjusted for SCK
 MAS,,,9,calving interval increase,days,Study 3,normal,9,3,,,a second MAS estimate (crude): the two MAS rows are fitted together by weighted least squares

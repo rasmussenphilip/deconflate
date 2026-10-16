@@ -24,7 +24,7 @@ test_that("incidence is converted with 1 - exp(-I)", {
   expect_equal(d$disease, ids)
   expect_equal(nrow(m$associations), 38)
   expect_equal(attr(m$impacts, "units"), "% decrease")
-  expect_equal(attr(example_global_dairy("fertility", inputs = "tables")$impacts, "label"),
+  expect_equal(attr(example_global_dairy("fertility", inputs = "tables")$impacts, "outcome"),
                "calving interval increase")
 })
 

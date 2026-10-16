@@ -43,9 +43,9 @@
 #' association are pooled.
 #'
 #' **impacts** (one row per estimate): `disease`, `value` (required);
-#' `among`, `adjusted_for`, `measure`, `label`, `units` (one label and one
-#' unit per table, shown in the printed results), `study`, `note`. Every
-#' disease needs a row of
+#' `among`, `adjusted_for`, `measure`, `outcome`, `units` (optional: what
+#' the impacts are about and their units, one value of each per table, shown
+#' in the printouts and plots), `study`, `note`. Every disease needs a row of
 #' its own; a row for a combination (e.g. `SCK;SCM`) adds an interaction to
 #' the model, and a combination adjusted for `all` is the interaction itself.
 #' See [cm_impacts()]. Without a `measure` column the impacts are additive,
@@ -57,8 +57,10 @@
 #' Files in the layout of earlier versions (columns `id` and `type`,
 #' `disease1` and `disease2`, `estimand`; three-way and interaction files)
 #' are reported with what to change. The columns `label` (of the diseases
-#' table), `time_horizon`, `reference_population` and `source` are no longer
-#' read: files with them still load, with a note.
+#' and associations tables), `time_horizon`, `reference_population` and
+#' `source` are no longer read: files with them still load, with a note. The
+#' `label` column of an impact table is now called `outcome`: it is still
+#' read, with a note to rename it.
 #'
 #' @section Uncertainty:
 #' Every table can have the columns `dist` and `p1`-`p4`. A row with a
@@ -211,13 +213,13 @@ cm_template <- function(dir, overwrite = FALSE) {
       stringsAsFactors = FALSE),
     yield = data.frame(
       disease = c("LAM", "SCK", "MET"), among = NA, adjusted_for = NA, value = c(4.81, 8.40, 5.61),
-      label = "milk yield loss", units = "% of yield", study = NA,
+      outcome = "milk yield loss", units = "% of yield", study = NA,
       dist = c("normal", "normal", NA), p1 = c(4.81, 8.40, NA), p2 = c(0.87, 1.19, NA), p3 = NA, p4 = NA,
       note = c("illustrative; normal(mean, sd)", "normal(mean, sd)", NA),
       stringsAsFactors = FALSE),
     culling = data.frame(
       disease = c("LAM", "SCK", "MET"), among = NA, adjusted_for = NA, measure = c("HR", "HR", "RR"),
-      value = c(1.74, 1.92, 1.45), label = "culling", units = NA, study = NA,
+      value = c(1.74, 1.92, 1.45), outcome = "culling", units = NA, study = NA,
       dist = c("lognormal_ci", NA, NA), p1 = c(1.74, NA, NA), p2 = c(1.45, NA, NA), p3 = c(2.09, NA, NA),
       p4 = NA,
       note = c("illustrative; hazard ratio; lognormal_ci(estimate, lower, upper)", "hazard ratio",
@@ -259,7 +261,7 @@ input_table_specs <- list(
                       optional = c("associated_with", "among", "adjusted_for", "measure", "study",
                                    "note", dist_columns)),
   impacts = list(required = c("disease", "value"),
-                 optional = c("among", "adjusted_for", "measure", "label", "units", "study",
+                 optional = c("among", "adjusted_for", "measure", "outcome", "units", "study",
                               "note", dist_columns))
 )
 
@@ -402,10 +404,10 @@ has_columns <- function(tab, spec, label, pc) {
   miss <- setdiff(miss, unname(renamed[names(renamed) %in% nm]))
   for (col in miss) pc$add(label, NA, col, "Required column is missing.")
   extra <- setdiff(nm, c(sp$required, sp$optional, names(renamed)))
-  if (spec == "impacts" && "outcome" %in% extra) {
-    pc$add(label, NA, "outcome",
-           "An impact table holds one outcome: split this table into one table per outcome, drop the outcome column, and adjust each table in turn.")
-    extra <- setdiff(extra, "outcome")
+  if (spec == "impacts" && "label" %in% extra) {
+    pc$add(label, NA, "label", if ("outcome" %in% nm) "Column `label` is now called `outcome`: column ignored, as the table has an outcome column." else
+      "Column `label` is now called `outcome`: rename it (read as the outcome).", "note")
+    extra <- setdiff(extra, "label")
   }
   if (spec == "impacts" && "estimand" %in% extra) {
     pc$add(label, NA, "estimand", paste(sub("`estimand` is", "The estimand column is", estimand_message), "Column ignored."),
@@ -656,14 +658,16 @@ check_impact_table <- function(im, label, ids, pc) {
   one <- function(col) {
     v <- unique(stats::na.omit(chr_col(im, col)))
     if (length(v) > 1L) {
-      pc$add(label, NA, col, sprintf("One %s per table is allowed (found: %s).",
-                                     if (col == "units") "unit" else col, paste(v, collapse = ", ")))
+      pc$add(label, NA, col, sprintf("One %s per table is allowed (found: %s).%s",
+                                     switch(col, units = "unit", label = "outcome", col), paste(v, collapse = ", "),
+                                     if (col == "units") "" else " For several outcomes, keep one impact table per outcome and adjust each in turn."))
     }
     if (length(v)) v[1] else NULL
   }
+  outcome_col <- if ("outcome" %in% names(im) || !"label" %in% names(im)) "outcome" else "label"
   list(disease = dis, value = value, among = among, adjusted_for = adj,
        measure = if (event) meas else NULL, study = chr_col(im, "study"),
-       note = chr_col(im, "note"), label = one("label"), units = one("units"),
+       note = chr_col(im, "note"), outcome = one(outcome_col), units = one("units"),
        dists = row_dists(im, label, pc, keys = paste0("impacts:", seq_len(nrow(im))), values = value))
 }
 
@@ -700,7 +704,7 @@ run_input_checks <- function(diseases, associations, impacts) {
     pop <- cm_population(dis_obj, assoc_obj)
     imp <- cm_impacts(ii$disease, ii$value, among = ii$among, adjusted_for = ii$adjusted_for,
                       measure = ii$measure, study = ii$study, note = ii$note,
-                      label = ii$label, units = ii$units)
+                      outcome = ii$outcome, units = ii$units)
     m <- cm_model(pop, imp, distributions = if (length(dists)) dists else NULL)
     pair_tables(m)
     m

@@ -90,10 +90,13 @@ of `deconflate()` and can also be a distribution (e.g. `dist_beta(250, 750)`).
    three-way association on request) one at a time, variance shares and
    rank probabilities from the draws, event impacts, and a model without
    any associations.
-8. `cm_threshold` for every conclusion (`rank`, `sign`, `total`, `change`)
-   and input type (association, impact, interaction, OR_ratio, any row by
-   number, disease probability, overall risk); poles are reported as
-   discontinuities and unusable stretches of a range in `regions`.
+8. `cm_threshold` for every conclusion (`rank`, `sign`, `total`, with
+   targets as values or relative to the adjusted or raw value, for all
+   diseases or a set) and input type (association, impact, interaction,
+   OR_ratio, any row by number, disease probability, overall risk); poles
+   are reported as discontinuities and unusable stretches of a range in
+   `regions`; the automatic choice of inputs; and `cm_threshold_prob`, the
+   probability of a conclusion over the draws.
 9. `simulate_raw_impacts` (crude, adjusted, subgroup and combination rows,
    finite samples, event impacts).
 10. Variants: an unknown pair (filled in by the fit and listed in

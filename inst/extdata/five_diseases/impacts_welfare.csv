@@ -1,4 +1,4 @@
-disease,among,adjusted_for,value,label,units,study,dist,p1,p2,p3,p4,note
+disease,among,adjusted_for,value,outcome,units,study,dist,p1,p2,p3,p4,note
 LAM,,,10,welfare impact,score points,Study 1,normal,10,2,,,"normal(mean, sd)"
 MAS,,,6,welfare impact,score points,Study 2,pert,3,6,9,,"pert(min, mode, max)"
 MET,,,5,welfare impact,score points,Study 3,,,,,,point value

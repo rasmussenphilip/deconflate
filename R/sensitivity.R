@@ -74,7 +74,7 @@ replace_rows <- function(model, table, hit, new) {
   }
   keep <- setdiff(seq_len(nrow(tab)), hit)
   at <- attributes(tab)
-  at <- at[intersect(names(at), c("label", "units", "kind"))]
+  at <- at[intersect(names(at), c("outcome", "label", "units", "kind"))]
   cols <- names(tab)
   for (cc in setdiff(cols, names(new))) new[[cc]] <- NA
   out <- rbind(tab[keep, cols, drop = FALSE], new[, cols, drop = FALSE])
@@ -456,7 +456,7 @@ cm_sensitivity <- function(x, inputs = c("entered", "unknown"), change = 0.2, ra
                  central = list(total = base$total, contributions = base$by_disease, first = first0,
                                 adjusted = stats::setNames(res$adjusted$adjusted, res$adjusted$disease)),
                  metric = if (ctx$event) "attributable risk" else "aggregate",
-                 units = res$units, label = res$label, event = ctx$event,
+                 units = res$units, outcome = res$outcome, event = ctx$event,
                  settings = list(change = change, inputs = inputs)),
             class = "cm_sensitivity")
 }
@@ -770,35 +770,6 @@ print.cm_sensitivity <- function(x, n = 10, digits = 3, ...) {
                               x$metric, r2, if (is.finite(r2) && r2 < 0.8) "; the shares are rough" else ""))
   }
   for (nt in notes) cat(strwrap(nt, width = getOption("width", 80L)), sep = "\n")
-  invisible(x)
-}
-
-#' @rdname plots
-#' @param n For `cm_sensitivity` plots: the number of inputs to show.
-#' @param main For `cm_sensitivity` plots: the title.
-#' @export
-plot.cm_sensitivity <- function(x, n = 10, main = "Sensitivity (one input at a time)", ...) {
-  d <- x$inputs[is.finite(x$inputs$swing), , drop = FALSE]
-  if (!nrow(d)) cm_abort("No input has a swing to plot.", class = "deconflate_invalid_input")
-  d <- utils::head(d, n)
-  d <- d[rev(seq_len(nrow(d))), , drop = FALSE]
-  base <- x$central$total
-  lo <- pmin(d$total_low, d$total_high)
-  hi <- pmax(d$total_low, d$total_high)
-  k <- nrow(d)
-  op <- graphics::par(mar = c(4, 14, 3, 1))
-  on.exit(graphics::par(op))
-  graphics::plot(base, 1, type = "n", xlim = range(c(lo, hi, base)), ylim = c(0.5, k + 0.5),
-                 yaxt = "n", xlab = sprintf("%s%s", tools_title(x$metric),
-                                            if (!is.null(x$units) && !is.na(x$units) && !x$event) sprintf(" (%s)", x$units) else ""),
-                 ylab = "", main = main, ...)
-  cols <- ifelse(d$kind == "unknown", "#DDCC77", "#88CCEE")
-  graphics::rect(lo, seq_len(k) - 0.4, hi, seq_len(k) + 0.4, col = cols, border = NA)
-  graphics::axis(2, at = seq_len(k), labels = d$label, las = 1, cex.axis = 0.7)
-  graphics::abline(v = base)
-  kinds <- intersect(c("entered", "unknown"), d$kind)
-  graphics::legend("bottomright", legend = kinds, fill = c(entered = "#88CCEE", unknown = "#DDCC77")[kinds],
-                   border = NA, bty = "n", cex = 0.8)
   invisible(x)
 }
 

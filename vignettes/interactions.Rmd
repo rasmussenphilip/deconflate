@@ -158,7 +158,7 @@ impacts (here hazard ratios of culling, with an overall culling risk of
 0.25; see `vignette("event-impacts")`):
 
 ```{r}
-hr <- cm_impacts(c("d1", "d2", "d3"), c(1.5, 2.0, 1.3), measure = "HR", label = "culling")
+hr <- cm_impacts(c("d1", "d2", "d3"), c(1.5, 2.0, 1.3), measure = "HR", outcome = "culling")
 e0 <- deconflate(cm_model(m, hr), event_model = TRUE, overall_risk = 0.25, n_draws = 0)
 e3 <- deconflate(cm_model(m3, hr), event_model = TRUE, overall_risk = 0.25, n_draws = 0)
 rbind(maximum_entropy = setNames(e0$adjusted$adjusted, e0$adjusted$disease),

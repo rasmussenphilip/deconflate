@@ -38,8 +38,10 @@
 #' 5. See which inputs matter, entered or not (unknown associations,
 #'    interactions), with [cm_sensitivity()] (also without any association
 #'    estimates); how often each disease ranks first over the draws in
-#'    `$ranks`; and where a conclusion (a ranking, a sign or the total)
-#'    changes as one input varies with [cm_threshold()].
+#'    `$ranks`; where a conclusion (a ranking, a sign, or the loss of a set
+#'    of diseases) changes as an input varies with [cm_threshold()]; and how
+#'    likely it is over the draws of the other inputs with
+#'    [cm_threshold_prob()].
 #'
 #' See `vignette("deconflate")` to get started.
 #'

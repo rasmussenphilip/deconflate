@@ -15,7 +15,7 @@
 \item{...}{Unused.}
 }
 \value{
-A \code{summary.cm_result} list with \code{method}, \code{label}, \code{units},
+A \code{summary.cm_result} list with \code{method}, \code{outcome}, \code{units},
 \code{event}, \code{impacts} (one row per disease and interaction: raw, adjusted,
 interval, change and, when some term has several rows, \code{rows}),
 \code{alone} (event impacts: \code{risk_alone}, \code{rr_alone}, \code{rd_alone}),

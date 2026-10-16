@@ -42,7 +42,7 @@ test_that("cm_read_inputs() takes three named tables and returns a model", {
   expect_equal(m$associations$row, 1:3)
   expect_equal(m$impacts$row, 1:3)
   expect_equal(attr(m$impacts, "units"), "%")
-  expect_null(attr(m$impacts, "label"))
+  expect_null(attr(m$impacts, "outcome"))
   expect_equal(attr(m$impacts, "kind"), "additive")
   expect_null(m$distributions)
   expect_equal(deconflate(m, n_draws = 0)$adjusted$adjusted,
@@ -87,7 +87,7 @@ test_that("the template writes four files, read back as yield (additive) and cul
   expect_equal(y$diseases$prob, c(0.25, 1 - exp(-0.48), 0.10))
   expect_equal(y$impacts$value, c(4.81, 8.40, 5.61))
   expect_equal(attr(y$impacts, "units"), "% of yield")
-  expect_equal(attr(y$impacts, "label"), "milk yield loss")
+  expect_equal(attr(y$impacts, "outcome"), "milk yield loss")
   expect_equal(impact_kind(y$impacts), "additive")
   expect_equal(names(y$distributions), c("prob:LAM", "associations:1", "impacts:1", "impacts:2"))
   expect_equal(y$distributions[["prob:LAM"]]$type, "beta")
@@ -108,7 +108,7 @@ test_that("the template writes four files, read back as yield (additive) and cul
   expect_equal(impact_kind(cu$impacts), "event")
   expect_equal(cu$impacts$measure, c("HR", "HR", "RR"))
   expect_equal(cu$impacts$value, c(1.74, 1.92, 1.45))
-  expect_equal(attr(cu$impacts, "label"), "culling")
+  expect_equal(attr(cu$impacts, "outcome"), "culling")
   expect_null(attr(cu$impacts, "units"))
   expect_equal(names(cu$distributions), c("prob:LAM", "associations:1", "impacts:1"))
   expect_equal(cu$distributions[["impacts:1"]]$type, "lognormal")
@@ -234,7 +234,7 @@ test_that("the shipped global dairy files match example_global_dairy()", {
     expect_equal(m$impacts$disease, ref$impacts$disease)
     expect_equal(m$impacts$value, ref$impacts$value, tolerance = 1e-12)
     expect_equal(m$impacts$measure, ref$impacts$measure)
-    expect_equal(attr(m$impacts, "label"), attr(ref$impacts, "label"))
+    expect_equal(attr(m$impacts, "outcome"), attr(ref$impacts, "outcome"))
     expect_equal(attr(m$impacts, "units"), attr(ref$impacts, "units"))
     expect_equal(impact_kind(m$impacts), if (outcome == "culling") "event" else "additive")
     # The distributions in the tables are those of the 2024 analysis (the
@@ -431,7 +431,7 @@ test_that("retired association measures and count columns are errors", {
 
 test_that("event impact tables have a measure column and are checked", {
   tabs <- supp_tables()
-  ev <- data.frame(disease = ids3, value = c(1.5, 1.3, 0.04), measure = c("HR", "RR", "RD"), label = "culling")
+  ev <- data.frame(disease = ids3, value = c(1.5, 1.3, 0.04), measure = c("HR", "RR", "RD"), outcome = "culling")
   m <- cm_read_inputs(diseases = tabs$diseases, associations = tabs$associations, impacts = ev)
   expect_equal(attr(m$impacts, "kind"), "event")
   expect_equal(m$impacts$measure, c("HR", "RR", "RD"))
@@ -516,18 +516,27 @@ test_that("columns that are no longer read give a note, and the tables still loa
   }
   expect_true(has_problem(pr, "associations", NA, "source", severity = "note"))
   expect_true(has_problem(pr, "impacts", NA, "source", severity = "note"))
-  # The impact table's `label` is still read (the outcome's name).
-  expect_false(has_problem(pr, "impacts", NA, "label", severity = "note"))
+  # The impact table's `label` is now called `outcome`: still read, with a note.
+  expect_true(has_problem(pr, "impacts", NA, "label", severity = "note"))
+  expect_true(any(grepl("Column `label` is now called `outcome`: rename it (read as the outcome).", pr$problem,
+                        fixed = TRUE)))
   expect_false(any(pr$severity == "error"))
   expect_true(any(grepl("Column `label` is not used; put free text in `note`.", pr$problem, fixed = TRUE)))
   m <- suppressMessages(cm_read_inputs(diseases = d, associations = a, impacts = im))
   expect_equal(names(m$diseases), c("disease", "prob", "value", "measure", "note"))
-  expect_equal(attr(m$impacts, "label"), "yield")
+  expect_equal(attr(m$impacts, "outcome"), "yield")
   # The same arguments of cm_diseases(), cm_associations() and cm_impacts().
   expect_message(dd <- cm_diseases("a", 0.1, label = "A"), "Argument `label` is not used; put free text in `note`.",
                  fixed = TRUE)
   expect_equal(names(dd), c("disease", "prob", "value", "measure", "note"))
-  expect_message(cm_diseases("a", 0.1, time_horizon = "year", reference_population = "herd"), "time_horizon")
+  msgs <- character(0)
+  withCallingHandlers(cm_diseases("a", 0.1, time_horizon = "year", reference_population = "herd"),
+                      message = function(m) {
+                        msgs <<- c(msgs, conditionMessage(m))
+                        invokeRestart("muffleMessage")
+                      })
+  expect_equal(trimws(msgs), c("Argument `time_horizon` is not used; put free text in `note`.",
+                               "Argument `reference_population` is not used; put free text in `note`."))
   expect_message(cm_associations("a", "b", 2, source = "x"), "`source` is not used")
   expect_message(cm_impacts("a", 1, source = "x"), "`source` is not used")
   expect_error(cm_diseases("a", 0.1, colour = "red"), class = "deconflate_invalid_input")
@@ -724,7 +733,7 @@ test_that("the five-disease example reads without problems and matches the refer
   expect_equal(th$thresholds$threshold[th$thresholds$status == "threshold"], 0.33002218486278845,
                tolerance = 1e-6)
   skip_on_cran()
-  th <- cm_threshold(w, "interaction:LAM;MAS", c(-5, 20), conclusion = "change", target = -0.1)
+  th <- cm_threshold(w, "interaction:LAM;MAS", c(-5, 20), conclusion = "total", target = 0.9, relative_to = "adjusted")
   expect_equal(sum(th$thresholds$status == "threshold"), 1)
   # Draws of every input: almost every draw is usable.
   dr <- deconflate(w, n_draws = 30, seed = 1)$draws
@@ -762,4 +771,43 @@ test_that("the n_draws = 0 note counts only the inputs with a distribution", {
   r <- deconflate(m, n_draws = 0)
   expect_true(any(grepl("2 inputs have a distribution, but n_draws = 0", r$notes, fixed = TRUE)))
   expect_false(any(grepl("n_draws = 0", deconflate(example_supplement(), n_draws = 0)$notes)))
+})
+
+test_that("the outcome and units of an impact table are optional, one of each per table", {
+  d <- data.frame(disease = c("a", "b"), value = c(0.1, 0.2))
+  a <- data.frame(disease = "a", associated_with = "b", value = 2)
+  im <- data.frame(disease = c("a", "b"), value = c(1, 2), outcome = "yield", units = "kg")
+  m <- cm_read_inputs(diseases = d, associations = a, impacts = im)
+  expect_equal(attr(m$impacts, "outcome"), "yield")
+  expect_equal(attr(m$impacts, "units"), "kg")
+  res <- deconflate(m)
+  expect_equal(res$outcome, "yield")
+  expect_equal(res$units, "kg")
+  expect_output(print(res), "yield [kg]", fixed = TRUE)
+  # Without them, the printouts use general wording.
+  m0 <- cm_read_inputs(diseases = d, associations = a, impacts = im[, c("disease", "value")])
+  expect_null(attr(m0$impacts, "outcome"))
+  expect_null(deconflate(m0)$outcome)
+  expect_output(print(m0), "Impacts: outcome not given (additive)", fixed = TRUE)
+  # An empty outcome is no outcome.
+  im$outcome <- NA
+  expect_null(attr(cm_read_inputs(diseases = d, impacts = im)$impacts, "outcome"))
+  # Several outcomes in one table: an error that says what to do.
+  im$outcome <- c("yield", "fertility")
+  pr <- cm_check_inputs(diseases = d, impacts = im)
+  expect_true(has_problem(pr, "impacts", NA, "outcome"))
+  expect_true(any(grepl("One outcome per table is allowed (found: yield, fertility). For several outcomes, keep one impact table per outcome",
+                        pr$problem, fixed = TRUE)))
+  # An outcome column wins over an old label column.
+  im$outcome <- "yield"
+  im$label <- "old"
+  pr <- cm_check_inputs(diseases = d, impacts = im)
+  expect_true(has_problem(pr, "impacts", NA, "label", severity = "note"))
+  expect_equal(attr(suppressMessages(cm_read_inputs(diseases = d, impacts = im))$impacts, "outcome"), "yield")
+  # The argument of cm_impacts(): `label` still works, with a message.
+  expect_message(ii <- cm_impacts(c("a", "b"), c(1, 2), label = "yield"),
+                 "Argument `label` is now called `outcome`: write `outcome = ` instead.", fixed = TRUE)
+  expect_equal(attr(ii, "outcome"), "yield")
+  expect_error(cm_impacts(c("a", "b"), c(1, 2), outcome = c("x", "y")), class = "deconflate_invalid_input")
+  expect_null(attr(cm_impacts(c("a", "b"), c(1, 2), outcome = "", units = NA), "outcome"))
 })

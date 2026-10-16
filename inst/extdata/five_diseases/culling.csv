@@ -1,4 +1,4 @@
-disease,among,adjusted_for,measure,value,label,study,dist,p1,p2,p3,p4,note
+disease,among,adjusted_for,measure,value,outcome,study,dist,p1,p2,p3,p4,note
 LAM,,,HR,1.74,culling,Study 1,lognormal_ci,1.74,1.40,2.16,,"hazard ratio (crude); entering a published hazard ratio as a snapshot comparison is an assumption; lognormal_ci(estimate, lower, upper)"
 MAS,,LAM;SCK,HR,1.6,culling,Study 2,,,,,,hazard ratio stratified by LAM and SCK; point value
 MET,,,RR,1.23,culling,Study 3,pert,1.05,1.23,1.50,,"risk ratio of culling within the lactation (needs overall_risk for the same period); pert(min, mode, max)"

@@ -8,15 +8,41 @@
 #' * `"sign"`: a disease's adjusted impact crosses zero (for event impacts,
 #'   its adjusted hazard ratio crosses 1). This is a sign change implied by
 #'   the model and its inputs, not by itself evidence of a protective effect;
-#' * `"total"`: the total crosses `target`;
-#' * `"change"`: the total departs from its value at the model's own input
-#'   by the relative amount `target` (e.g. `0.1` for +10%), which answers
-#'   questions such as "what association strength would increase the total
-#'   by 10%?".
+#' * `"total"`: the loss of a set of diseases (the sum of their
+#'   contributions; all diseases when `diseases` is left out, which is the
+#'   adjusted aggregate) crosses `target`. The target is a value in the units
+#'   of the impacts, or, with `relative_to`, a fraction of the set's adjusted
+#'   value (`"adjusted"`, at the model's own inputs) or of its raw value
+#'   (`"raw"`, the diseases unrelated): `target = 0.8, relative_to =
+#'   "adjusted"` finds where the loss is 20% below its current value.
 #'
-#' The total is the adjusted aggregate (in the units of the impacts) for
-#' additive impacts, and the risk attributable to disease for event impacts
-#' (`event_model = TRUE`), whose contributions are its Shapley allocation.
+#' For event impacts (`event_model = TRUE`) the total is the risk
+#' attributable to disease, and the contributions are its Shapley
+#' allocation. A set's loss includes its shares of the interactions with
+#' diseases outside the set; it is the set's part of the current total, not
+#' the loss there would be if only those diseases existed.
+#'
+#' Without `input`, the inputs are chosen automatically: the `top` inputs
+#' (3 by default) whose low and high values in [cm_sensitivity()] move the
+#' compared quantity most (the set's loss for `"total"`, the difference
+#' between two diseases for `"rank"`, a disease's adjusted value for
+#' `"sign"`), each searched over its default range (see Search ranges).
+#' Several inputs can also be named. The result is then a
+#' `cm_threshold_set`: one table of the inputs and one of the crossings.
+#'
+#' @section Search ranges:
+#' When `range` (or a row of `ranges`) is not given, each input is searched
+#' over a default range:
+#' * entered inputs with a distribution: its 0.5% and 99.5% quantiles;
+#' * entered inputs without one: the value minus and plus 50%
+#'   (probabilities stay inside (0, 1), risk differences and phi inside
+#'   (-1, 1)); a value of zero needs a range;
+#' * a pair that no row mentions (`pair:`): odds ratios 0.2 to 5;
+#' * an interaction without a combination row (`interaction:`): minus to
+#'   plus the smaller of the two adjusted impacts (in absolute value); for
+#'   event impacts a hazard ratio from 0.5 to 2;
+#' * a three-way association without an `OR_ratio` row (`or_ratio:`): 0.25
+#'   to 4.
 #'
 #' @section Method:
 #' The response need not be monotonic, so the range is first scanned on a
@@ -48,8 +74,9 @@
 #' distribution, it is fitted once and reused (or the `joint` passed through
 #' `...` is used).
 #'
-#' Thresholds are deterministic: they are for the model's input values. To
-#' see first which inputs matter, use [cm_sensitivity()].
+#' Thresholds are deterministic: they are for the model's input values. For
+#' the probability that a conclusion holds when the other inputs are
+#' uncertain, use [cm_threshold_prob()].
 #'
 #' @param model A [deconflate()] result (its settings are used), or a
 #'   [cm_model()].
@@ -63,15 +90,30 @@
 #'   explored), `"interaction:<d1>;<d2>"` (an interaction: a row for the
 #'   combination adjusted for all; for event impacts a hazard ratio) or
 #'   `"or_ratio:<d1>:<d2>|<d3>"` (how much disease 3 changes the
-#'   association of diseases 1 and 2).
-#' @param range Two numbers: the range of the input to search.
-#' @param conclusion `"rank"`, `"sign"`, `"total"` or `"change"`.
-#' @param target For `"total"`, the value of the aggregate (for event
-#'   impacts, of the attributable risk); for `"change"`, the relative change
-#'   from the baseline (e.g. `0.1`, or `-0.1`).
-#' @param diseases Optional disease ids to restrict `"rank"` (pairs among
-#'   them) and `"sign"`.
+#'   association of diseases 1 and 2). Several keys search each in turn;
+#'   left out, the inputs are chosen automatically (see `top`).
+#' @param range Two numbers: the range of the input to search (one input
+#'   only). Left out, the default range (see Search ranges).
+#' @param conclusion `"rank"`, `"sign"` or `"total"`.
+#' @param target For `"total"`: the value of the set's loss (for event
+#'   impacts, its attributable risk), or with `relative_to` a fraction of
+#'   its adjusted or raw value (e.g. `0.8`).
+#' @param diseases Disease ids: for `"total"`, the set whose loss is
+#'   compared; for `"rank"` the pairs among them; for `"sign"` the diseases
+#'   checked. Left out: all diseases.
+#' @param relative_to For `"total"`: `NULL` (default; `target` is a value),
+#'   `"adjusted"` or `"raw"` (`target` is a fraction of the set's adjusted
+#'   or raw value at the model's own inputs).
 #' @param by For `"rank"`: `"contribution"` (default) or `"adjusted"`.
+#' @param top Without `input`: how many inputs to search (default 3).
+#' @param inputs Without `input`: the candidates, `"entered"`, `"unknown"`
+#'   or both (default), as in [cm_sensitivity()].
+#' @param ranges Optional data frame with columns `input`, `low` and `high`:
+#'   the search ranges of those inputs (instead of the defaults).
+#' @param sensitivity Without `input`: a [cm_sensitivity()] result of the
+#'   same model to choose from (it is computed otherwise).
+#' @param three_way Without `input`: three-way inputs to consider, as in
+#'   [cm_sensitivity()].
 #' @param event_model,overall_risk,baseline_risk With a model: as in
 #'   [deconflate()] (a distribution of the risk is used at its mean). With a
 #'   result they are taken from it.
@@ -84,16 +126,26 @@
 #'   cannot be passed through `...`.
 #' @param ... `joint`, or arguments of [fit_joint()] (e.g.
 #'   `backend = "sampled"`).
-#' @return A `cm_threshold` object: `thresholds` (one row per crossing:
-#'   conclusion, item, status, threshold, bracket `lower`/`upper`, the
-#'   compared quantity just below and above, and a description), `details`
-#'   (for each crossing, the adjusted results at the two ends of its
-#'   bracket), `scan` (each grid point with its status, the aggregate and the
-#'   condition number), `regions` (stretches of unusable grid points),
-#'   `summary` (per item: number of thresholds, and whether part of the range
-#'   could not be evaluated), and the settings (`input`, `range`, `baseline`
-#'   value of the input, `method` (the computations used), `conclusion`,
-#'   `target`, `fixed`).
+#' @return For one input, a `cm_threshold` object: `thresholds` (one row per
+#'   crossing: conclusion, item, status, threshold, bracket `lower`/`upper`,
+#'   the compared quantity just below and above, and a description),
+#'   `details` (for each crossing, the adjusted results at the two ends of
+#'   its bracket), `scan` (each grid point with its status, the aggregate and
+#'   the condition number), `regions` (stretches of unusable grid points),
+#'   `summary` (per item: number of thresholds, and whether part of the
+#'   range could not be evaluated), and the settings (`input` and its
+#'   `label`, `range`, `baseline` value of the input, `method` (the
+#'   computations used), `conclusion`, `target`, `level` (the value the loss
+#'   is compared with), `diseases`, `relative_to`, `fixed`, and the impact
+#'   table's `outcome` and `units`).
+#'
+#'   For several inputs (or none named), a `cm_threshold_set`: `inputs` (one
+#'   row per input: key, label, kind, `effect` (how much it moved the
+#'   compared quantity in [cm_sensitivity()], when chosen automatically),
+#'   the range searched and how it was set, the baseline value, the number
+#'   of thresholds and the result), `thresholds` (the crossings of all
+#'   inputs, with an `input` column) and `searches` (each input's
+#'   `cm_threshold`).
 #' @export
 #' @examples
 #' m <- example_supplement()
@@ -102,38 +154,26 @@
 #' th
 #' # What odds ratio between d1 and d3 (an odds ratio of 1 in the example)
 #' # would reduce the aggregate by 10%?
-#' cm_threshold(m, "pair:d1:d3", c(1, 50), conclusion = "change", target = -0.1)$thresholds
-#' # From a result: its settings are used
+#' cm_threshold(m, "pair:d1:d3", c(1, 50), conclusion = "total", target = 0.9,
+#'              relative_to = "adjusted")$thresholds
+#' # The loss of d2 and d3 together, from a result: its settings are used
 #' res <- deconflate(m, n_draws = 0)
-#' cm_threshold(res, "interaction:d2;d3", c(-2, 2), conclusion = "rank")$summary
-cm_threshold <- function(model, input, range, conclusion = c("rank", "sign", "total", "change"),
-                         target = NULL, diseases = NULL, by = c("contribution", "adjusted"),
-                         event_model = FALSE, overall_risk = NULL,
+#' cm_threshold(res, "pair:d2:d3", conclusion = "total", diseases = c("d2", "d3"), target = 1.8)
+#' # The three inputs that matter most for the ranking of d1 and d2
+#' cm_threshold(res, conclusion = "rank", diseases = c("d1", "d2"), top = 3)
+cm_threshold <- function(model, input = NULL, range = NULL, conclusion = c("rank", "sign", "total"),
+                         target = NULL, diseases = NULL, relative_to = NULL, by = c("contribution", "adjusted"),
+                         top = 3, inputs = c("entered", "unknown"), ranges = NULL, sensitivity = NULL,
+                         three_way = NULL, event_model = FALSE, overall_risk = NULL,
                          n_grid = 101L, log_scale = NULL, tol = 1e-8, baseline_risk = NULL, ...) {
   dots <- list(...)
   retired_args(dots)
-  if (inherits(model, "cm_result") || inherits(model, "cm_event_result")) {
-    if (!isFALSE(event_model) || !is.null(overall_risk) || !is.null(baseline_risk)) {
-      cm_abort("With a deconflate() result, the settings come from the result: leave out event_model, overall_risk and baseline_risk.",
-               class = "deconflate_invalid_input")
-    }
-    ctx <- result_context(model)
-    st <- list(event_model = ctx$event, risk = ctx$risk$value, risk_kind = ctx$risk$kind %||% "overall",
-               pool = ctx$plan$pool %||% "random")
-    dots <- utils::modifyList(ctx$dots, dots)
-    model <- ctx$model
-    event_model <- ctx$event
-  } else {
-    st <- sens_setup(model, event_model, overall_risk, baseline_risk = baseline_risk)
-    st$pool <- "random"
+  if (identical(conclusion, "change")) {
+    cm_abort("conclusion = 'change' has been replaced: use conclusion = 'total', relative_to = 'adjusted' and target = 1 + the change (e.g. target = 0.9 for 10% below the current total).",
+             class = "deconflate_unsupported")
   }
-  conclusion <- cm_match_arg(conclusion)
-  by <- cm_match_arg(by)
-  if (!is.character(input) || length(input) != 1L || is.na(input)) {
-    cm_abort("`input` must be a single string such as \"pair:d1:d2\".", class = "deconflate_invalid_input")
-  }
-  check_numeric(range, "range")
-  if (length(range) != 2L || range[1] >= range[2]) cm_abort("`range` must be two increasing numbers.", class = "deconflate_invalid_input")
+  th <- threshold_setup(model, event_model, overall_risk, baseline_risk, dots)
+  spec <- threshold_spec(conclusion, target, diseases, relative_to, by, th$model)
   if (!is.numeric(n_grid) || length(n_grid) != 1L || !is.finite(n_grid) || n_grid < 3) {
     cm_abort("`n_grid` must be a single number, at least 3.", class = "deconflate_invalid_input")
   }
@@ -144,17 +184,175 @@ cm_threshold <- function(model, input, range, conclusion = c("rank", "sign", "to
   if (!is.null(log_scale) && (!is.logical(log_scale) || length(log_scale) != 1L || is.na(log_scale))) {
     cm_abort("`log_scale` must be NULL, TRUE or FALSE.", class = "deconflate_invalid_input")
   }
-  if (conclusion %in% c("total", "change")) {
-    if (is.null(target) || !is.numeric(target) || length(target) != 1L || !is.finite(target)) {
-      cm_abort(sprintf("conclusion = '%s' needs a single finite `target`.", conclusion), class = "deconflate_invalid_input")
-    }
+  if (!is.null(input) && (!is.character(input) || !length(input) || anyNA(input))) {
+    cm_abort("`input` must be an input key such as \"pair:d1:d2\", several keys, or left out.",
+             class = "deconflate_invalid_input")
   }
+  sel <- threshold_inputs(th, spec, input, range, top, inputs, ranges, sensitivity, three_way)
+  if (!is.null(input) && length(input) == 1L) {
+    return(threshold_search(th, sel$inputs$input[1], c(sel$inputs$low[1], sel$inputs$high[1]), spec,
+                            n_grid, log_scale, tol))
+  }
+  searches <- lapply(seq_len(nrow(sel$inputs)), function(i) {
+    if (!is.finite(sel$inputs$low[i])) return(NULL)
+    tryCatch(threshold_search(th, sel$inputs$input[i], c(sel$inputs$low[i], sel$inputs$high[i]), spec,
+                              n_grid, log_scale, tol),
+             deconflate_error = function(e) e)
+  })
+  names(searches) <- sel$inputs$input
+  threshold_set(sel, searches, spec)
+}
+
+# Settings of a threshold search: the model, the risk and how it is given,
+# the fit arguments, and the central result when the model came as one (or
+# a function that computes it when needed).
+threshold_setup <- function(model, event_model, overall_risk, baseline_risk, dots) {
+  if (inherits(model, "cm_result") || inherits(model, "cm_event_result")) {
+    if (!isFALSE(event_model) || !is.null(overall_risk) || !is.null(baseline_risk)) {
+      cm_abort("With a deconflate() result, the settings come from the result: leave out event_model, overall_risk and baseline_risk.",
+               class = "deconflate_invalid_input")
+    }
+    ctx <- result_context(model)
+    st <- list(event_model = ctx$event, risk = ctx$risk$value, risk_kind = ctx$risk$kind %||% "overall",
+               pool = ctx$plan$pool %||% "random")
+    return(list(model = ctx$model, st = st, dots = utils::modifyList(ctx$dots, dots), risk_dist = ctx$risk$dist,
+                res = model))
+  }
+  st <- sens_setup(model, event_model, overall_risk, baseline_risk = baseline_risk)
+  st$pool <- "random"
+  risk <- check_overall_risk(overall_risk, event_model, baseline_risk)
+  list(model = model, st = st, dots = dots, risk_dist = risk$dist, res = NULL,
+       args = list(event_model = event_model, overall_risk = overall_risk, baseline_risk = baseline_risk))
+}
+
+# The central result of a threshold setup (computed when the model came
+# without one).
+threshold_central <- function(th) {
+  if (!is.null(th$res)) return(th$res)
+  dots <- th$dots[intersect(names(th$dots), c("pool", "joint", joint_arg_names))]
+  sens_central(th$model, th$args$event_model, th$args$overall_risk, th$args$baseline_risk, dots)
+}
+
+# What is compared: the conclusion with its target, set of diseases and
+# reference, checked against the model.
+threshold_spec <- function(conclusion, target, diseases, relative_to, by, model) {
+  conclusion <- cm_match_arg(conclusion, c("rank", "sign", "total"))
+  by <- cm_match_arg(by, c("contribution", "adjusted"))
   ids <- model$diseases$disease
   if (!is.null(diseases)) {
-    if (!is.character(diseases) || !length(diseases)) cm_abort("`diseases` must be a character vector of disease ids.", class = "deconflate_invalid_input")
+    if (!is.character(diseases) || !length(diseases) || anyNA(diseases)) {
+      cm_abort("`diseases` must be a character vector of disease ids.", class = "deconflate_invalid_input")
+    }
     check_disease_ids(diseases, model)
     diseases <- unique(diseases)
   }
+  if (conclusion == "rank" && length(diseases %||% ids) < 2L) {
+    cm_abort("conclusion = 'rank' needs at least two diseases.", class = "deconflate_invalid_input")
+  }
+  if (conclusion == "total") {
+    if (is.null(target) || !is.numeric(target) || length(target) != 1L || !is.finite(target)) {
+      cm_abort("conclusion = 'total' needs a single finite `target`.", class = "deconflate_invalid_input")
+    }
+    if (!is.null(relative_to)) relative_to <- cm_match_arg(relative_to, c("adjusted", "raw"))
+  } else {
+    if (!is.null(target)) cm_abort(sprintf("`target` is used only with conclusion = 'total' (not '%s').", conclusion),
+                                    class = "deconflate_invalid_input")
+    if (!is.null(relative_to)) cm_abort("`relative_to` is used only with conclusion = 'total'.",
+                                        class = "deconflate_invalid_input")
+  }
+  # A set of all diseases is the aggregate itself.
+  set <- if (conclusion == "total" && !is.null(diseases) && length(diseases) < length(ids)) ids[ids %in% diseases]
+  list(conclusion = conclusion, target = target, diseases = diseases, set = set, relative_to = relative_to,
+       by = by, ids = ids)
+}
+
+# The loss of a set of diseases in a result: the sum of their contributions
+# (NULL set: the total).
+set_total <- function(res, set) {
+  bm <- burden_metric(res)
+  if (is.null(set)) bm$total else sum(bm$by_disease[set])
+}
+
+# The level the loss is compared with: the target, or the target times the
+# set's adjusted or raw value at the model's own inputs (`base`: the central
+# result of the model as given).
+threshold_level <- function(spec, model, st, dots, base) {
+  if (spec$conclusion != "total") return(list(level = NA_real_, reference = NA_real_))
+  if (is.null(spec$relative_to)) return(list(level = spec$target, reference = NA_real_))
+  if (is.null(base)) {
+    cm_abort("The model as given cannot be adjusted, so a relative target has no reference value.",
+             class = "deconflate_nonfinite")
+  }
+  ref <- if (spec$relative_to == "adjusted") set_total(base, spec$set) else {
+    plan <- plan_model(model, st$event_model, dots = dots[intersect(names(dots), joint_arg_names)],
+                       pool = st$pool, risk_kind = st$risk_kind)
+    rt <- raw_total(model, plan, st$risk, base$row_se, by_disease = !is.null(spec$set))
+    if (is.null(spec$set)) rt else sum(rt[spec$set])
+  }
+  if (!is.finite(ref) || ref <= 0) {
+    cm_abort(sprintf("The %s value of the %s is %s, so a target relative to it is undefined; give the target as a value.",
+                     spec$relative_to, if (is.null(spec$set)) "total" else "set",
+                     if (!is.finite(ref)) "not available" else if (ref == 0) "zero" else sprintf("negative (%s)", fmt_num(ref))),
+             class = "deconflate_nonfinite")
+  }
+  list(level = spec$target * ref, reference = ref)
+}
+
+# The items compared for a conclusion: one per disease ("sign"), per pair
+# ("rank") or one ("total"), with what they compare.
+threshold_items <- function(spec, level) {
+  use <- spec$diseases %||% spec$ids
+  switch(spec$conclusion,
+    total = data.frame(item = if (is.null(spec$set)) "total" else sprintf("total of %s", paste(spec$set, collapse = ", ")),
+                       a = NA_character_, b = NA_character_, level = level, stringsAsFactors = FALSE),
+    sign = data.frame(item = use, a = use, b = NA_character_, level = 0, stringsAsFactors = FALSE),
+    rank = {
+      if (length(use) < 2L) cm_abort("conclusion = 'rank' needs at least two diseases.", class = "deconflate_invalid_input")
+      pr <- utils::combn(use, 2)
+      data.frame(item = paste(pr[1, ], pr[2, ], sep = " vs "), a = pr[1, ], b = pr[2, ],
+                 level = 0, stringsAsFactors = FALSE)
+    })
+}
+
+# The compared quantities of a result: each crosses zero where the
+# conclusion changes.
+threshold_metric <- function(res, spec, items) {
+  event <- inherits(res, "cm_event_result")
+  switch(spec$conclusion,
+    total = stats::setNames(set_total(res, spec$set) - items$level, items$item),
+    sign = {
+      a <- res$adjusted
+      v <- a$adjusted[match(items$a, a$disease)]
+      stats::setNames(if (event) log(v) else v, items$item)
+    },
+    rank = {
+      sc <- if (spec$by == "contribution") burden_metric(res)$by_disease else
+        stats::setNames(res$adjusted$adjusted, res$adjusted$disease)
+      stats::setNames(unname(sc[items$a] - sc[items$b]), items$item)
+    })
+}
+
+# The words for what is compared with the target: "the aggregate", "the
+# attributable risk of LAM and SCK", ...
+total_words <- function(spec, event) {
+  what <- if (event) "attributable risk" else "aggregate"
+  if (is.null(spec$set)) sprintf("the %s", what) else
+    sprintf("the %s of %s", if (event) "attributable risk" else "loss", join_and(spec$set))
+}
+
+# The target in words: "2.00", "0.8 times its adjusted value (1.64)".
+target_words <- function(spec, level, reference) {
+  if (is.null(spec$relative_to)) return(fmt_num(level))
+  sprintf("%s times its %s value (%s)", format(signif(spec$target, 3)), spec$relative_to, fmt_num(level))
+}
+
+# One threshold search over `range` for one input.
+threshold_search <- function(th, input, range, spec, n_grid, log_scale, tol) {
+  model <- th$model
+  st <- th$st
+  dots <- th$dots
+  check_numeric(range, "range")
+  if (length(range) != 2L || range[1] >= range[2]) cm_abort("`range` must be two increasing numbers.", class = "deconflate_invalid_input")
   setter <- threshold_setter(model, input, st)
   if (setter$type == "inter" && isTRUE(st$event_model) && range[1] <= 0) {
     cm_abort("An interaction of event impacts is a hazard ratio: `range` must be positive.",
@@ -221,35 +419,12 @@ cm_threshold <- function(model, input, range, conclusion = c("rank", "sign", "to
   total_of <- function(res) burden_metric(res)$total
 
   # The compared quantities: each must cross zero where the conclusion
-  # changes.
-  base_eval <- evaluate_model(model, st)
-  base_total <- if (identical(base_eval$status, "ok")) total_of(base_eval$res) else NA_real_
-  if (conclusion == "change" && !is.finite(base_total)) {
-    # (The baseline is the model as given, with the input at its own value.)
-    cm_abort(sprintf("The baseline result is not usable (%s), so a relative change cannot be computed.",
-                     base_eval$status),
-             class = type_class(switch(base_eval$status, unresolved = "nonconvergence", undefined = "nonfinite",
-                                       base_eval$status)))
-  }
-  if (conclusion == "change" && base_total == 0) {
-    cm_abort("The baseline aggregate is zero, so a relative change is undefined; use conclusion = 'total'.", class = "deconflate_nonfinite")
-  }
-  items <- threshold_items(conclusion, ids, diseases, target, base_total)
-  metric <- function(res) {
-    event <- inherits(res, "cm_event_result")
-    switch(conclusion,
-      total = , change = stats::setNames(total_of(res) - items$level, items$item),
-      sign = {
-        a <- res$adjusted
-        v <- a$adjusted[match(items$a, a$disease)]
-        stats::setNames(if (event) log(v) else v, items$item)
-      },
-      rank = {
-        sc <- if (by == "contribution") burden_metric(res)$by_disease else
-          stats::setNames(res$adjusted$adjusted, res$adjusted$disease)
-        stats::setNames(unname(sc[items$a] - sc[items$b]), items$item)
-      })
-  }
+  # changes. A relative target refers to the model as given (the input at
+  # its own value).
+  base_eval <- if (!is.null(spec$relative_to)) evaluate_model(model, st)
+  lv <- threshold_level(spec, model, st, dots, if (identical(base_eval$status, "ok")) base_eval$res)
+  items <- threshold_items(spec, lv$level)
+  metric <- function(res) threshold_metric(res, spec, items)
 
   evals <- lapply(xs, evaluate)
   status <- vapply(evals, `[[`, character(1), "status")
@@ -271,6 +446,7 @@ cm_threshold <- function(model, input, range, conclusion = c("rank", "sign", "to
     if (length(v) && max(abs(v)) > 0) max(abs(v)) else 1
   })
   width_tol <- function(lo, hi) tol * max(abs(lo), abs(hi), 1)
+  event <- isTRUE(base_plan$event)
 
   rows <- list()
   details <- list()
@@ -287,7 +463,7 @@ cm_threshold <- function(model, input, range, conclusion = c("rank", "sign", "to
       lo <- xs[g]; hi <- xs[h]
       flo <- f[g]; fhi <- f[h]
       rlo <- evals[[g]]$res; rhi <- evals[[h]]$res
-      st <- "threshold"
+      stt <- "threshold"
       if (flo != 0 && fhi != 0) {
         w_stop <- 1e-6 * (hi - lo)
         for (it in seq_len(200L)) {
@@ -298,7 +474,7 @@ cm_threshold <- function(model, input, range, conclusion = c("rank", "sign", "to
             # A singular point between values of opposite sign is a pole of
             # the system (not a threshold); any other failure leaves the
             # crossing unresolved.
-            st <- if (identical(e$status, "singular")) "discontinuity" else "unresolved"
+            stt <- if (identical(e$status, "singular")) "discontinuity" else "unresolved"
             break
           }
           fm <- metric(e$res)[[k]]
@@ -313,21 +489,20 @@ cm_threshold <- function(model, input, range, conclusion = c("rank", "sign", "to
           }
         }
       }
-      if (st == "threshold" && flo != 0 && fhi != 0) {
+      if (stt == "threshold" && flo != 0 && fhi != 0) {
         # Continuity: a genuine crossing has a small compared quantity on
         # both sides; a pole has large values of opposite sign.
         eps <- 1e-4 * scale_f[k]
         kap <- max(rlo$diagnostics$condition_number, rhi$diagnostics$condition_number)
-        if (max(abs(flo), abs(fhi)) > eps || !is.finite(kap) || kap > 1e12) st <- "discontinuity"
+        if (max(abs(flo), abs(fhi)) > eps || !is.finite(kap) || kap > 1e12) stt <- "discontinuity"
       }
       x0 <- if (zero_run) xs[g + 1L] else if (flo == 0) lo else if (fhi == 0) hi else
         if (log_scale) sqrt(lo * hi) else (lo + hi) / 2
       rows[[length(rows) + 1L]] <- data.frame(
-        conclusion = conclusion, item = items$item[k], status = st,
-        threshold = if (st == "threshold") x0 else NA_real_,
+        conclusion = spec$conclusion, item = items$item[k], status = stt,
+        threshold = if (stt == "threshold") x0 else NA_real_,
         lower = lo, upper = hi, below = flo, above = fhi,
-        description = threshold_description(conclusion, items[k, ], flo, fhi, by, st, target,
-                                            isTRUE(base_plan$event)),
+        description = threshold_description(spec, items[k, ], flo, fhi, stt, lv, event),
         stringsAsFactors = FALSE)
       details[[length(details) + 1L]] <- list(below = rlo$adjusted, above = rhi$adjusted,
                                               totals_below = threshold_totals(rlo),
@@ -359,10 +534,13 @@ cm_threshold <- function(model, input, range, conclusion = c("rank", "sign", "to
                            "none found in the range")))
   rownames(summary) <- NULL
   structure(list(thresholds = thresholds, details = details, scan = scan, regions = regions,
-                 summary = summary, input = input, range = range, baseline = setter$baseline,
+                 summary = summary, input = input, label = threshold_label(input, model, st), range = range,
+                 baseline = setter$baseline, outcome = impact_meta(model$impacts)$outcome,
+                 units = impact_meta(model$impacts)$units,
                  method = paste(if (length(used)) used else "none", collapse = ", "),
-                 event_model = event_model, conclusion = conclusion, target = target, by = by,
-                 log_scale = log_scale,
+                 event_model = st$event_model, conclusion = spec$conclusion, target = spec$target,
+                 level = lv$level, reference = lv$reference, diseases = spec$diseases,
+                 relative_to = spec$relative_to, by = spec$by, log_scale = log_scale,
                  fixed = sprintf("all inputs other than %s at the model's values", input),
                  values = vals),
             class = "cm_threshold")
@@ -380,39 +558,345 @@ threshold_status <- function(e) {
          unsupported = "unsupported", nonfinite = "undefined", "error")
 }
 
-# Items compared for a conclusion, with what they compare.
-threshold_items <- function(conclusion, ids, diseases, target, base_total) {
-  use <- diseases %||% ids
-  switch(conclusion,
-    total = data.frame(item = "total", a = NA_character_, b = NA_character_, level = target,
-                       stringsAsFactors = FALSE),
-    change = data.frame(item = "total", a = NA_character_, b = NA_character_,
-                        level = base_total + target * abs(base_total), stringsAsFactors = FALSE),
-    sign = data.frame(item = use, a = use, b = NA_character_, level = 0, stringsAsFactors = FALSE),
-    rank = {
-      if (length(use) < 2L) cm_abort("conclusion = 'rank' needs at least two diseases.", class = "deconflate_invalid_input")
-      pr <- utils::combn(use, 2)
-      data.frame(item = paste(pr[1, ], pr[2, ], sep = " vs "), a = pr[1, ], b = pr[2, ],
-                 level = 0, stringsAsFactors = FALSE)
-    })
-}
-
-threshold_description <- function(conclusion, item, flo, fhi, by, status, target = NULL,
-                                  event = FALSE) {
+threshold_description <- function(spec, item, flo, fhi, status, lv, event = FALSE) {
   if (status != "threshold") {
     return(switch(status,
       discontinuity = "sign change across a pole or a nearly singular system (not a threshold)",
       unresolved = "the crossing could not be refined: an unusable point lies inside the bracket"))
   }
   up <- fhi > flo
-  what <- if (event) "the attributable risk" else "the aggregate"
-  switch(conclusion,
-    total = sprintf("%s %s the target", what, if (up) "rises above" else "falls below"),
-    change = sprintf("%s %s the baseline %s %g%%", what, if (up) "rises above" else "falls below",
-                     if (isTRUE(target >= 0)) "+" else "-", abs(100 * target)),
+  switch(spec$conclusion,
+    total = sprintf("%s %s %s", total_words(spec, event), if (up) "rises above" else "falls below",
+                    target_words(spec, lv$level, lv$reference)),
     sign = sprintf("the adjusted value of %s moves %s no effect (a model-implied sign change)",
                    item$a, if (up) "above" else "below"),
-    rank = sprintf("%s %s %s (by %s)", item$a, if (up) "moves above" else "moves below", item$b, by))
+    rank = sprintf("%s %s %s (by %s)", item$a, if (up) "moves above" else "moves below", item$b, spec$by))
+}
+
+# Default search ranges (see ?cm_threshold, Search ranges).
+thr_unknown_pair <- c(0.2, 5)
+thr_unknown_hr <- c(0.5, 2)
+thr_unknown_or_ratio <- c(0.25, 4)
+
+# The inputs to search, with their ranges: the named ones, or the `top`
+# chosen from cm_sensitivity(). Returns a data frame (input, label, kind,
+# effect, low, high, how, value).
+threshold_inputs <- function(th, spec, input, range, top, inputs, ranges, sensitivity, three_way) {
+  model <- th$model
+  if (!is.null(range) && (is.null(input) || length(input) != 1L)) {
+    cm_abort("`range` is for one input; give several ranges with `ranges` (a data frame input, low, high).",
+             class = "deconflate_invalid_input")
+  }
+  if (!is.null(ranges) && (!is.data.frame(ranges) || !all(c("input", "low", "high") %in% names(ranges)))) {
+    cm_abort("`ranges` must be a data frame with columns input, low and high.", class = "deconflate_invalid_input")
+  }
+  central <- NULL
+  get_central <- function() {
+    if (is.null(central)) central <<- threshold_central(th)
+    central
+  }
+  if (is.null(input)) {
+    if (!is.numeric(top) || length(top) != 1L || !is.finite(top) || top < 1 || top != round(top)) {
+      cm_abort("`top` must be a whole number, 1 or more.", class = "deconflate_invalid_input")
+    }
+    s <- sensitivity
+    if (is.null(s)) {
+      s <- cm_sensitivity(get_central(), inputs = inputs, three_way = three_way)
+    } else if (!inherits(s, "cm_sensitivity")) {
+      cm_abort("`sensitivity` must be a cm_sensitivity() result.", class = "deconflate_invalid_input")
+    } else if (!all(unique(s$by_disease$disease) %in% model$diseases$disease)) {
+      cm_abort("`sensitivity` is for another model (its diseases differ).", class = "deconflate_invalid_input")
+    }
+    pick <- threshold_select(s, spec, top, isTRUE(th$st$event_model))
+    if (!nrow(pick)) {
+      cm_abort("No input moved the compared quantity in cm_sensitivity(), so there is nothing to search.",
+               class = "deconflate_invalid_input")
+    }
+    keys <- pick$input
+  } else {
+    keys <- unique(input)
+    # Each key is checked as the search would check it (retired keys say
+    # what to write instead).
+    for (k in keys) threshold_setter(model, k, th$st)
+    pick <- data.frame(input = keys, label = NA_character_, kind = NA_character_, effect = NA_real_,
+                       stringsAsFactors = FALSE)
+  }
+  rows <- lapply(seq_along(keys), function(i) {
+    k <- keys[i]
+    given <- if (!is.null(range)) range else if (!is.null(ranges) && k %in% ranges$input) {
+      r <- ranges[match(k, ranges$input), ]
+      c(r$low, r$high)
+    }
+    d <- if (!is.null(given)) {
+      list(low = given[1], high = given[2], how = "given", value = NA_real_)
+    } else {
+      threshold_default_range(k, th, get_central)
+    }
+    data.frame(low = d$low, high = d$high, how = d$how, value = d$value, stringsAsFactors = FALSE)
+  })
+  out <- cbind(pick, do.call(rbind, rows))
+  # Labels and kinds of named inputs.
+  lab <- vapply(out$input, function(k) threshold_label(k, model, th$st), character(1))
+  out$label <- ifelse(is.na(out$label), lab, out$label)
+  out$kind <- ifelse(is.na(out$kind),
+                     vapply(out$input, function(k) if (is.null(entered_key(k, model))) "unknown" else "entered",
+                            character(1)), out$kind)
+  rownames(out) <- NULL
+  if (!is.null(input) && length(input) == 1L && !is.finite(out$low[1])) {
+    cm_abort(sprintf("No default range for '%s' (%s): give `range`.", input, out$how[1]), class = "deconflate_invalid_input")
+  }
+  list(inputs = out, auto = is.null(input), sensitivity = if (is.null(input)) s)
+}
+
+# A short label of an input key.
+threshold_label <- function(k, model, st) {
+  if (grepl("^(prob|associations|impacts):", k) || k == "risk") {
+    return(tryCatch(input_labels(model, k, st$risk_kind %||% "overall"), error = function(e) k))
+  }
+  if (startsWith(k, "pair:")) {
+    p <- strsplit(sub("^pair:", "", k), ":", fixed = TRUE)[[1]]
+    return(sprintf("%s-%s OR", p[1], p[2]))
+  }
+  if (startsWith(k, "interaction:")) return(sprintf("%s interaction", sub("^interaction:", "", k)))
+  if (startsWith(k, "or_ratio:")) {
+    p <- strsplit(sub("^or_ratio:", "", k), "[:|]")[[1]]
+    return(sprintf("%s-%s OR ratio among %s", p[1], p[2], p[3]))
+  }
+  k
+}
+
+# The entered row a key names ("pair:a:b" with one crude pair row,
+# "interaction:a;b" with a combination row adjusted for all, "or_ratio:..."
+# with an OR_ratio row), the key itself for entered keys, or NULL.
+entered_key <- function(k, model) {
+  if (grepl("^(prob|associations|impacts):", k) || k == "risk") return(k)
+  parts <- strsplit(k, ":", fixed = TRUE)[[1]]
+  if (parts[1] == "pair" && length(parts) == 3L && !is.null(model$associations)) {
+    hit <- pair_row_hits(model$associations, parts[2], parts[3], model$diseases$disease)
+    if (sum(hit) == 1L) return(paste0("associations:", model$associations$row[hit]))
+  } else if (parts[1] == "interaction" && length(parts) == 2L) {
+    ab <- strsplit(parts[2], ";", fixed = TRUE)[[1]]
+    im <- model$impacts
+    hit <- same_set(im$disease, paste(ab, collapse = ";")) & is_all(im$adjusted_for) & is.na(im$among)
+    if (any(hit)) return(paste0("impacts:", im$row[which(hit)[1]]))
+  } else if (parts[1] == "or_ratio") {
+    tr <- strsplit(sub("^or_ratio:", "", k), "[:|]")[[1]]
+    a <- model$associations
+    if (length(tr) == 3L && !is.null(a) && or_ratio_entered(model, tr)) {
+      hit <- a$measure == "OR_ratio" & vapply(seq_len(nrow(a)), function(r) {
+        setequal(c(a$disease[r], a$associated_with[r], sub("^no\\s+", "", a$among[r])), tr)
+      }, logical(1))
+      return(paste0("associations:", a$row[which(hit)[1]]))
+    }
+  }
+  NULL
+}
+
+# The default search range of one input (see ?cm_threshold, Search ranges):
+# list(low, high, how, value). `get_central()` gives the central result
+# (for the adjusted impacts that scale an unknown interaction).
+threshold_default_range <- function(k, th, get_central) {
+  model <- th$model
+  st <- th$st
+  none <- function(why) list(low = NA_real_, high = NA_real_, how = why, value = NA_real_)
+  parts <- strsplit(k, ":", fixed = TRUE)[[1]]
+  ek <- entered_key(k, model)
+  if (!is.null(ek)) {
+    ck <- if (ek == "risk") "risk" else tryCatch(canonical_key(ek, model), deconflate_error = function(e) NA_character_)
+    if (is.na(ck)) return(none("not an input of the model"))
+    if (ck == "risk" && !isTRUE(st$event_model)) return(none("not an event model"))
+    v <- input_value(model, ck, st$risk)
+    d <- input_dists(model, th$risk_dist)[[ck]]
+    # An OR_ratio row among "no <d3>" holds the inverse of the ratio that
+    # the key "or_ratio:..." varies.
+    inv <- parts[1] == "or_ratio" && grepl("^no\\s+",
+                                         model$associations$among[match(as.integer(sub("^associations:", "", ck)),
+                                                                        model$associations$row)])
+    if (!is.null(d)) {
+      lo <- d$q(0.005)
+      hi <- d$q(0.995)
+      if (inv) return(list(low = 1 / hi, high = 1 / lo, how = "99% of its distribution", value = 1 / v))
+      return(list(low = lo, high = hi, how = "99% of its distribution", value = v))
+    }
+    if (inv) v <- 1 / v
+    if (!is.finite(v) || v == 0) return(none("value 0: give a range"))
+    lo <- min(v * 0.5, v * 1.5)
+    hi <- max(v * 0.5, v * 1.5)
+    meas <- input_measure(model, ck)
+    if (ck == "risk" || isTRUE(meas %in% c("prevalence", "probability"))) {
+      lo <- max(lo, 1e-6)
+      hi <- min(hi, 1 - 1e-6)
+    }
+    if (isTRUE(meas %in% c("RD", "phi"))) {
+      lo <- max(lo, -1 + 1e-6)
+      hi <- min(hi, 1 - 1e-6)
+    }
+    return(list(low = lo, high = hi, how = "value -50% to +50%", value = v))
+  }
+  switch(parts[1],
+    pair = list(low = thr_unknown_pair[1], high = thr_unknown_pair[2],
+                how = sprintf("OR %g-%g", thr_unknown_pair[1], thr_unknown_pair[2]), value = NA_real_),
+    or_ratio = list(low = thr_unknown_or_ratio[1], high = thr_unknown_or_ratio[2],
+                    how = sprintf("ratio %g-%g", thr_unknown_or_ratio[1], thr_unknown_or_ratio[2]), value = NA_real_),
+    interaction = {
+      if (isTRUE(st$event_model)) {
+        list(low = thr_unknown_hr[1], high = thr_unknown_hr[2],
+             how = sprintf("HR %g-%g", thr_unknown_hr[1], thr_unknown_hr[2]), value = NA_real_)
+      } else {
+        ab <- strsplit(parts[2], ";", fixed = TRUE)[[1]]
+        res <- get_central()
+        adj <- stats::setNames(res$adjusted$adjusted, res$adjusted$disease)
+        if (length(ab) != 2L || !all(ab %in% names(adj))) return(none("unknown diseases"))
+        w <- min(abs(adj[[ab[1]]]), abs(adj[[ab[2]]]))
+        if (!is.finite(w) || w == 0) return(none("adjusted impact 0: give a range"))
+        list(low = -w, high = w, how = "+/- the smaller adjusted impact", value = 0)
+      }
+    },
+    none("unknown input"))
+}
+
+# The `top` inputs of a cm_sensitivity() result by their effect on the
+# compared quantity (data frame input, label, kind, effect).
+threshold_select <- function(s, spec, top, event) {
+  tab <- s$inputs
+  bd <- s$by_disease
+  eff <- vapply(tab$input, function(k) {
+    b <- bd[bd$input == k, , drop = FALSE]
+    val <- function(col, ds) stats::setNames(b[[col]][match(ds, b$disease)], ds)
+    switch(spec$conclusion,
+      total = if (is.null(spec$set)) abs(tab$total_high[tab$input == k] - tab$total_low[tab$input == k]) else
+        abs(sum(val("contribution_high", spec$set)) - sum(val("contribution_low", spec$set))),
+      sign = {
+        ds <- spec$diseases %||% spec$ids
+        lo <- val("adjusted_low", ds)
+        hi <- val("adjusted_high", ds)
+        if (event) {
+          lo <- log(lo)
+          hi <- log(hi)
+        }
+        d <- abs(hi - lo)
+        if (all(is.na(d))) NA_real_ else max(d, na.rm = TRUE)
+      },
+      rank = {
+        ds <- spec$diseases %||% spec$ids
+        col <- if (spec$by == "contribution") "contribution" else "adjusted"
+        lo <- val(paste0(col, "_low"), ds)
+        hi <- val(paste0(col, "_high"), ds)
+        pr <- utils::combn(ds, 2)
+        d <- abs((hi[pr[1, ]] - hi[pr[2, ]]) - (lo[pr[1, ]] - lo[pr[2, ]]))
+        if (all(is.na(d))) NA_real_ else max(d, na.rm = TRUE)
+      })
+  }, numeric(1), USE.NAMES = FALSE)
+  keep <- is.finite(eff) & eff > 0
+  out <- data.frame(input = tab$input[keep], label = tab$label[keep], kind = tab$kind[keep], effect = eff[keep],
+                    stringsAsFactors = FALSE)
+  out <- out[order(-out$effect), , drop = FALSE]
+  out <- utils::head(out, top)
+  rownames(out) <- NULL
+  out
+}
+
+# Combine the searches of several inputs into a cm_threshold_set.
+threshold_set <- function(sel, searches, spec) {
+  inp <- sel$inputs
+  nth <- vapply(seq_len(nrow(inp)), function(i) {
+    s <- searches[[i]]
+    if (inherits(s, "cm_threshold")) sum(s$thresholds$status == "threshold") else NA_integer_
+  }, integer(1))
+  result <- vapply(seq_len(nrow(inp)), function(i) {
+    s <- searches[[i]]
+    if (is.null(s)) return(sprintf("not searched (%s)", inp$how[i]))
+    if (inherits(s, "condition")) return(sprintf("could not be searched: %s", conditionMessage(s)))
+    r <- s$summary$result
+    if (any(r == "threshold(s) found")) "threshold(s) found" else r[1]
+  }, character(1))
+  inp$baseline <- vapply(seq_len(nrow(inp)), function(i) {
+    s <- searches[[i]]
+    if (inherits(s, "cm_threshold") && !is.null(s$baseline)) s$baseline else inp$value[i]
+  }, numeric(1))
+  inp$value <- NULL
+  inp$n_thresholds <- nth
+  inp$result <- result
+  ths <- lapply(seq_len(nrow(inp)), function(i) {
+    s <- searches[[i]]
+    if (!inherits(s, "cm_threshold") || !nrow(s$thresholds)) return(NULL)
+    cbind(data.frame(input = inp$input[i], label = inp$label[i], stringsAsFactors = FALSE), s$thresholds)
+  })
+  ths <- do.call(rbind, ths[!vapply(ths, is.null, logical(1))])
+  if (is.null(ths)) {
+    ths <- data.frame(input = character(0), label = character(0), conclusion = character(0), item = character(0),
+                      status = character(0), threshold = numeric(0), lower = numeric(0), upper = numeric(0),
+                      below = numeric(0), above = numeric(0), description = character(0), stringsAsFactors = FALSE)
+  }
+  rownames(ths) <- NULL
+  first <- Find(function(s) inherits(s, "cm_threshold"), searches)
+  structure(list(inputs = inp, thresholds = ths, searches = searches, auto = sel$auto,
+                 conclusion = spec$conclusion, target = spec$target, diseases = spec$diseases,
+                 relative_to = spec$relative_to, by = spec$by,
+                 level = if (!is.null(first)) first$level else NA_real_,
+                 reference = if (!is.null(first)) first$reference else NA_real_,
+                 event_model = if (!is.null(first)) first$event_model else NA,
+                 outcome = first$outcome, units = first$units),
+            class = "cm_threshold_set")
+}
+
+# What a threshold search compares, in words (the first line of print()).
+threshold_question <- function(x) {
+  spec <- list(conclusion = x$conclusion, set = if (x$conclusion == "total" && length(x$diseases)) x$diseases,
+               relative_to = x$relative_to, target = x$target)
+  event <- isTRUE(x$event_model)
+  switch(x$conclusion,
+    total = sprintf("where %s crosses %s", total_words(spec, event),
+                    if (is.finite(x$level)) target_words(spec, x$level, x$reference) else format(x$target)),
+    sign = sprintf("where the adjusted value of %s crosses no effect",
+                   if (length(x$diseases)) join_and(x$diseases) else "a disease"),
+    rank = sprintf("where %s swap places (by %s)",
+                   if (length(x$diseases)) join_and(x$diseases) else "two diseases", x$by))
+}
+
+#' @export
+print.cm_threshold_set <- function(x, digits = 3, ...) {
+  f <- function(v) fmt_num(v, digits, na = "NA")
+  inp <- x$inputs
+  cat_wrapped(sprintf("<cm_threshold_set> %s; %d input%s%s", threshold_question(x), nrow(inp),
+                      if (nrow(inp) == 1L) "" else "s",
+                      if (isTRUE(x$auto)) ", chosen by their effect in cm_sensitivity()" else ""))
+  cat("\n")
+  tab <- data.frame(input = inp$label, now = f(inp$baseline), from = f(inp$low), to = f(inp$high),
+                    stringsAsFactors = FALSE)
+  tab$now[!is.finite(inp$baseline)] <- "-"
+  if (isTRUE(x$auto)) tab$effect <- f(inp$effect)
+  tab$thresholds <- ifelse(is.na(inp$n_thresholds), "-", inp$n_thresholds)
+  rest <- sum(vapply(names(tab)[-1], function(nm) max(nchar(c(nm, tab[[nm]]))) + 1L, numeric(1)))
+  room <- max(16L, getOption("width", 80L) - rest - 2L)
+  long <- nchar(tab$input) > room
+  tab$input[long] <- paste0(substr(tab$input[long], 1L, room - 3L), "...")
+  print_table(tab, left = "input")
+  th <- x$thresholds
+  cat("\n")
+  if (nrow(th)) {
+    cat("Crossings:\n")
+    for (i in seq_len(nrow(th))) {
+      lo <- f(th$lower[i])
+      hi <- f(th$upper[i])
+      at <- if (identical(th$status[i], "threshold")) sprintf("at %s", f(th$threshold[i])) else
+        sprintf("%s between %s and %s", th$status[i], lo, hi)
+      item <- if (x$conclusion == "total") "" else paste0(th$item[i], ", ")
+      cat(strwrap(sprintf("%s: %s%s; %s", th$label[i], item, at, th$description[i]),
+                  width = getOption("width", 80L), indent = 2L, exdent = 4L), sep = "\n")
+    }
+  }
+  none <- inp$result != "threshold(s) found"
+  if (any(none)) {
+    cat(if (nrow(th)) "\n" else "", "No threshold:\n", sep = "")
+    for (i in which(none)) {
+      cat(strwrap(sprintf("%s: %s", inp$label[i], inp$result[i]), width = getOption("width", 80L),
+                  indent = 2L, exdent = 4L), sep = "\n")
+    }
+  }
+  cat_wrapped("now: the input's value in the model; from, to: the range searched. Each search is in $searches.",
+              exdent = 0L)
+  invisible(x)
 }
 
 # Contiguous stretches of unusable grid points.
@@ -566,9 +1050,10 @@ threshold_brackets <- function(f, ok) {
 #' @export
 print.cm_threshold <- function(x, digits = 3, ...) {
   f <- function(v) fmt_num(v, digits)
-  cat_wrapped(c(sprintf("<cm_threshold> %s over %s in [%s, %s] (baseline %s; method %s)", x$conclusion, x$input,
-                        sprintf("%g", x$range[1]), sprintf("%g", x$range[2]),
-                        if (is.null(x$baseline) || is.na(x$baseline)) "not entered" else sprintf("%g", x$baseline), x$method),
+  cat_wrapped(c(sprintf("<cm_threshold> %s, as %s varies from %s to %s (now %s; method %s)",
+                        threshold_question(x), x$input, format(signif(x$range[1], 3)), format(signif(x$range[2], 3)),
+                        if (is.null(x$baseline) || is.na(x$baseline)) "not entered" else format(signif(x$baseline, 3)),
+                        x$method),
                 sprintf("Fixed: %s.", x$fixed)))
   n_bad <- sum(x$scan$status != "ok")
   if (n_bad) {
@@ -595,36 +1080,3 @@ print.cm_threshold <- function(x, digits = 3, ...) {
   invisible(x)
 }
 
-#' @rdname plots
-#' @param items For `cm_threshold` plots: the items to show (default all).
-#' @export
-plot.cm_threshold <- function(x, items = NULL, ...) {
-  v <- x$values
-  items <- items %||% colnames(v)
-  unk <- setdiff(items, colnames(v))
-  if (length(unk)) {
-    cm_abort(sprintf("Unknown items: %s (available: %s).", paste(unk, collapse = ", "),
-                     paste(colnames(v), collapse = ", ")), class = "deconflate_invalid_input")
-  }
-  v <- v[, items, drop = FALSE]
-  xs <- x$scan$value
-  cols <- grDevices::hcl.colors(max(2L, ncol(v)), "Dark 3")[seq_len(ncol(v))]
-  ylim <- range(v, 0, finite = TRUE)
-  graphics::matplot(xs, v, type = "l", lty = 1, col = cols, log = if (isTRUE(x$log_scale)) "x" else "",
-                    xlab = x$input, ylab = switch(x$conclusion, rank = "difference in score",
-                                                  sign = if (isTRUE(x$event_model)) "log adjusted hazard ratio" else "adjusted impact",
-                                                  "total minus target"),
-                    main = sprintf("Threshold search: %s", x$conclusion), ylim = ylim, ...)
-  graphics::abline(h = 0, col = "grey50")
-  if (isTRUE(is.finite(x$baseline)) && (!isTRUE(x$log_scale) || x$baseline > 0)) {
-    graphics::abline(v = x$baseline, lty = 3, col = "grey40")
-  }
-  bad <- x$scan$status != "ok"
-  if (any(bad)) graphics::rug(xs[bad], col = "#CC6677", lwd = 2)
-  th <- x$thresholds[x$thresholds$status == "threshold" & x$thresholds$item %in% items, , drop = FALSE]
-  if (nrow(th)) graphics::abline(v = th$threshold, lty = 2, col = cols[match(th$item, items)])
-  if (ncol(v) <= 8) {
-    graphics::legend("topright", legend = items, col = cols, lty = 1, bty = "n", cex = 0.8)
-  }
-  invisible(x)
-}

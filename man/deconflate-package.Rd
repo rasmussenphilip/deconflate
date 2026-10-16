@@ -45,8 +45,10 @@ monetary value) is left to the user.
 \item See which inputs matter, entered or not (unknown associations,
 interactions), with \code{\link[=cm_sensitivity]{cm_sensitivity()}} (also without any association
 estimates); how often each disease ranks first over the draws in
-\verb{$ranks}; and where a conclusion (a ranking, a sign or the total)
-changes as one input varies with \code{\link[=cm_threshold]{cm_threshold()}}.
+\verb{$ranks}; where a conclusion (a ranking, a sign, or the loss of a set
+of diseases) changes as an input varies with \code{\link[=cm_threshold]{cm_threshold()}}; and how
+likely it is over the draws of the other inputs with
+\code{\link[=cm_threshold_prob]{cm_threshold_prob()}}.
 }
 
 See \code{vignette("deconflate")} to get started.

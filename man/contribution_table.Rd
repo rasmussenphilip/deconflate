@@ -13,8 +13,8 @@ contribution_table(result)
 A data frame with the columns \code{disease}, (event impacts:
 \code{measure}), \code{raw}, \code{adjusted}, \code{adjusted_lower}, \code{adjusted_upper},
 \code{change}, (event impacts: \code{risk_alone}, \code{rr_alone}, \code{rd_alone}),
-\code{contribution}, \code{contribution_lower}, \code{contribution_upper}, \code{main},
-\code{interaction} and \code{share}.
+\code{raw_contribution}, \code{contribution}, \code{contribution_lower},
+\code{contribution_upper}, \code{main}, \code{interaction} and \code{share}.
 }
 \description{
 One row per disease with the raw estimate (of its row, when it has
@@ -36,6 +36,10 @@ estimate (on the raw estimate's measure), and the disease's share of the
 risk attributable to disease (\code{contribution}: Shapley allocation, as a
 proportion of animals).
 }
+
+\code{raw_contribution} is the disease's contribution with the diseases
+unrelated (the same model without association rows; these add up to the
+raw total or raw attributable risk).
 
 In both cases the contribution is split into the disease's own part
 (\code{main}: its Shapley value with the interactions set to zero) and its

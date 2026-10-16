@@ -134,7 +134,7 @@ adjust_event <- function(model, overall_risk, joint, warn = TRUE, allocate = TRU
                              stringsAsFactors = FALSE),
     joint = joint, model = model, method = "snapshot",
     overall_risk = attributable$summary$overall_risk, risk_given = risk_kind,
-    label = attr(imp, "label"), units = attr(imp, "units"), row_se = se, terms = members
+    outcome = impact_meta(imp)$outcome, units = impact_meta(imp)$units, row_se = se, terms = members
   ), class = "cm_event_result")
 }
 

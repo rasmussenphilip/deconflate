@@ -83,8 +83,10 @@ relative change and the number of rows (with draws, also \code{lower} and
 "Raw and adjusted totals"), the adjusted aggregate and its
 interaction part;
 \item \code{contributions}: per disease, its \code{contribution} to the aggregate
-(Shapley value), split into \code{main} and \code{interaction} parts, and its
-\code{share} (with draws, also \code{lower} and \code{upper});
+(Shapley value), split into \code{main} and \code{interaction} parts, its
+\code{share} (with draws, also \code{lower} and \code{upper}), and its
+\code{raw_contribution} (the same with the diseases unrelated: they add up
+to the raw total);
 \item \code{estimates}: every input row (impacts and associations) with its
 value, fitted value and standardised residual (and, for impact rows,
 the SD used as weight; 0 for an exact row);
@@ -106,7 +108,7 @@ distribution: effect per SD and SD needed, for each flagged disease;
 \code{listed} marks those printed), \code{thresholds} (inputs without a
 distribution), \code{no_single_fix}, \code{disagreeing} and \code{settings};
 \item \code{notes}, \code{conflation} (the row equations), \code{joint_pairs} (matrix of
-\verb{P(j and k)}), \code{model}, \code{joint}, \code{method}, \code{label}, \code{units} and
+\verb{P(j and k)}), \code{model}, \code{joint}, \code{method}, \code{outcome}, \code{units} and
 \code{settings} (what \code{\link[=cm_sensitivity]{cm_sensitivity()}} and \code{\link[=cm_threshold]{cm_threshold()}} need to
 rerun the model).
 }
@@ -116,13 +118,14 @@ ratios of diseases and interactions, the change from the raw estimate,
 and the risk-scale results \code{risk_alone}, \code{rr_alone}, \code{rd_alone} and
 \code{or_alone}), \code{contributions} (as for additive impacts: each disease's
 share of the attributable risk, Shapley allocation, with its \code{main} and
-\code{interaction} parts), \code{attributable} (\code{summary}: overall, disease-free,
+\code{interaction} parts and its \code{raw_contribution}, the diseases
+unrelated), \code{attributable} (\code{summary}: overall, disease-free,
 raw and adjusted attributable risk and the attributable fraction;
 \code{baseline_hazard}), \code{conflation} (the local row equations), \code{estimates},
 \code{heterogeneity}, \code{diagnostics}, \code{unknown_pairs}, \code{draws}, \code{ranks} (by
 share of the attributable risk), \code{problems}
 (with \code{diagnose = TRUE}), \code{notes}, \code{joint}, \code{model}, \code{method},
-\code{overall_risk}, \code{risk_given} (\code{"overall"} or \code{"baseline"}) and
+\code{outcome}, \code{units}, \code{overall_risk}, \code{risk_given} (\code{"overall"} or \code{"baseline"}) and
 \code{settings}. Risks are
 proportions of animals with the event during the period.
 }
@@ -340,7 +343,7 @@ deconflate(m2, n_draws = 200, seed = 1)
 # Event impacts (culling): hazard ratios and a risk ratio
 cull <- cm_model(example_supplement(),
                  cm_impacts(c("d1", "d2", "d3"), c(1.5, 2.0, 1.2), measure = c("HR", "HR", "RR"),
-                            label = "culling"))
+                            outcome = "culling"))
 deconflate(cull, event_model = TRUE, overall_risk = 0.25)
 
 # Errors hold the inputs they are about

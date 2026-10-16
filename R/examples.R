@@ -14,7 +14,7 @@ example_supplement <- function() {
     cm_diseases(c("d1", "d2", "d3"), c(0.10, 0.15, 0.20)),
     cm_associations(c("d1", "d1", "d2"), c("d2", "d3", "d3"), c(2, 1, 3), measure = "OR")
   )
-  cm_model(pop, cm_impacts(c("d1", "d2", "d3"), c(2.5, 5, 7.5), label = "yield", units = "%",
+  cm_model(pop, cm_impacts(c("d1", "d2", "d3"), c(2.5, 5, 7.5), outcome = "yield", units = "%",
                            note = "Rasmussen et al. 2022, Table S1"))
 }
 
@@ -119,12 +119,12 @@ example_global_dairy <- function(outcome = c("yield", "fertility", "culling"),
   g <- global_dairy_inputs(inputs)
   d <- global_dairy_dists(inputs)
   imp <- switch(outcome,
-    yield = cm_impacts(g$ids, unname(g$yield[g$ids]), label = "milk yield loss",
+    yield = cm_impacts(g$ids, unname(g$yield[g$ids]), outcome = "milk yield loss",
                        units = "% decrease", note = g$src),
-    fertility = cm_impacts(g$ids, unname(g$fert[g$ids]), label = "calving interval increase",
+    fertility = cm_impacts(g$ids, unname(g$fert[g$ids]), outcome = "calving interval increase",
                            units = "% increase", note = g$src),
     culling = cm_impacts(g$ids, unname(g$hr[g$ids]), measure = "HR",
-                         label = "culling", note = g$src))
+                         outcome = "culling", note = g$src))
   impd <- switch(outcome, yield = d$yield, fertility = d$fert, culling = d$cull_hr)
   dists <- c(d$pop, if (length(impd)) stats::setNames(impd, paste0("impact:", names(impd))))
   cm_model(g$pop, imp, distributions = dists)

@@ -287,28 +287,39 @@ interactions_message <- "Interactions are now rows of the impact table: disease 
 #'   the diagnosis.
 #' @param note Optional free text (e.g. the citation); never used by the
 #'   package.
-#' @param label,units Optional table-level metadata (e.g.
-#'   `label = "milk yield loss"`, `units = "% of yield"`), carried into the
-#'   results.
+#' @param outcome,units Optional: what the impacts are about and their
+#'   units, one text each (e.g. `outcome = "milk yield loss"`,
+#'   `units = "% of yield"`). They are carried into the results and used in
+#'   the printouts and plot titles; without them, these use general wording
+#'   and the axes show no unit. (`label` is the old name of `outcome`: it
+#'   still works, with a message.)
 #' @param ... Not used (arguments of earlier versions give a message;
 #'   `source` is ignored: put free text in `note`). The arguments after it
 #'   must be named.
 #'
-#' @return A `cm_impacts` data frame (attributes `label`, `units` and
+#' @return A `cm_impacts` data frame (attributes `outcome`, `units` and
 #'   `kind`, `"additive"` or `"event"`).
 #' @export
 #' @examples
-#' cm_impacts(c("d1", "d2", "d3"), c(2.5, 5, 7.5), label = "yield", units = "%")
+#' cm_impacts(c("d1", "d2", "d3"), c(2.5, 5, 7.5), outcome = "yield", units = "%")
 #' # Two estimates for d1, and the interaction of d1 and d2
 #' cm_impacts(c("d1", "d1", "d2", "d3", "d1;d2"), c(2.5, 2.1, 5, 7.5, 1),
 #'            adjusted_for = c(NA, "d2", NA, NA, "all"), units = "%")
 #' # Event impacts: culling, with mixed measures
 #' cm_impacts(c("d1", "d2", "d3"), c(1.5, 1.3, 0.04), measure = c("HR", "RR", "RD"),
-#'            label = "culling")
+#'            outcome = "culling")
 cm_impacts <- function(disease, value, ..., among = NA_character_, adjusted_for = NA_character_,
                        measure = NULL, study = NA_character_, note = NA_character_,
-                       label = NULL, units = NULL) {
-  old_args(unused_args(list(...), c("time_horizon", "reference_population", "source")), c(estimand = estimand_message))
+                       outcome = NULL, units = NULL) {
+  dots <- list(...)
+  if ("label" %in% names(dots)) {
+    cm_inform("Argument `label` is now called `outcome`: write `outcome = ` instead.")
+    if (is.null(outcome)) outcome <- dots$label
+    dots$label <- NULL
+  }
+  old_args(unused_args(dots, c("time_horizon", "reference_population", "source")), c(estimand = estimand_message))
+  outcome <- meta_text(outcome, "outcome")
+  units <- meta_text(units, "units")
   disease <- as.character(disease)
   n <- length(disease)
   if (!n) cm_abort("At least one impact is required.", class = "deconflate_invalid_input")
@@ -336,7 +347,7 @@ cm_impacts <- function(disease, value, ..., among = NA_character_, adjusted_for 
                     study = as.character(recycle_arg(study, n, "study")),
                     note = as.character(recycle_arg(note, n, "note")),
                     stringsAsFactors = FALSE)
-  attr(out, "label") <- label
+  attr(out, "outcome") <- outcome
   attr(out, "units") <- units
   attr(out, "kind") <- if (event) "event" else "additive"
   class(out) <- c("cm_impacts", "data.frame")
@@ -457,6 +468,25 @@ check_impact_rows <- function(impacts, ids) {
   rownames(impacts) <- NULL
   attr(impacts, "kind") <- kind
   impacts
+}
+
+# The optional outcome or units of an impact table: one text, or NULL when
+# missing, NA or empty.
+meta_text <- function(x, arg) {
+  if (is.null(x)) return(NULL)
+  if (!is.atomic(x) || length(x) > 1L) {
+    cm_abort(sprintf("`%s` must be one piece of text (one %s per impact table).", arg,
+                     if (arg == "units") "unit" else arg), class = "deconflate_invalid_input")
+  }
+  if (!length(x) || is.na(x)) return(NULL)
+  x <- trimws(as.character(x))
+  if (nzchar(x)) x else NULL
+}
+
+# The outcome and units of an impact table (`label` is the attribute of
+# objects made by earlier versions).
+impact_meta <- function(imp) {
+  list(outcome = attr(imp, "outcome") %||% attr(imp, "label"), units = attr(imp, "units"))
 }
 
 # Columns and arguments of earlier versions that are no longer used.

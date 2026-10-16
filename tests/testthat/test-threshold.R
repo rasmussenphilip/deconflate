@@ -4,7 +4,7 @@
 test_that("a relative change in the aggregate is found for an association", {
   m <- example_supplement()
   # d1:d3 is independent in the example (baseline OR 1).
-  th <- cm_threshold(m, "pair:d1:d3", c(1, 50), conclusion = "change", target = -0.1)
+  th <- cm_threshold(m, "pair:d1:d3", c(1, 50), conclusion = "total", target = 0.9, relative_to = "adjusted")
   expect_s3_class(th, "cm_threshold")
   expect_equal(th$baseline, 1)
   expect_true(th$log_scale)
@@ -20,7 +20,7 @@ test_that("a relative change in the aggregate is found for an association", {
   expect_equal(length(th$details), 1)
   expect_true(all(c("below", "above") %in% names(th$details[[1]])))
   expect_output(print(th), "Crossings")
-  th2 <- cm_threshold(m, "pair:d2:d3", c(0.2, 20), conclusion = "change", target = 0.1)
+  th2 <- cm_threshold(m, "pair:d2:d3", c(0.2, 20), conclusion = "total", target = 1.1, relative_to = "adjusted")
   expect_equal(th2$thresholds$threshold[th2$thresholds$status == "threshold"],
                1.4333305414665463, tolerance = 1e-6)
 })
@@ -214,8 +214,8 @@ test_that("interaction inputs fit the full model", {
 
 test_that("rows are varied by number and by alias", {
   m <- example_supplement()
-  a <- cm_threshold(m, "pair:d2:d3", c(0.2, 20), conclusion = "change", target = 0.1, n_grid = 21)
-  b <- cm_threshold(m, "associations:3", c(0.2, 20), conclusion = "change", target = 0.1, n_grid = 21)
+  a <- cm_threshold(m, "pair:d2:d3", c(0.2, 20), conclusion = "total", target = 1.1, relative_to = "adjusted", n_grid = 21)
+  b <- cm_threshold(m, "associations:3", c(0.2, 20), conclusion = "total", target = 1.1, relative_to = "adjusted", n_grid = 21)
   expect_equal(a$thresholds$threshold, b$thresholds$threshold)
   expect_equal(a$baseline, b$baseline)
   i1 <- cm_threshold(m, "impacts:2", c(0, 20), conclusion = "total", target = 3, n_grid = 11)
@@ -236,8 +236,8 @@ test_that("rows are varied by number and by alias", {
 })
 
 test_that("descriptions of relative changes give the level", {
-  th <- cm_threshold(example_supplement(), "pair:d2:d3", c(0.2, 20), conclusion = "change", target = 0.1)
-  expect_match(th$thresholds$description, "the aggregate (rises above|falls below) the baseline \\+ 10%")
+  th <- cm_threshold(example_supplement(), "pair:d2:d3", c(0.2, 20), conclusion = "total", target = 1.1, relative_to = "adjusted")
+  expect_match(th$thresholds$description, "the aggregate (rises above|falls below) 1.1 times its adjusted value \\(")
 })
 
 test_that("inputs are validated", {
@@ -252,11 +252,19 @@ test_that("inputs are validated", {
   expect_error(cm_threshold(m, "impacts:1", c(0, 1), conclusion = "rank", diseases = c("d1", "d1")),
                "at least two")
   expect_error(cm_threshold(m, "pair:d1:d1", c(1, 2)), "same disease twice")
-  expect_error(cm_threshold(m, c("impacts:1", "impacts:2"), c(1, 2)), "single string")
+  expect_error(cm_threshold(m, c("impacts:1", "impacts:2"), c(1, 2)), "`range` is for one input")
+  expect_error(cm_threshold(m, "impacts:1", c(0, 1), conclusion = "change", target = 0.1),
+               "relative_to = 'adjusted'", class = "deconflate_unsupported")
+  expect_error(cm_threshold(m, "impacts:1", c(0, 1), conclusion = "rank", target = 1), "only with conclusion")
+  expect_error(cm_threshold(m, "impacts:1", c(0, 1), conclusion = "sign", relative_to = "raw"), "only with conclusion")
+  expect_error(cm_threshold(m, "impacts:1", c(0, 1), conclusion = "total", target = 1, relative_to = "x"),
+               class = "deconflate_invalid_input")
+  expect_error(cm_threshold(m, conclusion = "rank", top = 0), "top")
+  expect_error(cm_threshold(m, conclusion = "rank", sensitivity = list()), "cm_sensitivity")
   expect_error(cm_threshold(m, "impacts:1", c(0, 1), n_grid = NA), "n_grid")
   expect_error(cm_threshold(m, "impacts:1", c(0, 1), log_scale = NA), "log_scale")
-  expect_error(cm_threshold(supp_model(c(0, 0, 0)), "impacts:1", c(0, 1), conclusion = "change",
-                            target = 0.1), "zero")
+  expect_error(cm_threshold(supp_model(c(0, 0, 0)), "impacts:1", c(0, 1), conclusion = "total",
+                            target = 1.1, relative_to = "adjusted"), "zero")
   expect_error(cm_threshold(m, "prob:d1", c(0.05, 0.5), joint = fit_joint(m)), "fixed `joint`")
 })
 
@@ -272,5 +280,151 @@ test_that("the printout fits 80 columns and says when the input was not entered"
   th <- cm_threshold(m, "pair:d1:d3", c(0.2, 5), conclusion = "rank")
   out <- capture.output(print(th))
   expect_true(all(nchar(out) <= 80))
-  expect_match(out[1], "baseline not entered", fixed = TRUE)
+  expect_match(printed(th), "(now not entered;", fixed = TRUE)
+})
+
+# ---- v0.6 item 12: targets for sets of diseases, relative targets ---------
+# Reference values: inst/validation/reference_v06_thresholds.py.
+
+test_that("the loss of a set of diseases crosses a target", {
+  m <- read_five("impacts_yield.csv")
+  set <- c("LAM", "MAS", "SCK")
+  a1 <- cm_threshold(m, "associations:3", c(1, 4), conclusion = "total", diseases = set, target = 1.95, n_grid = 31)
+  expect_equal(a1$thresholds$threshold, 3.5001209402, tolerance = 1e-6)
+  expect_equal(a1$thresholds$item, "total of LAM, MAS, SCK")
+  expect_match(a1$thresholds$description, "the loss of LAM, MAS and SCK falls below 1.95", fixed = TRUE)
+  a2 <- cm_threshold(m, "associations:3", c(1, 4), conclusion = "total", diseases = set, target = 0.97,
+                     relative_to = "adjusted", n_grid = 31)
+  expect_equal(a2$reference, 2.1011883335, tolerance = 1e-7)
+  expect_equal(a2$level, 0.97 * 2.1011883335, tolerance = 1e-7)
+  expect_equal(a2$thresholds$threshold, 2.4933147198, tolerance = 1e-6)
+  # Relative to the raw value (the diseases unrelated: p * raw here).
+  a3 <- cm_threshold(m, "prob:SCK", c(0.2, 0.6), conclusion = "total", diseases = set, target = 0.75,
+                     relative_to = "raw", n_grid = 31)
+  expect_equal(a3$reference, 2.9302998718, tolerance = 1e-8)
+  expect_equal(a3$thresholds$threshold, 0.4347663073, tolerance = 1e-6)
+  a4 <- cm_threshold(m, "prob:SCK", c(0.2, 0.6), conclusion = "total", target = 0.75, relative_to = "raw",
+                     n_grid = 31)
+  expect_equal(a4$reference, 3.7422998718, tolerance = 1e-8)
+  expect_equal(a4$thresholds$threshold, 0.4319971303, tolerance = 1e-6)
+  # All diseases named is the aggregate itself.
+  a5 <- cm_threshold(m, "prob:SCK", c(0.2, 0.6), conclusion = "total", target = 0.75, relative_to = "raw",
+                     diseases = c("LAM", "MAS", "MET", "SCK", "RP"), n_grid = 31)
+  expect_equal(a5$thresholds$threshold, a4$thresholds$threshold)
+})
+
+test_that("raw contributions with interactions come from the refit with the diseases unrelated", {
+  w <- read_five("impacts_welfare.csv")
+  res <- deconflate(w, n_draws = 0)
+  rc <- raw_total(w, res$settings$plan, NULL, res$row_se, by_disease = TRUE)
+  expect_equal(unname(rc), c(2.5992670552, 1.4902952311, 0.4955, 1.2140625, 0.2355), tolerance = 1e-8)
+  expect_equal(sum(rc), res$totals$raw_total, tolerance = 1e-10)
+  # The result keeps them (and contribution_table() shows them).
+  expect_equal(res$contributions$raw_contribution, unname(rc[res$contributions$disease]), tolerance = 1e-12)
+  expect_equal(contribution_table(res)$raw_contribution, unname(rc[contribution_table(res)$disease]),
+               tolerance = 1e-12)
+  b1 <- cm_threshold(w, "impacts:6", c(0, 6), conclusion = "total", diseases = c("LAM", "MAS"), target = 0.8,
+                     relative_to = "raw", n_grid = 31)
+  expect_equal(b1$reference, 4.0895622863, tolerance = 1e-8)
+  expect_equal(b1$thresholds$threshold, 2.8999084221, tolerance = 1e-6)
+  b1b <- cm_threshold(w, "impacts:1", c(5, 15), conclusion = "total", diseases = c("LAM", "MAS"), target = 0.85,
+                      relative_to = "raw", n_grid = 31)
+  expect_equal(b1b$thresholds$threshold, 10.3887986429, tolerance = 1e-6)
+  b2 <- cm_threshold(w, "prob:LAM", c(0.1, 0.4), conclusion = "total", diseases = c("LAM", "MAS"), target = 3,
+                     n_grid = 31)
+  expect_equal(b2$thresholds$threshold, 0.2082453761, tolerance = 1e-6)
+})
+
+test_that("event impacts: the attributable risk of a set of diseases", {
+  m <- read_five("culling.csv")
+  r <- deconflate(m, event_model = TRUE, overall_risk = 0.25, n_draws = 0)
+  rc <- raw_total(m, r$settings$plan, 0.25, r$row_se, by_disease = TRUE)
+  expect_equal(unname(rc), c(0.0245138239, 0.0232707068, 0.0049379599, 0.0225485554, 0.0053104297),
+               tolerance = 1e-8)
+  expect_equal(sum(rc), r$attributable$summary$raw_attributable, tolerance = 1e-8)
+  expect_equal(r$contributions$raw_contribution, unname(rc[r$contributions$disease]), tolerance = 1e-12)
+  set <- c("LAM", "MAS")
+  c1 <- cm_threshold(r, "impacts:2", c(0.8, 2.4), conclusion = "total", diseases = set, target = 0.03, n_grid = 31)
+  expect_equal(c1$thresholds$threshold, 1.5163936339, tolerance = 1e-6)
+  expect_match(c1$thresholds$description, "the attributable risk of LAM and MAS rises above 0.0300", fixed = TRUE)
+  c2 <- cm_threshold(r, "impacts:6", c(2, 5), conclusion = "total", diseases = set, target = 0.9,
+                     relative_to = "adjusted", n_grid = 31)
+  expect_equal(c2$reference, 0.0355830961, tolerance = 1e-8)
+  expect_equal(c2$thresholds$threshold, 3.3069022137, tolerance = 1e-6)
+  c3 <- cm_threshold(r, "risk", c(0.15, 0.35), conclusion = "total", diseases = set, target = 0.6,
+                     relative_to = "raw", n_grid = 31)
+  expect_equal(c3$reference, 0.0477845307, tolerance = 1e-8)
+  expect_equal(c3$thresholds$threshold, 0.1880800223, tolerance = 1e-6)
+})
+
+test_that("default ranges follow the rules for each kind of input", {
+  m <- read_five("impacts_yield.csv")
+  res <- deconflate(m, n_draws = 0)
+  th <- threshold_setup(res, FALSE, NULL, NULL, list())
+  get <- function() res
+  # With a distribution: its 0.5% and 99.5% quantiles (LAM-SCK OR: normal(2, 0.3) truncated at 0).
+  r3 <- threshold_default_range("associations:3", th, get)
+  expect_equal(c(r3$low, r3$high), stats::qnorm(c(0.005, 0.995), 2, 0.3), tolerance = 1e-8)
+  # The pair key of an entered crude row is that row.
+  expect_equal(threshold_default_range("pair:LAM:SCK", th, get)[c("low", "high")], r3[c("low", "high")])
+  # Without one: -50% to +50% (an OR of 1.5 for MAS-RP).
+  r12 <- threshold_default_range("associations:11", th, get)
+  expect_equal(c(r12$low, r12$high, r12$value), c(0.75, 2.25, 1.5))
+  # Probabilities stay inside (0, 1).
+  pr <- threshold_default_range("prob:RP", th, get)
+  expect_equal(c(pr$low, pr$high), c(0.03, 0.09))
+  # Unknown pairs and interactions.
+  mu <- m
+  mu$associations <- mu$associations[-11, ]
+  thu <- threshold_setup(mu, FALSE, NULL, NULL, list())
+  expect_equal(unlist(threshold_default_range("pair:MAS:RP", thu, get)[c("low", "high", "how")]),
+               c(low = "0.2", high = "5", how = "OR 0.2-5"))
+  ri <- threshold_default_range("interaction:LAM;MAS", th, get)
+  w <- min(abs(res$adjusted$adjusted[1:2]))
+  expect_equal(c(ri$low, ri$high), c(-w, w))
+  # A named input without a range uses its default range.
+  t1 <- cm_threshold(res, "pair:LAM:SCK", conclusion = "rank", diseases = c("MAS", "SCK"), n_grid = 11)
+  expect_equal(t1$range, c(r3$low, r3$high))
+})
+
+test_that("inputs are chosen by their effect on the compared quantity", {
+  m <- read_five("impacts_yield.csv")
+  res <- deconflate(m, n_draws = 0)
+  s <- cm_sensitivity(res)
+  # total of a set: the swing in the sum of its contributions
+  set <- c("LAM", "SCK")
+  bd <- s$by_disease
+  eff <- vapply(s$inputs$input, function(k) {
+    b <- bd[bd$input == k & bd$disease %in% set, ]
+    abs(sum(b$contribution_high) - sum(b$contribution_low))
+  }, numeric(1))
+  eff <- eff[is.finite(eff) & eff > 0]
+  top <- names(sort(eff, decreasing = TRUE))[1:2]
+  ts <- cm_threshold(res, conclusion = "total", diseases = set, target = 1.3, top = 2, sensitivity = s, n_grid = 11)
+  expect_s3_class(ts, "cm_threshold_set")
+  expect_equal(ts$inputs$input, top)
+  expect_equal(ts$inputs$effect, unname(eff[top]), tolerance = 1e-12)
+  expect_equal(names(ts$searches), top)
+  expect_true(all(vapply(ts$searches, inherits, logical(1), "cm_threshold")))
+  expect_equal(names(ts$thresholds)[1:2], c("input", "label"))
+  # rank of two diseases: the swing in the difference of their contributions
+  rk <- vapply(s$inputs$input, function(k) {
+    b <- bd[bd$input == k, ]
+    d <- function(col) b[[col]][b$disease == "MAS"] - b[[col]][b$disease == "SCK"]
+    abs(d("contribution_high") - d("contribution_low"))
+  }, numeric(1))
+  rk <- rk[is.finite(rk) & rk > 0]
+  tr <- cm_threshold(res, conclusion = "rank", diseases = c("MAS", "SCK"), top = 3, sensitivity = s, n_grid = 11)
+  expect_equal(tr$inputs$input, names(sort(rk, decreasing = TRUE))[1:3])
+  out <- capture.output(print(tr))
+  expect_true(all(nchar(out) <= 80))
+  expect_match(out[1], "where MAS and SCK swap places", fixed = TRUE)
+  # Several named inputs.
+  tn <- cm_threshold(res, c("prob:SCK", "pair:LAM:SCK"), conclusion = "total", target = 2.8, n_grid = 11)
+  expect_equal(tn$inputs$input, c("prob:SCK", "pair:LAM:SCK"))
+  expect_true(all(is.na(tn$inputs$effect)))
+  expect_false(tn$auto)
+  # Only unknown inputs.
+  tu <- cm_threshold(res, conclusion = "total", target = 2.8, inputs = "unknown", top = 1, n_grid = 11)
+  expect_equal(tu$inputs$kind, "unknown")
 })

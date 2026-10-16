@@ -69,9 +69,9 @@ states that two diseases are unrelated. Several rows about the same
 association are pooled.
 
 \strong{impacts} (one row per estimate): \code{disease}, \code{value} (required);
-\code{among}, \code{adjusted_for}, \code{measure}, \code{label}, \code{units} (one label and one
-unit per table, shown in the printed results), \code{study}, \code{note}. Every
-disease needs a row of
+\code{among}, \code{adjusted_for}, \code{measure}, \code{outcome}, \code{units} (optional: what
+the impacts are about and their units, one value of each per table, shown
+in the printouts and plots), \code{study}, \code{note}. Every disease needs a row of
 its own; a row for a combination (e.g. \verb{SCK;SCM}) adds an interaction to
 the model, and a combination adjusted for \code{all} is the interaction itself.
 See \code{\link[=cm_impacts]{cm_impacts()}}. Without a \code{measure} column the impacts are additive,
@@ -83,8 +83,10 @@ With a \code{measure} column they are event impacts: every row needs a measure
 Files in the layout of earlier versions (columns \code{id} and \code{type},
 \code{disease1} and \code{disease2}, \code{estimand}; three-way and interaction files)
 are reported with what to change. The columns \code{label} (of the diseases
-table), \code{time_horizon}, \code{reference_population} and \code{source} are no longer
-read: files with them still load, with a note.
+and associations tables), \code{time_horizon}, \code{reference_population} and
+\code{source} are no longer read: files with them still load, with a note. The
+\code{label} column of an impact table is now called \code{outcome}: it is still
+read, with a note to rename it.
 }
 
 \section{Uncertainty}{

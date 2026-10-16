@@ -1,4 +1,4 @@
-disease,among,adjusted_for,value,label,units,dist,p1,p2,p3,p4,note
+disease,among,adjusted_for,value,outcome,units,dist,p1,p2,p3,p4,note
 CK,,,1.445122,calving interval increase,% increase,normal,1.445122,0.3624052,,,"Rasmussen et al. 2024, analysis inputs; mean, sd (percent)"
 CM,,,8.42,calving interval increase,% increase,normal,8.42,2.424912,,,"Rasmussen et al. 2024, analysis inputs; mean, sd (percent)"
 DA,,,1.082641,calving interval increase,% increase,normal,1.082641,2.036204,,,"Rasmussen et al. 2024, analysis inputs; mean, sd (percent)"

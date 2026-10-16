@@ -216,8 +216,10 @@
 #'     "Raw and adjusted totals"), the adjusted aggregate and its
 #'     interaction part;
 #'   * `contributions`: per disease, its `contribution` to the aggregate
-#'     (Shapley value), split into `main` and `interaction` parts, and its
-#'     `share` (with draws, also `lower` and `upper`);
+#'     (Shapley value), split into `main` and `interaction` parts, its
+#'     `share` (with draws, also `lower` and `upper`), and its
+#'     `raw_contribution` (the same with the diseases unrelated: they add up
+#'     to the raw total);
 #'   * `estimates`: every input row (impacts and associations) with its
 #'     value, fitted value and standardised residual (and, for impact rows,
 #'     the SD used as weight; 0 for an exact row);
@@ -239,7 +241,7 @@
 #'     `listed` marks those printed), `thresholds` (inputs without a
 #'     distribution), `no_single_fix`, `disagreeing` and `settings`;
 #'   * `notes`, `conflation` (the row equations), `joint_pairs` (matrix of
-#'     `P(j and k)`), `model`, `joint`, `method`, `label`, `units` and
+#'     `P(j and k)`), `model`, `joint`, `method`, `outcome`, `units` and
 #'     `settings` (what [cm_sensitivity()] and [cm_threshold()] need to
 #'     rerun the model).
 #'
@@ -248,13 +250,14 @@
 #'   and the risk-scale results `risk_alone`, `rr_alone`, `rd_alone` and
 #'   `or_alone`), `contributions` (as for additive impacts: each disease's
 #'   share of the attributable risk, Shapley allocation, with its `main` and
-#'   `interaction` parts), `attributable` (`summary`: overall, disease-free,
+#'   `interaction` parts and its `raw_contribution`, the diseases
+#'   unrelated), `attributable` (`summary`: overall, disease-free,
 #'   raw and adjusted attributable risk and the attributable fraction;
 #'   `baseline_hazard`), `conflation` (the local row equations), `estimates`,
 #'   `heterogeneity`, `diagnostics`, `unknown_pairs`, `draws`, `ranks` (by
 #'   share of the attributable risk), `problems`
 #'   (with `diagnose = TRUE`), `notes`, `joint`, `model`, `method`,
-#'   `overall_risk`, `risk_given` (`"overall"` or `"baseline"`) and
+#'   `outcome`, `units`, `overall_risk`, `risk_given` (`"overall"` or `"baseline"`) and
 #'   `settings`. Risks are
 #'   proportions of animals with the event during the period.
 #' @export
@@ -280,7 +283,7 @@
 #' # Event impacts (culling): hazard ratios and a risk ratio
 #' cull <- cm_model(example_supplement(),
 #'                  cm_impacts(c("d1", "d2", "d3"), c(1.5, 2.0, 1.2), measure = c("HR", "HR", "RR"),
-#'                             label = "culling"))
+#'                             outcome = "culling"))
 #' deconflate(cull, event_model = TRUE, overall_risk = 0.25)
 #'
 #' # Errors hold the inputs they are about
@@ -475,6 +478,11 @@ run_point <- function(model, plan, risk = NULL, joint = NULL, warn = TRUE, dots 
     } else {
       res$totals$raw_total <- rt
     }
+    if (central && !is.null(res$contributions)) {
+      # Each disease's raw contribution (for the reports and plots).
+      rc <- raw_total(model, plan, risk, res$row_se %||% frozen$impacts, by_disease = TRUE)
+      res$contributions$raw_contribution <- unname(rc[match(res$contributions$disease, names(rc))])
+    }
   }
   res
 }
@@ -484,8 +492,9 @@ run_point <- function(model, plan, risk = NULL, joint = NULL, warn = TRUE, dots 
 # with one crude row per disease it is sum(p * raw); for event impacts it is
 # the attributable risk computed from the raw estimates. NA when it cannot
 # be computed (more than 20 diseases with rows other than single-disease
-# rows without a subgroup, or a failed fit).
-raw_total <- function(model, plan, risk, frozen_se = NULL) {
+# rows without a subgroup, or a failed fit). `by_disease = TRUE`: each
+# disease's raw contribution instead (named; they add up to the raw total).
+raw_total <- function(model, plan, risk, frozen_se = NULL, by_disease = FALSE) {
   ids <- model$diseases$disease
   n <- length(ids)
   P <- stats::setNames(model$diseases$prob, ids)
@@ -497,7 +506,8 @@ raw_total <- function(model, plan, risk, frozen_se = NULL) {
   event <- isTRUE(plan$event)
   specs <- impact_specs(model)
   simple <- all(vapply(specs, function(s) length(s$g) == 1L && !length(c(s$apos, s$aneg)), logical(1)))
-  if (n > 20L && (event || !simple)) return(NA_real_)
+  none <- if (by_disease) stats::setNames(rep(NA_real_, n), ids) else NA_real_
+  if (n > 20L && (event || !simple)) return(none)
   if (!event && simple) {
     # Unrelated diseases and single-disease rows: each row is its disease's
     # own impact; several rows are fitted together (weighted mean).
@@ -512,8 +522,8 @@ raw_total <- function(model, plan, risk, frozen_se = NULL) {
       w <- 1 / ifelse(is.na(se[k]), 1, se[k])^2
       sum(w * y[k]) / sum(w)
     }, numeric(1))
-    if (anyNA(b)) return(NA_real_)
-    return(sum(P * b))
+    if (anyNA(b)) return(none)
+    return(if (by_disease) P * b else sum(P * b))
   }
   cells <- disease_cells(n)
   colnames(cells) <- ids
@@ -522,15 +532,22 @@ raw_total <- function(model, plan, risk, frozen_se = NULL) {
   jt <- structure(list(cells = cells, prob = prob, diseases = ids, converged = TRUE, iterations = 0L,
                        max_residual = 0, backend = "exact"), class = "cm_joint")
   out <- tryCatch(withCallingHandlers({
-    if (event) {
-      adjust_event(m0, overall_risk = risk, joint = jt, warn = FALSE, allocate = FALSE, frozen_se = frozen_se,
-                   risk_kind = plan$risk_kind %||% "overall", details = FALSE)$attributable$summary$attributable
+    r <- if (event) {
+      adjust_event(m0, overall_risk = risk, joint = jt, warn = FALSE, allocate = by_disease, frozen_se = frozen_se,
+                   risk_kind = plan$risk_kind %||% "overall", details = FALSE)
     } else {
-      adjust_additive(m0, joint = jt, warn = FALSE, frozen_se = frozen_se)$totals$adjusted_total
+      adjust_additive(m0, joint = jt, warn = FALSE, frozen_se = frozen_se)
+    }
+    if (by_disease) {
+      stats::setNames(r$contributions$contribution[match(ids, r$contributions$disease)], ids)
+    } else if (event) {
+      r$attributable$summary$attributable
+    } else {
+      r$totals$adjusted_total
     }
   }, deconflate_nonconvergence = function(w) {
     if (inherits(w, "warning")) invokeRestart("muffleWarning")
-  }), deconflate_error = function(e) NA_real_)
+  }), deconflate_error = function(e) none)
   out
 }
 

@@ -1,4 +1,4 @@
-disease,among,adjusted_for,value,label,units,study,dist,p1,p2,p3,p4,note
+disease,among,adjusted_for,value,outcome,units,study,dist,p1,p2,p3,p4,note
 LAM,,,4.81,milk yield loss,% decrease,,normal,4.81,0.87,,,"normal(mean, sd)"
 SCK,,,"8,40",milk yield loss,% decrease,,,,,,,Error: decimal comma (write 8.40)
 RP,,LAM,4.20,milk yield loss,% decrease,,gamma,2,1,,,Error: gamma is not a supported distribution

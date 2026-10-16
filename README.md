@@ -74,6 +74,24 @@ cm_sensitivity(res_gd)
 
 # At what odds ratio between d2 and d3 does the ranking of d1 and d2 change?
 cm_threshold(example_supplement(), "pair:d2:d3", c(0.1, 100), conclusion = "rank")
+# Which inputs could push the yield loss of LAM and SCK 10% below its current value, and where?
+cm_threshold(res, conclusion = "total", diseases = c("LAM", "SCK"), target = 0.9, relative_to = "adjusted")
+
+# Plots, and the data of each plot to draw it with other tools
+plot(res, type = "contributions")
+d <- plot_data(res, "contributions")
+```
+
+The plots use base graphics. With ggplot2 (not needed by the package), the
+same data give your own version:
+
+```r
+library(ggplot2)
+ggplot(d, aes(contribution, reorder(disease, contribution))) +
+  geom_col(fill = "#2a78d6") +
+  geom_errorbar(aes(xmin = lower, xmax = upper), width = 0.2, orientation = "y") +
+  geom_point(aes(raw_contribution), shape = 21, fill = "white") +
+  labs(x = "Contribution (% of yield)", y = NULL)
 ```
 
 ## Features
@@ -81,9 +99,10 @@ cm_threshold(example_supplement(), "pair:d2:d3", c(0.1, 100), conclusion = "rank
 - **Inputs:** `cm_read_inputs()` reads CSV files or data frames (each table a named argument) and reports every problem at once (`cm_check_inputs()`); uncertain values carry their distribution in their own row (`dist`, `p1`-`p4`), mixed freely with point values. `cm_template()` writes example files, and `system.file("extdata", "five_diseases", package = "deconflate")` holds a five-disease example that uses every feature, with a script (`run_all_features.R`) that runs them all. In R: `cm_diseases()`, `cm_associations()` (OR, RR, RD, phi, prevalence, OR ratio; about pairs, combinations and subgroups, crude or adjusted), `cm_population()`, `cm_impacts()` and `cm_model()`.
 - **Adjustment:** `deconflate()` for additive and event impacts, with interactions, several rows per item (pooling with random or fixed effects, weighted least squares; `$heterogeneity`), intervals (`n_draws`), and a diagnosis (`diagnose = TRUE`) that shows which inputs drive adjusted impacts that change sign or nearly vanish, and which rows disagree with others; contributions of each disease (closed-form Shapley values), split into the disease's own part and its share of interactions, in `$contributions`, `contribution_table()` and `summary()`; the attributable risk of event impacts; the raw total (the result if the diseases were unrelated) beside the adjusted one.
 - **Joint distribution and feasibility:** `fit_joint()` (exact, or sampled for many diseases) and `check_feasibility()`.
-- **Sensitivity and thresholds:** `cm_sensitivity()` varies every input one at a time, entered inputs (by their own SD, or by a relative change) and inputs you did not enter (unknown associations, interactions, three-way associations) in one table, with each input's share of the variance over the draws; `$ranks` gives how often each disease ranks first, second, ... over the draws; `cm_threshold()` finds where a ranking, a sign or the aggregate changes as one input varies. Both also run without any association estimates, to show which associations would matter.
+- **Sensitivity and thresholds:** `cm_sensitivity()` varies every input one at a time, entered inputs (by their own SD, or by a relative change) and inputs you did not enter (unknown associations, interactions, three-way associations) in one table, with each input's share of the variance over the draws; `$ranks` gives how often each disease ranks first, second, ... over the draws; `cm_threshold()` finds where a ranking, a sign or the loss of any set of diseases (against a value, or a fraction of its adjusted or raw value) changes as an input varies, for named inputs or the ones that matter most; `cm_threshold_prob()` gives the probability of the conclusion over the draws of the other uncertain inputs, and where it crosses chosen levels. They also run without any association estimates, to show which associations would matter.
 - **Validation:** `simulate_raw_impacts()` shows what studies would report given true impacts, so you can check that the model recovers them.
-- **Plots** (base graphics) and six vignettes. Start with `vignette("deconflate")`.
+- **Plots** (base graphics): `plot()` of a result draws the raw and adjusted impacts, the contributions (with the raw ones), the ranks over the draws or the impact rows and their fit (`type`); of `cm_sensitivity()` the swings; of the threshold functions the compared quantity or the probability over each input's range. Titles and axes use the impact table's optional `outcome` and `units`. `plot_data()` returns the data frame each plot draws, to draw it with ggplot2 or any other tool.
+- **Vignettes:** six. Start with `vignette("deconflate")`.
 
 ## Development
 

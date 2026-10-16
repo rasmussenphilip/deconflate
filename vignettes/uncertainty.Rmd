@@ -213,7 +213,7 @@ distribution too. The central estimate uses the mean of that distribution:
 
 ```{r}
 cull <- cm_model(m, cm_impacts(c("d1", "d2", "d3"), c(1.5, 2.0, 1.2),
-                               measure = c("HR", "HR", "RR"), label = "culling"))
+                               measure = c("HR", "HR", "RR"), outcome = "culling"))
 e <- deconflate(cull, event_model = TRUE, overall_risk = dist_beta(250, 750),
                 n_draws = 200, seed = 1)
 e
@@ -256,6 +256,13 @@ first, second and so on by its contribution, and its mean rank.
 
 ```{r}
 summary(r)
+```
+
+`plot(r, type = "ranks")` draws the same shares as stacked bars, and
+`plot(r, type = "contributions")` the contributions with their intervals:
+
+```{r, fig.width = 7, fig.height = 4}
+plot(r, type = "ranks")
 ```
 
 ## Sensitivity

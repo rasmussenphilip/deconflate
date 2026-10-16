@@ -29,7 +29,7 @@ test_that("contributions are split into own parts and interaction shares", {
   expect_equal(w$main, c(2.1860744234, 0.9931824543, 0.3197758625, 0.3799454881, 0.1290929305), tolerance = 1e-7)
   expect_equal(w$contribution, c(2.2400759141, 1.0837970506, 0.3357170535, 0.3433323825, 0.1450341215), tolerance = 1e-7)
   by <- cull_five(overall_risk = 0.25)$contributions
-  expect_equal(names(by), c("disease", "contribution", "main", "interaction", "share"))
+  expect_equal(names(by), c("disease", "contribution", "main", "interaction", "share", "raw_contribution"))
   expect_equal(by$contribution, c(0.0137316223, 0.0218514738, 0.0015789582, 0.0114739881, 0.0055109386),
                tolerance = 1e-7)
   expect_equal(by$main, c(0.0028275807, 0.0109474323, 0.0015402824, 0.0111226092, 0.0054178744), tolerance = 1e-7)

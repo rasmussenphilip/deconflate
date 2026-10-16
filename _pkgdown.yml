@@ -42,8 +42,11 @@ reference:
   contents:
   - cm_sensitivity
   - cm_threshold
+  - cm_threshold_prob
 - title: Plots
-  contents: plots
+  contents:
+  - plots
+  - plot_data
 - title: Examples and validation
   contents:
   - example_supplement

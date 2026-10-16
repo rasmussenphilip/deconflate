@@ -6,8 +6,10 @@ test_that("contribution tables have the documented columns and add up", {
   res <- deconflate(example_supplement())
   ct <- contribution_table(res)
   expect_equal(names(ct), c("disease", "raw", "adjusted", "adjusted_lower", "adjusted_upper", "change",
-                            "contribution", "contribution_lower", "contribution_upper", "main",
-                            "interaction", "share"))
+                            "raw_contribution", "contribution", "contribution_lower", "contribution_upper",
+                            "main", "interaction", "share"))
+  # Raw contributions: p * raw here (single-disease rows, diseases unrelated).
+  expect_equal(ct$raw_contribution, c(2.5, 5, 7.5) * c(0.10, 0.15, 0.20))
   # Without draws, the interval columns are there but empty.
   expect_true(all(is.na(ct$adjusted_lower) & is.na(ct$contribution_upper)))
   expect_equal(ct$disease, ids3)
@@ -26,7 +28,7 @@ test_that("contribution tables of event results and of results with draws", {
   ev <- deconflate(supp_hr_model(), event_model = TRUE, overall_risk = 0.25)
   ct <- contribution_table(ev)
   expect_equal(names(ct), c("disease", "measure", "raw", "adjusted", "adjusted_lower", "adjusted_upper",
-                            "change", "risk_alone", "rr_alone", "rd_alone", "contribution",
+                            "change", "risk_alone", "rr_alone", "rd_alone", "raw_contribution", "contribution",
                             "contribution_lower", "contribution_upper", "main", "interaction", "share"))
   expect_equal(ct$adjusted, c(1.3831529713, 1.8909315489, 1.1439870467), tolerance = 1e-7)
   expect_equal(sum(ct$contribution), 0.03664898509534775, tolerance = 1e-7)
@@ -68,7 +70,7 @@ test_that("summary() reports totals and contributions", {
   s <- summary(res)
   expect_s3_class(s, "summary.cm_result")
   expect_equal(s$method, "pairwise shortcut")
-  expect_equal(s$label, "yield")
+  expect_equal(s$outcome, "yield")
   expect_equal(s$units, "%")
   expect_equal(names(s$totals), c("quantity", "value", "lower", "upper"))
   expect_equal(s$totals$quantity, c("raw total", "adjusted total", "interactions", "reduction"))
@@ -141,7 +143,7 @@ test_that("printed numbers have 3 significant figures and tables fit in 80 colum
 
 test_that("event results have a contributions table like additive results", {
   ev <- cull_five(overall_risk = 0.25)
-  expect_equal(names(ev$contributions), c("disease", "contribution", "main", "interaction", "share"))
+  expect_equal(names(ev$contributions), c("disease", "contribution", "main", "interaction", "share", "raw_contribution"))
   expect_null(ev$attributable$by_disease)
   expect_equal(sum(ev$contributions$contribution), ev$attributable$summary$attributable, tolerance = 1e-10)
   ad <- deconflate(read_five("impacts_yield.csv"), n_draws = 0)
