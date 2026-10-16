@@ -226,12 +226,12 @@ cull_int <- cm_model(pop, cm_impacts(c("d1", "d2", "d3", "d1;d2"), c(1.5, 2.0, 1
                                      measure = "HR", label = "culling"))
 res_int <- deconflate(cull_int, event_model = TRUE, overall_risk = 0.25, n_draws = 0)
 res_int$adjusted
-res_int$attributable$by_disease
+res_int$contributions
 ```
 
 The interaction's share of the attributable risk is split equally between
-its diseases, as part of their Shapley values. As for additive impacts
-(`$contributions`), `by_disease` splits each disease's share into its own
+its diseases, as part of their Shapley values. As for additive impacts,
+`$contributions` splits each disease's share into its own
 part (`main`: the allocation with the interaction terms set to zero) and its
 share of the interactions (`interaction`: the rest). On the risk scale, risks
 do not add up, so the interaction terms also change the shares of diseases
@@ -261,7 +261,7 @@ is allocated to diseases by Shapley values over all disease combinations
 
 ```{r}
 res$attributable$summary
-res$attributable$by_disease
+res$contributions
 ```
 
 A disease whose adjusted hazard ratio is below 1 gets a negative share. The

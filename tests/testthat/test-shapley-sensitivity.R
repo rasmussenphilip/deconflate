@@ -32,13 +32,13 @@ test_that("additive contributions add up to the aggregate", {
   m <- example_supplement()
   res <- deconflate(m)
   expect_equal(res$diagnostics$method, "pairwise shortcut")
-  expect_equal(sum(res$contributions$total), res$totals$adjusted_total)
+  expect_equal(sum(res$contributions$contribution), res$totals$adjusted_total)
   expect_equal(res$totals$adjusted_total, supp_base_total, tolerance = 1e-8)
   res_i <- deconflate(set_interaction(m, "d1", "d2", 1))
   expect_equal(res_i$diagnostics$method, "full model")
   expect_equal(res_i$adjusted$kind, c(rep("disease", 3), "interaction"))
   expect_equal(res_i$adjusted$adjusted[4], 1)
-  expect_equal(sum(res_i$contributions$total), res_i$totals$adjusted_total)
+  expect_equal(sum(res_i$contributions$contribution), res_i$totals$adjusted_total)
   expect_equal(res_i$totals$adjusted_total, supp_int_total, tolerance = 1e-8)
   P12 <- res_i$joint_pairs["d1", "d2"]
   expect_equal(res_i$totals$interaction_total, P12)
@@ -58,7 +58,7 @@ test_that("cell-wise Shapley equals the closed form for pairwise interactions", 
   loss <- function(x) sum(adj[names(x)] * x) + 1 * x[["d1"]] * x[["d2"]]
   expect_silent(sh <- shapley_by_cell(res$joint, loss))
   expect_equal(sh$disease, t2_ids)
-  expect_equal(sh$shapley, closed$total, tolerance = 1e-7)
+  expect_equal(sh$shapley, closed$contribution, tolerance = 1e-7)
   expect_equal(sum(sh$shapley), attr(sh, "total"), tolerance = 1e-12)
   expect_equal(attr(sh, "total"), res$totals$adjusted_total, tolerance = 1e-8)
   expect_equal(attr(sh, "skipped_mass"), 0)
@@ -110,7 +110,7 @@ test_that("set_three_way, set_interaction and set_association edit models", {
   a <- tw$associations
   expect_equal(nrow(a), 4)
   expect_equal(a$measure[4], "OR_ratio")
-  expect_equal(c(a$disease[4], a$associated_with[4], a$among[4], a$source[4]), c("d1", "d2", "d3", "scenario"))
+  expect_equal(c(a$disease[4], a$associated_with[4], a$among[4], a$note[4]), c("d1", "d2", "d3", "scenario"))
   # The ratio is symmetric in the three diseases: the same row is replaced.
   tw2 <- set_three_way(tw, "d3", "d1", "d2", 0.5)
   expect_equal(nrow(tw2$associations), 4)
@@ -143,7 +143,7 @@ test_that("set_three_way, set_interaction and set_association edit models", {
   hit <- pair_row_hits(a, "d1", "d3")
   expect_equal(sum(hit), 1)
   expect_equal(a$value[hit], 2)
-  expect_equal(a$source[hit], "scenario")
+  expect_equal(a$note[hit], "scenario")
   expect_equal(a$row, 1:3)
   new_pop <- set_association(cm_population(cm_diseases(t2_ids, c(0.1, 0.15, 0.2))), "d1", "d2", 2)
   expect_equal(nrow(new_pop$associations), 1)

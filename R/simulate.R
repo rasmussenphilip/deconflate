@@ -138,7 +138,7 @@ simulate_raw_impacts <- function(model, true_impacts, interactions = NULL, rows 
                                risk, n)
     return(cm_impacts(rows$disease, raw, among = rows$among, adjusted_for = rows$adjusted_for,
                       measure = rows$measure,
-                      source = if (is.null(n)) "simulated (expected)" else sprintf("simulated (n = %d)", n),
+                      note = if (is.null(n)) "simulated (expected)" else sprintf("simulated (n = %d)", n),
                       units = units))
   }
   y <- as.vector(cells %*% true_impacts[ids])
@@ -187,7 +187,7 @@ simulate_raw_impacts <- function(model, true_impacts, interactions = NULL, rows 
     unname(qr.coef(qr(Z[, keep, drop = FALSE] * sw), yy[idx] * sw)[which(keep == 2L)])
   }, numeric(1))
   cm_impacts(rows$disease, raw, among = rows$among, adjusted_for = rows$adjusted_for,
-             source = if (is.null(n)) "simulated (expected)" else sprintf("simulated (n = %d)", n),
+             note = if (is.null(n)) "simulated (expected)" else sprintf("simulated (n = %d)", n),
              units = units)
 }
 

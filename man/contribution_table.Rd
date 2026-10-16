@@ -10,32 +10,39 @@ contribution_table(result)
 \item{result}{A \code{\link[=deconflate]{deconflate()}} result.}
 }
 \value{
-A data frame.
+A data frame with the columns \code{disease}, (event impacts:
+\code{measure}), \code{raw}, \code{adjusted}, \code{adjusted_lower}, \code{adjusted_upper},
+\code{change}, (event impacts: \code{risk_alone}, \code{rr_alone}, \code{rd_alone}),
+\code{contribution}, \code{contribution_lower}, \code{contribution_upper}, \code{main},
+\code{interaction} and \code{share}.
 }
 \description{
 One row per disease with the raw estimate (of its row, when it has
 exactly one), the adjusted value and the disease's contribution to the
-total, with 95\% intervals when the result has draws. Interactions are in
-the result's \code{adjusted} table; their contributions are shared among their
+total, at full precision, for export. The columns are the same for every
+result of a model (intervals are \code{NA} without draws), so a script that
+writes the table out does not depend on the run. Interactions are in the
+result's \code{adjusted} table; their contributions are shared among their
 diseases here.
 }
 \details{
 \itemize{
-\item Additive impacts: the contribution to the aggregate (its Shapley share,
-including any interaction share), in the units of the impacts.
-\item Event impacts: the adjusted hazard ratio, the risk of an animal with
-only this disease and its risk ratio and risk difference against a
-disease-free animal, the relative change from the raw estimate (on the
-raw estimate's measure), and the disease's share of the risk
-attributable to disease (Shapley allocation), as a proportion of
-animals.
+\item Additive impacts: the contribution to the aggregate (its Shapley
+value, including any interaction share), in the units of the impacts.
+\item Event impacts: the adjusted hazard ratio (\code{adjusted}), the risk of an
+animal with only this disease and its risk ratio and risk difference
+against a disease-free animal, the relative change from the raw
+estimate (on the raw estimate's measure), and the disease's share of the
+risk attributable to disease (\code{contribution}: Shapley allocation, as a
+proportion of animals).
 }
 
 In both cases the contribution is split into the disease's own part
 (\code{main}: its Shapley value with the interactions set to zero) and its
 share of the interactions (\code{interaction}: the rest; for event impacts it
 also holds the small changes the interaction terms make, through
-non-additive risks, to diseases outside them).
+non-additive risks, to diseases outside them). \code{share} is the
+contribution as a fraction of the total.
 }
 \examples{
 contribution_table(deconflate(example_supplement()))

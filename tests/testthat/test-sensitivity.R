@@ -177,10 +177,10 @@ test_that("variance shares and rank probabilities from the draws", {
   src2 <- (stats::coef(fit)[-1] * apply(Z, 2, stats::sd) / stats::sd(y))^2
   names(src2) <- colnames(Z)
   expect_equal(s$r_squared, summary(fit)$r.squared, tolerance = 1e-10)
-  expect_equal(s$inputs$var_share[s$inputs$input == "impacts:2"], unname(src2["impacts:2"]), tolerance = 1e-10)
+  expect_equal(s$inputs$share[s$inputs$input == "impacts:2"], unname(src2["impacts:2"]), tolerance = 1e-10)
   expect_equal(sum(s$variance$share), sum(src2), tolerance = 1e-10)
   # Fixed inputs have no share.
-  expect_true(is.na(s$inputs$var_share[s$inputs$input == "impacts:4"]))
+  expect_true(is.na(s$inputs$share[s$inputs$input == "impacts:4"]))
   expect_true(any(grepl("share of the variance", capture.output(print(s)))))
   # Without draws: no shares and no ranks.
   r0 <- deconflate(read_five("impacts_yield.csv"), n_draws = 0)

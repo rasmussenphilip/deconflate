@@ -30,7 +30,7 @@ names the crude row of a pair and \code{"impact:<id>"} the row of a disease
 or combination, when there is exactly one. \code{\link[=cm_read_inputs]{cm_read_inputs()}} fills
 this in from the \code{dist} columns of the tables. When \code{population} is a
 model and \code{distributions} is not given, its distributions are kept,
-except those of impacts that are replaced.}
+except those of impact rows that are replaced or changed.}
 
 \item{...}{Not used (arguments of earlier versions give a message).}
 }
@@ -39,6 +39,16 @@ A \code{cm_model} object (which is also a \code{cm_population}).
 }
 \description{
 Combine a population with an impact table
+}
+\details{
+Rows without a number in \code{row}, or with the number of an
+earlier row, get the next free numbers (also in \code{\link[=cm_population]{cm_population()}}), so
+that tables joined with \code{rbind()} need no renumbering, e.g.
+\code{cm_model(m, rbind(m$impacts, cm_impacts("d1;d2", 1, adjusted_for = "all")))}
+adds an interaction row to the model \code{m} (and keeps the distributions of
+its other rows). Distribution keys refer to the numbers after this (see
+\verb{$impacts} and \verb{$associations} of the model). Additive and event impact
+rows cannot be joined.
 }
 \examples{
 m <- cm_model(

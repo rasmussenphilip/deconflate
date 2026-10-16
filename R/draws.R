@@ -230,8 +230,7 @@ draw_rows <- function(x, kind) {
   if (kind == "adjusted") {
     s[match(paste0(kind, ":", x$adjusted$disease), s$quantity), , drop = FALSE]
   } else if (kind == "contribution") {
-    ids <- if (inherits(x, "cm_event_result")) x$attributable$by_disease$disease else x$contributions$disease
-    s[match(paste0(kind, ":", ids), s$quantity), , drop = FALSE]
+    s[match(paste0(kind, ":", x$contributions$disease), s$quantity), , drop = FALSE]
   } else {
     s[match(kind, s$quantity), , drop = FALSE]
   }
@@ -245,9 +244,8 @@ result_quantities <- function(r) {
     q <- c(stats::setNames(r$adjusted$adjusted, paste0("adjusted:", terms)),
            stats::setNames(ar$summary$attributable, "total"),
            stats::setNames(ar$summary$attributable_fraction, "fraction"))
-    if (!is.null(ar$by_disease)) {
-      q <- c(q, stats::setNames(ar$by_disease$attributable, paste0("contribution:", ar$by_disease$disease)))
-    }
+    ct <- r$contributions
+    if (!is.null(ct)) q <- c(q, stats::setNames(ct$contribution, paste0("contribution:", ct$disease)))
     # Always present when computed (NA in a draw where it fails), so that
     # every draw has the same quantities.
     if (!is.null(ar$summary$raw_attributable)) {
@@ -256,7 +254,7 @@ result_quantities <- function(r) {
     return(q)
   }
   q <- c(stats::setNames(r$adjusted$adjusted, paste0("adjusted:", terms)),
-         stats::setNames(r$contributions$total, paste0("contribution:", r$contributions$disease)),
+         stats::setNames(r$contributions$contribution, paste0("contribution:", r$contributions$disease)),
          stats::setNames(r$totals$adjusted_total, "total"))
   if (!is.null(r$totals$raw_total)) q <- c(q, stats::setNames(r$totals$raw_total, "raw_total"))
   q
@@ -287,20 +285,17 @@ attach_intervals <- function(res) {
   res$adjusted$lower <- a$lower
   res$adjusted$upper <- a$upper
   t <- draw_rows(res, "total")
+  if (!is.null(res$contributions)) {
+    cc <- draw_rows(res, "contribution")
+    res$contributions$lower <- cc$lower
+    res$contributions$upper <- cc$upper
+  }
   if (inherits(res, "cm_event_result")) {
     if (!is.null(res$attributable)) {
       res$attributable$summary$attributable_lower <- t$lower
       res$attributable$summary$attributable_upper <- t$upper
-      if (!is.null(res$attributable$by_disease)) {
-        cc <- draw_rows(res, "contribution")
-        res$attributable$by_disease$lower <- cc$lower
-        res$attributable$by_disease$upper <- cc$upper
-      }
     }
   } else {
-    cc <- draw_rows(res, "contribution")
-    res$contributions$lower <- cc$lower
-    res$contributions$upper <- cc$upper
     res$totals$adjusted_total_lower <- t$lower
     res$totals$adjusted_total_upper <- t$upper
   }
@@ -308,7 +303,7 @@ attach_intervals <- function(res) {
 }
 
 # Notes about the draws (rejections, stability) and the result's own notes.
-draw_notes <- function(dr) {
+draw_notes <- function(dr, event = FALSE) {
   if (is.null(dr)) return(character(0))
   out <- character(0)
   if (dr$n_rejected == dr$n_draws) {
@@ -324,31 +319,57 @@ draw_notes <- function(dr) {
                           100 * share, paste(sprintf("%s %d", names(tab), as.integer(tab)), collapse = ", ")))
   }
   s <- dr$summary
-  bad <- s[!is.na(s$stability) & s$stability != "ok", , drop = FALSE]
-  if (nrow(bad)) {
-    out <- c(out, sprintf("Monte Carlo precision is limited for %d quantit%s (%s): increase n_draws, or use sampling = \"lhs\". See $draws$summary.",
-                          nrow(bad), if (nrow(bad) == 1L) "y" else "ies",
-                          paste(utils::head(sprintf("%s: %s", bad$quantity, bad$stability), 5), collapse = "; ")))
+  bad <- s$quantity[!is.na(s$stability) & s$stability != "ok"]
+  if (length(bad)) {
+    out <- c(out, sprintf("Too few draws for precise intervals of %s: increase n_draws, or use sampling = \"lhs\" (see $draws$summary).",
+                          imprecise_text(bad, event)))
   }
   out
 }
 
-print_draws_and_notes <- function(x) {
-  dr <- x$draws
-  if (!is.null(dr)) {
-    cat(sprintf("Uncertainty: %s intervals from %d draws (%d rejected; %s sampling; seed %d).\n",
-                "95%", dr$n_draws, dr$n_rejected,
-                if (identical(dr$sampling, "lhs")) "Latin hypercube" else "random", dr$seed))
+# The quantities of the draw summary ("adjusted:LAM", "contribution:MET",
+# "total", ...) in plain words: "the adjusted impacts of LAM and LAM;MAS
+# and the contributions of MET and SCK".
+imprecise_text <- function(q, event = FALSE) {
+  and_list <- function(x) if (length(x) < 2L) x else paste(paste(x[-length(x)], collapse = ", "), "and", x[length(x)])
+  kind <- sub(":.*$", "", q)
+  what <- sub("^[^:]*:", "", q)
+  parts <- character(0)
+  adj <- what[kind == "adjusted"]
+  if (length(adj)) {
+    parts <- c(parts, sprintf("the adjusted %s of %s",
+                              if (event) if (length(adj) == 1L) "hazard ratio" else "hazard ratios"
+                              else if (length(adj) == 1L) "impact" else "impacts", and_list(adj)))
   }
-  notes <- x$notes
-  if (length(notes)) {
-    cat("\nNotes:\n")
-    for (nt in notes) {
-      lines <- strwrap(nt, width = max(40L, getOption("width", 80L) - 4L))
-      cat("* ", paste(lines, collapse = "\n  "), "\n", sep = "")
-    }
+  con <- what[kind == "contribution"]
+  if (length(con)) {
+    parts <- c(parts, sprintf("the contribution%s of %s", if (length(con) == 1L) "" else "s", and_list(con)))
   }
-  invisible(x)
+  single <- c(total = if (event) "the attributable risk" else "the adjusted total",
+              raw_total = if (event) "the raw attributable risk" else "the raw total",
+              fraction = "the attributable fraction")
+  parts <- c(parts, unname(single[intersect(names(single), kind)]))
+  other <- setdiff(kind, c("adjusted", "contribution", names(single)))
+  if (length(other)) parts <- c(parts, q[kind %in% other])
+  and_list(parts)
+}
+
+# The draws line of print() and summary().
+uncertainty_line <- function(dr) {
+  if (is.null(dr)) return(character(0))
+  sprintf("95%% intervals from %d draws (%d rejected; %s sampling; seed %d).",
+          dr$n_draws, dr$n_rejected, if (identical(dr$sampling, "lhs")) "Latin hypercube" else "random", dr$seed)
+}
+
+# Notes as a bulleted list, wrapped to the console width.
+print_notes <- function(notes, title = "Notes:") {
+  if (!length(notes)) return(invisible(NULL))
+  cat("\n", title, "\n", sep = "")
+  for (nt in notes) {
+    lines <- strwrap(nt, width = max(40L, getOption("width", 80L) - 4L))
+    cat("* ", paste(lines, collapse = "\n  "), "\n", sep = "")
+  }
+  invisible(NULL)
 }
 
 # How often each disease ranks 1st, 2nd, ... by its contribution (for event
@@ -357,7 +378,7 @@ print_draws_and_notes <- function(x) {
 draw_ranks <- function(res) {
   v <- res$draws$values
   if (is.null(v) || nrow(v) < 2L) return(NULL)
-  ids <- if (inherits(res, "cm_event_result")) res$attributable$by_disease$disease else res$contributions$disease
+  ids <- res$contributions$disease
   cols <- paste0("contribution:", ids)
   if (is.null(ids) || !all(cols %in% colnames(v))) return(NULL)
   C <- v[, cols, drop = FALSE]

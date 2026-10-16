@@ -34,7 +34,7 @@ test_that("with unlisted pairs independent, the model flags sign changes", {
   expect_length(w, 1)
   expect_match(w[1], "CK, CM, DA, MF")
   expect_equal(res$method, "pairwise shortcut")
-  expect_length(res$notes, 0)
+  expect_equal(grep("n_draws = 0", res$notes, invert = TRUE, value = TRUE), character(0))
   expect_equal(res$adjusted$adjusted,
                c(-5.363694, -0.249627, -2.672514, 4.313586, 1.987313, 2.774729,
                  -1.520856, 3.218063, 3.926516, 2.459847, 8.274455, 6.572452),
@@ -64,7 +64,7 @@ test_that("by default the 28 unlisted pairs are unknown and the model fills them
   w <- capture_warnings(y <- deconflate(m, n_draws = 0))
   expect_length(w, 1)
   expect_equal(y$method, "full model")
-  expect_length(y$notes, 0)
+  expect_equal(grep("n_draws = 0", y$notes, invert = TRUE, value = TRUE), character(0))
   expect_equal(y$adjusted$adjusted,
                c(-5.030744, -0.139559, -2.61526, 3.98935, 2.05439, 2.382588, -2.210161,
                  2.680359, 3.121419, 2.144482, 7.886341, 5.949534), tolerance = 1e-5)

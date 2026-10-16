@@ -70,7 +70,7 @@ test_that("the template writes four files, read back as yield (additive) and cul
   expect_message(cm_template(dir, overwrite = TRUE), "Wrote 4 files")
   f <- function(x) file.path(dir, x)
   # The columns of each file, in the documented order.
-  expect_equal(names(utils::read.csv(f("diseases.csv")))[1:4], c("disease", "measure", "value", "label"))
+  expect_equal(names(utils::read.csv(f("diseases.csv")))[1:4], c("disease", "measure", "value", "dist"))
   expect_equal(names(utils::read.csv(f("associations.csv")))[1:6],
                c("disease", "associated_with", "among", "adjusted_for", "measure", "value"))
   expect_equal(names(utils::read.csv(f("yield.csv")))[1:4], c("disease", "among", "adjusted_for", "value"))
@@ -82,7 +82,8 @@ test_that("the template writes four files, read back as yield (additive) and cul
                       impacts = f("yield.csv"))
   expect_equal(nrow(attr(y, "problems")), 0)
   expect_equal(y$diseases$disease, c("LAM", "SCK", "MET"))
-  expect_equal(y$diseases$label, c("lameness", "subclinical ketosis", "metritis"))
+  expect_equal(names(y$diseases), c("disease", "prob", "value", "measure", "note"))
+  expect_equal(y$diseases$note[1], "lameness; illustrative; beta(shape1, shape2)")
   expect_equal(y$diseases$prob, c(0.25, 1 - exp(-0.48), 0.10))
   expect_equal(y$impacts$value, c(4.81, 8.40, 5.61))
   expect_equal(attr(y$impacts, "units"), "% of yield")
@@ -94,7 +95,7 @@ test_that("the template writes four files, read back as yield (additive) and cul
   expect_output(print(y), "Uncertain inputs \\(with a distribution\\): 4")
   ry <- deconflate(y, n_draws = 0)
   expect_equal(ry$method, "pairwise shortcut")
-  expect_length(ry$notes, 0)
+  expect_equal(ry$notes, "4 inputs have a distribution, but n_draws = 0: the results are point estimates without intervals.")
   expect_null(ry$draws)
   # reference_v040.py, 6a
   expect_equal(ry$adjusted$adjusted, c(2.8705956676, 7.8191139087, 3.1698811769), tolerance = 1e-9)
@@ -504,11 +505,51 @@ test_that("CSV columns are read as text, and empty files are empty tables", {
   unlink(dir, recursive = TRUE)
 })
 
-test_that("mixed time horizons give a note", {
-  d <- data.frame(disease = c("a", "b"), value = c(0.1, 0.2), time_horizon = c("year", "lactation"))
-  pr <- cm_check_inputs(diseases = d, impacts = data.frame(disease = c("a", "b"), value = c(1, 2)))
-  expect_true(has_problem(pr, "diseases", NA, "time_horizon", severity = "note"))
+test_that("columns that are no longer read give a note, and the tables still load", {
+  d <- data.frame(disease = c("a", "b"), value = c(0.1, 0.2), label = c("A", "B"),
+                  time_horizon = c("year", "lactation"), reference_population = "herd", source = "x")
+  a <- data.frame(disease = "a", associated_with = "b", value = 2, source = "y")
+  im <- data.frame(disease = c("a", "b"), value = c(1, 2), label = "yield", source = "z")
+  pr <- cm_check_inputs(diseases = d, associations = a, impacts = im)
+  for (col in c("label", "time_horizon", "reference_population", "source")) {
+    expect_true(has_problem(pr, "diseases", NA, col, severity = "note"), info = col)
+  }
+  expect_true(has_problem(pr, "associations", NA, "source", severity = "note"))
+  expect_true(has_problem(pr, "impacts", NA, "source", severity = "note"))
+  # The impact table's `label` is still read (the outcome's name).
+  expect_false(has_problem(pr, "impacts", NA, "label", severity = "note"))
   expect_false(any(pr$severity == "error"))
+  expect_true(any(grepl("Column `label` is not used; put free text in `note`.", pr$problem, fixed = TRUE)))
+  m <- suppressMessages(cm_read_inputs(diseases = d, associations = a, impacts = im))
+  expect_equal(names(m$diseases), c("disease", "prob", "value", "measure", "note"))
+  expect_equal(attr(m$impacts, "label"), "yield")
+  # The same arguments of cm_diseases(), cm_associations() and cm_impacts().
+  expect_message(dd <- cm_diseases("a", 0.1, label = "A"), "Argument `label` is not used; put free text in `note`.",
+                 fixed = TRUE)
+  expect_equal(names(dd), c("disease", "prob", "value", "measure", "note"))
+  expect_message(cm_diseases("a", 0.1, time_horizon = "year", reference_population = "herd"), "time_horizon")
+  expect_message(cm_associations("a", "b", 2, source = "x"), "`source` is not used")
+  expect_message(cm_impacts("a", 1, source = "x"), "`source` is not used")
+  expect_error(cm_diseases("a", 0.1, colour = "red"), class = "deconflate_invalid_input")
+})
+
+test_that("cm_model() renumbers rows joined with rbind()", {
+  m <- example_supplement()
+  extra <- cm_impacts("d1;d2", 1, adjusted_for = "all")
+  m2 <- cm_model(m, rbind(m$impacts, extra))
+  expect_equal(m2$impacts$row, 1:4)
+  expect_equal(m2$impacts$disease[4], "d1;d2")
+  expect_equal(attr(m2$impacts, "kind"), "additive")
+  r <- deconflate(m2, n_draws = 0)
+  expect_true("d1;d2" %in% r$adjusted$disease)
+  a <- rbind(m$associations, cm_associations("d1", "d2", 1.3, measure = "OR_ratio", among = "d3"))
+  p2 <- cm_population(m$diseases, a)
+  expect_equal(p2$associations$row, 1:4)
+  # Numbers that are given and unique are kept; missing or repeated ones get
+  # the next free numbers.
+  im <- m$impacts
+  im$row <- c(5L, 5L, NA)
+  expect_equal(cm_model(m, im)$impacts$row, c(5L, 6L, 7L))
 })
 
 # ---- Uncertainty in the tables ---------------------------------------------------
@@ -600,7 +641,7 @@ test_that("the five-disease example reads without problems and matches the refer
   y <- read_five("impacts_yield.csv")
   expect_equal(y$diseases$disease, ids)
   expect_equal(y$diseases$prob, c(0.25, 1 - exp(-0.3), 0.10, 0.35, 0.06), tolerance = 1e-12)
-  expect_equal(y$diseases$label[1], "lameness")
+  expect_equal(y$diseases$note[1], "lameness; beta(shape1, shape2): mean 0.256")
   pt <- pair_tables(y)
   expect_equal(nrow(pt), 10)
   expect_true(all(pt$status == "specified"))
@@ -656,7 +697,7 @@ test_that("the five-disease example reads without problems and matches the refer
   expect_equal(rw$adjusted$adjusted, c(8.7442976935, 3.8319918047, 3.1977586251, 1.0855585373, 2.1515488417,
                                        2, 1.5, -0.6200833573), tolerance = 1e-7)
   expect_equal(rw$totals$adjusted_total, 4.1479565223, tolerance = 1e-8)
-  expect_equal(rw$contributions$total, c(2.2400759141, 1.0837970506, 0.3357170535, 0.3433323825, 0.1450341215),
+  expect_equal(rw$contributions$contribution, c(2.2400759141, 1.0837970506, 0.3357170535, 0.3433323825, 0.1450341215),
                tolerance = 1e-8)
 
   # Culling: event impacts with mixed measures, crude and stratified rows
@@ -689,4 +730,36 @@ test_that("the five-disease example reads without problems and matches the refer
   dr <- deconflate(w, n_draws = 30, seed = 1)$draws
   expect_lte(dr$n_rejected, 3)
   expect_equal(colnames(dr$params), names(w$distributions))
+})
+
+test_that("rows of both kinds of impacts cannot be joined", {
+  m <- example_supplement()
+  mixed <- rbind(m$impacts, cm_impacts("d1;d2", 1.1, measure = "HR", adjusted_for = "all"))
+  expect_error(cm_model(m, mixed), "mix additive impacts", class = "deconflate_invalid_input")
+})
+
+test_that("rows get valid numbers, and rbind() keeps the distributions of the other rows", {
+  im <- cm_impacts(c("d1", "d2", "d3"), c(2.5, 5, 7.5))
+  im$row <- c(2.5, 0, -1)
+  expect_equal(number_rows(im)$row, 1:3)
+  im$row <- c("3", "x", "3")
+  expect_equal(number_rows(im)$row, c(3L, 4L, 5L))
+  m <- cm_model(example_supplement(), example_supplement()$impacts,
+                distributions = list("impacts:1" = dist_normal(2.5, 0.5)))
+  m2 <- cm_model(m, rbind(m$impacts, cm_impacts("d1;d2", 1, adjusted_for = "all")))
+  expect_equal(names(m2$distributions), "impacts:1")
+  # A changed row loses its distribution.
+  im3 <- m$impacts
+  im3$value[1] <- 3
+  expect_null(cm_model(m, im3)$distributions)
+})
+
+test_that("the n_draws = 0 note counts only the inputs with a distribution", {
+  # Pooled association rows add a between-study term to the draws, which is
+  # not an input of the user.
+  m <- read_five("impacts_yield.csv")
+  m$distributions <- m$distributions[c("associations:1", "associations:2")]
+  r <- deconflate(m, n_draws = 0)
+  expect_true(any(grepl("2 inputs have a distribution, but n_draws = 0", r$notes, fixed = TRUE)))
+  expect_false(any(grepl("n_draws = 0", deconflate(example_supplement(), n_draws = 0)$notes)))
 })

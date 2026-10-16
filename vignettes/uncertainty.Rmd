@@ -97,14 +97,16 @@ more than 5% of the mean: use more draws, or Latin hypercube sampling),
 `heavy_tail` (the most extreme 1% of draws contribute more than 60% of the
 variance) or `insufficient_info` (the precision cannot be assessed, e.g.
 because the mean is zero; `mcse` still gives the absolute error). A note
-lists the quantities that are not `ok`.
+names the quantities that are not `ok` ("Too few draws for precise
+intervals of ...").
 
 Without any distribution, no draws are run, whatever `n_draws`, and a note
-says so; `n_draws = 0` skips the draws (and the note) for a model that has
-distributions:
+says so; `n_draws = 0` skips the draws for a model that has distributions,
+and a note says that the results are point estimates without intervals:
 
 ```{r}
 deconflate(example_supplement())$notes
+deconflate(mu, n_draws = 0)$notes
 ```
 
 ### Seed

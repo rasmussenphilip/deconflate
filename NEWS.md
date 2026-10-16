@@ -5,7 +5,90 @@ Event impacts now have the same results and tools as additive impacts
 an independent Python implementation
 (`inst/validation/reference_v06_event_parity.py`). Everything that is not
 the package's one model has been removed (item 2), and the sensitivity tools
-are replaced by one function, `cm_sensitivity()` (item 3).
+are replaced by one function, `cm_sensitivity()` (item 3). The input tables
+are simpler and the output tables have one layout for both models (items 8
+and 9; design note section 18).
+
+## Output tables (item 9)
+
+* **`print(res)`** is a short overview: one table (each disease's and
+  interaction's raw and adjusted value, interval, relative change,
+  contribution and share), the totals in one line, and the notes. The
+  diagnostics move to `summary()`; `print()` adds a line starting "Check:"
+  when they need attention (sign changes, a residual above 1e-6 in the
+  exact rows, a condition number above 1e6).
+* **`summary(res)`** is the full report in sections that each fit 80
+  columns: impacts, (event impacts) the risk of an animal with only these
+  diseases, contributions with their parts and intervals, totals, ranks over
+  the draws, diagnostics and notes.
+* **`contribution_table(res)`** is the table for export: full precision,
+  and always the same columns for a model, with `NA` intervals without
+  draws.
+* Printed tables show 3 significant figures, with each value rounded on
+  its own; fractions (shares, the attributable fraction, the reduction) are
+  printed as fractions. This includes `cm_sensitivity()` (the variance
+  shares were percentages), `cm_threshold()` (4 figures before; each
+  crossing is now a line, so the printout fits 80 columns) and the
+  diagnosis.
+* The Monte Carlo note is in plain words: "Too few draws for precise
+  intervals of the adjusted impacts of LAM and LAM;MAS and the
+  contributions of LAM and MET: increase n_draws, or use sampling = "lhs"".
+* A note says when inputs have distributions but `n_draws = 0` (the results
+  are then point estimates without intervals).
+
+## Breaking changes: output tables
+
+* One set of column names for both models: `raw`, `adjusted`, `lower`,
+  `upper`, `change`, `contribution`, `main`, `interaction`, `share`.
+  * Event results have `$contributions` (`disease`, `contribution`, `main`,
+    `interaction`, `share`, and with draws `lower`, `upper`), like additive
+    results. `$attributable$by_disease` is gone (its `attributable` column
+    is `contribution`); `$attributable` keeps `summary` and
+    `baseline_hazard`.
+  * The `total` column of additive `$contributions` is now `contribution`,
+    and comes before `main` and `interaction`.
+  * `contribution_table()`: `adjusted_hr` is now `adjusted`, `attributable`
+    is `contribution`, `attributable_lower`/`_upper` are
+    `contribution_lower`/`_upper`; the interval columns are always there.
+* `summary()`: `$totals` is a long table (`quantity`, `value`, `lower`,
+  `upper`), one row per total; `$contributions` holds only the
+  contributions (the impacts are in `$impacts`, and for event impacts the
+  risks of animals with only one disease in `$alone`); `$diagnostics` is
+  lines of text.
+* `cm_sensitivity()`: the `var_share` column of `$inputs` is now `share`.
+  The diagnosis: the `aggregate_before` and `aggregate_after` columns of
+  `$disagreeing` are now `total_before` and `total_after`.
+
+## Input tables (item 8)
+
+* Tables joined with `rbind()` need no renumbering: `cm_model()` and
+  `cm_population()` give rows without a number, or with the number of an
+  earlier row, the next free numbers. Adding an interaction or an
+  `OR_ratio` row in R is
+  `cm_model(m, rbind(m$impacts, cm_impacts("d1;d2", 1, adjusted_for = "all")))`.
+  Joining additive and event impact rows is an error.
+* `note` is the only free-text column of every table, and the package never
+  uses it. `study` is kept (it identifies rows in `$estimates` and the
+  diagnosis).
+* The documentation says that prevalences, probabilities, associations,
+  impacts and the overall risk must refer to the same period and
+  population.
+* The template and the example folders (`five_diseases`,
+  `global_dairy_2024`, `example_with_errors`) no longer have the dropped
+  columns; their contents are in `note`.
+
+## Breaking changes: input tables
+
+* The columns `label` (of the diseases table), `time_horizon`,
+  `reference_population` and `source` are no longer read. Files with them
+  still load, with a note ("Column `label` is not used; put free text in
+  `note`."); the same arguments of `cm_diseases()`, `cm_associations()` and
+  `cm_impacts()` give a message and are ignored. The diseases table has no
+  disease labels: printed tables show the disease codes. The impact table's
+  `label` and `units` (the outcome's name and units) are unchanged.
+* The warning about mixed time horizons is gone with `time_horizon`.
+* Simulated impacts (`simulate_raw_impacts()`) and the rows built by
+  `cm_sensitivity()` describe themselves in `note` (was `source`).
 
 ## New features: sensitivity
 

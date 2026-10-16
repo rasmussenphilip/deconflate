@@ -122,7 +122,8 @@ adjust_event <- function(model, overall_risk, joint, warn = TRUE, allocate = TRU
                           rows = vapply(terms, function(t) sum(term_of_row == t), integer(1), USE.NAMES = FALSE),
                           risk_alone = al$risk, rr_alone = al$rr, rd_alone = al$rd, or_alone = al$or,
                           stringsAsFactors = FALSE),
-    attributable = attributable,
+    contributions = attributable$contributions,
+    attributable = attributable[c("summary", "baseline_hazard")],
     estimates = estimates,
     conflation = conflation,
     fit = list(Q = sol$Q, df = sol$df, p = if (is.finite(sol$Q)) stats::pchisq(sol$Q, sol$df, lower.tail = FALSE) else NA_real_),
@@ -383,10 +384,10 @@ event_attributable <- function(theta, joint, overall_risk, members, allocate = T
     sh <- shapley_for(theta)
     combo <- lengths(members) > 1L
     main <- if (any(combo)) shapley_for(ifelse(combo, 0, theta))$shapley else sh$shapley
-    by <- data.frame(disease = ids, main = main, interaction = sh$shapley - main,
-                     attributable = sh$shapley, share = sh$share, stringsAsFactors = FALSE)
+    by <- data.frame(disease = ids, contribution = sh$shapley, main = main, interaction = sh$shapley - main,
+                     share = sh$share, stringsAsFactors = FALSE)
     summ$unallocated <- summ$attributable - attr(sh, "allocated")
   }
-  list(summary = summ, by_disease = by, baseline_hazard = h0)
+  list(summary = summ, contributions = by, baseline_hazard = h0)
 }
 

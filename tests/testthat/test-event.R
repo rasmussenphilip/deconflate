@@ -142,7 +142,8 @@ test_that("the snapshot model matches the reference (supplement hazard ratios)",
   expect_match(res$notes, "No input has a distribution")
   expect_length(deconflate(t2_event(), event_model = TRUE, overall_risk = 0.25, n_draws = 0)$notes, 0)
   expect_output(print(res), "cm_event_result")
-  expect_output(print(res), "Attributable risk by disease")
+  expect_match(printed(res), "contribution share", fixed = TRUE)
+  expect_match(printed(res), "attributable to disease", fixed = TRUE)
   # There is no method argument.
   expect_error(deconflate(t2_event(), method = "global", event_model = TRUE, overall_risk = 0.25),
                "has been removed")
@@ -156,7 +157,7 @@ test_that("the internal snapshot engine matches the reference", {
   expect_equal(r$diagnostics$n_sign_changes, 0)
   expect_s3_class(r$joint, "cm_joint")
   expect_equal(r$attributable$summary$attributable, t2_ar_ref, tolerance = 1e-7)
-  expect_equal(sum(r$attributable$by_disease$attributable), r$attributable$summary$attributable,
+  expect_equal(sum(r$contributions$contribution), r$attributable$summary$attributable,
                tolerance = 1e-10)
 })
 
@@ -230,9 +231,9 @@ test_that("mixed measures, crude, stratified and a combination match the five-di
   expect_equal(res$estimates$adjusted_for[1:6], c(NA, "LAM;SCK", NA, NA, "all", NA))
   a <- res$attributable
   expect_equal(a$summary$attributable, 0.0541469811, tolerance = 1e-8)
-  expect_equal(a$by_disease$attributable,
+  expect_equal(res$contributions$contribution,
                c(0.0137316223, 0.0218514738, 0.0015789582, 0.0114739881, 0.0055109386), tolerance = 1e-8)
-  expect_equal(sum(a$by_disease$attributable), a$summary$attributable, tolerance = 1e-10)
+  expect_equal(sum(res$contributions$contribution), a$summary$attributable, tolerance = 1e-10)
   expect_equal(a$summary$unallocated, 0, tolerance = 1e-10)
   # Each single-disease row is reproduced on its own scale: crude, stratified
   # by LAM and SCK, and stratified by all other diseases; with the LAM:MAS
@@ -305,8 +306,8 @@ test_that("hazard ratios of 1 stay 1 and give no attributable risk", {
   ar <- r$attributable
   expect_equal(ar$summary$disease_free_risk, 0.25, tolerance = 1e-10)
   expect_equal(ar$summary$attributable, 0, tolerance = 1e-10)
-  expect_equal(ar$by_disease$attributable, c(0, 0, 0), tolerance = 1e-12)
-  expect_true(all(is.na(ar$by_disease$share)))
+  expect_equal(r$contributions$contribution, c(0, 0, 0), tolerance = 1e-12)
+  expect_true(all(is.na(r$contributions$share)))
 })
 
 test_that("the attributable risk and its Shapley allocation match the reference", {
@@ -318,22 +319,24 @@ test_that("the attributable risk and its Shapley allocation match the reference"
   expect_equal(ar$summary$disease_free_risk, 0.21335101490465225, tolerance = 1e-8)
   expect_equal(ar$summary$attributable, t2_ar_ref, tolerance = 1e-7)
   expect_equal(ar$summary$attributable_fraction, t2_ar_ref / 0.25, tolerance = 1e-7)
-  expect_equal(names(ar$by_disease), c("disease", "main", "interaction", "attributable", "share"))
-  expect_equal(ar$by_disease$disease, t2_ids)
-  expect_equal(ar$by_disease$attributable, c(0.0073707436, 0.0234877275, 0.0057905139), tolerance = 1e-7)
-  expect_equal(sum(ar$by_disease$attributable), ar$summary$attributable, tolerance = 1e-10)
-  expect_equal(sum(ar$by_disease$share), 1, tolerance = 1e-12)
+  expect_equal(names(ar), c("summary", "baseline_hazard"))
+  ctb <- res$contributions
+  expect_equal(names(ctb), c("disease", "contribution", "main", "interaction", "share"))
+  expect_equal(ctb$disease, t2_ids)
+  expect_equal(ctb$contribution, c(0.0073707436, 0.0234877275, 0.0057905139), tolerance = 1e-7)
+  expect_equal(sum(ctb$contribution), ar$summary$attributable, tolerance = 1e-10)
+  expect_equal(sum(ctb$share), 1, tolerance = 1e-12)
   expect_equal(ar$summary$unallocated, 0, tolerance = 1e-10)
   expect_equal(ar$baseline_hazard, -log(1 - ar$summary$disease_free_risk), tolerance = 1e-12)
   # contribution_table() shows the allocation.
   ct <- contribution_table(res)
-  expect_equal(ct$adjusted_hr, res$adjusted$adjusted)
-  expect_equal(ct$attributable, ar$by_disease$attributable)
+  expect_equal(ct$adjusted, res$adjusted$adjusted)
+  expect_equal(ct$contribution, ctb$contribution)
   expect_equal(ct$measure, rep("HR", 3))
 
   # Without allocation (internal).
   ea <- event_attributable(log(res$adjusted$adjusted), res$joint, 0.25, one_term(t2_ids), allocate = FALSE)
-  expect_null(ea$by_disease)
+  expect_null(ea$contributions)
   expect_true(is.na(ea$summary$unallocated))
   expect_equal(ea$summary$attributable, ar$summary$attributable, tolerance = 1e-12)
   # An overall risk given as a distribution is used at its mean.
@@ -348,7 +351,7 @@ test_that("the allocation reports what it cannot allocate", {
   expect_silent(ea <- event_attributable(beta, res$joint, 0.25, one_term(t2_ids), max_present = 2))
   s <- ea$summary
   expect_gt(s$unallocated, 0)
-  expect_equal(sum(ea$by_disease$attributable) + s$unallocated, s$attributable, tolerance = 1e-12)
+  expect_equal(sum(ea$contributions$contribution) + s$unallocated, s$attributable, tolerance = 1e-12)
   # The unallocated part is the expected excess risk of animals with all three.
   j <- res$joint
   all3 <- rowSums(j$cells) == 3
@@ -413,7 +416,7 @@ test_that("draws of the overall risk give intervals for the attributable risk on
   s <- res$attributable$summary
   expect_lt(s$attributable_lower, s$attributable)
   expect_gt(s$attributable_upper, s$attributable)
-  expect_true(all(c("lower", "upper") %in% names(res$attributable$by_disease)))
+  expect_true(all(c("lower", "upper") %in% names(res$contributions)))
 })
 
 test_that("global dairy culling: unknown pairs, overall risk 0.2366", {
@@ -429,11 +432,13 @@ test_that("global dairy culling: unknown pairs, overall risk 0.2366", {
   expect_equal(res$diagnostics$sign_changes, "CK, DYS, MET")
   expect_equal(res$attributable$summary$attributable, 0.1086401602, tolerance = 1e-7)
   expect_equal(res$attributable$summary$attributable_fraction, 0.4591722747, tolerance = 1e-7)
-  expect_equal(sum(res$attributable$by_disease$attributable), res$attributable$summary$attributable,
+  expect_equal(sum(res$contributions$contribution), res$attributable$summary$attributable,
                tolerance = 1e-10)
   expect_equal(nrow(res$unknown_pairs), 28)
   expect_true(all(is.finite(res$unknown_pairs$fitted_or)))
-  expect_length(res$notes, 0)
+  # The only note: the inputs have distributions but no draws were run.
+  expect_length(res$notes, 1)
+  expect_match(res$notes, "but n_draws = 0: the results are point estimates without intervals", fixed = TRUE)
 })
 
 test_that("global dairy culling with unlisted pairs independent (as in 0.3)", {
@@ -460,5 +465,5 @@ test_that("global dairy culling with unlisted pairs independent (as in 0.3)", {
   expect_equal(snap$diagnostics$n_sign_changes, 2)
   expect_equal(snap$attributable$summary$disease_free_risk, 0.12002780924706569, tolerance = 1e-6)
   expect_equal(snap$attributable$summary$attributable, 0.11657219075293432, tolerance = 1e-6)
-  expect_null(snap$attributable$by_disease)
+  expect_null(snap$contributions)
 })

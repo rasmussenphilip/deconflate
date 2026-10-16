@@ -40,7 +40,7 @@ test_that("contributions add up to the aggregate", {
   ct <- res$contributions
   expect_equal(ct$main, c(0.10, 0.15, 0.20) * res$adjusted$adjusted)
   expect_equal(ct$interaction, c(0, 0, 0))
-  expect_equal(sum(ct$total), res$totals$adjusted_total, tolerance = 1e-14)
+  expect_equal(sum(ct$contribution), res$totals$adjusted_total, tolerance = 1e-14)
   expect_equal(sum(ct$share), 1, tolerance = 1e-14)
   expect_equal(res$totals$raw_total, sum(c(0.10, 0.15, 0.20) * c(2.5, 5, 7.5)))
 })

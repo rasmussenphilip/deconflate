@@ -4,6 +4,10 @@
 #' two or more diseases (associations, combinations, prevalences within
 #' subgroups) belong in [cm_associations()].
 #'
+#' Probabilities, associations, impacts and the overall risk must all refer
+#' to the same period (for example a lactation or a year) and the same
+#' population.
+#'
 #' @param disease Character vector of unique disease ids (no `|`, `;` or
 #'   `:`; `"all"` and `"others"` are reserved).
 #' @param value Numeric vector of disease occurrence values, interpreted
@@ -11,20 +15,17 @@
 #' @param measure Character, one per disease (or recycled):
 #'   * `"prevalence"`: proportion of animals affected at a representative
 #'     point in time (used as the probability directly).
-#'   * `"probability"`: probability of at least one case within
-#'     `time_horizon` (used directly).
-#'   * `"incidence_rate"`: expected number of cases per animal within
-#'     `time_horizon` (e.g. `0.48` for 48 cases per 100 lactations). Converted
+#'   * `"probability"`: probability of at least one case within the period
+#'     (used directly).
+#'   * `"incidence_rate"`: expected number of cases per animal within the
+#'     period (e.g. `0.48` for 48 cases per 100 lactations). Converted
 #'     to a probability assuming Poisson-distributed events,
 #'     `1 - exp(-value)`, as in Rasmussen et al. (2024), eq. 1.
-#' @param label Optional full names of the diseases (e.g. `"lameness"`).
-#' @param time_horizon Character label of the period the probabilities refer
-#'   to (e.g. `"lactation"`, `"year"`). Probabilities, associations and impacts
-#'   should all refer to the same period.
-#' @param reference_population Optional description of the population the
-#'   values come from.
-#' @param source,note Optional citation and free-text note.
-#' @param ... Not used (arguments of earlier versions give a message).
+#' @param note Optional free text (e.g. the source of the value); never used
+#'   by the package.
+#' @param ... Not used. Arguments of earlier versions give a message:
+#'   `label`, `time_horizon`, `reference_population` and `source` are
+#'   ignored (put free text in `note`).
 #'
 #' @return A `cm_diseases` data frame with the converted probability in
 #'   column `prob` and the inputs retained.
@@ -32,12 +33,9 @@
 #' @examples
 #' cm_diseases(c("SCK", "PTB"), c(0.4789, 0.1001),
 #'             measure = c("incidence_rate", "prevalence"),
-#'             label = c("subclinical ketosis", "paratuberculosis"),
-#'             time_horizon = "lactation")
-cm_diseases <- function(disease, value, measure = "prevalence", label = NA_character_,
-                        time_horizon = NA_character_, reference_population = NA_character_,
-                        source = NA_character_, note = NA_character_, ...) {
-  old_args(list(...), c(type = "`type` is now called `measure` (prevalence, probability or incidence_rate).",
+#'             note = c("per lactation", "herd prevalence"))
+cm_diseases <- function(disease, value, measure = "prevalence", note = NA_character_, ...) {
+  old_args(unused_args(list(...)), c(type = "`type` is now called `measure` (prevalence, probability or incidence_rate).",
                         id = "`id` is now called `disease`."))
   disease <- as.character(disease)
   n <- length(disease)
@@ -55,16 +53,8 @@ cm_diseases <- function(disease, value, measure = "prevalence", label = NA_chara
                      paste(disease[prob <= 0 | prob >= 1], collapse = ", ")),
              class = "deconflate_infeasible")
   }
-  horizon <- as.character(recycle_arg(time_horizon, n, "time_horizon"))
-  if (length(unique(stats::na.omit(horizon))) > 1L) {
-    cm_warn("Diseases refer to different time horizons; probabilities, associations and impacts should share one period.")
-  }
   out <- data.frame(
     disease = disease, prob = prob, value = value, measure = measure,
-    label = as.character(recycle_arg(label, n, "label")),
-    time_horizon = horizon,
-    reference_population = as.character(recycle_arg(reference_population, n, "reference_population")),
-    source = as.character(recycle_arg(source, n, "source")),
     note = as.character(recycle_arg(note, n, "note")),
     stringsAsFactors = FALSE
   )
@@ -121,10 +111,13 @@ disease_measures <- c("prevalence", "probability", "incidence_rate")
 #' @param measure Character, one per row or recycled (see What a row means).
 #' @param among Optional subgroups (see What a row means).
 #' @param adjusted_for Optional adjustment sets (see What a row means).
-#' @param study,source,note Optional study label (used in diagnostics),
-#'   citation and free-text note.
-#' @param ... Not used (arguments of earlier versions give a message). The
-#'   arguments after it must be named.
+#' @param study Optional study label: identifies the row in `$estimates` and
+#'   the diagnosis.
+#' @param note Optional free text (e.g. the citation); never used by the
+#'   package.
+#' @param ... Not used (arguments of earlier versions give a message;
+#'   `source` is ignored: put free text in `note`). The arguments after it
+#'   must be named.
 #'
 #' @return A `cm_associations` data frame (with the row number of each row
 #'   in column `row`).
@@ -136,9 +129,8 @@ disease_measures <- c("prevalence", "probability", "incidence_rate")
 #'                 measure = c("OR", "OR_ratio"), among = c("d3", "d3"))
 cm_associations <- function(disease, associated_with = NA_character_, value, measure = "OR", ...,
                             among = NA_character_, adjusted_for = NA_character_,
-                            study = NA_character_, source = NA_character_,
-                            note = NA_character_) {
-  old_args(list(...), c(
+                            study = NA_character_, note = NA_character_) {
+  old_args(unused_args(list(...)), c(
     adjusted = "`adjusted` is no longer used: an association is adjusted when `adjusted_for` names diseases of the model.",
     disease1 = "`disease1` and `disease2` are now called `disease` and `associated_with`.",
     disease2 = "`disease1` and `disease2` are now called `disease` and `associated_with`."))
@@ -170,7 +162,6 @@ cm_associations <- function(disease, associated_with = NA_character_, value, mea
     adjusted_for = clean_na(recycle_arg(adjusted_for, n, "adjusted_for")),
     measure = measure, value = value,
     study = as.character(recycle_arg(study, n, "study")),
-    source = as.character(recycle_arg(source, n, "source")),
     note = as.character(recycle_arg(note, n, "note")),
     stringsAsFactors = FALSE
   )
@@ -197,7 +188,9 @@ retired_measures <- c(
 #' @param diseases A [cm_diseases()] object.
 #' @param associations Optional [cm_associations()] object. [deconflate()]
 #'   needs at least one association; [cm_sensitivity()] and
-#'   [cm_threshold()] also run without any.
+#'   [cm_threshold()] also run without any. Rows without a number, or with
+#'   the number of an earlier row (e.g. after `rbind()`), get the next free
+#'   numbers.
 #' @param ... Not used (arguments of earlier versions give a message).
 #' @return A `cm_population` object.
 #' @export
@@ -219,7 +212,7 @@ cm_population <- function(diseases, associations = NULL, ...) {
     if (!nrow(associations)) associations <- NULL
   }
   if (!is.null(associations)) {
-    if (is.null(associations$row)) associations$row <- seq_len(nrow(associations))
+    associations <- number_rows(associations)
     for (r in seq_len(nrow(associations))) association_spec(associations[r, ], ids)
   }
   structure(list(diseases = diseases, associations = associations), class = "cm_population")
@@ -290,12 +283,16 @@ interactions_message <- "Interactions are now rows of the impact table: disease 
 #'   a row means).
 #' @param measure `NULL` (default) for additive impacts; for event impacts,
 #'   one measure per row or recycled.
-#' @param study,source,note Optional study label, citation and note.
+#' @param study Optional study label: identifies the row in `$estimates` and
+#'   the diagnosis.
+#' @param note Optional free text (e.g. the citation); never used by the
+#'   package.
 #' @param label,units Optional table-level metadata (e.g.
 #'   `label = "milk yield loss"`, `units = "% of yield"`), carried into the
 #'   results.
-#' @param ... Not used (arguments of earlier versions give a message). The
-#'   arguments after it must be named.
+#' @param ... Not used (arguments of earlier versions give a message;
+#'   `source` is ignored: put free text in `note`). The arguments after it
+#'   must be named.
 #'
 #' @return A `cm_impacts` data frame (attributes `label`, `units` and
 #'   `kind`, `"additive"` or `"event"`).
@@ -309,9 +306,9 @@ interactions_message <- "Interactions are now rows of the impact table: disease 
 #' cm_impacts(c("d1", "d2", "d3"), c(1.5, 1.3, 0.04), measure = c("HR", "RR", "RD"),
 #'            label = "culling")
 cm_impacts <- function(disease, value, ..., among = NA_character_, adjusted_for = NA_character_,
-                       measure = NULL, study = NA_character_, source = NA_character_,
-                       note = NA_character_, label = NULL, units = NULL) {
-  old_args(list(...), c(estimand = estimand_message))
+                       measure = NULL, study = NA_character_, note = NA_character_,
+                       label = NULL, units = NULL) {
+  old_args(unused_args(list(...), c("time_horizon", "reference_population", "source")), c(estimand = estimand_message))
   disease <- as.character(disease)
   n <- length(disease)
   if (!n) cm_abort("At least one impact is required.", class = "deconflate_invalid_input")
@@ -337,7 +334,6 @@ cm_impacts <- function(disease, value, ..., among = NA_character_, adjusted_for 
                     adjusted_for = clean_na(recycle_arg(adjusted_for, n, "adjusted_for")),
                     measure = measure, value = value,
                     study = as.character(recycle_arg(study, n, "study")),
-                    source = as.character(recycle_arg(source, n, "source")),
                     note = as.character(recycle_arg(note, n, "note")),
                     stringsAsFactors = FALSE)
   attr(out, "label") <- label
@@ -376,8 +372,16 @@ impact_kind <- function(impacts) {
 #'   or combination, when there is exactly one. [cm_read_inputs()] fills
 #'   this in from the `dist` columns of the tables. When `population` is a
 #'   model and `distributions` is not given, its distributions are kept,
-#'   except those of impacts that are replaced.
+#'   except those of impact rows that are replaced or changed.
 #' @param ... Not used (arguments of earlier versions give a message).
+#' @details Rows without a number in `row`, or with the number of an
+#' earlier row, get the next free numbers (also in [cm_population()]), so
+#' that tables joined with `rbind()` need no renumbering, e.g.
+#' `cm_model(m, rbind(m$impacts, cm_impacts("d1;d2", 1, adjusted_for = "all")))`
+#' adds an interaction row to the model `m` (and keeps the distributions of
+#' its other rows). Distribution keys refer to the numbers after this (see
+#' `$impacts` and `$associations` of the model). Additive and event impact
+#' rows cannot be joined.
 #' @return A `cm_model` object (which is also a `cm_population`).
 #' @export
 #' @examples
@@ -398,7 +402,7 @@ cm_model <- function(population, impacts = NULL, associations = NULL, distributi
   ids <- population$diseases$disease
   if (!is.null(impacts)) {
     if (!inherits(impacts, "cm_impacts")) cm_abort("`impacts` must be created with cm_impacts().", class = "deconflate_invalid_input")
-    if (is.null(impacts$row)) impacts$row <- seq_len(nrow(impacts))
+    impacts <- number_rows(impacts)
     impacts <- check_impact_rows(impacts, ids)
   }
   out <- population
@@ -406,21 +410,42 @@ cm_model <- function(population, impacts = NULL, associations = NULL, distributi
   class(out) <- c("cm_model", "cm_population")
   if (is.null(distributions)) {
     # Distributions carried over from a model belong to its tables: those of
-    # replaced impacts are dropped.
+    # impact rows that were replaced or changed are dropped, those of rows
+    # that are still there (e.g. after rbind() of a new row) are kept.
     distributions <- population$distributions
     if (length(distributions) && inherits(population, "cm_model") &&
         !identical(impacts, population$impacts)) {
-      distributions <- distributions[!startsWith(names(distributions), "impacts:")]
+      keep <- vapply(names(distributions), function(k) {
+        !startsWith(k, "impacts:") || same_impact_row(population$impacts, impacts, as.integer(substring(k, 9L)))
+      }, logical(1))
+      distributions <- distributions[keep]
     }
   }
   out$distributions <- check_distributions(distributions, out)
   out
 }
 
+# Is impact row `r` the same in both tables (same number, disease,
+# subgroup, adjustment, measure and value)?
+same_impact_row <- function(old, new, r) {
+  if (is.null(old) || is.null(new) || is.na(r)) return(FALSE)
+  i <- match(r, old$row)
+  j <- match(r, new$row)
+  if (is.na(i) || is.na(j)) return(FALSE)
+  cols <- c("disease", "among", "adjusted_for", "measure", "value")
+  all(vapply(cols, function(cl) identical(old[[cl]][i], new[[cl]][j]), logical(1)))
+}
+
 # Check the rows of an impact table against the diseases: every row parses,
 # every disease has a row of its own. Returns the table.
 check_impact_rows <- function(impacts, ids) {
   kind <- impact_kind(impacts)
+  has <- !is.na(impacts$measure %||% rep(NA_character_, nrow(impacts)))
+  if (any(has) && !all(has)) {
+    cm_abort(sprintf("The impact rows mix additive impacts (no measure) and event impacts (with a measure; rows %s): an impact table holds one kind.",
+                     paste(impacts$row[has], collapse = ", ")), class = "deconflate_invalid_input")
+  }
+  if (all(has)) kind <- "event"
   for (r in seq_len(nrow(impacts))) impact_spec(impacts[r, ], ids)
   own <- unique(impacts$disease[!grepl(";", impacts$disease, fixed = TRUE)])
   miss <- setdiff(ids, trimws(own))
@@ -432,6 +457,31 @@ check_impact_rows <- function(impacts, ids) {
   rownames(impacts) <- NULL
   attr(impacts, "kind") <- kind
   impacts
+}
+
+# Columns and arguments of earlier versions that are no longer used.
+unused_inputs <- c("label", "time_horizon", "reference_population", "source")
+
+# Drop arguments of earlier versions that are no longer used, with a message
+# (the value is ignored), and return the other arguments.
+unused_args <- function(dots, unused = unused_inputs) {
+  nm <- names(dots) %||% rep("", length(dots))
+  hit <- nm %in% unused
+  for (h in nm[hit]) cm_inform(sprintf("Argument `%s` is not used; put free text in `note`.", h))
+  dots[!hit]
+}
+
+# Row numbers of an association or impact table: rows without a valid
+# number (a whole number of 1 or more), or with the number of an earlier row
+# (e.g. tables joined with rbind()), get the next free numbers.
+number_rows <- function(tab) {
+  v <- suppressWarnings(as.numeric(tab[["row"]] %||% rep(NA_real_, nrow(tab))))
+  r <- as.integer(ifelse(is.finite(v) & v >= 1 & v == round(v), v, NA_real_))
+  bad <- is.na(r) | duplicated(r)
+  if (any(bad)) r[bad] <- max(c(0L, r[!bad])) + seq_len(sum(bad))
+  tab$row <- r
+  rownames(tab) <- NULL
+  tab
 }
 
 # Arguments of earlier versions, passed through `...`: stop with what to do

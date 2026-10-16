@@ -15,7 +15,7 @@ example_supplement <- function() {
     cm_associations(c("d1", "d1", "d2"), c("d2", "d3", "d3"), c(2, 1, 3), measure = "OR")
   )
   cm_model(pop, cm_impacts(c("d1", "d2", "d3"), c(2.5, 5, 7.5), label = "yield", units = "%",
-                           source = "Rasmussen et al. 2022, Table S1"))
+                           note = "Rasmussen et al. 2022, Table S1"))
 }
 
 global_dairy_inputs <- function(inputs) {
@@ -61,9 +61,9 @@ global_dairy_inputs <- function(inputs) {
           "RP:OC" = 2.18, "SCK:RP" = 1.52)
   pr <- do.call(rbind, strsplit(names(or), ":", fixed = TRUE))
   pop <- cm_population(
-    cm_diseases(ids, unname(inc[ids]) / 100, measure = type, time_horizon = "lactation", source = src),
+    cm_diseases(ids, unname(inc[ids]) / 100, measure = type, note = src),
     cm_associations(pr[, 1], pr[, 2], unname(or), measure = "OR",
-                    source = "Rasmussen et al. 2024, Table 3")
+                    note = "Rasmussen et al. 2024, Table 3")
   )
   list(ids = ids, pop = pop, src = src, yield = yield, fert = fert, hr = hr)
 }
@@ -120,11 +120,11 @@ example_global_dairy <- function(outcome = c("yield", "fertility", "culling"),
   d <- global_dairy_dists(inputs)
   imp <- switch(outcome,
     yield = cm_impacts(g$ids, unname(g$yield[g$ids]), label = "milk yield loss",
-                       units = "% decrease", source = g$src),
+                       units = "% decrease", note = g$src),
     fertility = cm_impacts(g$ids, unname(g$fert[g$ids]), label = "calving interval increase",
-                           units = "% increase", source = g$src),
+                           units = "% increase", note = g$src),
     culling = cm_impacts(g$ids, unname(g$hr[g$ids]), measure = "HR",
-                         label = "culling", source = g$src))
+                         label = "culling", note = g$src))
   impd <- switch(outcome, yield = d$yield, fertility = d$fert, culling = d$cull_hr)
   dists <- c(d$pop, if (length(impd)) stats::setNames(impd, paste0("impact:", names(impd))))
   cm_model(g$pop, imp, distributions = dists)

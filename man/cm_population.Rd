@@ -11,7 +11,9 @@ cm_population(diseases, associations = NULL, ...)
 
 \item{associations}{Optional \code{\link[=cm_associations]{cm_associations()}} object. \code{\link[=deconflate]{deconflate()}}
 needs at least one association; \code{\link[=cm_sensitivity]{cm_sensitivity()}} and
-\code{\link[=cm_threshold]{cm_threshold()}} also run without any.}
+\code{\link[=cm_threshold]{cm_threshold()}} also run without any. Rows without a number, or with
+the number of an earlier row (e.g. after \code{rbind()}), get the next free
+numbers.}
 
 \item{...}{Not used (arguments of earlier versions give a message).}
 }

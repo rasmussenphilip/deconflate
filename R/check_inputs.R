@@ -333,12 +333,12 @@ diagnose_inputs <- function(model, plan, res, risk, dots) {
           "without it, the adjusted impacts cannot be compared"
         }
         return(cbind(base, changes_most = NA_character_, before = NA_real_, after = NA_real_,
-                     aggregate_before = central$agg, aggregate_after = NA_real_, note = note,
+                     total_before = central$agg, total_after = NA_real_, note = note,
                      stringsAsFactors = FALSE))
       }
       t <- common[which.max(dlt)]
       cbind(base, changes_most = t, before = unname(central$adj[t]), after = unname(o$adj[t]),
-            aggregate_before = central$agg, aggregate_after = o$agg, note = "", stringsAsFactors = FALSE)
+            total_before = central$agg, total_after = o$agg, note = "", stringsAsFactors = FALSE)
     })
     disagreeing <- do.call(rbind, out)
     rownames(disagreeing) <- NULL
@@ -355,34 +355,34 @@ diagnose_inputs <- function(model, plan, res, risk, dots) {
 print.cm_diagnosis <- function(x, digits = 3, ...) {
   f <- x$flagged
   fl <- f[f$flagged, , drop = FALSE]
-  fmt <- function(v) {
-    out <- formatC(signif(v, digits), digits = digits, format = "fg", flag = "#")
-    sub("\\.$", "", trimws(out))
-  }
+  fmt <- function(v) fmt_num(v, digits, na = "NA")
+  item <- function(s) cat(strwrap(s, width = getOption("width", 80L), indent = 2L, exdent = 4L), sep = "\n")
   if (!nrow(fl) && is.null(x$disagreeing)) {
-    cat("Diagnosis: no adjusted impact is flagged and no row disagrees with other rows.\n")
+    cat_wrapped("Diagnosis: no adjusted impact is flagged and no row disagrees with other rows.")
     return(invisible(x))
   }
   cat("Diagnosis (diagnose = TRUE)\n")
   if (nrow(fl)) {
     if (x$event) {
-      cat("\nFlagged adjusted results (raw estimate -> adjusted, on the estimate's measure; RR, OR and RD\nfor an animal with only the disease against a disease-free animal):\n")
+      cat("\n")
+      cat_wrapped("Flagged adjusted results (raw estimate -> adjusted, on the estimate's measure; RR, OR and RD for an animal with only the disease against a disease-free animal):", exdent = 0L)
       for (i in seq_len(nrow(fl))) {
-        cat(sprintf("  %s: %s %s -> %s (%s)\n", fl$disease[i], fl$measure[i], fmt(fl$raw[i]), fmt(fl$adjusted[i]),
-                    fl$reason[i]))
+        item(sprintf("%s: %s %s -> %s (%s)", fl$disease[i], fl$measure[i], fmt(fl$raw[i]), fmt(fl$adjusted[i]),
+                     fl$reason[i]))
       }
     } else {
       cat("\nFlagged adjusted impacts (raw -> adjusted):\n")
       for (i in seq_len(nrow(fl))) {
-        cat(sprintf("  %s: %s -> %s (%s)\n", fl$disease[i], fmt(fl$raw[i]), fmt(fl$adjusted[i]), fl$reason[i]))
+        item(sprintf("%s: %s -> %s (%s)", fl$disease[i], fmt(fl$raw[i]), fmt(fl$adjusted[i]), fl$reason[i]))
       }
     }
     flag <- fl$disease
     max_sd <- x$settings$max_sd
     e <- x$inputs
     if (!is.null(e) && any(e$listed)) {
-      cat(sprintf("\nInputs with a distribution: change in each flagged %s when the input moves up by 1 SD;\nin brackets, the shift that alone removes the flag (within %g SD).\n",
-                  if (x$event) "result (on the measure above)" else "impact", max_sd))
+      cat("\n")
+      cat_wrapped(sprintf("Inputs with a distribution: change in each flagged %s when the input moves up by 1 SD; in brackets, the shift that alone removes the flag (within %g SD).",
+                          if (x$event) "result (on the measure above)" else "impact", max_sd), exdent = 0L)
       keys <- unique(e$key[e$listed])
       best <- vapply(keys, function(k) {
         n <- abs(e$sd_needed[e$key == k])
@@ -432,27 +432,30 @@ print.cm_diagnosis <- function(x, digits = 3, ...) {
       }
       print(tab, row.names = FALSE, right = FALSE)
       if (!all(th$in_range)) {
-        cat("* outside a quarter to three times the value (a disease's own impact rows are always shown).\n")
+        cat_wrapped("* outside a quarter to three times the value (a disease's own impact rows are always shown).", exdent = 2L)
       }
     }
     if (length(x$no_single_fix)) {
-      cat(sprintf("\nNo single input removes the flag for %s (within %g SD, or within a quarter to three times\nthe value of an input without a distribution): several inputs together, or a structural problem such as units.\n",
-                  join_and(x$no_single_fix), max_sd))
+      cat("\n")
+      cat_wrapped(sprintf("No single input removes the flag for %s (within %g SD, or within a quarter to three times the value of an input without a distribution): several inputs together, or a structural problem such as units.",
+                          join_and(x$no_single_fix), max_sd), exdent = 0L)
     }
     if (isTRUE(x$settings$sampled)) {
-      cat("\nThe joint distribution was fitted with the sampled backend: the effects include Monte Carlo noise.\n")
+      cat("\n")
+      cat_wrapped("The joint distribution was fitted with the sampled backend: the effects include Monte Carlo noise.", exdent = 0L)
     }
   }
   dg <- x$disagreeing
   if (!is.null(dg)) {
-    cat("\nRows that disagree with other rows for the same quantity (standardised residual of 2 or more):\n")
+    cat("\n")
+    cat_wrapped("Rows that disagree with other rows for the same quantity (standardised residual of 2 or more):", exdent = 0L)
     for (i in seq_len(nrow(dg))) {
       who <- paste(c(dg$item[i], if (!is.na(dg$study[i]) && nzchar(dg$study[i])) dg$study[i]), collapse = ", ")
       cons <- if (is.na(dg$after[i])) dg$note[i] else
-        sprintf("%s %s -> %s, aggregate %s -> %s", dg$changes_most[i], fmt(dg$before[i]), fmt(dg$after[i]),
-                fmt(dg$aggregate_before[i]), fmt(dg$aggregate_after[i]))
-      cat(sprintf("  %s row %s (%s): %s, fitted %s, residual %+.1f; without it: %s\n", dg$table[i], dg$row[i], who,
-                  fmt(dg$value[i]), fmt(dg$fitted[i]), dg$std_residual[i], cons))
+        sprintf("%s %s -> %s, total %s -> %s", dg$changes_most[i], fmt(dg$before[i]), fmt(dg$after[i]),
+                fmt(dg$total_before[i]), fmt(dg$total_after[i]))
+      item(sprintf("%s row %s (%s): %s, fitted %s, residual %+.1f; without it: %s", dg$table[i], dg$row[i], who,
+                   fmt(dg$value[i]), fmt(dg$fitted[i]), dg$std_residual[i], cons))
     }
   }
   invisible(x)

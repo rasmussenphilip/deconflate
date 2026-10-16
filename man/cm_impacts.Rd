@@ -12,7 +12,6 @@ cm_impacts(
   adjusted_for = NA_character_,
   measure = NULL,
   study = NA_character_,
-  source = NA_character_,
   note = NA_character_,
   label = NULL,
   units = NULL
@@ -23,8 +22,9 @@ cm_impacts(
 
 \item{value}{Numeric raw impacts.}
 
-\item{...}{Not used (arguments of earlier versions give a message). The
-arguments after it must be named.}
+\item{...}{Not used (arguments of earlier versions give a message;
+\code{source} is ignored: put free text in \code{note}). The arguments after it
+must be named.}
 
 \item{among, adjusted_for}{Optional subgroups and adjustment sets (see What
 a row means).}
@@ -32,7 +32,11 @@ a row means).}
 \item{measure}{\code{NULL} (default) for additive impacts; for event impacts,
 one measure per row or recycled.}
 
-\item{study, source, note}{Optional study label, citation and note.}
+\item{study}{Optional study label: identifies the row in \verb{$estimates} and
+the diagnosis.}
+
+\item{note}{Optional free text (e.g. the citation); never used by the
+package.}
 
 \item{label, units}{Optional table-level metadata (e.g.
 \code{label = "milk yield loss"}, \code{units = "\% of yield"}), carried into the

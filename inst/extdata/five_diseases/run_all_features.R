@@ -160,6 +160,10 @@ res_welfare <- deconflate(m_welfare, n_draws = 0, joint = joint)
 res_welfare
 res_welfare$contributions                            # main and interaction parts
 res_welfare$conflation$A                             # what each row contains of each term
+# Adding a row in R: rbind() a new row to the model's table; cm_model()
+# gives it the next free row number (here an assumed MAS;SCK interaction)
+imp_w2 <- rbind(m_welfare$impacts, cm_impacts("MAS;SCK", 1, adjusted_for = "all", note = "assumed"))
+tail(cm_model(m_welfare, imp_w2)$impacts[, c("row", "disease", "adjusted_for", "value")], 3)
 
 # Diagnosing the inputs: with a raw SCK yield impact of 1.0 instead of 2.5,
 # SCK's adjusted impact changes sign (a warning). diagnose = TRUE shows
@@ -194,7 +198,7 @@ res_cull$adjusted                  # adjusted hazard ratios, and each term alone
                                    # disease-free on the risk scale (risk, RR, RD, OR)
 res_cull$attributable$summary      # overall, disease-free, attributable and raw
                                    # attributable risk (the diseases unrelated)
-res_cull$attributable$by_disease   # split by disease (Shapley): own part and share
+res_cull$contributions             # split by disease (Shapley): own part and share
                                    # of the LAM;MAS interaction
 round(res_cull$conflation$A, 3)    # how each row's value moves with each term
 # The risk of disease-free animals instead of the overall risk: the model
@@ -246,9 +250,11 @@ deconflate(example_supplement())$notes
 # ---- 6. Reporting, gaps and values ------------------------------------------
 section("6. Reporting, gaps and values")
 
-contribution_table(res_yield)
-contribution_table(unc_yield)      # with intervals
-summary(res_yield)
+res_yield                          # print(): the short overview
+summary(res_yield)                 # the full report, in sections
+summary(unc_cull)                  # event impacts, with draws: intervals and ranks
+contribution_table(res_yield)      # one row per disease, full precision, for export
+contribution_table(unc_yield)      # with intervals (the same columns, NA without draws)
 res_welfare$contributions          # own part and share of the interactions
 contribution_table(res_cull)
 
@@ -264,8 +270,8 @@ tot <- unc_yield$draws$values[, "total"]
 quantile(10000 / (1 - tot / 100) - 10000, c(0.025, 0.5, 0.975))
 # calving interval: absolute effects (days), so each contribution is its part
 # of the gap; valued at 3 per day
-data.frame(disease = res_ci$contributions$disease, days = res_ci$contributions$total,
-           value = res_ci$contributions$total * 3)
+data.frame(disease = res_ci$contributions$disease, days = res_ci$contributions$contribution,
+           value = res_ci$contributions$contribution * 3)
 
 # ---- 7. Sensitivity: which inputs matter? -----------------------------------
 section("7. Sensitivity")

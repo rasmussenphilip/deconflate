@@ -1,9 +1,9 @@
-disease,among,adjusted_for,value,label,units,study,dist,p1,p2,p3,p4,source,note
-LAM,,,10,welfare impact,score points,Study 1,normal,10,2,,,Illustrative,"normal(mean, sd)"
-MAS,,,6,welfare impact,score points,Study 2,pert,3,6,9,,Illustrative,"pert(min, mode, max)"
-MET,,,5,welfare impact,score points,Study 3,,,,,,Illustrative,"point value"
-SCK,,,3,welfare impact,score points,Study 4,normal,3,0.5,,,Illustrative,"normal(mean, sd)"
-RP,,,4,welfare impact,score points,Study 5,uniform,2,6,,,Illustrative,"uniform(min, max)"
-LAM;MAS,,all,2.0,welfare impact,score points,Study 6,normal,2.0,0.5,,,Illustrative,"interaction (adjusted for all): extra impact when both are present; synergistic; normal(mean, sd)"
-MET;RP,,all,1.5,welfare impact,score points,Study 7,uniform,0.5,2.5,,,Illustrative,"interaction; synergistic; uniform(min, max)"
-LAM;SCK,,,11.5,welfare impact,score points,Study 8,,,,,,Illustrative,"cows with both LAM and SCK against cows with neither (crude); point value. With the other rows it implies an antagonistic LAM:SCK interaction (less than the sum)"
+disease,among,adjusted_for,value,label,units,study,dist,p1,p2,p3,p4,note
+LAM,,,10,welfare impact,score points,Study 1,normal,10,2,,,"normal(mean, sd)"
+MAS,,,6,welfare impact,score points,Study 2,pert,3,6,9,,"pert(min, mode, max)"
+MET,,,5,welfare impact,score points,Study 3,,,,,,point value
+SCK,,,3,welfare impact,score points,Study 4,normal,3,0.5,,,"normal(mean, sd)"
+RP,,,4,welfare impact,score points,Study 5,uniform,2,6,,,"uniform(min, max)"
+LAM;MAS,,all,2.0,welfare impact,score points,Study 6,normal,2.0,0.5,,,"interaction (adjusted for all): extra impact when both are present; synergistic; normal(mean, sd)"
+MET;RP,,all,1.5,welfare impact,score points,Study 7,uniform,0.5,2.5,,,"interaction; synergistic; uniform(min, max)"
+LAM;SCK,,,11.5,welfare impact,score points,Study 8,,,,,,cows with both LAM and SCK against cows with neither (crude); point value. With the other rows it implies an antagonistic LAM:SCK interaction (less than the sum)

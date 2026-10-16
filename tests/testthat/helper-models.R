@@ -86,3 +86,12 @@ with_independent_pairs <- function(pop) {
   pop$associations <- if (is.null(a)) add else rbind(a, add)
   pop
 }
+
+# A value of the long totals table of summary(): total_value(s, "reduction").
+total_value <- function(s, quantity) s$totals$value[s$totals$quantity == quantity]
+
+# Printed output as one line with single spaces (printing wraps long lines).
+printed <- function(x, ...) gsub("\\s+", " ", paste(utils::capture.output(print(x, ...)), collapse = " "))
+
+# The five-disease culling model, adjusted without draws.
+cull_five <- function(...) deconflate(read_five("culling.csv"), event_model = TRUE, n_draws = 0, ...)

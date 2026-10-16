@@ -393,7 +393,6 @@ triples, which the sampled fit approximates:
 
 ```{r}
 imp_i <- rbind(m$impacts, cm_impacts("d1;d2", 1, adjusted_for = "all"))
-imp_i$row <- seq_len(nrow(imp_i))
 mi <- cm_model(m, imp_i)
 rbind(exact = deconflate(mi, n_draws = 0, joint = je)$adjusted$adjusted,
       sampled = deconflate(mi, n_draws = 0, joint = js)$adjusted$adjusted)
@@ -475,7 +474,6 @@ fit is reused:
 
 ```{r}
 imp24 <- rbind(m24$impacts, cm_impacts("x12;x13", 1, adjusted_for = "all"))
-imp24$row <- seq_len(nrow(imp24))
 m24i <- cm_model(m24, imp24)
 r_int <- deconflate(m24i, n_draws = 0, joint = r24$joint)
 near <- ids[10:15]

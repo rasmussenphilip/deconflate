@@ -97,12 +97,12 @@ result_is_finite <- function(r) {
     ok <- length(a) > 0 && all(is.finite(a)) && all(a > 0)
     if (ok && !is.null(r$attributable)) {
       ok <- is.finite(r$attributable$summary$attributable) &&
-        (is.null(r$attributable$by_disease) || all(is.finite(r$attributable$by_disease$attributable)))
+        (is.null(r$contributions) || all(is.finite(r$contributions$contribution)))
     }
     return(ok)
   }
   inherits(r, "cm_result") && all(is.finite(r$adjusted$adjusted)) &&
-    all(is.finite(r$contributions$total)) && is.finite(r$totals$adjusted_total)
+    all(is.finite(r$contributions$contribution)) && is.finite(r$totals$adjusted_total)
 }
 
 # Names of the diseases with non-finite adjusted values.

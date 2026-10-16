@@ -1,7 +1,7 @@
-disease,among,adjusted_for,value,label,units,study,dist,p1,p2,p3,p4,source,note
-LAM,,,12,calving interval increase,days,Study 1,normal,12,3,,,Illustrative,"crude; normal(mean, sd)"
-MAS,,SCK,6,calving interval increase,days,Study 2,normal,6,2,,,Illustrative,"coefficient from a linear regression adjusted for SCK"
-MAS,,,9,calving interval increase,days,Study 3,normal,9,3,,,Illustrative,"a second MAS estimate (crude): the two MAS rows are fitted together by weighted least squares"
-MET,,,18,calving interval increase,days,Study 4,pert,8,18,30,,Illustrative,"pert(min, mode, max)"
-SCK,,all,4,calving interval increase,days,Study 5,,,,,,Illustrative,"coefficient adjusted for all other diseases; point value (exact)"
-RP,no others,,10,calving interval increase,days,Study 6,lognormal,2.302585,0.25,,,Illustrative,"cows with RP and no other disease against healthy cows; lognormal(meanlog = log(10), sdlog)"
+disease,among,adjusted_for,value,label,units,study,dist,p1,p2,p3,p4,note
+LAM,,,12,calving interval increase,days,Study 1,normal,12,3,,,"crude; normal(mean, sd)"
+MAS,,SCK,6,calving interval increase,days,Study 2,normal,6,2,,,coefficient from a linear regression adjusted for SCK
+MAS,,,9,calving interval increase,days,Study 3,normal,9,3,,,a second MAS estimate (crude): the two MAS rows are fitted together by weighted least squares
+MET,,,18,calving interval increase,days,Study 4,pert,8,18,30,,"pert(min, mode, max)"
+SCK,,all,4,calving interval increase,days,Study 5,,,,,,coefficient adjusted for all other diseases; point value (exact)
+RP,no others,,10,calving interval increase,days,Study 6,lognormal,2.302585,0.25,,,"cows with RP and no other disease against healthy cows; lognormal(meanlog = log(10), sdlog)"

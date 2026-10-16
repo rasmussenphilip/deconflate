@@ -13,7 +13,6 @@ cm_associations(
   among = NA_character_,
   adjusted_for = NA_character_,
   study = NA_character_,
-  source = NA_character_,
   note = NA_character_
 )
 }
@@ -24,15 +23,19 @@ cm_associations(
 
 \item{measure}{Character, one per row or recycled (see What a row means).}
 
-\item{...}{Not used (arguments of earlier versions give a message). The
-arguments after it must be named.}
+\item{...}{Not used (arguments of earlier versions give a message;
+\code{source} is ignored: put free text in \code{note}). The arguments after it
+must be named.}
 
 \item{among}{Optional subgroups (see What a row means).}
 
 \item{adjusted_for}{Optional adjustment sets (see What a row means).}
 
-\item{study, source, note}{Optional study label (used in diagnostics),
-citation and free-text note.}
+\item{study}{Optional study label: identifies the row in \verb{$estimates} and
+the diagnosis.}
+
+\item{note}{Optional free text (e.g. the citation); never used by the
+package.}
 }
 \value{
 A \code{cm_associations} data frame (with the row number of each row

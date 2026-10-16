@@ -1,11 +1,11 @@
-disease,associated_with,among,adjusted_for,measure,value,study,dist,p1,p2,p3,p4,source,note
-LAM,SCK,,,OR,2.01,,normal,2.01,0.20,0,,Illustrative,"normal(mean, sd) truncated at 0"
-MET,LAM,,,OR,6.10,,pert,9.0,6.10,12.0,,Illustrative,"Error: PERT needs min <= mode <= max"
-MET,CM,,,OR,2.30,,,,,,,Illustrative,"Error: CM is not in diseases.csv"
-MET,SCK,,,OR,,,,,,,,Illustrative,"Error: missing value (leave a pair out if its association is unknown)"
-MET,RP,,parity; herd,OR,3.53,,,,,,,Illustrative,"Note: adjusted only for factors outside the model, so used as a crude odds ratio"
-RP,SCK,,,cond_prob,0.40,,,,,,,Illustrative,"Error: measure 'cond_prob' is now 'prevalence'"
-LAM,RP,,,independent,1,,,,,,,Illustrative,"Error: measure 'independent' is no longer used (an odds ratio of 1 means independent)"
-LAM,MET,LAM,,OR,1.8,,,,,,,Illustrative,"Error: `among` names LAM, which the row is about"
-SCK,MET,,LAM,RR,1.4,,,,,,,Illustrative,"Error: an adjusted association must be an odds ratio"
-LAM,SCK,,,OR_ratio,1.5,,,,,,,Illustrative,"Error: OR_ratio needs one disease in `among`"
+disease,associated_with,among,adjusted_for,measure,value,study,dist,p1,p2,p3,p4,note
+LAM,SCK,,,OR,2.01,,normal,2.01,0.20,0,,"normal(mean, sd) truncated at 0"
+MET,LAM,,,OR,6.10,,pert,9.0,6.10,12.0,,Error: PERT needs min <= mode <= max
+MET,CM,,,OR,2.30,,,,,,,Error: CM is not in diseases.csv
+MET,SCK,,,OR,,,,,,,,Error: missing value (leave a pair out if its association is unknown)
+MET,RP,,parity; herd,OR,3.53,,,,,,,"Note: adjusted only for factors outside the model, so used as a crude odds ratio"
+RP,SCK,,,cond_prob,0.40,,,,,,,Error: measure 'cond_prob' is now 'prevalence'
+LAM,RP,,,independent,1,,,,,,,Error: measure 'independent' is no longer used (an odds ratio of 1 means independent)
+LAM,MET,LAM,,OR,1.8,,,,,,,"Error: `among` names LAM, which the row is about"
+SCK,MET,,LAM,RR,1.4,,,,,,,Error: an adjusted association must be an odds ratio
+LAM,SCK,,,OR_ratio,1.5,,,,,,,Error: OR_ratio needs one disease in `among`

@@ -4,17 +4,7 @@
 \alias{cm_diseases}
 \title{Describe the diseases in a system}
 \usage{
-cm_diseases(
-  disease,
-  value,
-  measure = "prevalence",
-  label = NA_character_,
-  time_horizon = NA_character_,
-  reference_population = NA_character_,
-  source = NA_character_,
-  note = NA_character_,
-  ...
-)
+cm_diseases(disease, value, measure = "prevalence", note = NA_character_, ...)
 }
 \arguments{
 \item{disease}{Character vector of unique disease ids (no \code{|}, \verb{;} or
@@ -27,26 +17,20 @@ according to \code{measure}.}
 \itemize{
 \item \code{"prevalence"}: proportion of animals affected at a representative
 point in time (used as the probability directly).
-\item \code{"probability"}: probability of at least one case within
-\code{time_horizon} (used directly).
-\item \code{"incidence_rate"}: expected number of cases per animal within
-\code{time_horizon} (e.g. \code{0.48} for 48 cases per 100 lactations). Converted
+\item \code{"probability"}: probability of at least one case within the period
+(used directly).
+\item \code{"incidence_rate"}: expected number of cases per animal within the
+period (e.g. \code{0.48} for 48 cases per 100 lactations). Converted
 to a probability assuming Poisson-distributed events,
 \code{1 - exp(-value)}, as in Rasmussen et al. (2024), eq. 1.
 }}
 
-\item{label}{Optional full names of the diseases (e.g. \code{"lameness"}).}
+\item{note}{Optional free text (e.g. the source of the value); never used
+by the package.}
 
-\item{time_horizon}{Character label of the period the probabilities refer
-to (e.g. \code{"lactation"}, \code{"year"}). Probabilities, associations and impacts
-should all refer to the same period.}
-
-\item{reference_population}{Optional description of the population the
-values come from.}
-
-\item{source, note}{Optional citation and free-text note.}
-
-\item{...}{Not used (arguments of earlier versions give a message).}
+\item{...}{Not used. Arguments of earlier versions give a message:
+\code{label}, \code{time_horizon}, \code{reference_population} and \code{source} are
+ignored (put free text in \code{note}).}
 }
 \value{
 A \code{cm_diseases} data frame with the converted probability in
@@ -57,9 +41,13 @@ One row per disease: how common it is in the whole population. Rows about
 two or more diseases (associations, combinations, prevalences within
 subgroups) belong in \code{\link[=cm_associations]{cm_associations()}}.
 }
+\details{
+Probabilities, associations, impacts and the overall risk must all refer
+to the same period (for example a lactation or a year) and the same
+population.
+}
 \examples{
 cm_diseases(c("SCK", "PTB"), c(0.4789, 0.1001),
             measure = c("incidence_rate", "prevalence"),
-            label = c("subclinical ketosis", "paratuberculosis"),
-            time_horizon = "lactation")
+            note = c("per lactation", "herd prevalence"))
 }

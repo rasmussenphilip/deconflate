@@ -17,7 +17,9 @@
 #'
 #' @section Columns:
 #' Column names are not case-sensitive. Optional columns can be left out or
-#' left empty; unrecognised columns are ignored (with a note). In every
+#' left empty; unrecognised columns are ignored (with a note). Every table
+#' can have a `note` column for free text (e.g. the source of a value),
+#' which the package never uses. In every
 #' table, `disease` (and `associated_with`) take a disease id or a
 #' combination of ids separated by `;` (e.g. `MAS;SCK`), and `among` takes a
 #' subgroup (`SCK`, `no SCK`, `SCK;no MET`, or `no others`).
@@ -25,14 +27,16 @@
 #' **diseases** (one row per disease; whole-population values only):
 #' `disease`, `value` (required); `measure` (`prevalence` (default),
 #' `probability` or `incidence_rate`, converted with `1 - exp(-value)`),
-#' `label` (full name), `time_horizon`, `reference_population`, `source`,
 #' `note`. Ids must not contain `|`, `;` or `:` or start with `no `; `all`
-#' and `others` are reserved.
+#' and `others` are reserved. Prevalences, probabilities, associations,
+#' impacts and the overall risk must all refer to the same period (e.g. a
+#' lactation or a year) and population.
 #'
 #' **associations** (one row per estimate; any row about two or more
 #' diseases): `disease`, `value` (required); `associated_with`, `among`,
 #' `adjusted_for`, `measure` (`OR` (default), `RR`, `RD`, `phi`,
-#' `prevalence` or `OR_ratio`), `study`, `source`, `note`. See
+#' `prevalence` or `OR_ratio`), `study` (identifies the row in `$estimates`
+#' and the diagnosis), `note`. See
 #' [cm_associations()] for what each row means. Pairs that no row mentions
 #' are unknown: the model fills in their association. An odds ratio of 1
 #' states that two diseases are unrelated. Several rows about the same
@@ -40,7 +44,8 @@
 #'
 #' **impacts** (one row per estimate): `disease`, `value` (required);
 #' `among`, `adjusted_for`, `measure`, `label`, `units` (one label and one
-#' unit per table), `study`, `source`, `note`. Every disease needs a row of
+#' unit per table, shown in the printed results), `study`, `note`. Every
+#' disease needs a row of
 #' its own; a row for a combination (e.g. `SCK;SCM`) adds an interaction to
 #' the model, and a combination adjusted for `all` is the interaction itself.
 #' See [cm_impacts()]. Without a `measure` column the impacts are additive,
@@ -51,7 +56,9 @@
 #'
 #' Files in the layout of earlier versions (columns `id` and `type`,
 #' `disease1` and `disease2`, `estimand`; three-way and interaction files)
-#' are reported with what to change.
+#' are reported with what to change. The columns `label` (of the diseases
+#' table), `time_horizon`, `reference_population` and `source` are no longer
+#' read: files with them still load, with a note.
 #'
 #' @section Uncertainty:
 #' Every table can have the columns `dist` and `p1`-`p4`. A row with a
@@ -188,32 +195,32 @@ cm_check_inputs <- function(diseases = NULL, associations = NULL, impacts = NULL
 #' deconflate(culling, event_model = TRUE, overall_risk = 0.25, n_draws = 0)
 cm_template <- function(dir, overwrite = FALSE) {
   if (!dir.exists(dir)) dir.create(dir, recursive = TRUE)
-  src <- "Illustrative values"
   tabs <- list(
     diseases = data.frame(
       disease = c("LAM", "SCK", "MET"), measure = c("prevalence", "incidence_rate", "prevalence"),
-      value = c(0.25, 0.48, 0.10), label = c("lameness", "subclinical ketosis", "metritis"),
-      time_horizon = "lactation", reference_population = NA,
-      dist = c("beta", NA, NA), p1 = c(78.29, NA, NA), p2 = c(227.42, NA, NA),
-      p3 = NA, p4 = NA, source = src, note = c("beta(shape1, shape2)", NA, NA), stringsAsFactors = FALSE),
+      value = c(0.25, 0.48, 0.10),
+      dist = c("beta", NA, NA), p1 = c(78.29, NA, NA), p2 = c(227.42, NA, NA), p3 = NA, p4 = NA,
+      note = c("lameness; illustrative; beta(shape1, shape2)", "subclinical ketosis; cases per lactation",
+               "metritis"),
+      stringsAsFactors = FALSE),
     associations = data.frame(
       disease = c("LAM", "MET", "MET"), associated_with = c("SCK", "SCK", "LAM"),
       among = NA, adjusted_for = NA, measure = "OR", value = c(2.01, 1.94, 6.10), study = NA,
-      dist = c("normal", NA, NA), p1 = c(2.01, NA, NA), p2 = c(0.20, NA, NA),
-      p3 = c(0, NA, NA), p4 = NA, source = src, note = c("normal(mean, sd) truncated at 0", NA, NA),
+      dist = c("normal", NA, NA), p1 = c(2.01, NA, NA), p2 = c(0.20, NA, NA), p3 = c(0, NA, NA), p4 = NA,
+      note = c("illustrative; normal(mean, sd) truncated at 0", NA, NA),
       stringsAsFactors = FALSE),
     yield = data.frame(
       disease = c("LAM", "SCK", "MET"), among = NA, adjusted_for = NA, value = c(4.81, 8.40, 5.61),
       label = "milk yield loss", units = "% of yield", study = NA,
-      dist = c("normal", "normal", NA), p1 = c(4.81, 8.40, NA), p2 = c(0.87, 1.19, NA),
-      p3 = NA, p4 = NA, source = src, note = c("normal(mean, sd)", "normal(mean, sd)", NA),
+      dist = c("normal", "normal", NA), p1 = c(4.81, 8.40, NA), p2 = c(0.87, 1.19, NA), p3 = NA, p4 = NA,
+      note = c("illustrative; normal(mean, sd)", "normal(mean, sd)", NA),
       stringsAsFactors = FALSE),
     culling = data.frame(
       disease = c("LAM", "SCK", "MET"), among = NA, adjusted_for = NA, measure = c("HR", "HR", "RR"),
       value = c(1.74, 1.92, 1.45), label = "culling", units = NA, study = NA,
-      dist = c("lognormal_ci", NA, NA), p1 = c(1.74, NA, NA), p2 = c(1.45, NA, NA),
-      p3 = c(2.09, NA, NA), p4 = NA, source = src,
-      note = c("hazard ratio; lognormal_ci(estimate, lower, upper)", "hazard ratio",
+      dist = c("lognormal_ci", NA, NA), p1 = c(1.74, NA, NA), p2 = c(1.45, NA, NA), p3 = c(2.09, NA, NA),
+      p4 = NA,
+      note = c("illustrative; hazard ratio; lognormal_ci(estimate, lower, upper)", "hazard ratio",
                "risk ratio of culling within the lactation"),
       stringsAsFactors = FALSE)
   )
@@ -247,13 +254,12 @@ dist_columns <- c("dist", "p1", "p2", "p3", "p4")
 
 input_table_specs <- list(
   diseases = list(required = c("disease", "value"),
-                  optional = c("measure", "label", "time_horizon", "reference_population", "source", "note",
-                               dist_columns)),
+                  optional = c("measure", "note", dist_columns)),
   associations = list(required = c("disease", "value"),
-                      optional = c("associated_with", "among", "adjusted_for", "measure", "study", "source",
+                      optional = c("associated_with", "among", "adjusted_for", "measure", "study",
                                    "note", dist_columns)),
   impacts = list(required = c("disease", "value"),
-                 optional = c("among", "adjusted_for", "measure", "label", "units", "study", "source",
+                 optional = c("among", "adjusted_for", "measure", "label", "units", "study",
                               "note", dist_columns))
 )
 
@@ -423,7 +429,11 @@ has_columns <- function(tab, spec, label, pc) {
            "Contingency-table counts (n11, n10, n01, n00) are no longer read: compute each table's odds ratio, n11 * n00 / (n10 * n01), and enter it in `value` with measure OR.")
     extra <- setdiff(extra, c("n11", "n10", "n01", "n00"))
   }
-  for (col in extra) pc$add(label, NA, col, "Unrecognised column (ignored).", "note")
+  for (col in intersect(extra, unused_inputs)) {
+    pc$add(label, NA, col, sprintf("Column `%s` is not used; put free text in `note`.", col), "note")
+  }
+  extra <- setdiff(extra, unused_inputs)
+  for (col in extra) pc$add(label, NA, col, "Unrecognised column: ignored (free text goes in `note`).", "note")
   !length(miss) && !length(intersect(names(renamed), nm))
 }
 
@@ -446,7 +456,7 @@ row_dists <- function(tab, label, pc, keys, values, allowed = NULL, allowed_msg 
     if (bad_p[r]) next
     if (is.na(dist[r])) {
       if (any(!is.na(P[r, ]))) {
-        pc$add(label, r, "dist", "Parameters p1-p4 are given without a distribution (dist).")
+        pc$add(label, r, "dist", "p1-p4 are filled in but `dist` is empty: name the distribution in `dist`, or leave p1-p4 empty.")
       }
       next
     }
@@ -486,7 +496,7 @@ num_col <- function(tab, col, label, pc, required = TRUE) {
     bad <- !is.na(vv) & nzchar(vv) & is.na(x)
     for (r in which(bad)) pc$add(label, r, col, sprintf("'%s' is not a number.", vv[r]))
   }
-  if (required) for (r in which(is.na(x) & !bad)) pc$add(label, r, col, "Missing value.")
+  if (required) for (r in which(is.na(x) & !bad)) pc$add(label, r, col, "Missing value (this column is required).")
   x
 }
 
@@ -511,7 +521,7 @@ check_disease_table <- function(d, pc) {
     pc$add("diseases", r, "disease", "Disease ids must not start with 'no ' (it marks absent diseases in `among`).")
   }
   value <- num_col(d, "value", "diseases", pc)
-  for (r in which(!is.na(value) & value < 0)) pc$add("diseases", r, "value", "Must not be negative.")
+  for (r in which(!is.na(value) & value < 0)) pc$add("diseases", r, "value", "The value must not be negative.")
   measure <- chr_col(d, "measure", "prevalence")
   bad <- !(measure %in% disease_measures)
   for (r in which(bad)) {
@@ -521,16 +531,7 @@ check_disease_table <- function(d, pc) {
   for (r in which(!bad & !is.na(prob) & value >= 0 & (prob <= 0 | prob >= 1))) {
     pc$add("diseases", r, "value", sprintf("Gives a probability of %g; it must be strictly between 0 and 1.", prob[r]))
   }
-  hz <- unique(stats::na.omit(chr_col(d, "time_horizon")))
-  if (length(hz) > 1L) {
-    pc$add("diseases", NA, "time_horizon",
-           sprintf("Diseases refer to different time horizons (%s); probabilities, associations and impacts should share one period.",
-                   paste(hz, collapse = ", ")), "note")
-  }
-  list(id = id, value = value, measure = measure, label = chr_col(d, "label"),
-       time_horizon = chr_col(d, "time_horizon"),
-       reference_population = chr_col(d, "reference_population"), source = chr_col(d, "source"),
-       note = chr_col(d, "note"),
+  list(id = id, value = value, measure = measure, note = chr_col(d, "note"),
        ids = unique(id[!is.na(id) & !grepl("[|;:]", id) & !(tolower(id) %in% c("all", "others"))]),
        dists = row_dists(d, "diseases", pc, keys = ifelse(is.na(id), NA, paste0("prob:", id)),
                          values = value))
@@ -594,7 +595,7 @@ check_association_table <- function(a, ids, pc) {
     pc$add(lab, r, "value", "A prevalence must lie strictly between 0 and 1.")
   }
   for (r in which(measure %in% c("RD", "phi") & !is.na(value) & (value < -1 | value > 1))) {
-    pc$add(lab, r, "value", "Must be between -1 and 1.")
+    pc$add(lab, r, "value", "Risk differences and phi must lie between -1 and 1.")
   }
   among <- chr_col(a, "among")
   adj <- chr_col(a, "adjusted_for")
@@ -606,7 +607,7 @@ check_association_table <- function(a, ids, pc) {
     adjusted_other_notes(adj, lab, ids, pc)
   }
   list(disease = dis, associated_with = aw, among = among, adjusted_for = adj, measure = measure,
-       value = value, study = chr_col(a, "study"), source = chr_col(a, "source"), note = chr_col(a, "note"),
+       value = value, study = chr_col(a, "study"), note = chr_col(a, "note"),
        dists = row_dists(a, lab, pc, keys = paste0("associations:", seq_len(nrow(a))), values = value))
 }
 
@@ -662,7 +663,7 @@ check_impact_table <- function(im, label, ids, pc) {
   }
   list(disease = dis, value = value, among = among, adjusted_for = adj,
        measure = if (event) meas else NULL, study = chr_col(im, "study"),
-       source = chr_col(im, "source"), note = chr_col(im, "note"), label = one("label"), units = one("units"),
+       note = chr_col(im, "note"), label = one("label"), units = one("units"),
        dists = row_dists(im, label, pc, keys = paste0("impacts:", seq_len(nrow(im))), values = value))
 }
 
@@ -691,17 +692,14 @@ run_input_checks <- function(diseases, associations, impacts) {
     return(out)
   }
   built <- tryCatch({
-    dis_obj <- suppressWarnings(cm_diseases(dd$id, dd$value, measure = dd$measure, label = dd$label,
-                                            time_horizon = dd$time_horizon,
-                                            reference_population = dd$reference_population,
-                                            source = dd$source, note = dd$note))
+    dis_obj <- cm_diseases(dd$id, dd$value, measure = dd$measure, note = dd$note)
     assoc_obj <- if (!is.null(aa)) {
       cm_associations(aa$disease, aa$associated_with, aa$value, measure = aa$measure, among = aa$among,
-                      adjusted_for = aa$adjusted_for, study = aa$study, source = aa$source, note = aa$note)
+                      adjusted_for = aa$adjusted_for, study = aa$study, note = aa$note)
     }
     pop <- cm_population(dis_obj, assoc_obj)
     imp <- cm_impacts(ii$disease, ii$value, among = ii$among, adjusted_for = ii$adjusted_for,
-                      measure = ii$measure, study = ii$study, source = ii$source, note = ii$note,
+                      measure = ii$measure, study = ii$study, note = ii$note,
                       label = ii$label, units = ii$units)
     m <- cm_model(pop, imp, distributions = if (length(dists)) dists else NULL)
     pair_tables(m)

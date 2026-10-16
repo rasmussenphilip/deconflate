@@ -182,14 +182,14 @@ test_that("deconflate() draws the uncertain inputs and summarises the results", 
   expect_true(all(res$adjusted$lower <= res$adjusted$upper))
   # d2 has no distribution, but its adjusted impact depends on d1 and d3.
   expect_gt(qrow(s, "adjusted:d2")$sd, 0)
-  expect_output(print(res), "Uncertainty: 95% intervals from 100 draws \\(0 rejected; random sampling; seed 3\\)")
+  expect_output(print(res), "95% intervals from 100 draws \\(0 rejected; random sampling; seed 3\\)")
   expect_output(print(res), "95% interval")
 
   # Point estimates only.
   expect_null(pt$draws)
   expect_null(pt$adjusted$lower)
   expect_null(pt$totals$adjusted_total_lower)
-  expect_length(pt$notes, 0)
+  expect_match(pt$notes, "a distribution, but n_draws = 0: the results are point estimates without intervals", fixed = TRUE)
   expect_error(deconflate(m, n_draws = -1), "whole number")
   expect_error(deconflate(m, n_draws = c(10, 20)), "whole number")
   expect_error(deconflate(m, n_draws = 10, seed = "a"), "`seed` must be a single whole number")
@@ -323,8 +323,8 @@ test_that("a precision note is given when the Monte Carlo error is large", {
   m <- unc_model(d1 = dist_normal(0.2, 3))
   res <- deconflate(m, n_draws = 20, seed = 1)
   expect_true("imprecise" %in% res$draws$summary$stability)
-  expect_true(any(grepl("Monte Carlo precision is limited", summary(res)$notes)))
-  expect_output(print(res), "Monte Carlo precision is limited")
+  expect_true(any(grepl("Too few draws for precise intervals of the adjusted impacts? of d1", summary(res)$notes)))
+  expect_match(printed(res), "Too few draws for precise intervals", fixed = TRUE)
 })
 
 test_that("stability statuses follow the documented rules", {
@@ -408,8 +408,8 @@ test_that("event-model draws, with the overall risk as a distribution", {
   expect_equal(res$adjusted$upper, s$upper[match(paste0("adjusted:", ids3), s$quantity)])
   expect_equal(res$attributable$summary$attributable_lower, qrow(s, "total")$lower)
   expect_equal(res$attributable$summary$attributable_upper, qrow(s, "total")$upper)
-  expect_equal(res$attributable$by_disease$lower, s$lower[match(paste0("contribution:", ids3), s$quantity)])
-  expect_equal(res$attributable$by_disease$upper, s$upper[match(paste0("contribution:", ids3), s$quantity)])
+  expect_equal(res$contributions$lower, s$lower[match(paste0("contribution:", ids3), s$quantity)])
+  expect_equal(res$contributions$upper, s$upper[match(paste0("contribution:", ids3), s$quantity)])
   expect_output(print(res), "95% interval")
 
   # Hazard-ratio-only models: the adjusted hazard ratios do not depend on the

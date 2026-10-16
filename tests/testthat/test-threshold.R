@@ -266,3 +266,11 @@ test_that("threshold plots draw", {
   th <- cm_threshold(example_supplement(), "pair:d2:d3", c(0.1, 100), conclusion = "rank")
   expect_invisible(plot(th))
 })
+
+test_that("the printout fits 80 columns and says when the input was not entered", {
+  m <- cm_model(supp_unknown_population(), cm_impacts(ids3, c(2.5, 5, 7.5)))
+  th <- cm_threshold(m, "pair:d1:d3", c(0.2, 5), conclusion = "rank")
+  out <- capture.output(print(th))
+  expect_true(all(nchar(out) <= 80))
+  expect_match(out[1], "baseline not entered", fixed = TRUE)
+})

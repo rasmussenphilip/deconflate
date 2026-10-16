@@ -131,12 +131,10 @@ Pairwise rows cannot identify how often three diseases occur together; an
 `OR_ratio` row can. A ratio of 1 is the maximum-entropy assumption.
 It is added like any other row (the ratio is the same whichever disease
 is the subgroup), and every other row is still matched. Here `rbind()`
-adds it to the rows of the example; `rbind()` keeps each table's own row
-numbers, so the rows are numbered again:
+adds it to the rows of the example; the new row gets the next free number:
 
 ```{r}
 a3 <- rbind(m$associations, cm_associations("d1", "d2", 2, measure = "OR_ratio", among = "d3"))
-a3$row <- seq_len(nrow(a3))
 m3 <- cm_model(cm_population(m$diseases, a3), m$impacts)
 m3$associations
 j3 <- fit_joint(m3)
@@ -225,7 +223,6 @@ percentage point:
 
 ```{r}
 imp_i <- rbind(m$impacts, cm_impacts("d1;d2", 1, adjusted_for = "all"))
-imp_i$row <- seq_len(nrow(imp_i))
 mi <- cm_model(m, imp_i)
 mi$impacts
 res <- deconflate(mi, n_draws = 0)

@@ -16,14 +16,23 @@
 }
 \value{
 A \code{summary.cm_result} list with \code{method}, \code{label}, \code{units},
-\code{totals} (additive impacts: raw aggregate (the diseases unrelated),
-adjusted aggregate and the reduction; event impacts: overall,
-disease-free, raw and adjusted attributable risk and the reduction),
-\code{diagnostics}, \code{contributions} (see \code{\link[=contribution_table]{contribution_table()}}), \code{ranks}
-(with draws: how often each disease ranks 1st, 2nd, ... by
-contribution, and its mean rank; see \verb{$ranks} of \code{\link[=deconflate]{deconflate()}}) and
-\code{notes}.
+\code{event}, \code{impacts} (one row per disease and interaction: raw, adjusted,
+interval, change and, when some term has several rows, \code{rows}),
+\code{alone} (event impacts: \code{risk_alone}, \code{rr_alone}, \code{rd_alone}),
+\code{contributions} (per disease: \code{contribution} with \code{lower} and \code{upper},
+\code{main}, \code{interaction}, \code{share}), \code{totals} (one row per quantity:
+\code{quantity}, \code{value}, \code{lower}, \code{upper}; additive impacts: raw total,
+adjusted total, interactions and the reduction; event impacts: overall,
+disease-free, attributable and raw attributable risk, the attributable
+fraction, the reduction and, when the Shapley allocation is incomplete,
+the part not allocated), \code{ranks} (with draws: how often each
+disease ranks 1st, 2nd, ... by contribution, and its mean rank; see
+\verb{$ranks} of \code{\link[=deconflate]{deconflate()}}), \code{diagnostics} (lines of text) and \code{notes}.
 }
 \description{
-Summarise an adjustment result
+The full report of a \code{\link[=deconflate]{deconflate()}} result, in sections that each fit
+the console: the impacts, (event impacts: the risk of an animal with only
+these diseases), the contributions, the totals, the ranks over the draws,
+the diagnostics and the notes. \code{print(result)} gives the short overview;
+\code{\link[=contribution_table]{contribution_table()}} the table for export.
 }

@@ -82,8 +82,9 @@ relative change and the number of rows (with draws, also \code{lower} and
 \item \code{totals}: the raw aggregate (\code{raw_total}: the diseases unrelated; see
 "Raw and adjusted totals"), the adjusted aggregate and its
 interaction part;
-\item \code{contributions}: per disease, main and interaction contributions,
-their total and share;
+\item \code{contributions}: per disease, its \code{contribution} to the aggregate
+(Shapley value), split into \code{main} and \code{interaction} parts, and its
+\code{share} (with draws, also \code{lower} and \code{upper});
 \item \code{estimates}: every input row (impacts and associations) with its
 value, fitted value and standardised residual (and, for impact rows,
 the SD used as weight; 0 for an exact row);
@@ -113,9 +114,10 @@ rerun the model).
 For event impacts, a \code{cm_event_result} with \code{adjusted} (adjusted hazard
 ratios of diseases and interactions, the change from the raw estimate,
 and the risk-scale results \code{risk_alone}, \code{rr_alone}, \code{rd_alone} and
-\code{or_alone}), \code{attributable} (\code{summary}: overall, disease-free, raw and
-adjusted attributable risk and the attributable fraction; \code{by_disease}:
-the Shapley allocation with its \code{main} and \code{interaction} parts;
+\code{or_alone}), \code{contributions} (as for additive impacts: each disease's
+share of the attributable risk, Shapley allocation, with its \code{main} and
+\code{interaction} parts), \code{attributable} (\code{summary}: overall, disease-free,
+raw and adjusted attributable risk and the attributable fraction;
 \code{baseline_hazard}), \code{conflation} (the local row equations), \code{estimates},
 \code{heterogeneity}, \code{diagnostics}, \code{unknown_pairs}, \code{draws}, \code{ranks} (by
 share of the attributable risk), \code{problems}
@@ -290,7 +292,8 @@ central estimate, as in the draws.
 
 A separate table lists rows that disagree with other rows for the same
 quantity (standardised residual of 2 or more), with the adjusted impact
-that changes most, and the aggregate, without each row.
+that changes most and the total (\code{total_before}, \code{total_after}) without
+each row.
 
 The check describes the central estimate; it does not change the results.
 A flagged input is worth checking, not necessarily wrong.

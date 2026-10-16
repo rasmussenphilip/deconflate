@@ -1,6 +1,6 @@
-disease,measure,value,label,time_horizon,reference_population,dist,p1,p2,p3,p4,source,note
-LAM,prevalence,0.25,lameness,lactation,Illustrative dairy herd,beta,78.29,227.42,,,Illustrative,"beta(shape1, shape2): mean 0.256"
-MAS,incidence_rate,0.30,clinical mastitis,lactation,Illustrative dairy herd,pert,0.20,0.30,0.45,,Illustrative,"incidence rate (converted with 1 - exp(-rate)); pert(min, mode, max)"
-MET,prevalence,0.10,metritis,lactation,Illustrative dairy herd,uniform,0.07,0.13,,,Illustrative,"uniform(min, max)"
-SCK,probability,0.35,subclinical ketosis,lactation,Illustrative dairy herd,pert_mean,0.20,0.35,0.50,,Illustrative,"pert_mean(min, mean, max)"
-RP,prevalence,0.06,retained placenta,lactation,Illustrative dairy herd,,,,,,Illustrative,"point value (no uncertainty)"
+disease,measure,value,dist,p1,p2,p3,p4,note
+LAM,prevalence,0.25,beta,78.29,227.42,,,"lameness; beta(shape1, shape2): mean 0.256"
+MAS,incidence_rate,0.30,pert,0.20,0.30,0.45,,"clinical mastitis; incidence rate (converted with 1 - exp(-rate)); pert(min, mode, max)"
+MET,prevalence,0.10,uniform,0.07,0.13,,,"metritis; uniform(min, max)"
+SCK,probability,0.35,pert_mean,0.20,0.35,0.50,,"subclinical ketosis; pert_mean(min, mean, max)"
+RP,prevalence,0.06,,,,,,retained placenta; point value (no uncertainty)

@@ -15,7 +15,7 @@ test_that("simulated crude raw impacts match the Python reference", {
   expect_equal(raw$disease, t2_ids)
   expect_equal(raw$value, supp_raw_crude, tolerance = 1e-9)
   expect_true(all(is.na(raw$adjusted_for)))
-  expect_equal(raw$source, rep("simulated (expected)", 3))
+  expect_equal(raw$note, rep("simulated (expected)", 3))
   expect_equal(attr(raw, "kind"), "additive")
   # The order of true_impacts does not matter; a cm_model works too.
   expect_equal(simulate_raw_impacts(example_supplement(), rev(supp_truth))$value, raw$value)
@@ -86,8 +86,8 @@ test_that("the model recovers the truth with interactions", {
   expect_equal(res$adjusted$adjusted, c(unname(supp_truth), 1, 1.5), tolerance = 1e-8)
   expect_lt(res$diagnostics$max_reconstruction_residual, 1e-10)
   expect_equal(res$totals$adjusted_total, 2.1095698976771753, tolerance = 1e-8)
-  expect_equal(res$contributions$total, c(0.2122396963, 0.6547849488, 1.2425452526), tolerance = 1e-8)
-  expect_equal(sum(res$contributions$total), res$totals$adjusted_total)
+  expect_equal(res$contributions$contribution, c(0.2122396963, 0.6547849488, 1.2425452526), tolerance = 1e-8)
+  expect_equal(sum(res$contributions$contribution), res$totals$adjusted_total)
   # The interactions as rows adjusted for all (the interaction itself).
   rows <- data.frame(disease = c(t2_ids, "d1;d2", "d2;d3"), adjusted_for = c(NA, NA, NA, "all", "all"))
   raw_all <- simulate_raw_impacts(pop, supp_truth, interactions = ints, rows = rows)
@@ -110,7 +110,7 @@ test_that("Shapley shares sum to the total and split interactions equally", {
   P12 <- res$joint_pairs["d1", "d2"]
   expect_equal(b$interaction, c(0.5 * P12, 0.5 * P12, 0), tolerance = 1e-12)
   L <- sum(supp_truth * c(0.10, 0.15, 0.20)) + P12
-  expect_equal(sum(b$total), L, tolerance = 1e-8)
+  expect_equal(sum(b$contribution), L, tolerance = 1e-8)
   expect_equal(sum(b$share), 1)
 })
 
@@ -119,7 +119,7 @@ test_that("a finite sample adds sampling error only", {
   set.seed(11)
   raw_n <- simulate_raw_impacts(pop, supp_truth, n = 5000)
   expect_s3_class(raw_n, "cm_impacts")
-  expect_equal(raw_n$source, rep("simulated (n = 5000)", 3))
+  expect_equal(raw_n$note, rep("simulated (n = 5000)", 3))
   expect_true(all(is.finite(raw_n$value)))
   expect_lt(max(abs(raw_n$value - supp_raw_crude)), 1)
   res <- deconflate(cm_model(pop, raw_n))

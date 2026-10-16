@@ -1,13 +1,13 @@
-disease,associated_with,among,adjusted_for,measure,value,study,dist,p1,p2,p3,p4,source,note
-LAM,MAS,,,OR,1.8,Study A,lognormal_ci,1.8,1.3,2.5,,Illustrative,"odds ratio; lognormal_ci(estimate, lower, upper) with a 95% interval"
-LAM,MAS,,,OR,2.2,Study B,lognormal_ci,2.2,1.5,3.2,,Illustrative,"a second estimate of the same odds ratio: the two rows are pooled (random effects)"
-LAM,SCK,,,OR,2.0,Study C,normal,2.0,0.3,0,,Illustrative,"odds ratio; normal(mean, sd) truncated at 0"
-MET,RP,,,OR,6.0,Study D,lognormal,1.791759,0.3,,,Illustrative,"odds ratio; lognormal(meanlog = log(6), sdlog)"
-MET,SCK,,,RR,1.5,Study E,pert,1.1,1.5,2.2,,Illustrative,"risk ratio P(MET | SCK) / P(MET | no SCK); pert(min, mode, max)"
-MAS,SCK,,,prevalence,0.35,Study F,beta,35,65,,,Illustrative,"prevalence of MAS among cows with SCK, P(MAS | SCK); beta(shape1, shape2)"
-MAS,MET,,,RD,0.08,Study G,normal,0.08,0.02,,,Illustrative,"risk difference P(MAS | MET) - P(MAS | no MET); normal(mean, sd)"
-LAM,MET,,,phi,0.05,Study H,uniform,0.02,0.08,,,Illustrative,"phi coefficient; uniform(min, max)"
-RP,SCK,,,OR,1.4296875,Study I,,,,,,Illustrative,"odds ratio of a study's 2x2 table: 30 * 610 / (40 * 320) (both, RP only, SCK only, neither); point value"
-LAM,RP,,,OR,1,,,,,,,Illustrative,"independent: an odds ratio of 1 (point value)"
-MAS,RP,,,OR,1.5,Study J,,,,,,Illustrative,"odds ratio; point value"
-LAM,MAS,SCK,,OR_ratio,1.5,Study K,lognormal_ci,1.5,0.8,2.8,,Illustrative,"the LAM-MAS odds ratio among cows with SCK is 1.5 times that among cows without SCK"
+disease,associated_with,among,adjusted_for,measure,value,study,dist,p1,p2,p3,p4,note
+LAM,MAS,,,OR,1.8,Study A,lognormal_ci,1.8,1.3,2.5,,"odds ratio; lognormal_ci(estimate, lower, upper) with a 95% interval"
+LAM,MAS,,,OR,2.2,Study B,lognormal_ci,2.2,1.5,3.2,,a second estimate of the same odds ratio: the two rows are pooled (random effects)
+LAM,SCK,,,OR,2.0,Study C,normal,2.0,0.3,0,,"odds ratio; normal(mean, sd) truncated at 0"
+MET,RP,,,OR,6.0,Study D,lognormal,1.791759,0.3,,,"odds ratio; lognormal(meanlog = log(6), sdlog)"
+MET,SCK,,,RR,1.5,Study E,pert,1.1,1.5,2.2,,"risk ratio P(MET | SCK) / P(MET | no SCK); pert(min, mode, max)"
+MAS,SCK,,,prevalence,0.35,Study F,beta,35,65,,,"prevalence of MAS among cows with SCK, P(MAS | SCK); beta(shape1, shape2)"
+MAS,MET,,,RD,0.08,Study G,normal,0.08,0.02,,,"risk difference P(MAS | MET) - P(MAS | no MET); normal(mean, sd)"
+LAM,MET,,,phi,0.05,Study H,uniform,0.02,0.08,,,"phi coefficient; uniform(min, max)"
+RP,SCK,,,OR,1.4296875,Study I,,,,,,"odds ratio of a study's 2x2 table: 30 * 610 / (40 * 320) (both, RP only, SCK only, neither); point value"
+LAM,RP,,,OR,1,,,,,,,independent: an odds ratio of 1 (point value)
+MAS,RP,,,OR,1.5,Study J,,,,,,odds ratio; point value
+LAM,MAS,SCK,,OR_ratio,1.5,Study K,lognormal_ci,1.5,0.8,2.8,,the LAM-MAS odds ratio among cows with SCK is 1.5 times that among cows without SCK

@@ -1,7 +1,7 @@
-disease,measure,value,dist,p1,p2,p3,p4,source,note
-LAM,prevalence,0.25,beta,78.29,227.42,,,Illustrative,"beta(shape1, shape2)"
-SCK,incidence_rate,0.48,normal,0.48,,,,Illustrative,"Error: normal needs a standard deviation (p2)"
-MET,prevalence,1.10,,,,,,Illustrative,"Error: a prevalence above 1"
-RP,prevalence,0.12,,0.08,0.16,,,Illustrative,"Error: parameters p1-p4 without a distribution (dist is empty)"
-SCK,prevalence,0.30,,,,,,Illustrative,"Error: duplicate disease (SCK is in row 2)"
-LAM;SCK,prevalence,0.10,,,,,,Illustrative,"Error: a combination of diseases belongs in the associations table (disease LAM;SCK, measure prevalence)"
+disease,measure,value,dist,p1,p2,p3,p4,note
+LAM,prevalence,0.25,beta,78.29,227.42,,,"beta(shape1, shape2)"
+SCK,incidence_rate,0.48,normal,0.48,,,,Error: normal needs a standard deviation (p2)
+MET,prevalence,1.10,,,,,,Error: a prevalence above 1
+RP,prevalence,0.12,,0.08,0.16,,,Error: parameters p1-p4 without a distribution (dist is empty)
+SCK,prevalence,0.30,,,,,,Error: duplicate disease (SCK is in row 2)
+LAM;SCK,prevalence,0.10,,,,,,"Error: a combination of diseases belongs in the associations table (disease LAM;SCK, measure prevalence)"

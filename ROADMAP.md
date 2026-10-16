@@ -120,14 +120,18 @@ In this order:
 7. **Revised 2024 inputs**, beside the inputs of the 2024 analysis (`example_global_dairy()`).
    - [ ] `example_global_dairy(inputs = "revised")`, using the features of items 4-5 (several rows per disease with their own estimands, e.g. the clinical mastitis sources).
    - [ ] A vignette section documenting each correction: the SCK conversion from kg to percent, the milk fever and ketosis estimates of Bareille et al. (2003) as direct effects, the adjusted SCK estimates and odds ratios of Raboisson et al. (2014), the clinical mastitis sources by estimand, and the displaced abomasum sources. Unit and measurement-window corrections are made here only, not in the main pipeline.
-8. **Simpler, more intuitive input tables.**
-   - [ ] Accept missing optional columns everywhere with sensible defaults, and fewer required columns.
-   - [ ] Adding a row to a model by hand (e.g. an interaction or an `OR_ratio` row, now that the `set_*()` functions are internal) should not need `rbind()` and renumbering the `row` column.
-   - [ ] Disease labels (full names) next to the short ids, used in printed tables and plots.
-   - [ ] Clearer column names and messages; review the template and the example folders accordingly (more important now that tables hold several estimates).
-   - [ ] Make uncertainty visible: `deconflate()` notes when the inputs have distributions but `n_draws = 0`.
-9. **Clearer output and summary tables.** The package assumes no species, outcome or unit: tables show the user's own labels and units, and the reference population and time horizon from the diseases table when given (otherwise "per average individual in the population").
-   - [ ] Consistent column names, order, rounding and layout across `deconflate()`, `summary()` and `contribution_table()`, with and without draws; wide tables do not wrap into several blocks.
+8. **Simpler, more intuitive input tables.** Design: section 18 of the v0.4 design note.
+   - [x] Accept missing optional columns everywhere with sensible defaults, and fewer required columns (only `disease` and `value` are required).
+   - [x] Adding a row to a model in R (e.g. an interaction or an `OR_ratio` row, now that the `set_*()` functions are internal) does not need renumbering the `row` column: `cm_model()` numbers rows joined with `rbind()`.
+   - [x] Fewer columns: `label` (diseases), `time_horizon`, `reference_population` and `source` are no longer read (a note when present); `note` is the only free-text column. Disease labels were dropped: printed tables show the codes.
+   - [x] Clearer messages; the template and the example folders reviewed accordingly; the documentation says that all inputs refer to the same period.
+   - [x] Make uncertainty visible: `deconflate()` notes when the inputs have distributions but `n_draws = 0`.
+   - [ ] Run `devtools::document()`, `test()` and `check()`.
+9. **Clearer output and summary tables.** The package assumes no species, outcome or unit: tables show the user's own disease codes, outcome label and units.
+   - [x] Consistent column names, order, rounding (3 significant figures) and layout across `print()`, `summary()` and `contribution_table()`, for both models, with and without draws; tables fit 80 columns and do not wrap into several blocks.
+   - [x] The same rules for `cm_sensitivity()`, `cm_threshold()` and the diagnosis.
+   - [x] Monte Carlo notes in plain words.
+   - [ ] Run `devtools::document()`, `test()` and `check()`.
    - [x] Raw vs adjusted attributable risk for mortality files (the same calculation with the raw estimates), so that the double counting removed is visible, as with the raw and adjusted aggregates of impact files (done in item 1).
 10. **Better plots.** The same rule as for tables (the user's labels and units only); a consistent look across plot methods, and plots for uncertainty, thresholds and the estimate diagnostics.
     - [ ] Documentation examples from more than dairy cattle (e.g. another livestock system and a human-health example), so that the generality is visible.

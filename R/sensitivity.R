@@ -10,12 +10,12 @@
 burden_metric <- function(result) {
   if (inherits(result, "cm_event_result")) {
     ids <- result$adjusted$disease[result$adjusted$kind %||% rep("disease", nrow(result$adjusted)) == "disease"]
-    by <- result$attributable$by_disease
+    by <- result$contributions
     return(list(total = result$attributable$summary$attributable,
-                by_disease = stats::setNames(if (is.null(by)) rep(NA_real_, length(ids)) else by$attributable, ids)))
+                by_disease = stats::setNames(if (is.null(by)) rep(NA_real_, length(ids)) else by$contribution, ids)))
   }
   list(total = result$totals$adjusted_total,
-       by_disease = stats::setNames(result$contributions$total, result$contributions$disease))
+       by_disease = stats::setNames(result$contributions$contribution, result$contributions$disease))
 }
 
 # Common checks of the sensitivity tools: the model, the kind of impacts and
@@ -52,7 +52,7 @@ check_disease_ids <- function(ids, model) {
 set_association <- function(model, disease1, disease2, value, measure = "OR") {
   check_population(model)
   check_disease_ids(c(disease1, disease2), model)
-  new <- cm_associations(disease1, disease2, value, measure = measure, source = "scenario")
+  new <- cm_associations(disease1, disease2, value, measure = measure, note = "scenario")
   replace_rows(model, "associations", pair_row_hits(model$associations, disease1, disease2, model$diseases$disease), new)
 }
 
@@ -115,9 +115,9 @@ set_interaction <- function(model, disease1, disease2, value) {
   combo <- term_label(ids[ids %in% c(disease1, disease2)])
   hit <- same_set(im$disease, combo) & is_all(im$adjusted_for) & is.na(im$among)
   new <- if (event) {
-    cm_impacts(combo, value, adjusted_for = "all", measure = "HR", source = "scenario")
+    cm_impacts(combo, value, adjusted_for = "all", measure = "HR", note = "scenario")
   } else {
-    cm_impacts(combo, value, adjusted_for = "all", source = "scenario")
+    cm_impacts(combo, value, adjusted_for = "all", note = "scenario")
   }
   out <- replace_rows(model, "impacts", hit, new)
   attr(out$impacts, "kind") <- if (event) "event" else "additive"
@@ -144,7 +144,7 @@ set_three_way <- function(model, disease1, disease2, disease3, ratio) {
   hit <- if (is.null(a)) logical(0) else a$measure == "OR_ratio" & vapply(seq_len(nrow(a)), function(r) {
     setequal(c(a$disease[r], a$associated_with[r], sub("^no\\s+", "", a$among[r])), c(disease1, disease2, disease3))
   }, logical(1))
-  new <- cm_associations(disease1, disease2, ratio, measure = "OR_ratio", among = disease3, source = "scenario")
+  new <- cm_associations(disease1, disease2, ratio, measure = "OR_ratio", among = disease3, note = "scenario")
   replace_rows(model, "associations", hit, new)
 }
 
@@ -322,7 +322,8 @@ sens_unknown_share <- 0.5
 #'   `swing` (`|total_high - total_low|`), `rank_shift` (the most places any
 #'   disease moves in the ranking by contribution, at low or high),
 #'   `first` (the disease ranked first at low or high, when it is not the
-#'   central one), `var_share` and `failed` (why a run could not be used);
+#'   central one), `share` (of the variance over the draws, a fraction; `NA`
+#'   without draws) and `failed` (why a run could not be used);
 #' * `by_disease`: each input's effect on each disease (`adjusted_low`,
 #'   `adjusted_high`; hazard ratios for event impacts; `contribution_low`,
 #'   `contribution_high`);
@@ -419,7 +420,7 @@ cm_sensitivity <- function(x, inputs = c("entered", "unknown"), change = 0.2, ra
       value = inp$value %||% NA_real_, low = inp$low, high = inp$high,
       total_low = tot[1], total_high = tot[2], swing = abs(tot[2] - tot[1]),
       rank_shift = if (all(is.na(shifts))) NA_integer_ else as.integer(max(shifts, na.rm = TRUE)),
-      first = first, var_share = NA_real_,
+      first = first, share = NA_real_,
       failed = if (all(is.na(reason))) NA_character_ else paste(reason[!is.na(reason)], collapse = "; "),
       stringsAsFactors = FALSE)
     adj_of <- function(j) {
@@ -440,9 +441,9 @@ cm_sensitivity <- function(x, inputs = c("entered", "unknown"), change = 0.2, ra
     data.frame(input = character(0), label = character(0), kind = character(0), range = character(0),
                value = numeric(0), low = numeric(0), high = numeric(0), total_low = numeric(0),
                total_high = numeric(0), swing = numeric(0), rank_shift = integer(0), first = character(0),
-               var_share = numeric(0), failed = character(0), stringsAsFactors = FALSE)
+               share = numeric(0), failed = character(0), stringsAsFactors = FALSE)
   variance <- sens_variance(res, model)
-  if (!is.null(variance)) tab$var_share <- variance$share[match(tab$input, variance$input)]
+  if (!is.null(variance)) tab$share <- variance$share[match(tab$input, variance$input)]
   tab <- tab[order(-tab$swing, na.last = TRUE), , drop = FALSE]
   rownames(tab) <- NULL
   by_disease <- if (length(long)) do.call(rbind, long) else NULL
@@ -720,8 +721,8 @@ sens_variance <- function(res, model) {
 print.cm_sensitivity <- function(x, n = 10, digits = 3, ...) {
   tab <- x$inputs
   units <- if (!is.null(x$units) && !is.na(x$units) && !x$event) sprintf(" [%s]", x$units) else ""
-  cat(sprintf("Sensitivity of the %s%s: central value %s (ranked first: %s)\n", x$metric, units,
-              format(signif(x$central$total, digits + 1)), x$central$first))
+  cat_wrapped(sprintf("Sensitivity of the %s%s: central value %s (ranked first: %s)", x$metric, units,
+                      fmt_num(x$central$total, digits), x$central$first))
   if (!nrow(tab)) {
     cat("No inputs were varied.\n")
     return(invisible(x))
@@ -730,22 +731,34 @@ print.cm_sensitivity <- function(x, n = 10, digits = 3, ...) {
   cat(sprintf("%d inputs varied one at a time (%d entered, %d unknown)%s:\n", nrow(tab), sum(tab$kind == "entered"),
               sum(tab$kind == "unknown"),
               if (nrow(show) < nrow(tab)) sprintf("; the %d largest swings", nrow(show)) else ""))
-  f <- function(v) ifelse(is.finite(v), formatC(signif(v, digits), digits = digits, format = "fg"), "")
-  out <- data.frame(input = formatC(show$label, width = -max(nchar(show$label), 5L)),
+  f <- function(v) fmt_num(v, digits)
+  out <- data.frame(input = show$label,
                     low = f(show$low), high = f(show$high), `at low` = f(show$total_low),
                     `at high` = f(show$total_high), swing = f(show$swing),
                     rank = ifelse(is.na(show$rank_shift), "", show$rank_shift),
                     check.names = FALSE, stringsAsFactors = FALSE)
-  if (any(is.finite(show$var_share))) {
-    out$share <- ifelse(is.finite(show$var_share), sprintf("%.0f%%", 100 * show$var_share), "")
+  if (any(is.finite(show$share))) {
+    out$share <- f(show$share)
   }
-  if (any(!is.na(show$failed))) out$failed <- ifelse(is.na(show$failed), "", show$failed)
-  names(out)[1] <- formatC("input", width = -nchar(out$input[1]))
+  failed <- !is.na(show$failed)
+  out$input[failed] <- paste0(out$input[failed], " *")
+  # The labels take the width the numbers leave (at least 16 characters).
+  rest <- sum(vapply(names(out)[-1], function(nm) max(nchar(c(nm, out[[nm]]))) + 1L, numeric(1)))
+  room <- max(16L, getOption("width", 80L) - rest - 2L)
+  long <- nchar(out$input) > room
+  out$input[long] <- paste0(substr(out$input[long], 1L, room - 3L), "...")
+  w <- max(nchar(c("input", out$input)))
+  out$input <- formatC(out$input, width = -w)
+  names(out)[1] <- formatC("input", width = -w)
   print(out, row.names = FALSE)
   if (nrow(tab) > nrow(show)) cat(sprintf("... %d more: print(x, n = Inf) shows all; keys and ranges in x$inputs.\n",
                                           nrow(tab) - nrow(show)))
   notes <- c(sprintf("low, high: entered inputs move 1 SD (with a distribution) or by %g%%; unknown inputs over their default ranges (see ?cm_sensitivity) or the ranges given. at low, at high: the %s. rank: the most places any disease moves in the ranking by contribution.",
                      100 * x$settings$change, x$metric))
+  if (any(failed)) {
+    notes <- c(notes, sprintf("* could not be run at low or high: %s.",
+                              paste(sprintf("%s (%s)", show$label[failed], show$failed[failed]), collapse = "; ")))
+  }
   ch <- nzchar(show$first)
   if (any(ch)) {
     notes <- c(notes, sprintf("First place changes: %s.",
@@ -756,7 +769,7 @@ print.cm_sensitivity <- function(x, n = 10, digits = 3, ...) {
     notes <- c(notes, sprintf("share: share of the variance of the %s over the draws (linear fit R^2 = %.2f%s).",
                               x$metric, r2, if (is.finite(r2) && r2 < 0.8) "; the shares are rough" else ""))
   }
-  for (nt in notes) cat(strwrap(nt, width = min(getOption("width"), 90L)), sep = "\n")
+  for (nt in notes) cat(strwrap(nt, width = getOption("width", 80L)), sep = "\n")
   invisible(x)
 }
 

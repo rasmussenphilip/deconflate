@@ -564,22 +564,33 @@ threshold_brackets <- function(f, ok) {
 }
 
 #' @export
-print.cm_threshold <- function(x, digits = 4, ...) {
-  cat(sprintf("<cm_threshold> %s over %s in [%g, %g] (baseline %g; method %s)\n",
-              x$conclusion, x$input, x$range[1], x$range[2], x$baseline, x$method))
-  cat(sprintf("Fixed: %s.\n", x$fixed))
+print.cm_threshold <- function(x, digits = 3, ...) {
+  f <- function(v) fmt_num(v, digits)
+  cat_wrapped(c(sprintf("<cm_threshold> %s over %s in [%s, %s] (baseline %s; method %s)", x$conclusion, x$input,
+                        sprintf("%g", x$range[1]), sprintf("%g", x$range[2]),
+                        if (is.null(x$baseline) || is.na(x$baseline)) "not entered" else sprintf("%g", x$baseline), x$method),
+                sprintf("Fixed: %s.", x$fixed)))
   n_bad <- sum(x$scan$status != "ok")
   if (n_bad) {
     cat(sprintf("%d of %d grid points could not be used:\n", n_bad, nrow(x$scan)))
-    print(x$regions, row.names = FALSE, digits = digits)
+    print_table(x$regions, digits = digits)
   }
   th <- x$thresholds
   if (!nrow(th)) {
     cat(if (n_bad) "\nNo crossing found where the range could be evaluated.\n" else "\nNo crossing found in the range.\n")
   } else {
     cat("\nCrossings:\n")
-    print(th[, c("item", "status", "threshold", "lower", "upper", "description")],
-          row.names = FALSE, digits = digits)
+    for (i in seq_len(nrow(th))) {
+      lo <- f(th$lower[i])
+      hi <- f(th$upper[i])
+      at <- if (identical(th$status[i], "threshold")) {
+        sprintf("at %s%s", f(th$threshold[i]), if (lo != hi) sprintf(" (between %s and %s)", lo, hi) else "")
+      } else {
+        sprintf("%s between %s and %s", th$status[i], lo, hi)
+      }
+      cat(strwrap(sprintf("%s: %s; %s", th$item[i], at, th$description[i]), width = getOption("width", 80L),
+                  indent = 2L, exdent = 4L), sep = "\n")
+    }
   }
   invisible(x)
 }

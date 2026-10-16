@@ -169,9 +169,9 @@ test_that("interactions: the model recovers the truth", {
   expect_equal(res$adjusted$kind, c(rep("disease", 3), rep("interaction", 2)))
   expect_equal(res$adjusted$adjusted, c(truth, 0.01, 0.015), tolerance = 1e-8)
   expect_equal(res$totals$adjusted_total, 0.021095698976771753, tolerance = 1e-9)
-  expect_equal(res$contributions$total, c(0.002122396963, 0.006547849488, 0.012425452526),
+  expect_equal(res$contributions$contribution, c(0.002122396963, 0.006547849488, 0.012425452526),
                tolerance = 1e-9)
-  expect_equal(sum(res$contributions$total), res$totals$adjusted_total, tolerance = 1e-14)
+  expect_equal(sum(res$contributions$contribution), res$totals$adjusted_total, tolerance = 1e-14)
   expect_lt(res$diagnostics$max_reconstruction_residual, 1e-10)
   # raw = A theta, row by row.
   expect_equal(as.vector(res$conflation$A %*% res$adjusted$adjusted), c(raw, 0.01, 0.015),
@@ -225,7 +225,7 @@ test_that("an OR_ratio row sets the stratum odds ratios and keeps the pair table
 
 test_that("metadata is kept and impacts are put in disease order", {
   imp <- cm_impacts(c("d3", "d1", "d2"), c(7.5, 2.5, 5), label = "yield", units = "%",
-                    source = "test")
+                    note = "test")
   m <- cm_model(t2_pop(), imp)
   # Rows keep their order and numbers; results are in disease order.
   expect_equal(m$impacts$disease, c("d3", "d1", "d2"))

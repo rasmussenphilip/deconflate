@@ -43,7 +43,9 @@ association tables can be shared.
 \section{Columns}{
 
 Column names are not case-sensitive. Optional columns can be left out or
-left empty; unrecognised columns are ignored (with a note). In every
+left empty; unrecognised columns are ignored (with a note). Every table
+can have a \code{note} column for free text (e.g. the source of a value),
+which the package never uses. In every
 table, \code{disease} (and \code{associated_with}) take a disease id or a
 combination of ids separated by \verb{;} (e.g. \verb{MAS;SCK}), and \code{among} takes a
 subgroup (\code{SCK}, \verb{no SCK}, \verb{SCK;no MET}, or \verb{no others}).
@@ -51,14 +53,16 @@ subgroup (\code{SCK}, \verb{no SCK}, \verb{SCK;no MET}, or \verb{no others}).
 \strong{diseases} (one row per disease; whole-population values only):
 \code{disease}, \code{value} (required); \code{measure} (\code{prevalence} (default),
 \code{probability} or \code{incidence_rate}, converted with \code{1 - exp(-value)}),
-\code{label} (full name), \code{time_horizon}, \code{reference_population}, \code{source},
 \code{note}. Ids must not contain \code{|}, \verb{;} or \code{:} or start with \code{no }; \code{all}
-and \code{others} are reserved.
+and \code{others} are reserved. Prevalences, probabilities, associations,
+impacts and the overall risk must all refer to the same period (e.g. a
+lactation or a year) and population.
 
 \strong{associations} (one row per estimate; any row about two or more
 diseases): \code{disease}, \code{value} (required); \code{associated_with}, \code{among},
 \code{adjusted_for}, \code{measure} (\code{OR} (default), \code{RR}, \code{RD}, \code{phi},
-\code{prevalence} or \code{OR_ratio}), \code{study}, \code{source}, \code{note}. See
+\code{prevalence} or \code{OR_ratio}), \code{study} (identifies the row in \verb{$estimates}
+and the diagnosis), \code{note}. See
 \code{\link[=cm_associations]{cm_associations()}} for what each row means. Pairs that no row mentions
 are unknown: the model fills in their association. An odds ratio of 1
 states that two diseases are unrelated. Several rows about the same
@@ -66,7 +70,8 @@ association are pooled.
 
 \strong{impacts} (one row per estimate): \code{disease}, \code{value} (required);
 \code{among}, \code{adjusted_for}, \code{measure}, \code{label}, \code{units} (one label and one
-unit per table), \code{study}, \code{source}, \code{note}. Every disease needs a row of
+unit per table, shown in the printed results), \code{study}, \code{note}. Every
+disease needs a row of
 its own; a row for a combination (e.g. \verb{SCK;SCM}) adds an interaction to
 the model, and a combination adjusted for \code{all} is the interaction itself.
 See \code{\link[=cm_impacts]{cm_impacts()}}. Without a \code{measure} column the impacts are additive,
@@ -77,7 +82,9 @@ With a \code{measure} column they are event impacts: every row needs a measure
 
 Files in the layout of earlier versions (columns \code{id} and \code{type},
 \code{disease1} and \code{disease2}, \code{estimand}; three-way and interaction files)
-are reported with what to change.
+are reported with what to change. The columns \code{label} (of the diseases
+table), \code{time_horizon}, \code{reference_population} and \code{source} are no longer
+read: files with them still load, with a note.
 }
 
 \section{Uncertainty}{

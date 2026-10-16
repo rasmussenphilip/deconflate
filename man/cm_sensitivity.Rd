@@ -51,7 +51,8 @@ A \code{cm_sensitivity} object:
 \code{swing} (\verb{|total_high - total_low|}), \code{rank_shift} (the most places any
 disease moves in the ranking by contribution, at low or high),
 \code{first} (the disease ranked first at low or high, when it is not the
-central one), \code{var_share} and \code{failed} (why a run could not be used);
+central one), \code{share} (of the variance over the draws, a fraction; \code{NA}
+without draws) and \code{failed} (why a run could not be used);
 \item \code{by_disease}: each input's effect on each disease (\code{adjusted_low},
 \code{adjusted_high}; hazard ratios for event impacts; \code{contribution_low},
 \code{contribution_high});

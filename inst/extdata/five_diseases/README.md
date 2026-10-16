@@ -38,7 +38,9 @@ ketosis), RP (retained placenta).
 | `impacts_welfare.csv` | Score points, with interactions: LAM;MAS and MET;RP adjusted for `all` (the interactions themselves, synergistic), and a crude LAM;SCK row (cows with both against cows with neither) that implies an antagonistic LAM:SCK interaction. |
 | `culling.csv` | Event impacts (`event_model = TRUE`, with `overall_risk` or `baseline_risk`): hazard ratios (LAM crude, MAS stratified by LAM and SCK), a risk ratio (MET), an odds ratio (SCK), a risk difference (RP stratified by all other diseases) and a crude hazard ratio for cows with both LAM and MAS (an interaction on the log-hazard scale), all on the snapshot hazard model. |
 
-Every table has free-text `study` and `note` columns describing its rows.
+Every table has a free-text `note` column describing its rows (the diseases'
+full names are in the diseases table's notes); the association and impact
+tables also have a `study` column. All values refer to one lactation.
 
 ## Uncertainty in the tables
 

@@ -1,5 +1,5 @@
-disease,among,adjusted_for,measure,value,estimand,label,dist,p1,p2,p3,p4,source,note
-LAM,,,HR,1.74,snapshot_crude,culling,lognormal_ci,1.74,1.40,2.10,,Illustrative,"hazard ratio; lognormal_ci(estimate, lower, upper). Note: the estimand column is no longer used"
-SCK,,,,1.92,,culling,,,,,,Illustrative,"Error: event impacts need a measure in every row"
-MET,,,HR,0,,culling,,,,,,Illustrative,"Error: a hazard ratio must be positive (use 1 for no effect)"
-RP,,all,RD,1.2,,culling,,,,,,Illustrative,"Error: a risk difference must lie between -1 and 1"
+disease,among,adjusted_for,measure,value,estimand,label,dist,p1,p2,p3,p4,note
+LAM,,,HR,1.74,snapshot_crude,culling,lognormal_ci,1.74,1.40,2.10,,"hazard ratio; lognormal_ci(estimate, lower, upper). Note: the estimand column is no longer used"
+SCK,,,,1.92,,culling,,,,,,Error: event impacts need a measure in every row
+MET,,,HR,0,,culling,,,,,,Error: a hazard ratio must be positive (use 1 for no effect)
+RP,,all,RD,1.2,,culling,,,,,,Error: a risk difference must lie between -1 and 1

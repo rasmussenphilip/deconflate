@@ -96,7 +96,7 @@ test_that("the model gives the same answers with a sampled joint", {
   ev <- cm_model(pop, cm_impacts(t2_ids, c(1.5, 2.0, 1.3), measure = "HR"))
   re <- deconflate(ev, event_model = TRUE, overall_risk = 0.25, joint = js, n_draws = 0)
   expect_equal(re$adjusted$adjusted, c(1.3831529713, 1.8909315489, 1.1439870467), tolerance = 0.01)
-  expect_equal(sum(re$attributable$by_disease$attributable), re$attributable$summary$attributable,
+  expect_equal(sum(re$contributions$contribution), re$attributable$summary$attributable,
                tolerance = 1e-10)
 })
 

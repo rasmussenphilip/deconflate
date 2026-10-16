@@ -140,11 +140,11 @@ test_that("combination impacts (interactions) are recovered from crude and adjus
   expect_equal(r$adjusted$adjusted, unname(c(b5, d)), tolerance = 1e-8)
   # Contributions: interactions shared equally among their diseases, and
   # adding up to the aggregate.
-  expect_equal(sum(r$contributions$total), r$totals$adjusted_total, tolerance = 1e-10)
+  expect_equal(sum(r$contributions$contribution), r$totals$adjusted_total, tolerance = 1e-10)
   j <- fit_joint(pop)
   loss <- function(x) sum(b5[names(x)] * x) + 2 * x[["LAM"]] * x[["MAS"]] - x[["LAM"]] * x[["MAS"]] * x[["SCK"]]
   sh <- shapley_by_cell(j, loss)
-  expect_equal(sh$shapley, r$contributions$total, tolerance = 1e-7)
+  expect_equal(sh$shapley, r$contributions$contribution, tolerance = 1e-7)
 
   # A row within a subgroup tells LAM;MAS apart without a crude combination row.
   rows2 <- data.frame(disease = c(ids5, "LAM;MAS", "LAM", "LAM;MAS;SCK"),

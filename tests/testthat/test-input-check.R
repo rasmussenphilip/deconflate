@@ -49,6 +49,7 @@ test_that("A: a sign change in additive impacts (five diseases, yield, SCK raw 1
   expect_length(p$no_single_fix, 0L)
   expect_null(p$disagreeing)
   out <- capture.output(print(r))
+  expect_true(all(nchar(out) <= 80))
   expect_true(any(grepl("SCK: 1.00 -> -0.187 (other side of zero)", out, fixed = TRUE)))
   expect_true(any(grepl("MAS-SCK prevalence", out, fixed = TRUE)))
   expect_true(any(grepl("(1.5 SD down)", out, fixed = TRUE)))
@@ -104,9 +105,10 @@ test_that("E: rows that disagree with other rows (impacts and pooled association
   expect_equal(dg$changes_most, rep("MAS", 4))
   expect_equal(dg$before, rep(7.2529895371, 4), tolerance = 1e-8)
   expect_equal(dg$after, c(16.9511095432, 3.0457115821, 6.2784837983, 8.3555657975), tolerance = 1e-7)
-  expect_equal(dg$aggregate_after, c(9.4597846429, 6.7984125964, 7.2669557850, 8.1316326692), tolerance = 1e-7)
+  expect_equal(dg$total_after, c(9.4597846429, 6.7984125964, 7.2669557850, 8.1316326692), tolerance = 1e-7)
   out <- capture.output(print(p))
-  expect_true(any(grepl("impacts row 3 (MAS, Study 3): 20.0, fitted 10.9, residual +3.0", out, fixed = TRUE)))
+  expect_true(all(nchar(out) <= 80))
+  expect_match(printed(p), "impacts row 3 (MAS, Study 3): 20.0, fitted 10.9, residual +3.0", fixed = TRUE)
 })
 
 test_that("nothing to report, and the argument is checked", {

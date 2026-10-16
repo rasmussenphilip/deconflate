@@ -5,7 +5,6 @@
 # tools. Reference values: inst/validation/reference_v06_event_parity.py (an
 # independent implementation on reference_v041.py).
 
-cull_five <- function(...) deconflate(read_five("culling.csv"), event_model = TRUE, n_draws = 0, ...)
 
 test_that("raw totals: the same model with the diseases unrelated", {
   expect_equal(deconflate(read_five("impacts_yield.csv"), n_draws = 0)$totals$raw_total, 3.7422998718,
@@ -21,30 +20,29 @@ test_that("raw totals: the same model with the diseases unrelated", {
   s <- r$attributable$summary
   expect_equal(s$attributable, 0.0541469811, tolerance = 1e-7)
   expect_equal(s$raw_attributable, 0.0805814757, tolerance = 1e-7)
-  sm <- summary(r)$totals
-  expect_equal(sm$reduction, 1 - 0.0541469811 / 0.0805814757, tolerance = 1e-8)
-  expect_true(any(grepl("Raw attributable risk (diseases unrelated): 0.08058", capture.output(print(r)), fixed = TRUE)))
+  expect_equal(total_value(summary(r), "reduction"), 1 - 0.0541469811 / 0.0805814757, tolerance = 1e-8)
+  expect_match(printed(r), "raw attributable risk (diseases unrelated) 0.0806.", fixed = TRUE)
 })
 
 test_that("contributions are split into own parts and interaction shares", {
   w <- deconflate(read_five("impacts_welfare.csv"), n_draws = 0)$contributions
   expect_equal(w$main, c(2.1860744234, 0.9931824543, 0.3197758625, 0.3799454881, 0.1290929305), tolerance = 1e-7)
-  expect_equal(w$total, c(2.2400759141, 1.0837970506, 0.3357170535, 0.3433323825, 0.1450341215), tolerance = 1e-7)
-  by <- cull_five(overall_risk = 0.25)$attributable$by_disease
-  expect_equal(names(by), c("disease", "main", "interaction", "attributable", "share"))
-  expect_equal(by$attributable, c(0.0137316223, 0.0218514738, 0.0015789582, 0.0114739881, 0.0055109386),
+  expect_equal(w$contribution, c(2.2400759141, 1.0837970506, 0.3357170535, 0.3433323825, 0.1450341215), tolerance = 1e-7)
+  by <- cull_five(overall_risk = 0.25)$contributions
+  expect_equal(names(by), c("disease", "contribution", "main", "interaction", "share"))
+  expect_equal(by$contribution, c(0.0137316223, 0.0218514738, 0.0015789582, 0.0114739881, 0.0055109386),
                tolerance = 1e-7)
   expect_equal(by$main, c(0.0028275807, 0.0109474323, 0.0015402824, 0.0111226092, 0.0054178744), tolerance = 1e-7)
-  expect_equal(by$interaction, by$attributable - by$main)
+  expect_equal(by$interaction, by$contribution - by$main)
   # The LAM;MAS interaction is shared equally between LAM and MAS.
   expect_equal(by$interaction[1], 0.0109040415, tolerance = 1e-7)
   expect_equal(by$interaction[2], 0.0109040415, tolerance = 1e-7)
   # Without interaction terms, the own part is the whole contribution.
-  h <- deconflate(supp_hr_model(), event_model = TRUE, overall_risk = 0.2, n_draws = 0)$attributable$by_disease
-  expect_equal(h$main, h$attributable)
+  h <- deconflate(supp_hr_model(), event_model = TRUE, overall_risk = 0.2, n_draws = 0)$contributions
+  expect_equal(h$main, h$contribution)
   expect_equal(h$interaction, c(0, 0, 0))
   ct <- contribution_table(cull_five(overall_risk = 0.25))
-  expect_true(all(c("main", "interaction", "attributable", "risk_alone", "rr_alone", "rd_alone", "change") %in% names(ct)))
+  expect_true(all(c("main", "interaction", "contribution", "risk_alone", "rr_alone", "rd_alone", "change") %in% names(ct)))
 })
 
 test_that("local row equations of event impacts", {
@@ -88,7 +86,7 @@ test_that("a baseline risk instead of the overall risk", {
   expect_equal(s$attributable, 0.0512436477, tolerance = 1e-7)
   expect_equal(s$raw_attributable, 0.0839363859, tolerance = 1e-7)
   expect_equal(r$risk_given, "baseline")
-  expect_true(any(grepl("(given: disease-free risk)", capture.output(print(r)), fixed = TRUE)))
+  expect_match(printed(r), "Overall risk 0.231 (computed); disease-free risk 0.180 (given)", fixed = TRUE)
   m <- read_five("culling.csv")
   expect_error(deconflate(m, event_model = TRUE, overall_risk = 0.25, baseline_risk = 0.18),
                class = "deconflate_invalid_input")
@@ -129,7 +127,7 @@ test_that("simulated raw estimates of event impacts", {
   sn <- simulate_raw_impacts(h, truth, event_model = TRUE, measure = "HR", adjusted_for = "all",
                              overall_risk = 0.05, n = 200000)
   expect_equal(sn$value, unname(truth), tolerance = 0.1)
-  expect_equal(sn$source[1], "simulated (n = 200000)")
+  expect_equal(sn$note[1], "simulated (n = 200000)")
   expect_error(simulate_raw_impacts(h, c(d1 = -1, d2 = 1, d3 = 1), event_model = TRUE, overall_risk = 0.2),
                class = "deconflate_invalid_input")
   expect_error(simulate_raw_impacts(h, truth, event_model = TRUE, measure = "HZ", overall_risk = 0.2),

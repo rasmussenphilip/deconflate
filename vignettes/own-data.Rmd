@@ -37,16 +37,19 @@ show how much associations could matter. The optional columns are
 described in `?cm_read_inputs`:
 
 * `diseases`: `measure` (`prevalence` (default), `probability` or
-  `incidence_rate`), `label`, `time_horizon`, `reference_population`;
+  `incidence_rate`);
 * `associations`: `among`, `adjusted_for`, `measure` (`OR` (default),
   `RR`, `RD`, `phi`, `prevalence` or `OR_ratio`), `study`;
 * `impacts`: `among`, `adjusted_for`, `study`, and one `label` and one
   `units` per table; a `measure` column makes them event impacts (see
   below).
 
-Every table can also have the free-text columns `source` and `note`, and
-the columns `dist` and `p1`-`p4` for uncertain values (see Uncertainty
-below). Column names are not case-sensitive.
+Every table can also have a `note` column for free text (for example the
+source of a value; the package never uses it), and the columns `dist` and
+`p1`-`p4` for uncertain values (see Uncertainty below). Column names are
+not case-sensitive. Prevalences, probabilities, associations, impacts and
+the overall risk must all refer to the same period (for example a
+lactation or a year) and the same population.
 
 A row is about a disease or a combination of diseases (ids separated by
 `";"`), holds in the whole population or within a subgroup (`among`: a

@@ -150,7 +150,8 @@
 #'
 #' A separate table lists rows that disagree with other rows for the same
 #' quantity (standardised residual of 2 or more), with the adjusted impact
-#' that changes most, and the aggregate, without each row.
+#' that changes most and the total (`total_before`, `total_after`) without
+#' each row.
 #'
 #' The check describes the central estimate; it does not change the results.
 #' A flagged input is worth checking, not necessarily wrong.
@@ -214,8 +215,9 @@
 #'   * `totals`: the raw aggregate (`raw_total`: the diseases unrelated; see
 #'     "Raw and adjusted totals"), the adjusted aggregate and its
 #'     interaction part;
-#'   * `contributions`: per disease, main and interaction contributions,
-#'     their total and share;
+#'   * `contributions`: per disease, its `contribution` to the aggregate
+#'     (Shapley value), split into `main` and `interaction` parts, and its
+#'     `share` (with draws, also `lower` and `upper`);
 #'   * `estimates`: every input row (impacts and associations) with its
 #'     value, fitted value and standardised residual (and, for impact rows,
 #'     the SD used as weight; 0 for an exact row);
@@ -244,9 +246,10 @@
 #'   For event impacts, a `cm_event_result` with `adjusted` (adjusted hazard
 #'   ratios of diseases and interactions, the change from the raw estimate,
 #'   and the risk-scale results `risk_alone`, `rr_alone`, `rd_alone` and
-#'   `or_alone`), `attributable` (`summary`: overall, disease-free, raw and
-#'   adjusted attributable risk and the attributable fraction; `by_disease`:
-#'   the Shapley allocation with its `main` and `interaction` parts;
+#'   `or_alone`), `contributions` (as for additive impacts: each disease's
+#'   share of the attributable risk, Shapley allocation, with its `main` and
+#'   `interaction` parts), `attributable` (`summary`: overall, disease-free,
+#'   raw and adjusted attributable risk and the attributable fraction;
 #'   `baseline_hazard`), `conflation` (the local row equations), `estimates`,
 #'   `heterogeneity`, `diagnostics`, `unknown_pairs`, `draws`, `ranks` (by
 #'   share of the attributable risk), `problems`
@@ -335,7 +338,13 @@ deconflate.cm_model <- function(model, event_model = FALSE, overall_risk = NULL,
                                     lhs_replicates, dots)
       res <- attach_intervals(res)
       res$ranks <- draw_ranks(res)
-      res$notes <- c(res$notes, draw_notes(res$draws))
+      res$notes <- c(res$notes, draw_notes(res$draws, event = inherits(res, "cm_event_result")))
+    }
+  } else {
+    n_unc <- sum(!startsWith(names(specs) %||% character(0), "between:"))
+    if (n_unc) {
+      res$notes <- c(res$notes, sprintf("%d input%s a distribution, but n_draws = 0: the results are point estimates without intervals.",
+                                        n_unc, if (n_unc == 1L) " has" else "s have"))
     }
   }
   res
