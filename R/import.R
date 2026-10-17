@@ -43,24 +43,25 @@
 #' association are pooled.
 #'
 #' **impacts** (one row per estimate): `disease`, `value` (required);
-#' `among`, `adjusted_for`, `measure`, `outcome`, `units` (optional: what
-#' the impacts are about and their units, one value of each per table, shown
-#' in the printouts and plots), `study`, `note`. Every disease needs a row of
+#' `among`, `adjusted_for`, `measure`, `study`, `note`. Every disease needs a row of
 #' its own; a row for a combination (e.g. `SCK;SCM`) adds an interaction to
 #' the model, and a combination adjusted for `all` is the interaction itself.
 #' See [cm_impacts()]. Without a `measure` column the impacts are additive,
 #' in any units (the same for every row; results come back in those units).
 #' With a `measure` column they are event impacts: every row needs a measure
 #' (`HR`, `rate_ratio`, `RR`, `OR` or `RD`), and they are adjusted with
-#' `deconflate(..., event_model = TRUE)`.
+#' `deconflate(..., event_model = TRUE)`. What the impacts are about and
+#' their units are not columns: give them as `outcome` and `units` (see
+#' Arguments).
 #'
 #' Files in the layout of earlier versions (columns `id` and `type`,
 #' `disease1` and `disease2`, `estimand`; three-way and interaction files)
 #' are reported with what to change. The columns `label` (of the diseases
 #' and associations tables), `time_horizon`, `reference_population` and
-#' `source` are no longer read: files with them still load, with a note. The
-#' `label` column of an impact table is now called `outcome`: it is still
-#' read, with a note to rename it.
+#' `source` are no longer read: files with them still load, with a note.
+#' The columns `outcome`, `label` and `units` of an impact table are no
+#' longer read either (a note says which arguments to use instead), but a
+#' table whose rows have different outcomes or units is an error.
 #'
 #' @section Uncertainty:
 #' Every table can have the columns `dist` and `p1`-`p4`. A row with a
@@ -88,7 +89,13 @@
 #'   data frames. `diseases` and `impacts` are required; `associations` can
 #'   be left out only for the sensitivity tools ([deconflate()] needs at
 #'   least one association).
-#' @param ... Not used (arguments of earlier versions give a message).
+#' @param ... Not used (arguments of earlier versions give a message). The
+#'   arguments after it must be named.
+#' @param outcome,units Optional: what the impacts are about and their units,
+#'   one text each (e.g. `outcome = "milk yield loss"`, `units = "% of
+#'   yield"`). They are used in the printouts and the plot titles and axes;
+#'   without them, these use general wording and the axes show no unit. See
+#'   [cm_impacts()].
 #' @return A [cm_model()], with the distributions of uncertain values in
 #'   `$distributions` (keyed by table and row, e.g. `"associations:3"`) and
 #'   any notes from the checks in attribute `"problems"`. When a check finds
@@ -102,7 +109,8 @@
 #' cm_template(dir, overwrite = TRUE)
 #' m <- cm_read_inputs(diseases = file.path(dir, "diseases.csv"),
 #'                     associations = file.path(dir, "associations.csv"),
-#'                     impacts = file.path(dir, "yield.csv"))
+#'                     impacts = file.path(dir, "yield.csv"),
+#'                     outcome = "milk yield loss", units = "% of yield")
 #' m
 #' deconflate(m, n_draws = 0)
 #'
@@ -110,7 +118,8 @@
 #' ex <- system.file("extdata", "five_diseases", package = "deconflate")
 #' five <- cm_read_inputs(diseases = file.path(ex, "diseases.csv"),
 #'                        associations = file.path(ex, "associations.csv"),
-#'                        impacts = file.path(ex, "impacts_yield.csv"))
+#'                        impacts = file.path(ex, "impacts_yield.csv"),
+#'                        units = "% of yield")
 #' five
 #' err <- system.file("extdata", "example_with_errors", package = "deconflate")
 #' cm_check_inputs(diseases = file.path(err, "diseases.csv"),
@@ -121,15 +130,18 @@
 #' m2 <- cm_read_inputs(
 #'   diseases = data.frame(disease = c("d1", "d2"), value = c(0.10, 0.15)),
 #'   associations = data.frame(disease = "d1", associated_with = "d2", value = 2),
-#'   impacts = data.frame(disease = c("d1", "d2"), value = c(2.5, 5), units = "% of yield")
+#'   impacts = data.frame(disease = c("d1", "d2"), value = c(2.5, 5)),
+#'   units = "% of yield"
 #' )
 #' deconflate(m2)
-cm_read_inputs <- function(diseases, associations = NULL, impacts, ...) {
+cm_read_inputs <- function(diseases, associations = NULL, impacts, ..., outcome = NULL, units = NULL) {
   old_args(list(...), c(three_way = three_way_message, interactions = interactions_message,
                         adjusted_associations = "`adjusted_associations` is no longer used: an association adjusted for diseases of the model is used exactly, and one adjusted only for other factors is used as crude (with a note)."))
   if (missing(diseases)) cm_abort("`diseases` is required: a path to a CSV file or a data frame.", class = "deconflate_invalid_input")
   if (missing(impacts)) cm_abort("`impacts` is required: a path to a CSV file or a data frame.", class = "deconflate_invalid_input")
-  chk <- run_input_checks(diseases, associations, impacts)
+  outcome <- meta_text(outcome, "outcome")
+  units <- meta_text(units, "units")
+  chk <- run_input_checks(diseases, associations, impacts, outcome, units)
   pr <- chk$problems
   if (any(pr$severity == "error")) {
     cm_abort(format_problems(pr[pr$severity == "error", , drop = FALSE]),
@@ -156,10 +168,13 @@ cm_read_inputs <- function(diseases, associations = NULL, impacts, ...) {
 #'   diseases = data.frame(disease = c("d1", "d2"), value = c(0.10, 1.5)),
 #'   impacts = data.frame(disease = c("d1", "d3"), value = c(2, "x"))
 #' )
-cm_check_inputs <- function(diseases = NULL, associations = NULL, impacts = NULL, ...) {
+cm_check_inputs <- function(diseases = NULL, associations = NULL, impacts = NULL, ..., outcome = NULL,
+                            units = NULL) {
   old_args(list(...), c(three_way = three_way_message, interactions = interactions_message,
                         adjusted_associations = "`adjusted_associations` is no longer used."))
-  run_input_checks(diseases, associations, impacts)$problems
+  outcome <- meta_text(outcome, "outcome")
+  units <- meta_text(units, "units")
+  run_input_checks(diseases, associations, impacts, outcome, units)$problems
 }
 
 #' Write a template set of input files
@@ -172,13 +187,15 @@ cm_check_inputs <- function(diseases = NULL, associations = NULL, impacts = NULL
 #' * `diseases.csv`: three dairy diseases;
 #' * `associations.csv`: their associations (odds ratios);
 #' * `yield.csv`: additive impacts on milk yield, in percent of yield (any
-#'   units can be used);
+#'   units can be used; give them with `cm_read_inputs(units = )`);
 #' * `culling.csv`: event impacts on culling (hazard ratios and a risk ratio),
 #'   for `deconflate(..., event_model = TRUE, overall_risk = ...)`.
 #'
 #' The folder `system.file("extdata", "five_diseases", package =
 #' "deconflate")` has a fuller example that uses every feature (several
-#' rows per item, subgroups, adjusted rows, combinations).
+#' rows per item, subgroups, adjusted rows, combinations), and the folder
+#' `pigs` an example outside dairy cattle (four respiratory diseases of
+#' growing pigs, with three outcomes; see `vignette("other-settings")`).
 #'
 #' @param dir Folder to write to (created if needed).
 #' @param overwrite Overwrite existing files?
@@ -189,11 +206,12 @@ cm_check_inputs <- function(diseases = NULL, associations = NULL, impacts = NULL
 #' cm_template(dir, overwrite = TRUE)
 #' yield <- cm_read_inputs(diseases = file.path(dir, "diseases.csv"),
 #'                         associations = file.path(dir, "associations.csv"),
-#'                         impacts = file.path(dir, "yield.csv"))
+#'                         impacts = file.path(dir, "yield.csv"),
+#'                         outcome = "milk yield loss", units = "% of yield")
 #' deconflate(yield, n_draws = 200, seed = 1)
 #' culling <- cm_read_inputs(diseases = file.path(dir, "diseases.csv"),
 #'                           associations = file.path(dir, "associations.csv"),
-#'                           impacts = file.path(dir, "culling.csv"))
+#'                           impacts = file.path(dir, "culling.csv"), outcome = "culling")
 #' deconflate(culling, event_model = TRUE, overall_risk = 0.25, n_draws = 0)
 cm_template <- function(dir, overwrite = FALSE) {
   if (!dir.exists(dir)) dir.create(dir, recursive = TRUE)
@@ -213,13 +231,13 @@ cm_template <- function(dir, overwrite = FALSE) {
       stringsAsFactors = FALSE),
     yield = data.frame(
       disease = c("LAM", "SCK", "MET"), among = NA, adjusted_for = NA, value = c(4.81, 8.40, 5.61),
-      outcome = "milk yield loss", units = "% of yield", study = NA,
+      study = NA,
       dist = c("normal", "normal", NA), p1 = c(4.81, 8.40, NA), p2 = c(0.87, 1.19, NA), p3 = NA, p4 = NA,
-      note = c("illustrative; normal(mean, sd)", "normal(mean, sd)", NA),
+      note = c("milk yield loss in % of yield; illustrative; normal(mean, sd)", "normal(mean, sd)", NA),
       stringsAsFactors = FALSE),
     culling = data.frame(
       disease = c("LAM", "SCK", "MET"), among = NA, adjusted_for = NA, measure = c("HR", "HR", "RR"),
-      value = c(1.74, 1.92, 1.45), outcome = "culling", units = NA, study = NA,
+      value = c(1.74, 1.92, 1.45), study = NA,
       dist = c("lognormal_ci", NA, NA), p1 = c(1.74, NA, NA), p2 = c(1.45, NA, NA), p3 = c(2.09, NA, NA),
       p4 = NA,
       note = c("illustrative; hazard ratio; lognormal_ci(estimate, lower, upper)", "hazard ratio",
@@ -261,7 +279,7 @@ input_table_specs <- list(
                       optional = c("associated_with", "among", "adjusted_for", "measure", "study",
                                    "note", dist_columns)),
   impacts = list(required = c("disease", "value"),
-                 optional = c("among", "adjusted_for", "measure", "outcome", "units", "study",
+                 optional = c("among", "adjusted_for", "measure", "study",
                               "note", dist_columns))
 )
 
@@ -404,11 +422,9 @@ has_columns <- function(tab, spec, label, pc) {
   miss <- setdiff(miss, unname(renamed[names(renamed) %in% nm]))
   for (col in miss) pc$add(label, NA, col, "Required column is missing.")
   extra <- setdiff(nm, c(sp$required, sp$optional, names(renamed)))
-  if (spec == "impacts" && "label" %in% extra) {
-    pc$add(label, NA, "label", if ("outcome" %in% nm) "Column `label` is now called `outcome`: column ignored, as the table has an outcome column." else
-      "Column `label` is now called `outcome`: rename it (read as the outcome).", "note")
-    extra <- setdiff(extra, "label")
-  }
+  # The outcome and units of an impact table are arguments now
+  # (check_impact_table() reports these columns).
+  if (spec == "impacts") extra <- setdiff(extra, meta_columns)
   if (spec == "impacts" && "estimand" %in% extra) {
     pc$add(label, NA, "estimand", paste(sub("`estimand` is", "The estimand column is", estimand_message), "Column ignored."),
            "note")
@@ -613,6 +629,31 @@ check_association_table <- function(a, ids, pc) {
        dists = row_dists(a, lab, pc, keys = paste0("associations:", seq_len(nrow(a))), values = value))
 }
 
+# Columns of an impact table that are arguments of cm_read_inputs() now.
+meta_columns <- c("outcome", "label", "units")
+
+# The outcome, label and units columns of an impact table: not read (a note
+# with the argument to use), but different values in one table are an
+# error, since a table holds one outcome in one unit.
+meta_column_notes <- function(im, label, pc) {
+  for (col in intersect(meta_columns, names(im))) {
+    v <- unique(stats::na.omit(chr_col(im, col)))
+    arg <- if (col == "units") "units" else "outcome"
+    if (length(v) > 1L) {
+      pc$add(label, NA, col, if (col == "units") {
+        sprintf("The rows have different units (found: %s): every row of an impact table must be in the same units.",
+                paste(v, collapse = ", "))
+      } else {
+        sprintf("This table holds several outcomes (found: %s): keep one impact table per outcome, and adjust each in turn.",
+                paste(v, collapse = ", "))
+      })
+    } else {
+      pc$add(label, NA, col, sprintf("Column `%s` is no longer read: give it as `cm_read_inputs(%s = %s)`.", col, arg,
+                                     if (length(v)) sprintf("\"%s\"", v) else "..."), "note")
+    }
+  }
+}
+
 check_impact_table <- function(im, label, ids, pc) {
   if (!has_columns(im, "impacts", label, pc)) return(NULL)
   dis <- chr_col(im, "disease")
@@ -655,23 +696,14 @@ check_impact_table <- function(im, label, ids, pc) {
                                     paste(miss, collapse = ", "), no_effect))
     }
   }
-  one <- function(col) {
-    v <- unique(stats::na.omit(chr_col(im, col)))
-    if (length(v) > 1L) {
-      pc$add(label, NA, col, sprintf("One %s per table is allowed (found: %s).%s",
-                                     switch(col, units = "unit", label = "outcome", col), paste(v, collapse = ", "),
-                                     if (col == "units") "" else " For several outcomes, keep one impact table per outcome and adjust each in turn."))
-    }
-    if (length(v)) v[1] else NULL
-  }
-  outcome_col <- if ("outcome" %in% names(im) || !"label" %in% names(im)) "outcome" else "label"
+  meta_column_notes(im, label, pc)
   list(disease = dis, value = value, among = among, adjusted_for = adj,
        measure = if (event) meas else NULL, study = chr_col(im, "study"),
-       note = chr_col(im, "note"), outcome = one(outcome_col), units = one("units"),
+       note = chr_col(im, "note"),
        dists = row_dists(im, label, pc, keys = paste0("impacts:", seq_len(nrow(im))), values = value))
 }
 
-run_input_checks <- function(diseases, associations, impacts) {
+run_input_checks <- function(diseases, associations, impacts, outcome = NULL, units = NULL) {
   pc <- new_problems()
   tabs <- list(
     diseases = read_checked(diseases, "diseases", pc),
@@ -704,7 +736,7 @@ run_input_checks <- function(diseases, associations, impacts) {
     pop <- cm_population(dis_obj, assoc_obj)
     imp <- cm_impacts(ii$disease, ii$value, among = ii$among, adjusted_for = ii$adjusted_for,
                       measure = ii$measure, study = ii$study, note = ii$note,
-                      outcome = ii$outcome, units = ii$units)
+                      outcome = outcome, units = units)
     m <- cm_model(pop, imp, distributions = if (length(dists)) dists else NULL)
     pair_tables(m)
     m

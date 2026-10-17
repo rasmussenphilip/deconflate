@@ -40,10 +40,15 @@ described in `?cm_read_inputs`:
   `incidence_rate`);
 * `associations`: `among`, `adjusted_for`, `measure` (`OR` (default),
   `RR`, `RD`, `phi`, `prevalence` or `OR_ratio`), `study`;
-* `impacts`: `among`, `adjusted_for`, `study`, and optionally one
-  `outcome` (what the impacts are about, e.g. `milk yield loss`) and one
-  `units` per table, used in the printouts and plot titles; a `measure`
-  column makes them event impacts (see below).
+* `impacts`: `among`, `adjusted_for`, `study`; a `measure` column makes
+  them event impacts (see below).
+
+What the impacts are about and their units are not columns: give them, if
+you like, as arguments of `cm_read_inputs()`, e.g. `outcome = "milk yield
+loss"` and `units = "% of yield"`. They are used in the printouts, the plot
+titles and the axes; without them, these use general wording and the axes
+show no unit. (Files with `outcome`, `label` or `units` columns still load:
+a note says which argument to use instead.)
 
 Every table can also have a `note` column for free text (for example the
 source of a value; the package never uses it), and the columns `dist` and
@@ -89,7 +94,8 @@ Pass each file to its argument:
 yield <- cm_read_inputs(
   diseases = file.path(dir, "diseases.csv"),
   associations = file.path(dir, "associations.csv"),
-  impacts = file.path(dir, "yield.csv")
+  impacts = file.path(dir, "yield.csv"),
+  outcome = "milk yield loss", units = "% of yield"
 )
 yield
 deconflate(yield, n_draws = 0)
@@ -203,13 +209,16 @@ percent) and calving interval (in days), among others:
 ```{r}
 five <- system.file("extdata", "five_diseases", package = "deconflate")
 list.files(five)
-outcomes <- c(yield = "impacts_yield.csv", calving_interval = "impacts_calving_interval.csv")
-results <- lapply(outcomes, function(f) {
+files <- c(yield = "impacts_yield.csv", calving_interval = "impacts_calving_interval.csv")
+outcome <- c(yield = "milk yield loss", calving_interval = "calving interval increase")
+units <- c(yield = "% of yield", calving_interval = "days")
+results <- lapply(names(files), function(o) {
   m <- cm_read_inputs(diseases = file.path(five, "diseases.csv"),
                       associations = file.path(five, "associations.csv"),
-                      impacts = file.path(five, f))
+                      impacts = file.path(five, files[[o]]), outcome = outcome[[o]], units = units[[o]])
   deconflate(m, n_draws = 0)
 })
+names(results) <- names(files)
 results$calving_interval
 ```
 
@@ -237,7 +246,7 @@ must refer to the same period. The template's `culling.csv`:
 read.csv(file.path(dir, "culling.csv"))[, c("disease", "adjusted_for", "measure", "value")]
 culling <- cm_read_inputs(diseases = file.path(dir, "diseases.csv"),
                           associations = file.path(dir, "associations.csv"),
-                          impacts = file.path(dir, "culling.csv"))
+                          impacts = file.path(dir, "culling.csv"), outcome = "culling")
 deconflate(culling, event_model = TRUE, overall_risk = 0.25, n_draws = 0)
 ```
 
@@ -340,7 +349,8 @@ association value, an unknown disease, an odds ratio adjusted only for
 factors outside the model, measures from earlier versions, rows that are
 not well formed (a subgroup naming the row's own disease, an adjusted risk
 ratio, an `OR_ratio` without a subgroup), a decimal comma, two units in one
-table, an unsupported distribution, and a point value outside its
+table (a `units` column of an earlier file: it is no longer read, but rows
+with different units are still an error), an unsupported distribution, and a point value outside its
 distribution:
 
 ```{r}
@@ -449,8 +459,8 @@ typed <- cm_read_inputs(
                             dist = c("lognormal_ci", NA), p1 = c(2, NA), p2 = c(1.4, NA),
                             p3 = c(2.9, NA)),
   impacts = data.frame(disease = c("d1", "d2", "d3"), value = c(2.5, 5, 7.5),
-                       units = "% of yield", dist = c("normal", NA, NA),
-                       p1 = c(2.5, NA, NA), p2 = c(0.5, NA, NA))
+                       dist = c("normal", NA, NA), p1 = c(2.5, NA, NA), p2 = c(0.5, NA, NA)),
+  units = "% of yield"
 )
 typed
 deconflate(typed, n_draws = 0)$adjusted
@@ -496,7 +506,8 @@ so they are unknown:
 gd <- system.file("extdata", "global_dairy_2024", package = "deconflate")
 cm_read_inputs(diseases = file.path(gd, "diseases.csv"),
                associations = file.path(gd, "associations.csv"),
-               impacts = file.path(gd, "impacts_yield.csv"))
+               impacts = file.path(gd, "impacts_yield.csv"),
+               outcome = "milk yield loss", units = "% decrease")
 ```
 
 `example_global_dairy()` returns the same inputs as a model. (The published

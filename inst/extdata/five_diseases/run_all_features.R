@@ -71,8 +71,16 @@ section("1. Reading the inputs")
 
 # Three tables, each its own argument, with any file name. One impact table
 # per model: the disease and association tables are shared.
+# What each impact table is about and its units are given as arguments
+# (optional; used in the printouts and plots).
+outcomes <- list(impacts_yield.csv = c(outcome = "milk yield loss", units = "% of yield"),
+                 impacts_calving_interval.csv = c(outcome = "calving interval increase", units = "days"),
+                 impacts_welfare.csv = c(outcome = "welfare impact", units = "score points"),
+                 culling.csv = c(outcome = "culling", units = NA))
 read_five <- function(impacts, associations = f("associations.csv")) {
-  cm_read_inputs(diseases = f("diseases.csv"), associations = associations, impacts = f(impacts))
+  o <- outcomes[[impacts]]
+  cm_read_inputs(diseases = f("diseases.csv"), associations = associations, impacts = f(impacts),
+                 outcome = o[["outcome"]], units = o[["units"]])
 }
 
 # No problems are expected (a note is printed if any).
@@ -273,6 +281,13 @@ quantile(10000 / (1 - tot / 100) - 10000, c(0.025, 0.5, 0.975))
 data.frame(disease = res_ci$contributions$disease, days = res_ci$contributions$contribution,
            value = res_ci$contributions$contribution * 3)
 
+# Groups of diseases: MET and RP reported together as uterine disease (the
+# model keeps them separate; the group's interval is the sum in each draw)
+unc_groups <- deconflate(m_welfare, n_draws = 100, seed = 3, groups = list(uterine = c("MET", "RP")))
+unc_groups$groups
+unc_groups$group_ranks
+contribution_table(unc_groups)[, c("disease", "group", "contribution")]
+
 # ---- 7. Sensitivity: which inputs matter? -----------------------------------
 section("7. Sensitivity")
 
@@ -448,6 +463,8 @@ try_plot(plot(res_cull))
 try_plot(plot(res_cull, type = "contributions"))
 try_plot(plot(res_cull, type = "rows"))
 # Sensitivity and thresholds
+try_plot(plot(unc_groups, type = "groups"))
+try_plot(plot(unc_groups, type = "group_ranks"))
 try_plot(plot(sens_yield))
 try_plot(plot(th_rank))
 try_plot(plot(th_change))

@@ -56,14 +56,15 @@ dir <- file.path(tempdir(), "my-inputs")
 cm_template(dir)
 m <- cm_read_inputs(diseases = file.path(dir, "diseases.csv"),
                     associations = file.path(dir, "associations.csv"),
-                    impacts = file.path(dir, "yield.csv"))
+                    impacts = file.path(dir, "yield.csv"),
+                    outcome = "milk yield loss", units = "% of yield")   # both optional
 res <- deconflate(m)          # intervals from 1000 draws of the uncertain inputs
 res$contributions
 
 # Event impacts (culling): hazard ratios and a risk ratio
 cull <- cm_read_inputs(diseases = file.path(dir, "diseases.csv"),
                        associations = file.path(dir, "associations.csv"),
-                       impacts = file.path(dir, "culling.csv"))
+                       impacts = file.path(dir, "culling.csv"), outcome = "culling")
 deconflate(cull, event_model = TRUE, overall_risk = 0.25)
 
 # Global dairy inputs, Rasmussen et al. (2024); unlisted pairs are unknown
@@ -96,13 +97,14 @@ ggplot(d, aes(contribution, reorder(disease, contribution))) +
 
 ## Features
 
-- **Inputs:** `cm_read_inputs()` reads CSV files or data frames (each table a named argument) and reports every problem at once (`cm_check_inputs()`); uncertain values carry their distribution in their own row (`dist`, `p1`-`p4`), mixed freely with point values. `cm_template()` writes example files, and `system.file("extdata", "five_diseases", package = "deconflate")` holds a five-disease example that uses every feature, with a script (`run_all_features.R`) that runs them all. In R: `cm_diseases()`, `cm_associations()` (OR, RR, RD, phi, prevalence, OR ratio; about pairs, combinations and subgroups, crude or adjusted), `cm_population()`, `cm_impacts()` and `cm_model()`.
+- **Inputs:** `cm_read_inputs()` reads CSV files or data frames (each table a named argument) and reports every problem at once (`cm_check_inputs()`); uncertain values carry their distribution in their own row (`dist`, `p1`-`p4`), mixed freely with point values. `cm_template()` writes example files, and `system.file("extdata", "five_diseases", package = "deconflate")` holds a five-disease example that uses every feature, with a script (`run_all_features.R`) that runs them all; the folder `pigs` holds an example outside dairy cattle. In R: `cm_diseases()`, `cm_associations()` (OR, RR, RD, phi, prevalence, OR ratio; about pairs, combinations and subgroups, crude or adjusted), `cm_population()`, `cm_impacts()` and `cm_model()`.
 - **Adjustment:** `deconflate()` for additive and event impacts, with interactions, several rows per item (pooling with random or fixed effects, weighted least squares; `$heterogeneity`), intervals (`n_draws`), and a diagnosis (`diagnose = TRUE`) that shows which inputs drive adjusted impacts that change sign or nearly vanish, and which rows disagree with others; contributions of each disease (closed-form Shapley values), split into the disease's own part and its share of interactions, in `$contributions`, `contribution_table()` and `summary()`; the attributable risk of event impacts; the raw total (the result if the diseases were unrelated) beside the adjusted one.
+- **Groups of diseases:** `deconflate(groups = list(ketosis = c("SCK", "CK")))` reports the forms of one disease (or any set) together, with intervals from the draws, while the model keeps them separate.
 - **Joint distribution and feasibility:** `fit_joint()` (exact, or sampled for many diseases) and `check_feasibility()`.
 - **Sensitivity and thresholds:** `cm_sensitivity()` varies every input one at a time, entered inputs (by their own SD, or by a relative change) and inputs you did not enter (unknown associations, interactions, three-way associations) in one table, with each input's share of the variance over the draws; `$ranks` gives how often each disease ranks first, second, ... over the draws; `cm_threshold()` finds where a ranking, a sign or the loss of any set of diseases (against a value, or a fraction of its adjusted or raw value) changes as an input varies, for named inputs or the ones that matter most; `cm_threshold_prob()` gives the probability of the conclusion over the draws of the other uncertain inputs, and where it crosses chosen levels. They also run without any association estimates, to show which associations would matter.
 - **Validation:** `simulate_raw_impacts()` shows what studies would report given true impacts, so you can check that the model recovers them.
-- **Plots** (base graphics): `plot()` of a result draws the raw and adjusted impacts, the contributions (with the raw ones), the ranks over the draws or the impact rows and their fit (`type`); of `cm_sensitivity()` the swings; of the threshold functions the compared quantity or the probability over each input's range. Titles and axes use the impact table's optional `outcome` and `units`. `plot_data()` returns the data frame each plot draws, to draw it with ggplot2 or any other tool.
-- **Vignettes:** six. Start with `vignette("deconflate")`.
+- **Plots** (base graphics): `plot()` of a result draws the raw and adjusted impacts, the contributions (with the raw ones), the ranks over the draws or the impact rows and their fit (`type`); of `cm_sensitivity()` the swings; of the threshold functions the compared quantity or the probability over each input's range. Titles and axes use the optional `outcome` and `units` given when the impacts are read (`cm_read_inputs()`) or built (`cm_impacts()`). `plot_data()` returns the data frame each plot draws, to draw it with ggplot2 or any other tool.
+- **Vignettes:** seven. Start with `vignette("deconflate")`; `vignette("other-settings")` shows the package outside dairy cattle (PRRS and the respiratory diseases of growing pigs, with average daily gain, emissions and welfare; and chronic conditions and hospitalisation in people).
 
 ## Development
 

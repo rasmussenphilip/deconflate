@@ -1,0 +1,5 @@
+disease,measure,value,dist,p1,p2,p3,p4,note
+PRRS,prevalence,0.40,beta,40,60,,,"porcine reproductive and respiratory syndrome; illustrative; beta(shape1, shape2): mean 0.40"
+PCV2,prevalence,0.20,uniform,0.15,0.25,,,"porcine circovirus type 2 (clinical or subclinical disease); illustrative; uniform(min, max)"
+MHP,prevalence,0.35,,,,,,"Mycoplasma hyopneumoniae (enzootic pneumonia); illustrative; point value"
+SIV,prevalence,0.30,pert,0.20,0.30,0.40,,"swine influenza; illustrative; pert(min, mode, max)"

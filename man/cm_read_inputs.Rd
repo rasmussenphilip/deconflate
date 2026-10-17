@@ -4,7 +4,14 @@
 \alias{cm_read_inputs}
 \title{Read model inputs from CSV files or data frames}
 \usage{
-cm_read_inputs(diseases, associations = NULL, impacts, ...)
+cm_read_inputs(
+  diseases,
+  associations = NULL,
+  impacts,
+  ...,
+  outcome = NULL,
+  units = NULL
+)
 }
 \arguments{
 \item{diseases, associations, impacts}{Paths to CSV files (any names) or
@@ -12,7 +19,13 @@ data frames. \code{diseases} and \code{impacts} are required; \code{associations
 be left out only for the sensitivity tools (\code{\link[=deconflate]{deconflate()}} needs at
 least one association).}
 
-\item{...}{Not used (arguments of earlier versions give a message).}
+\item{...}{Not used (arguments of earlier versions give a message). The
+arguments after it must be named.}
+
+\item{outcome, units}{Optional: what the impacts are about and their units,
+one text each (e.g. \code{outcome = "milk yield loss"}, \code{units = "\% of yield"}). They are used in the printouts and the plot titles and axes;
+without them, these use general wording and the axes show no unit. See
+\code{\link[=cm_impacts]{cm_impacts()}}.}
 }
 \value{
 A \code{\link[=cm_model]{cm_model()}}, with the distributions of uncertain values in
@@ -69,24 +82,25 @@ states that two diseases are unrelated. Several rows about the same
 association are pooled.
 
 \strong{impacts} (one row per estimate): \code{disease}, \code{value} (required);
-\code{among}, \code{adjusted_for}, \code{measure}, \code{outcome}, \code{units} (optional: what
-the impacts are about and their units, one value of each per table, shown
-in the printouts and plots), \code{study}, \code{note}. Every disease needs a row of
+\code{among}, \code{adjusted_for}, \code{measure}, \code{study}, \code{note}. Every disease needs a row of
 its own; a row for a combination (e.g. \verb{SCK;SCM}) adds an interaction to
 the model, and a combination adjusted for \code{all} is the interaction itself.
 See \code{\link[=cm_impacts]{cm_impacts()}}. Without a \code{measure} column the impacts are additive,
 in any units (the same for every row; results come back in those units).
 With a \code{measure} column they are event impacts: every row needs a measure
 (\code{HR}, \code{rate_ratio}, \code{RR}, \code{OR} or \code{RD}), and they are adjusted with
-\code{deconflate(..., event_model = TRUE)}.
+\code{deconflate(..., event_model = TRUE)}. What the impacts are about and
+their units are not columns: give them as \code{outcome} and \code{units} (see
+Arguments).
 
 Files in the layout of earlier versions (columns \code{id} and \code{type},
 \code{disease1} and \code{disease2}, \code{estimand}; three-way and interaction files)
 are reported with what to change. The columns \code{label} (of the diseases
 and associations tables), \code{time_horizon}, \code{reference_population} and
-\code{source} are no longer read: files with them still load, with a note. The
-\code{label} column of an impact table is now called \code{outcome}: it is still
-read, with a note to rename it.
+\code{source} are no longer read: files with them still load, with a note.
+The columns \code{outcome}, \code{label} and \code{units} of an impact table are no
+longer read either (a note says which arguments to use instead), but a
+table whose rows have different outcomes or units is an error.
 }
 
 \section{Uncertainty}{
@@ -117,7 +131,8 @@ dir <- file.path(tempdir(), "deconflate-inputs")
 cm_template(dir, overwrite = TRUE)
 m <- cm_read_inputs(diseases = file.path(dir, "diseases.csv"),
                     associations = file.path(dir, "associations.csv"),
-                    impacts = file.path(dir, "yield.csv"))
+                    impacts = file.path(dir, "yield.csv"),
+                    outcome = "milk yield loss", units = "\% of yield")
 m
 deconflate(m, n_draws = 0)
 
@@ -125,7 +140,8 @@ deconflate(m, n_draws = 0)
 ex <- system.file("extdata", "five_diseases", package = "deconflate")
 five <- cm_read_inputs(diseases = file.path(ex, "diseases.csv"),
                        associations = file.path(ex, "associations.csv"),
-                       impacts = file.path(ex, "impacts_yield.csv"))
+                       impacts = file.path(ex, "impacts_yield.csv"),
+                       units = "\% of yield")
 five
 err <- system.file("extdata", "example_with_errors", package = "deconflate")
 cm_check_inputs(diseases = file.path(err, "diseases.csv"),
@@ -136,7 +152,8 @@ cm_check_inputs(diseases = file.path(err, "diseases.csv"),
 m2 <- cm_read_inputs(
   diseases = data.frame(disease = c("d1", "d2"), value = c(0.10, 0.15)),
   associations = data.frame(disease = "d1", associated_with = "d2", value = 2),
-  impacts = data.frame(disease = c("d1", "d2"), value = c(2.5, 5), units = "\% of yield")
+  impacts = data.frame(disease = c("d1", "d2"), value = c(2.5, 5)),
+  units = "\% of yield"
 )
 deconflate(m2)
 }

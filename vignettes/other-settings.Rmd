@@ -1,0 +1,207 @@
+---
+title: "Beyond dairy cattle: pigs and people"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Beyond dairy cattle: pigs and people}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+```
+
+```{r setup}
+library(deconflate)
+```
+
+The package assumes no species, outcome or unit. A model needs the same
+three things anywhere: how common each disease is, how the diseases go
+together, and the impact estimates of one outcome. This vignette shows two
+settings outside dairy cattle: four respiratory diseases of growing pigs
+with three outcomes, and four chronic conditions in people with an event
+outcome.
+
+**All values here are made up to illustrate the package.** They are
+plausible in size but are not estimates from the literature, and the
+results say nothing about these diseases.
+
+## Pigs: PRRS and the respiratory disease complex
+
+Porcine reproductive and respiratory syndrome (PRRS) rarely comes alone:
+it weakens the lungs' defences, and pigs with PRRS are more often
+infected with porcine circovirus type 2 (PCV2), *Mycoplasma
+hyopneumoniae* (MHP, enzootic pneumonia) and swine influenza (SIV). A
+study of one disease at a time therefore measures part of the others'
+effect as well, and adding up such estimates counts that part more than
+once.
+
+The inputs are in the installed folder `pigs`, as CSV files: one diseases
+table, one associations table and one impact table per outcome. Every value
+refers to the same period (the grow-finish period) and population. What
+each impact table is about and its units are given when it is read
+(`outcome` and `units`, both optional); they are used in the printouts and
+the plots.
+
+```{r}
+pigs <- system.file("extdata", "pigs", package = "deconflate")
+list.files(pigs)
+read_pigs <- function(impacts, outcome = NULL, units = NULL) {
+  cm_read_inputs(diseases = file.path(pigs, "diseases.csv"),
+                 associations = file.path(pigs, "associations.csv"),
+                 impacts = file.path(pigs, impacts), outcome = outcome, units = units)
+}
+```
+
+The associations table has five of the six pairs; no row mentions PCV2 and
+SIV, so the model fills in that association from the others (and lists it
+in `$unknown_pairs`):
+
+```{r}
+adg <- read_pigs("impacts_adg.csv", outcome = "average daily gain loss", units = "g/day")
+adg
+adg$associations[, c("disease", "associated_with", "measure", "value")]
+```
+
+### Average daily gain
+
+The first impact table has the loss of average daily gain (in g/day) of
+pigs with each disease, compared with pigs without it, and an interaction
+row: pigs with both PRRS and MHP lose 15 g/day more than the two diseases
+alone would give (`adjusted_for = "all"`). Most rows have a distribution,
+so `deconflate()` also draws intervals (200 draws keep this example
+fast):
+
+```{r}
+res_adg <- deconflate(adg, n_draws = 200, seed = 1)
+res_adg
+```
+
+Each adjusted impact is smaller than the raw one, because each raw
+estimate also carried part of the loss of the diseases that come with it.
+The adjusted total, the loss per pig in the population, is the sum of the
+contributions; the raw total is what the same estimates give when the
+diseases are taken as unrelated.
+
+```{r, fig.width = 7, fig.height = 3.6}
+plot(res_adg, type = "contributions")
+```
+
+### Three outcomes, one population
+
+The diseases and associations are the same for every outcome; only the
+impact table changes. Emissions are the percentage increase in emission
+intensity (kg CO2-equivalent per kg live weight), and welfare the points
+lost on a 0-100 welfare index:
+
+```{r}
+tables <- list(
+  adg = list(file = "impacts_adg.csv", outcome = "average daily gain loss", units = "g/day"),
+  environment = list(file = "impacts_environment.csv", outcome = "emission intensity increase",
+                     units = "% of kg CO2-eq per kg live weight"),
+  welfare = list(file = "impacts_welfare.csv", outcome = "welfare index loss",
+                 units = "points on a 0-100 index"))
+results <- lapply(tables, function(t) deconflate(read_pigs(t$file, t$outcome, t$units), n_draws = 0))
+data.frame(
+  outcome = vapply(results, function(r) r$outcome, ""),
+  units = vapply(results, function(r) r$units, ""),
+  raw = vapply(results, function(r) r$totals$raw_total, 0),
+  adjusted = vapply(results, function(r) r$totals$adjusted_total, 0),
+  reduction = vapply(results, function(r) 1 - r$totals$adjusted_total / r$totals$raw_total, 0),
+  PRRS_share = vapply(results, function(r) r$contributions$share[r$contributions$disease == "PRRS"], 0)
+)
+```
+
+About a quarter of each raw total is double counting here, and PRRS
+accounts for about half of each adjusted total. The outcomes stay in their
+own units: converting a loss of daily gain, extra emissions or welfare
+points into money, or weighing them against each other, is left to the
+user.
+
+### Which inputs matter?
+
+`cm_sensitivity()` varies every input one at a time, including the PCV2-SIV
+association that nobody estimated:
+
+```{r}
+s <- cm_sensitivity(res_adg)
+s
+```
+
+Here the PCV2-SIV association moves the total about as much as the MHP
+impact does, so an estimate of it would be worth having.
+
+```{r, fig.width = 7, fig.height = 4}
+plot(s)
+```
+
+The other tools of the package (thresholds, the diagnosis of the inputs,
+summaries and the export table) work the same way as in the dairy
+examples; see `vignette("thresholds-and-scaling")` and
+`vignette("uncertainty")`.
+
+## People: chronic conditions and hospitalisation
+
+In people, obesity (OBE), hypertension (HTN), type 2 diabetes (T2D) and
+chronic kidney disease (CKD) cluster strongly, and each is associated with
+a higher risk of hospitalisation. Here the inputs are typed in R rather
+than read from files: prevalences in adults of one age band, odds ratios
+between the conditions (no estimate for obesity and kidney disease, which
+the fit fills in), and the risk of hospitalisation within a year as a
+hazard ratio or a risk ratio for each condition. The T2D estimate is
+already adjusted for obesity, as is common in such studies.
+
+```{r}
+pop <- cm_population(
+  cm_diseases(c("OBE", "HTN", "T2D", "CKD"), c(0.30, 0.40, 0.12, 0.10)),
+  cm_associations(c("OBE", "OBE", "T2D", "T2D", "HTN"),
+                  c("T2D", "HTN", "HTN", "CKD", "CKD"),
+                  c(3.0, 2.5, 2.2, 3.0, 2.5)))
+hosp <- cm_impacts(c("OBE", "HTN", "T2D", "CKD"), c(1.3, 1.4, 1.8, 2.2),
+                   measure = c("RR", "HR", "HR", "HR"),
+                   adjusted_for = c(NA, NA, "OBE", NA),
+                   outcome = "hospitalisation")
+people <- cm_model(pop, hosp)
+```
+
+The impacts are event impacts (they have a `measure`), so they are
+adjusted with `event_model = TRUE` and the overall risk of the event in the
+period, here 10% a year:
+
+```{r}
+res_people <- deconflate(people, event_model = TRUE, overall_risk = 0.10)
+res_people
+```
+
+The adjusted hazard ratios are each condition's own effect. The risk
+attributable to the four conditions is split between them. It is smaller
+than the raw attributable risk (the conditions taken as unrelated): each raw
+estimate also carried part of the effect of the conditions that come with
+it, and when conditions cluster, more of their risk falls on the same
+people, who can be hospitalised only once.
+
+```{r, fig.width = 7, fig.height = 3.6}
+plot(res_people, type = "contributions")
+```
+
+The results are proportions of people hospitalised in the year. Turning
+them into numbers of admissions, bed-days or costs is left to the user.
+
+## What changes with the setting
+
+Nothing in the model depends on the species or the outcome. What has to be
+checked in each setting is that the inputs fit together:
+
+* All inputs refer to the same period (here a grow-finish period, or a
+  year) and the same population. A prevalence in finishing pigs and an
+  impact measured in weaners do not belong in one model.
+* Each impact table holds one outcome in one unit. Several outcomes are
+  several tables, adjusted in turn on the same diseases and associations.
+* Impacts on the risk of an event (death, culling, hospitalisation,
+  treatment failure) are event impacts; amounts per individual (gain,
+  yield, emissions, scores, costs) are additive impacts.
+* Estimates adjusted for some of the other diseases say so in
+  `adjusted_for`; the model then does not adjust them twice.
+
+`vignette("own-data")` explains the input tables, and
+`vignette("event-impacts")` the event model.

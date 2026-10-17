@@ -43,19 +43,57 @@ and `plot_data()` returns the data of each plot for other plotting tools
   `cm_threshold_prob()` inputs whether the grid was log-spaced
   (`log_scale`).
 
-## Breaking changes: the outcome of an impact table (item 10)
+## Groups of diseases (item 13)
 
-* The impact table's `label` is now called `outcome` (the column, the
-  argument of `cm_impacts()`, the attribute of the impact table and the
-  element of the results, `$outcome`). Like `units`, it is optional: without
-  it, printouts and plot titles use general wording and the axes show no
-  unit. Files with a `label` column still load, with a note to rename it,
-  and `cm_impacts(label = )` still works, with a message.
-* One outcome per impact table, as before: a table with several outcomes
-  gives an error that says to keep one impact table per outcome.
+* `deconflate(groups = )` (new) reports groups of diseases together, e.g.
+  the subclinical and clinical forms of one disease:
+  `groups = list(ketosis = c("SCK", "CK"), mastitis = c("SCM", "CM"))`. The
+  diseases stay separate in the model (their own prevalences, associations
+  and impacts); a group's contribution is the sum of its diseases'
+  contributions, so an interaction between two diseases of a group is
+  counted wholly in the group, and its interval comes from the sum within
+  each draw. Results: `$groups` (one row per group and per disease not in
+  a group, adding up to the sum of all contributions) and, with draws,
+  `$group_ranks`. They are printed, in `summary()`, and plotted with
+  `plot(res, type = "groups")` and `type = "group_ranks"` (data from
+  `plot_data()`).
+* `contribution_table()` has a new last column, `group` (the disease's
+  group, or `NA`).
+* The contributions plot shows the values in a column on the right, clear
+  of the bars, intervals and raw values.
+
+## Examples outside dairy cattle (item 10)
+
+* `vignette("other-settings")` (new): PRRS and the respiratory disease
+  complex of growing pigs (PCV2, *M. hyopneumoniae*, swine influenza) with
+  three outcomes (average daily gain, emission intensity, a welfare index),
+  and chronic conditions in people (obesity, hypertension, type 2 diabetes,
+  kidney disease) with hospitalisation as an event outcome. All values are
+  illustrative.
+* The pig inputs are installed as CSV files in
+  `system.file("extdata", "pigs", package = "deconflate")`, with a README.
+
+## Breaking changes: the outcome and units of an impact table (item 10)
+
+* What an impact table is about and its units are arguments, not columns:
+  `cm_read_inputs(..., outcome = "milk yield loss", units = "% of yield")`,
+  as in `cm_impacts(outcome = , units = )` (`outcome` replaces `label`).
+  Both are optional: without them, printouts and plot titles use general
+  wording and the axes show no unit. They are kept as `$outcome` and
+  `$units` of the results.
+* The columns `outcome`, `label` and `units` of an impact table are no
+  longer read: files with them still load, with a note that gives the
+  argument to use (e.g. `cm_read_inputs(units = "% of yield")`). A table
+  whose rows have different outcomes or units is an error, as before: keep
+  one impact table per outcome, in one unit. `cm_impacts(label = )` still
+  works, with a message.
+* The template and the example folders no longer have these columns; the
+  first row's note of each impact table says what it is about and its
+  units.
 * `plot()` methods no longer pass `...` to the graphics functions, and
   return the plotted data instead of the object. `contribution_table()` has
-  the new column `raw_contribution` before `contribution`.
+  the new columns `raw_contribution` (before `contribution`) and `group`
+  (last).
 
 ## Thresholds (item 12)
 

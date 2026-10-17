@@ -12,14 +12,14 @@
 \usage{
 \method{plot}{cm_result}(
   x,
-  type = c("impacts", "contributions", "ranks", "rows"),
+  type = c("impacts", "contributions", "groups", "ranks", "group_ranks", "rows"),
   main = NULL,
   ...
 )
 
 \method{plot}{cm_event_result}(
   x,
-  type = c("impacts", "contributions", "ranks", "rows"),
+  type = c("impacts", "contributions", "groups", "ranks", "group_ranks", "rows"),
   main = NULL,
   ...
 )
@@ -64,8 +64,11 @@ ratios on a log scale; raw values are shown for hazard and rate ratios
 \item \code{type = "contributions"}: each disease's contribution to the aggregate
 (event impacts: to the attributable risk), with its interval and its
 raw contribution (the diseases unrelated).
+\item \code{type = "groups"}: the same for the groups of \code{deconflate(groups = )}
+(and the diseases not in a group).
 \item \code{type = "ranks"}: how often each disease ranks 1st, 2nd, ... by
-contribution over the draws (needs draws).
+contribution over the draws (needs draws); \code{"group_ranks"}: the same
+for the groups.
 \item \code{type = "rows"}: each impact row as entered, with the central 95\% of
 its distribution when it has one, and as the model fits it; rows the fit disagrees
 with (standardised residual of 2 or more) are marked.
@@ -78,9 +81,9 @@ the line it is compared with, and the thresholds.
 over each input's range, and where it crosses the chosen levels.
 }
 
-Titles and axes use the impact table's optional \code{outcome} and \code{units}
-(see \code{\link[=cm_impacts]{cm_impacts()}}); without them they use general wording, and the
-axes show no unit.
+Titles and axes use the optional \code{outcome} and \code{units} given when the
+impacts were read (\code{\link[=cm_read_inputs]{cm_read_inputs()}}) or built (\code{\link[=cm_impacts]{cm_impacts()}}); without
+them they use general wording, and the axes show no unit.
 }
 \examples{
 res <- deconflate(example_supplement(), n_draws = 0)

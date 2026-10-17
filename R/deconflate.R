@@ -204,8 +204,28 @@
 #'   (`$problems`, printed with the result; see the section "Checking the
 #'   inputs"). It reruns the central estimate many times (twice per input
 #'   with a distribution, a few times per input without one).
+#' @param groups Optional groups of diseases to report together, as a named
+#'   list of disease ids, e.g. `list(ketosis = c("SCK", "CK"), mastitis =
+#'   c("SCM", "CM"))` for subclinical and clinical forms. The diseases stay
+#'   separate in the model; a group's contribution is the sum of its
+#'   diseases' contributions (an interaction between two diseases of a
+#'   group is counted wholly in the group), with an interval from the sum
+#'   within each draw. A disease can be in one group only, and a group
+#'   cannot have the name of a disease. See the section "Groups of
+#'   diseases".
 #' @param ... Passed to [fit_joint()] (e.g. `backend = "sampled"`). With
 #'   more than 20 diseases the sampled backend is used.
+#'
+#' @section Groups of diseases:
+#' Forms of one disease (e.g. subclinical and clinical ketosis) have their
+#' own prevalences, associations and impacts in the literature, so they are
+#' best entered as separate diseases and added up afterwards with `groups`.
+#' Contributions are additive, so the group totals and the diseases not in a
+#' group add up to the aggregate (for event impacts, to the allocated
+#' attributable risk). How the
+#' forms overlap (e.g. clinical cases that also count as subclinical, or
+#' each animal counted in its worst form only) is set by the association
+#' row between them.
 #'
 #' @return For additive impacts, a `cm_result` with elements:
 #'   * `adjusted`: one row per disease and per interaction: the raw value
@@ -234,6 +254,11 @@
 #'     or `NULL`;
 #'   * `ranks`: with draws, how often each disease ranks 1st, 2nd, ... by its
 #'     contribution (`rank_1`, `rank_2`, ...), and its mean rank;
+#'   * `groups`: with `groups`, one row per group and per disease not in a
+#'     group (the rows add up to the sum of all contributions): `group`, `diseases`,
+#'     `raw_contribution`, `contribution`, `lower`, `upper` (from the draws,
+#'     else `NA`), `main`, `interaction` and `share`; `group_ranks`: with
+#'     draws, as `ranks`, for these rows;
 #'   * `problems`: with `diagnose = TRUE`, a `cm_diagnosis` object:
 #'     `flagged` (every disease with impact rows: raw, adjusted, the
 #'     criterion and whether it is flagged), `inputs` (inputs with a
@@ -255,8 +280,8 @@
 #'   raw and adjusted attributable risk and the attributable fraction;
 #'   `baseline_hazard`), `conflation` (the local row equations), `estimates`,
 #'   `heterogeneity`, `diagnostics`, `unknown_pairs`, `draws`, `ranks` (by
-#'   share of the attributable risk), `problems`
-#'   (with `diagnose = TRUE`), `notes`, `joint`, `model`, `method`,
+#'   share of the attributable risk), `groups` and `group_ranks` (with
+#'   `groups`), `problems` (with `diagnose = TRUE`), `notes`, `joint`, `model`, `method`,
 #'   `outcome`, `units`, `overall_risk`, `risk_given` (`"overall"` or `"baseline"`) and
 #'   `settings`. Risks are
 #'   proportions of animals with the event during the period.
@@ -304,7 +329,7 @@ deconflate.default <- function(model, ...) {
 deconflate.cm_model <- function(model, event_model = FALSE, overall_risk = NULL, n_draws = 1000,
                                 seed = NULL, sampling = c("random", "lhs"), lhs_replicates = 10L,
                                 pool = c("random", "fixed"), joint = NULL, warn = TRUE,
-                                diagnose = FALSE, baseline_risk = NULL, ...) {
+                                diagnose = FALSE, baseline_risk = NULL, groups = NULL, ...) {
   dots <- list(...)
   if (!is.logical(diagnose) || length(diagnose) != 1L || is.na(diagnose)) {
     cm_abort("`diagnose` must be TRUE or FALSE.", class = "deconflate_invalid_input")
@@ -315,6 +340,7 @@ deconflate.cm_model <- function(model, event_model = FALSE, overall_risk = NULL,
   check_draw_args(n_draws, seed, sampling, lhs_replicates)
   n_draws <- as.integer(n_draws)
   check_event_model(model, event_model)
+  groups <- check_groups(groups, model$diseases$disease)
   risk <- check_overall_risk(overall_risk, event_model, baseline_risk)
   a <- model$associations
   if (is.null(a) || !nrow(a)) {
@@ -330,7 +356,7 @@ deconflate.cm_model <- function(model, event_model = FALSE, overall_risk = NULL,
   res <- run_point(model, plan, risk = risk$value, joint = joint, warn = warn, dots = dots, central = TRUE)
   res <- finish_result(res, model, plan)
   # What cm_sensitivity(), cm_threshold() and the diagnosis need to rerun it.
-  res$settings <- list(plan = plan, risk = risk, dots = dots)
+  res$settings <- list(plan = plan, risk = risk, dots = dots, groups = groups)
   if (diagnose) res$problems <- diagnose_inputs(model, plan, res, risk, dots)
   specs <- draw_specs(model, risk$dist, res$pooling$frozen)
   if (n_draws > 0L) {
@@ -349,6 +375,11 @@ deconflate.cm_model <- function(model, event_model = FALSE, overall_risk = NULL,
       res$notes <- c(res$notes, sprintf("%d input%s a distribution, but n_draws = 0: the results are point estimates without intervals.",
                                         n_unc, if (n_unc == 1L) " has" else "s have"))
     }
+  }
+  if (!is.null(groups)) {
+    gr <- group_results(res, groups)
+    res$groups <- gr$table
+    res$group_ranks <- gr$ranks
   }
   res
 }

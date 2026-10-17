@@ -10,11 +10,12 @@ dir <- system.file("extdata", "five_diseases", package = "deconflate")
 # One model per impact table; the disease and association tables are shared
 yield <- cm_read_inputs(diseases = file.path(dir, "diseases.csv"),
                         associations = file.path(dir, "associations.csv"),
-                        impacts = file.path(dir, "impacts_yield.csv"))
+                        impacts = file.path(dir, "impacts_yield.csv"),
+                        outcome = "milk yield loss", units = "% of yield")
 deconflate(yield)
 culling <- cm_read_inputs(diseases = file.path(dir, "diseases.csv"),
                           associations = file.path(dir, "associations.csv"),
-                          impacts = file.path(dir, "culling.csv"))
+                          impacts = file.path(dir, "culling.csv"), outcome = "culling")
 deconflate(culling, event_model = TRUE, overall_risk = 0.25)
 
 source(file.path(dir, "run_all_features.R"), echo = TRUE, max.deparse.length = Inf)
@@ -38,7 +39,9 @@ ketosis), RP (retained placenta).
 | `impacts_welfare.csv` | Score points, with interactions: LAM;MAS and MET;RP adjusted for `all` (the interactions themselves, synergistic), and a crude LAM;SCK row (cows with both against cows with neither) that implies an antagonistic LAM:SCK interaction. |
 | `culling.csv` | Event impacts (`event_model = TRUE`, with `overall_risk` or `baseline_risk`): hazard ratios (LAM crude, MAS stratified by LAM and SCK), a risk ratio (MET), an odds ratio (SCK), a risk difference (RP stratified by all other diseases) and a crude hazard ratio for cows with both LAM and MAS (an interaction on the log-hazard scale), all on the snapshot hazard model. |
 
-Every table has a free-text `note` column describing its rows (the diseases'
+What each impact table is about and its units are not columns: give them
+as `outcome` and `units` when reading it (optional; the first row's note
+says what they are). Every table has a free-text `note` column describing its rows (the diseases'
 full names are in the diseases table's notes); the association and impact
 tables also have a `study` column. All values refer to one lactation.
 
@@ -83,7 +86,8 @@ of `deconflate()` and can also be a distribution (e.g. `dist_beta(250, 750)`).
    diagnosis, and the `event_model` checks.
 5. Uncertainty: intervals from draws, rejections, Latin hypercube sampling,
    and an uncertain overall risk.
-6. Reporting (`contribution_table`, `summary`, `$contributions`), and
+6. Reporting (`contribution_table`, `summary`, `$contributions`, groups
+   of diseases with `deconflate(groups = )`), and
    gaps and values computed from the results in a few lines of base R
    (also over the draws).
 7. `cm_sensitivity`: entered and unknown inputs (pairs, interactions, a

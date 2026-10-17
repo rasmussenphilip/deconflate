@@ -4,7 +4,14 @@
 \alias{cm_check_inputs}
 \title{Check model input tables}
 \usage{
-cm_check_inputs(diseases = NULL, associations = NULL, impacts = NULL, ...)
+cm_check_inputs(
+  diseases = NULL,
+  associations = NULL,
+  impacts = NULL,
+  ...,
+  outcome = NULL,
+  units = NULL
+)
 }
 \arguments{
 \item{diseases, associations, impacts}{Paths to CSV files (any names) or
@@ -12,7 +19,13 @@ data frames. \code{diseases} and \code{impacts} are required; \code{associations
 be left out only for the sensitivity tools (\code{\link[=deconflate]{deconflate()}} needs at
 least one association).}
 
-\item{...}{Not used (arguments of earlier versions give a message).}
+\item{...}{Not used (arguments of earlier versions give a message). The
+arguments after it must be named.}
+
+\item{outcome, units}{Optional: what the impacts are about and their units,
+one text each (e.g. \code{outcome = "milk yield loss"}, \code{units = "\% of yield"}). They are used in the printouts and the plot titles and axes;
+without them, these use general wording and the axes show no unit. See
+\code{\link[=cm_impacts]{cm_impacts()}}.}
 }
 \value{
 A data frame (class \code{cm_problems}) with \code{table}, \code{row}, \code{column},

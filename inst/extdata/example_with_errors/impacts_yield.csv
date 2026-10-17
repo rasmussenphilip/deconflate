@@ -1,6 +1,6 @@
-disease,among,adjusted_for,value,outcome,units,study,dist,p1,p2,p3,p4,note
-LAM,,,4.81,milk yield loss,% decrease,,normal,4.81,0.87,,,"normal(mean, sd)"
-SCK,,,"8,40",milk yield loss,% decrease,,,,,,,Error: decimal comma (write 8.40)
-RP,,LAM,4.20,milk yield loss,% decrease,,gamma,2,1,,,Error: gamma is not a supported distribution
-MET,,,5.61,milk yield loss,days,,uniform,6,8,,,"Error: a second unit in one table (one impact table per outcome, in one unit). Note: the point value 5.61 lies outside the distribution (uniform from 6 to 8)"
-LAM;CM,,all,1.2,milk yield loss,% decrease,,,,,,,Error: CM is not in diseases.csv
+disease,among,adjusted_for,value,units,study,dist,p1,p2,p3,p4,note
+LAM,,,4.81,% decrease,,normal,4.81,0.87,,,"milk yield loss; normal(mean, sd). The units column is no longer read (give units in cm_read_inputs()), but rows with different units are an error"
+SCK,,,"8,40",% decrease,,,,,,,Error: decimal comma (write 8.40)
+RP,,LAM,4.20,% decrease,,gamma,2,1,,,Error: gamma is not a supported distribution
+MET,,,5.61,days,,uniform,6,8,,,"Error: a second unit in one table (one impact table per outcome, in one unit). Note: the point value 5.61 lies outside the distribution (uniform from 6 to 8)"
+LAM;CM,,all,1.2,% decrease,,,,,,,Error: CM is not in diseases.csv

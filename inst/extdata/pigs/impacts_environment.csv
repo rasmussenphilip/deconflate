@@ -1,0 +1,5 @@
+disease,among,adjusted_for,value,study,dist,p1,p2,p3,p4,note
+PRRS,,,7.0,Study 6,normal,7.0,1.5,,,"emission intensity increase in % of kg CO2-eq per kg live weight; crude increase in greenhouse gas emissions per kg live weight; illustrative; normal(mean, sd)"
+PCV2,,,5.0,Study 7,normal,5.0,1.2,,,crude increase; illustrative
+MHP,,,4.0,Study 8,pert,2.5,4.0,6.0,,"crude increase; illustrative; pert(min, mode, max)"
+SIV,,,2.5,Study 9,,,,,,crude increase; illustrative; point value

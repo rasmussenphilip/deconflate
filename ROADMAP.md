@@ -132,19 +132,28 @@ In this order:
    - [x] `cm_threshold_prob()`: the probability that the conclusion holds over the draws, at each value of the input, and where it crosses chosen levels (0.5, 0.8, 0.95).
    - [x] Run `devtools::document()`, `test()` and `check()`.
 10. **Better plots.** The same rule as for tables (the user's labels and units only); a consistent look across plot methods, and plots for uncertainty, thresholds and the estimate diagnostics. Design: section 20 of the v0.4 design note.
-    - [x] The impact table's `label` renamed `outcome`; `outcome` and `units` are optional (titles use general wording, axes no unit, without them); `label` still read, with a note or a message.
+    - [x] The impact table's `label` renamed `outcome`; `outcome` and `units` are optional arguments of `cm_read_inputs()` and `cm_impacts()`, not columns (titles use general wording, axes no unit, without them); old `outcome`, `label` and `units` columns give a note with the argument to use.
     - [x] Each disease's raw contribution (the diseases unrelated) in `$contributions` and `contribution_table()`.
     - [x] One look for every plot (base graphics): `plot(<result>, type = "impacts" | "contributions" | "ranks" | "rows")`, the tornado of `cm_sensitivity()`, and plots of `cm_threshold()`, of a set of inputs (one panel each, on a common y-axis) and of `cm_threshold_prob()`; input labels on the axes.
     - [x] `plot_data()`: the data frame each plot draws, for ggplot2 or other tools (ggplot2 is not needed).
+    - [x] Documentation examples from more than dairy cattle, so that the generality is visible: `vignette("other-settings")` with PRRS and the respiratory diseases of growing pigs (average daily gain, emission intensity, welfare; CSV files in `inst/extdata/pigs/`) and chronic conditions in people (hospitalisation, typed in R).
     - [ ] Run `devtools::document()`, `test()` and `check()`.
-    - [ ] Documentation examples from more than dairy cattle (e.g. another livestock system and a human-health example), so that the generality is visible.
+13. **Groups of diseases.** Forms of one disease (e.g. SCK and CK as ketosis, SCM and CM as mastitis) stay separate in the model and are reported together (decided 17 October 2026: grouping after fitting, not merging before).
+    - [x] `deconflate(groups = )`: `$groups` (sums of contributions, intervals from the sum in each draw, rows adding up to the total) and `$group_ranks`; printed, in `summary()`, in `contribution_table()` (`group` column) and plotted (`type = "groups"`, `"group_ranks"`).
+    - [ ] Run `devtools::document()`, `test()` and `check()`.
 11. **Dependencies.** Keep the package on base R (see the Dependencies section of the README); list any new dependency there with its reason.
 
 Afterwards: a Zenodo DOI for each release, and possibly a CRAN submission and a short software paper.
 
 ## To discuss
 
-- Pairwise-only bounds as a complementary sensitivity output for large systems; pseudo-likelihood fitting when individual-level disease records are available.
-- Higher-order and non-linear interaction models in the adjustment itself.
+- Pairwise-only bounds as a complementary sensitivity output for large systems.
+- **Higher-order and non-linear interactions** (candidates for v0.7, in the suggested order; discussed 17 October 2026). The model is the mean outcome of each disease combination, weighted by the fitted joint distribution; the additive form is one way of writing those means. Combinations of three or more diseases already work when a row names them; what is missing is identification (few published estimates beyond single diseases) and other forms.
+  1. Sensitivity for unknown higher-order interactions: `interaction:a;b;c` keys in `cm_sensitivity()` and `cm_threshold()`, with a default range, as for unknown pairwise interactions. Small: reuses the existing engine.
+  2. A scale (link) for additive impacts: terms added on the log scale (multiplicative: two 10% losses give 19%, "the same milk cannot be lost twice") or a bounded scale (logit, for outcomes with limits such as a 0-100 index). An interaction then measures departure from that scale. The rows become non-linear in the terms (Newton's method, as for event impacts), and contributions use the cell-by-cell Shapley allocation (as for the attributable risk). One model with a stated scale, not an approximation; it partly brings back the `scale` column removed in v0.6, so decide how it is given (an argument, like `event_model`).
+  3. Partial pooling of unknown interactions: instead of zero, a common distribution centred on 0 with a spread informed by the interactions that are estimated, carried through the draws.
+  4. Severity or stages as categories (e.g. `MAS_mild`, `MAS_severe`): mutually exclusive diseases (or nested ones, e.g. clinical within subclinical), which needs exclusivity constraints in the joint fit; dose-response as differences between categories. A continuous severity would be a much larger change.
+  5. Interactions estimated from individual-level records (a regression with interaction terms, entered as rows adjusted for `all`, which the package already accepts), and pseudo-likelihood fitting of the joint distribution from such records.
+  - Avoid: a free value per combination without structure (2^n cells, few rows; results driven by hidden assumptions).
 
 Dropped (October 2026): advanced component accounting, and lost productive life as a culling outcome.

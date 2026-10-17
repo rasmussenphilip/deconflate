@@ -48,8 +48,9 @@ cull
 ```
 
 In a CSV file read by `cm_read_inputs(impacts = )`, the same information is
-in the columns `disease`, `among`, `adjusted_for`, `measure` and `value`
-(see the five-disease example at the end).
+in the columns `disease`, `among`, `adjusted_for`, `measure` and `value`,
+and the outcome is an argument, `cm_read_inputs(outcome = "culling")` (see
+the five-disease example at the end).
 
 `deconflate()` needs `event_model = TRUE` and the overall risk of the event:
 
@@ -355,7 +356,7 @@ the snapshot model uses:
 ```{r}
 five <- cm_read_inputs(diseases = file.path(dir, "diseases.csv"),
                        associations = file.path(dir, "associations.csv"),
-                       impacts = file.path(dir, "culling.csv"))
+                       impacts = file.path(dir, "culling.csv"), outcome = "culling")
 five
 deconflate(five, event_model = TRUE, overall_risk = 0.25, n_draws = 0)
 ```

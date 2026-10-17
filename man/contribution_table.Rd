@@ -14,7 +14,8 @@ A data frame with the columns \code{disease}, (event impacts:
 \code{measure}), \code{raw}, \code{adjusted}, \code{adjusted_lower}, \code{adjusted_upper},
 \code{change}, (event impacts: \code{risk_alone}, \code{rr_alone}, \code{rd_alone}),
 \code{raw_contribution}, \code{contribution}, \code{contribution_lower},
-\code{contribution_upper}, \code{main}, \code{interaction} and \code{share}.
+\code{contribution_upper}, \code{main}, \code{interaction}, \code{share} and \code{group} (with
+\code{deconflate(groups = )}: the disease's group, else \code{NA}).
 }
 \description{
 One row per disease with the raw estimate (of its row, when it has

@@ -89,7 +89,8 @@ once (see `vignette("own-data")`):
 ex <- system.file("extdata", "five_diseases", package = "deconflate")
 five <- cm_read_inputs(diseases = file.path(ex, "diseases.csv"),
                        associations = file.path(ex, "associations.csv"),
-                       impacts = file.path(ex, "impacts_yield.csv"))
+                       impacts = file.path(ex, "impacts_yield.csv"),
+                       outcome = "milk yield loss", units = "% of yield")
 five
 ```
 
@@ -179,6 +180,30 @@ summary(res)
 contribution_table(res)
 ```
 
+### Groups of diseases
+
+Forms of one disease, such as subclinical and clinical ketosis, have their
+own prevalences, associations and impacts in the literature, so they are
+entered as separate diseases. `groups` reports them together: a group's
+contribution is the sum of its diseases' contributions (an interaction
+between them is counted wholly in the group), and with draws its interval
+comes from the sum in each draw. In the global dairy inputs of Rasmussen et
+al. (2024) (`warn = FALSE` hides the warning about the adjusted impacts of
+a few diseases changing sign with these inputs; see "When adjusted impacts
+change sign" in `vignette("own-data")`):
+
+```{r}
+gd <- deconflate(example_global_dairy("yield"), n_draws = 0, warn = FALSE,
+                 groups = list(ketosis = c("SCK", "CK"), mastitis = c("SCM", "CM")))
+gd$groups[, c("group", "diseases", "raw_contribution", "contribution", "share")]
+```
+
+The rows add up to the total: the groups, then each disease not in a group.
+`plot(gd, type = "groups")` draws them, and `contribution_table()` names
+each disease's group. How the forms overlap (clinical cases that also count
+as subclinical, or each animal counted in its worst form only) is set by
+the association row between them.
+
 How robust is a ranking or a sign to one uncertain input? `cm_threshold()`
 finds the input values at which the conclusion changes, for example the odds
 ratio of d2 and d3 at which d1 would contribute more than d2:
@@ -266,8 +291,8 @@ for the draws, their stability checks and the sensitivity tools.
 draws), `"contributions"` (with the raw contributions, the diseases
 unrelated), `"ranks"` (how often each disease ranks 1st, 2nd, ... over the
 draws) and `"rows"` (each impact row as entered and as the model fits it).
-Titles and axes use the impact table's `outcome` and `units`, which are
-optional.
+Titles and axes use the `outcome` and `units` given when the impacts are
+read (`cm_read_inputs()`) or built (`cm_impacts()`); both are optional.
 
 ```{r, fig.width = 7, fig.height = 4.2}
 plot(res_five)

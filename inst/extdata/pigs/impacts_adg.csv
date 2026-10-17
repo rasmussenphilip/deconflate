@@ -1,0 +1,6 @@
+disease,among,adjusted_for,value,study,dist,p1,p2,p3,p4,note
+PRRS,,,60,Study 1,normal,60,12,,,"average daily gain loss in g/day; crude difference in average daily gain over the grow-finish period; illustrative; normal(mean, sd)"
+PCV2,,,45,Study 2,pert,30,45,60,,"crude difference; illustrative; pert(min, mode, max)"
+MHP,,,35,Study 3,normal,35,8,,,crude difference; illustrative
+SIV,,,25,Study 4,,,,,,crude difference; illustrative; point value
+PRRS;MHP,,all,15,Study 5,normal,15,6,,,interaction: the extra loss of pigs with both PRRS and MHP beyond the two alone (adjusted for all); illustrative

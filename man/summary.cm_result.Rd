@@ -20,7 +20,8 @@ A \code{summary.cm_result} list with \code{method}, \code{outcome}, \code{units}
 interval, change and, when some term has several rows, \code{rows}),
 \code{alone} (event impacts: \code{risk_alone}, \code{rr_alone}, \code{rd_alone}),
 \code{contributions} (per disease: \code{contribution} with \code{lower} and \code{upper},
-\code{main}, \code{interaction}, \code{share}), \code{totals} (one row per quantity:
+\code{main}, \code{interaction}, \code{share}), \code{groups} and \code{group_ranks} (with
+\code{deconflate(groups = )}; see \code{\link[=deconflate]{deconflate()}}), \code{totals} (one row per quantity:
 \code{quantity}, \code{value}, \code{lower}, \code{upper}; additive impacts: raw total,
 adjusted total, interactions and the reduction; event impacts: overall,
 disease-free, attributable and raw attributable risk, the attributable

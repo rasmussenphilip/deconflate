@@ -1,0 +1,6 @@
+disease,associated_with,among,adjusted_for,measure,value,study,dist,p1,p2,p3,p4,note
+PRRS,MHP,,,OR,2.6,Study A,lognormal_ci,2.6,1.8,3.8,,"odds ratio; illustrative; lognormal_ci(estimate, lower, upper) with a 95% interval"
+PRRS,PCV2,,,OR,2.1,Study B,lognormal_ci,2.1,1.4,3.1,,"odds ratio; illustrative"
+PRRS,SIV,,,OR,1.7,Study C,normal,1.7,0.25,0,,"odds ratio; illustrative; normal(mean, sd) truncated at 0"
+MHP,SIV,,,OR,1.5,Study D,,,,,,"odds ratio; illustrative; point value"
+PCV2,MHP,,,OR,1.9,Study E,,,,,,"odds ratio; illustrative; point value. No row for PCV2 and SIV: that pair is unknown and the fit fills it in"

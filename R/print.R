@@ -164,6 +164,19 @@ unknown_pairs_line <- function(u) {
   sprintf("Unknown pairs: %d without an association%s (see $unknown_pairs).", nrow(u), fit)
 }
 
+# The groups table for printing: without empty interval columns; `full`:
+# also the raw contribution and the own and interaction parts.
+group_print_table <- function(g, full = TRUE) {
+  cols <- if (full) c("group", "diseases", "raw_contribution", "contribution", "lower", "upper", "main",
+                      "interaction", "share") else c("group", "diseases", "contribution", "lower", "upper", "share")
+  out <- g[, cols, drop = FALSE]
+  if (all(is.na(out$lower))) out$lower <- out$upper <- NULL
+  names(out)[names(out) == "raw_contribution"] <- "raw"
+  # Long lists of diseases are shortened to fit the console.
+  out$diseases <- ifelse(nchar(out$diseases) > 16L, paste0(substr(out$diseases, 1L, 13L), "..."), out$diseases)
+  out
+}
+
 # Lines of text wrapped to the console width (continuation lines indented
 # by `exdent`).
 cat_wrapped <- function(lines, exdent = 2L) {
@@ -192,6 +205,10 @@ print_result_body <- function(x) {
   print_table(impact_table(x))
   cat("\n")
   cat_wrapped(c(totals_text(x), attention_line(x), unknown_pairs_line(x$unknown_pairs), uncertainty_line(x$draws)))
+  if (!is.null(x$groups)) {
+    cat("\nGroups (sums of the diseases' contributions)\n")
+    print_table(group_print_table(x$groups, full = FALSE), left = c("group", "diseases"))
+  }
   if (!is.null(x$problems)) {
     cat("\n")
     print(x$problems)

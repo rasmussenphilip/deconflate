@@ -33,7 +33,8 @@
 #'   `measure`), `raw`, `adjusted`, `adjusted_lower`, `adjusted_upper`,
 #'   `change`, (event impacts: `risk_alone`, `rr_alone`, `rd_alone`),
 #'   `raw_contribution`, `contribution`, `contribution_lower`,
-#'   `contribution_upper`, `main`, `interaction` and `share`.
+#'   `contribution_upper`, `main`, `interaction`, `share` and `group` (with
+#'   `deconflate(groups = )`: the disease's group, else `NA`).
 #' @export
 #' @examples
 #' contribution_table(deconflate(example_supplement()))
@@ -67,6 +68,7 @@ contribution_table <- function(result) {
   out$main <- col(ct, "main", j)
   out$interaction <- col(ct, "interaction", j)
   out$share <- col(ct, "share", j)
+  out$group <- disease_group(ids, result$settings$groups)
   rownames(out) <- NULL
   out
 }
@@ -86,7 +88,8 @@ contribution_table <- function(result) {
 #'   interval, change and, when some term has several rows, `rows`),
 #'   `alone` (event impacts: `risk_alone`, `rr_alone`, `rd_alone`),
 #'   `contributions` (per disease: `contribution` with `lower` and `upper`,
-#'   `main`, `interaction`, `share`), `totals` (one row per quantity:
+#'   `main`, `interaction`, `share`), `groups` and `group_ranks` (with
+#'   `deconflate(groups = )`; see [deconflate()]), `totals` (one row per quantity:
 #'   `quantity`, `value`, `lower`, `upper`; additive impacts: raw total,
 #'   adjusted total, interactions and the reduction; event impacts: overall,
 #'   disease-free, attributable and raw attributable risk, the attributable
@@ -134,6 +137,17 @@ summary.cm_event_result <- function(object, ...) {
   out
 }
 
+# A ranks table (first column: the disease or group) as printed.
+print_ranks <- function(r) {
+  r <- r[order(r$mean_rank), , drop = FALSE]
+  p <- as.matrix(r[, grep("^rank_", names(r)), drop = FALSE])
+  tab <- data.frame(r[[1]], `mean rank` = sprintf("%.2f", r$mean_rank),
+                    matrix(sprintf("%.2f", p), nrow = nrow(p), dimnames = list(NULL, sub("^rank_", "", colnames(p)))),
+                    check.names = FALSE, stringsAsFactors = FALSE)
+  names(tab)[1] <- names(r)[1]
+  print(tab, row.names = FALSE, right = TRUE)
+}
+
 reduction <- function(adjusted, raw) if (isTRUE(abs(raw) > 0)) 1 - adjusted / raw else NA_real_
 
 totals_rows <- function(quantity, value, lower, upper) {
@@ -169,7 +183,8 @@ summary_object <- function(object, totals, event) {
     uncertainty_line(object$draws))
   structure(list(method = object$method, outcome = object$outcome, units = object$units, event = event,
                  impacts = impact_table(object, contributions = FALSE, rows = TRUE), alone = alone,
-                 contributions = contributions, totals = totals, ranks = object$ranks,
+                 contributions = contributions, groups = object$groups, totals = totals, ranks = object$ranks,
+                 group_ranks = object$group_ranks,
                  diagnostics = diagnostics, notes = object$notes),
             class = "summary.cm_result")
 }
@@ -190,18 +205,21 @@ print.summary.cm_result <- function(x, ...) {
       "\nContributions to the adjusted total (Shapley values)\n")
     print_table(x$contributions)
   }
+  if (!is.null(x$groups)) {
+    cat("\nContributions by group (sums of the diseases' contributions)\n")
+    print_table(group_print_table(x$groups), left = c("group", "diseases"))
+  }
   cat("\nTotals\n")
   tot <- x$totals
   if (all(is.na(tot$lower))) tot$lower <- tot$upper <- NULL
   print_table(tot, left = "quantity", hide = "quantity")
   if (!is.null(x$ranks)) {
     cat("\nRank by contribution over the draws (share of draws in each place)\n")
-    r <- x$ranks[order(x$ranks$mean_rank), , drop = FALSE]
-    p <- as.matrix(r[, grep("^rank_", names(r)), drop = FALSE])
-    tab <- data.frame(disease = r$disease, `mean rank` = sprintf("%.2f", r$mean_rank),
-                      matrix(sprintf("%.2f", p), nrow = nrow(p), dimnames = list(NULL, sub("^rank_", "", colnames(p)))),
-                      check.names = FALSE, stringsAsFactors = FALSE)
-    print(tab, row.names = FALSE, right = TRUE)
+    print_ranks(x$ranks)
+  }
+  if (!is.null(x$group_ranks)) {
+    cat("\nRank of the groups over the draws\n")
+    print_ranks(x$group_ranks)
   }
   cat("\nDiagnostics\n")
   cat_wrapped(x$diagnostics)

@@ -13,8 +13,11 @@
 #' * `type = "contributions"`: each disease's contribution to the aggregate
 #'   (event impacts: to the attributable risk), with its interval and its
 #'   raw contribution (the diseases unrelated).
+#' * `type = "groups"`: the same for the groups of `deconflate(groups = )`
+#'   (and the diseases not in a group).
 #' * `type = "ranks"`: how often each disease ranks 1st, 2nd, ... by
-#'   contribution over the draws (needs draws).
+#'   contribution over the draws (needs draws); `"group_ranks"`: the same
+#'   for the groups.
 #' * `type = "rows"`: each impact row as entered, with the central 95% of
 #'   its distribution when it has one, and as the model fits it; rows the fit disagrees
 #'   with (standardised residual of 2 or more) are marked.
@@ -26,9 +29,9 @@
 #' * `plot(<cm_threshold_prob>)`: the probability that the conclusion holds
 #'   over each input's range, and where it crosses the chosen levels.
 #'
-#' Titles and axes use the impact table's optional `outcome` and `units`
-#' (see [cm_impacts()]); without them they use general wording, and the
-#' axes show no unit.
+#' Titles and axes use the optional `outcome` and `units` given when the
+#' impacts were read ([cm_read_inputs()]) or built ([cm_impacts()]); without
+#' them they use general wording, and the axes show no unit.
 #'
 #' @param x The object to plot.
 #' @param type What to plot (see above).
@@ -59,8 +62,12 @@ NULL
 #'   impacts, hazard and rate ratios).
 #' * `"contributions"`: `disease`, `raw_contribution`, `contribution`,
 #'   `lower`, `upper`, `main`, `interaction` and `share`.
+#' * `"groups"`: the result's `$groups` table (`group`, `diseases`,
+#'   `raw_contribution`, `contribution`, `lower`, `upper`, `main`,
+#'   `interaction`, `share`).
 #' * `"ranks"`: `disease`, `rank`, `share` (of the accepted draws in which
-#'   the disease has that rank) and `mean_rank`.
+#'   the disease has that rank) and `mean_rank`; `"group_ranks"`: the same
+#'   with `group`.
 #' * `"rows"`: one row per impact row: `row`, `term`, `among`,
 #'   `adjusted_for`, `measure`, `study`, `value`, `lower` and `upper` (the
 #'   2.5% and 97.5% quantiles of its distribution, when it has one),
@@ -233,10 +240,11 @@ ordinal <- function(i) {
 
 #' @rdname plot_data
 #' @export
-plot_data.cm_result <- function(x, type = c("impacts", "contributions", "ranks", "rows"), ...) {
+plot_data.cm_result <- function(x, type = c("impacts", "contributions", "groups", "ranks", "group_ranks", "rows"),
+                                ...) {
   type <- cm_match_arg(type)
-  switch(type, impacts = impacts_data(x), contributions = contributions_data(x), ranks = ranks_data(x),
-         rows = rows_data(x))
+  switch(type, impacts = impacts_data(x), contributions = contributions_data(x), groups = groups_data(x),
+         ranks = ranks_data(x), group_ranks = ranks_data(x, groups = TRUE), rows = rows_data(x))
 }
 
 #' @rdname plot_data
@@ -264,19 +272,33 @@ contributions_data <- function(x) {
              share = ct$share, stringsAsFactors = FALSE)
 }
 
-ranks_data <- function(x) {
-  r <- x$ranks
+ranks_data <- function(x, groups = FALSE) {
+  if (groups) no_groups(x)
+  r <- if (groups) x$group_ranks else x$ranks
   if (is.null(r)) {
     cm_abort("The result has no draws, so no ranks: rerun deconflate() with n_draws (e.g. 500) and inputs with distributions.",
              class = "deconflate_invalid_input")
   }
   cols <- grep("^rank_", names(r), value = TRUE)
   k <- as.integer(sub("^rank_", "", cols))
-  out <- data.frame(disease = rep(r$disease, each = length(cols)), rank = rep(k, nrow(r)),
+  out <- data.frame(id = rep(r[[1]], each = length(cols)), rank = rep(k, nrow(r)),
                     share = as.vector(t(as.matrix(r[, cols, drop = FALSE]))),
                     mean_rank = rep(r$mean_rank, each = length(cols)), stringsAsFactors = FALSE)
+  names(out)[1] <- if (groups) "group" else "disease"
   rownames(out) <- NULL
   out
+}
+
+no_groups <- function(x) {
+  if (is.null(x$groups)) {
+    cm_abort("The result has no groups: give them in deconflate(groups = ), e.g. groups = list(ketosis = c(\"SCK\", \"CK\")).",
+             class = "deconflate_invalid_input")
+  }
+}
+
+groups_data <- function(x) {
+  no_groups(x)
+  x$groups
 }
 
 rows_data <- function(x) {
@@ -303,11 +325,14 @@ rows_data <- function(x) {
 
 #' @rdname plots
 #' @export
-plot.cm_result <- function(x, type = c("impacts", "contributions", "ranks", "rows"), main = NULL, ...) {
+plot.cm_result <- function(x, type = c("impacts", "contributions", "groups", "ranks", "group_ranks", "rows"),
+                           main = NULL, ...) {
   type <- cm_match_arg(type)
   d <- plot_data(x, type)
   switch(type, impacts = plot_impacts(x, d, main), contributions = plot_contributions(x, d, main),
-         ranks = plot_ranks(x, d, main), rows = plot_rows(x, d, main))
+         groups = plot_groups(x, d, main), ranks = plot_ranks(x, d, main),
+         group_ranks = plot_ranks(x, d, main %||% with_outcome("Rank of the groups by contribution", x$outcome)),
+         rows = plot_rows(x, d, main))
   invisible(d)
 }
 
@@ -336,22 +361,45 @@ plot_impacts <- function(x, d, main) {
             "Each disease and interaction, raw and adjusted for the associations", keys)
 }
 
+# The contributions plot with one bar per group (and per disease not in a
+# group).
+plot_groups <- function(x, d, main) {
+  # Short lists of diseases go into the label.
+  lab <- ifelse(d$group != d$diseases & nchar(d$diseases) <= 16L, sprintf("%s (%s)", d$group, d$diseases), d$group)
+  d$group <- lab
+  names(d)[names(d) == "group"] <- "disease"
+  event <- inherits(x, "cm_event_result")
+  plot_contributions(x, d, main %||% with_outcome(if (event) "Attributable risk by group" else "Contributions by group",
+                                                  x$outcome))
+}
+
 plot_contributions <- function(x, d, main) {
   event <- inherits(x, "cm_event_result")
   d <- d[order(d$contribution), , drop = FALSE]
   xr <- range(c(0, d$contribution, d$lower, d$upper, d$raw_contribution), finite = TRUE)
-  xr[2] <- xr[2] + 0.12 * diff(xr)
   op <- cm_par(mar = c(3.6, label_margin(d$disease), 4.8, 1.2))
+  # Room on the right for the column of values.
+  wv <- max(graphics::strwidth(fmt_num(d$contribution), units = "inches", cex = 0.72), 0)
+  graphics::par(mar = c(3.6, label_margin(d$disease), 4.8, wv / graphics::par("csi") + 1.2))
   on.exit(graphics::par(op))
   cm_frame(xr, d$disease, xlab = if (event) "Attributable risk" else with_units("Contribution", x$units))
   y <- seq_len(nrow(d))
   graphics::rect(0, y - 0.22, d$contribution, y + 0.22, col = plot_pal$blue, border = NA)
   graphics::abline(v = 0, col = plot_pal$muted)
   ok <- is.finite(d$lower) & is.finite(d$upper)
-  if (any(ok)) graphics::segments(d$lower[ok], y[ok], d$upper[ok], y[ok], col = plot_pal$ink, lwd = 1.2)
+  if (any(ok)) {
+    graphics::segments(d$lower[ok], y[ok], d$upper[ok], y[ok], col = plot_pal$ink, lwd = 1.2)
+    graphics::segments(c(d$lower[ok], d$upper[ok]), rep(y[ok], 2) - 0.08, c(d$lower[ok], d$upper[ok]),
+                       rep(y[ok], 2) + 0.08, col = plot_pal$ink, lwd = 1.2)
+  }
+  # The values in a column on the right, clear of the bars, intervals and
+  # rings.
+  lab <- fmt_num(d$contribution)
+  op2 <- graphics::par(xpd = NA)
+  usr <- graphics::par("usr")
+  graphics::text(usr[2] + 0.02 * diff(usr[1:2]), y, lab, adj = c(0, 0.5), cex = 0.72, col = plot_pal$ink2)
+  graphics::par(op2)
   graphics::points(d$raw_contribution, y, pch = 21, bg = plot_pal$surface, col = plot_pal$grey, cex = 1.2, lwd = 1.8)
-  right <- pmax(d$contribution, d$upper, d$raw_contribution, 0, na.rm = TRUE)
-  graphics::text(right, y, fmt_num(d$contribution), pos = 4, cex = 0.72, col = plot_pal$ink2, offset = 0.5)
   tot <- if (event) x$attributable$summary$attributable else x$totals$adjusted_total
   raw <- if (event) x$attributable$summary$raw_attributable else x$totals$raw_total
   sub <- sprintf("%s %s%s", if (event) "Attributable risk" else "Adjusted total", fmt_num(tot),
@@ -363,8 +411,9 @@ plot_contributions <- function(x, d, main) {
 }
 
 plot_ranks <- function(x, d, main) {
-  ids <- unique(d$disease)
-  mr <- d$mean_rank[match(ids, d$disease)]
+  idc <- d[[1]]
+  ids <- unique(idc)
+  mr <- d$mean_rank[match(ids, idc)]
   ids <- ids[order(-mr)]
   k <- max(d$rank)
   cols <- rank_colours(k)
@@ -372,7 +421,7 @@ plot_ranks <- function(x, d, main) {
   on.exit(graphics::par(op))
   cm_frame(c(0, 1), ids, xlab = "Share of draws")
   for (i in seq_along(ids)) {
-    di <- d[d$disease == ids[i], , drop = FALSE]
+    di <- d[idc == ids[i], , drop = FALSE]
     di <- di[order(di$rank), , drop = FALSE]
     left <- 0
     for (j in seq_len(nrow(di))) {
@@ -387,8 +436,8 @@ plot_ranks <- function(x, d, main) {
   keys <- lapply(show, function(j) list(label = ordinal(j), draw = key_box(cols[j])))
   dr <- x$draws
   cm_header(main %||% with_outcome("Rank by contribution", x$outcome),
-            sprintf("Share of the %d accepted draws in which each disease ranks 1st, 2nd, ...",
-                    as.integer(dr$n_draws - dr$n_rejected)), keys)
+            sprintf("Share of the %d accepted draws in which each %s ranks 1st, 2nd, ...",
+                    as.integer(dr$n_draws - dr$n_rejected), if (names(d)[1] == "group") "group" else "disease"), keys)
 }
 
 plot_rows <- function(x, d, main) {

@@ -12,9 +12,17 @@
 \usage{
 plot_data(x, ...)
 
-\method{plot_data}{cm_result}(x, type = c("impacts", "contributions", "ranks", "rows"), ...)
+\method{plot_data}{cm_result}(
+  x,
+  type = c("impacts", "contributions", "groups", "ranks", "group_ranks", "rows"),
+  ...
+)
 
-\method{plot_data}{cm_event_result}(x, type = c("impacts", "contributions", "ranks", "rows"), ...)
+\method{plot_data}{cm_event_result}(
+  x,
+  type = c("impacts", "contributions", "groups", "ranks", "group_ranks", "rows"),
+  ...
+)
 
 \method{plot_data}{cm_sensitivity}(x, type = "tornado", n = Inf, ...)
 
@@ -54,8 +62,12 @@ is on the scale of \code{adjusted}: always for additive impacts; for event
 impacts, hazard and rate ratios).
 \item \code{"contributions"}: \code{disease}, \code{raw_contribution}, \code{contribution},
 \code{lower}, \code{upper}, \code{main}, \code{interaction} and \code{share}.
+\item \code{"groups"}: the result's \verb{$groups} table (\code{group}, \code{diseases},
+\code{raw_contribution}, \code{contribution}, \code{lower}, \code{upper}, \code{main},
+\code{interaction}, \code{share}).
 \item \code{"ranks"}: \code{disease}, \code{rank}, \code{share} (of the accepted draws in which
-the disease has that rank) and \code{mean_rank}.
+the disease has that rank) and \code{mean_rank}; \code{"group_ranks"}: the same
+with \code{group}.
 \item \code{"rows"}: one row per impact row: \code{row}, \code{term}, \code{among},
 \code{adjusted_for}, \code{measure}, \code{study}, \code{value}, \code{lower} and \code{upper} (the
 2.5\% and 97.5\% quantiles of its distribution, when it has one),

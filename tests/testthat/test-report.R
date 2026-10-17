@@ -7,7 +7,7 @@ test_that("contribution tables have the documented columns and add up", {
   ct <- contribution_table(res)
   expect_equal(names(ct), c("disease", "raw", "adjusted", "adjusted_lower", "adjusted_upper", "change",
                             "raw_contribution", "contribution", "contribution_lower", "contribution_upper",
-                            "main", "interaction", "share"))
+                            "main", "interaction", "share", "group"))
   # Raw contributions: p * raw here (single-disease rows, diseases unrelated).
   expect_equal(ct$raw_contribution, c(2.5, 5, 7.5) * c(0.10, 0.15, 0.20))
   # Without draws, the interval columns are there but empty.
@@ -29,7 +29,7 @@ test_that("contribution tables of event results and of results with draws", {
   ct <- contribution_table(ev)
   expect_equal(names(ct), c("disease", "measure", "raw", "adjusted", "adjusted_lower", "adjusted_upper",
                             "change", "risk_alone", "rr_alone", "rd_alone", "raw_contribution", "contribution",
-                            "contribution_lower", "contribution_upper", "main", "interaction", "share"))
+                            "contribution_lower", "contribution_upper", "main", "interaction", "share", "group"))
   expect_equal(ct$adjusted, c(1.3831529713, 1.8909315489, 1.1439870467), tolerance = 1e-7)
   expect_equal(sum(ct$contribution), 0.03664898509534775, tolerance = 1e-7)
   m <- cm_model(example_supplement(), example_supplement()$impacts,

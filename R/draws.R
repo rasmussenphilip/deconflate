@@ -381,7 +381,12 @@ draw_ranks <- function(res) {
   ids <- res$contributions$disease
   cols <- paste0("contribution:", ids)
   if (is.null(ids) || !all(cols %in% colnames(v))) return(NULL)
-  C <- v[, cols, drop = FALSE]
+  rank_table(v[, cols, drop = FALSE], ids)
+}
+
+# How often each column of C (one row per draw) ranks 1st, 2nd, ... (largest
+# first) over the draws where all are finite, and its mean rank.
+rank_table <- function(C, ids) {
   C <- C[apply(C, 1, function(x) all(is.finite(x))), , drop = FALSE]
   if (nrow(C) < 2L) return(NULL)
   R <- t(apply(C, 1, function(x) rank(-x, ties.method = "first")))

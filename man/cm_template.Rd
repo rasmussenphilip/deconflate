@@ -25,23 +25,26 @@ point values. The files are:
 \item \code{diseases.csv}: three dairy diseases;
 \item \code{associations.csv}: their associations (odds ratios);
 \item \code{yield.csv}: additive impacts on milk yield, in percent of yield (any
-units can be used);
+units can be used; give them with \code{cm_read_inputs(units = )});
 \item \code{culling.csv}: event impacts on culling (hazard ratios and a risk ratio),
 for \code{deconflate(..., event_model = TRUE, overall_risk = ...)}.
 }
 
 The folder \code{system.file("extdata", "five_diseases", package = "deconflate")} has a fuller example that uses every feature (several
-rows per item, subgroups, adjusted rows, combinations).
+rows per item, subgroups, adjusted rows, combinations), and the folder
+\code{pigs} an example outside dairy cattle (four respiratory diseases of
+growing pigs, with three outcomes; see \code{vignette("other-settings")}).
 }
 \examples{
 dir <- file.path(tempdir(), "my-inputs")
 cm_template(dir, overwrite = TRUE)
 yield <- cm_read_inputs(diseases = file.path(dir, "diseases.csv"),
                         associations = file.path(dir, "associations.csv"),
-                        impacts = file.path(dir, "yield.csv"))
+                        impacts = file.path(dir, "yield.csv"),
+                        outcome = "milk yield loss", units = "\% of yield")
 deconflate(yield, n_draws = 200, seed = 1)
 culling <- cm_read_inputs(diseases = file.path(dir, "diseases.csv"),
                           associations = file.path(dir, "associations.csv"),
-                          impacts = file.path(dir, "culling.csv"))
+                          impacts = file.path(dir, "culling.csv"), outcome = "culling")
 deconflate(culling, event_model = TRUE, overall_risk = 0.25, n_draws = 0)
 }

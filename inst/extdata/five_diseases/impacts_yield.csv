@@ -1,6 +1,6 @@
-disease,among,adjusted_for,value,outcome,units,study,dist,p1,p2,p3,p4,note
-LAM,,,4.8,milk yield loss,% of yield,Study 1,normal,4.8,0.9,,,"normal(mean, sd)"
-MAS,,,3.3,milk yield loss,% of yield,Study 2,pert,1.5,3.3,6.0,,"pert(min, mode, max)"
-MET,,,5.6,milk yield loss,% of yield,Study 3,pert_mean,3.0,5.6,8.0,,"pert_mean(min, mean, max)"
-SCK,,,2.5,milk yield loss,% of yield,Study 4,fixed,2.5,,,,fixed(value): a point mass
-RP,,,4.2,milk yield loss,% of yield,Study 5,,,,,,point value
+disease,among,adjusted_for,value,study,dist,p1,p2,p3,p4,note
+LAM,,,4.8,Study 1,normal,4.8,0.9,,,"milk yield loss in % of yield; normal(mean, sd)"
+MAS,,,3.3,Study 2,pert,1.5,3.3,6.0,,"pert(min, mode, max)"
+MET,,,5.6,Study 3,pert_mean,3.0,5.6,8.0,,"pert_mean(min, mean, max)"
+SCK,,,2.5,Study 4,fixed,2.5,,,,fixed(value): a point mass
+RP,,,4.2,Study 5,,,,,,point value

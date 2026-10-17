@@ -1,0 +1,5 @@
+disease,among,adjusted_for,value,study,dist,p1,p2,p3,p4,note
+PRRS,,,8,Study 10,normal,8,2,,,"welfare index loss in points on a 0-100 index; crude difference in a welfare index per pig; illustrative; normal(mean, sd)"
+PCV2,,,6,Study 11,pert,4,6,9,,"crude difference; illustrative; pert(min, mode, max)"
+MHP,,,4,Study 12,normal,4,1,,,crude difference; illustrative
+SIV,,,5,Study 13,,,,,,crude difference; illustrative; point value

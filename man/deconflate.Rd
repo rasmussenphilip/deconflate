@@ -20,6 +20,7 @@ deconflate(model, ...)
   warn = TRUE,
   diagnose = FALSE,
   baseline_risk = NULL,
+  groups = NULL,
   ...
 )
 }
@@ -71,6 +72,15 @@ with a distribution, a few times per input without one).}
 the risk of the event in disease-free animals over the period, as a
 proportion or a distribution. The overall risk then follows from the
 model.}
+
+\item{groups}{Optional groups of diseases to report together, as a named
+list of disease ids, e.g. \code{list(ketosis = c("SCK", "CK"), mastitis = c("SCM", "CM"))} for subclinical and clinical forms. The diseases stay
+separate in the model; a group's contribution is the sum of its
+diseases' contributions (an interaction between two diseases of a
+group is counted wholly in the group), with an interval from the sum
+within each draw. A disease can be in one group only, and a group
+cannot have the name of a disease. See the section "Groups of
+diseases".}
 }
 \value{
 For additive impacts, a \code{cm_result} with elements:
@@ -101,6 +111,11 @@ fit gave them;
 or \code{NULL};
 \item \code{ranks}: with draws, how often each disease ranks 1st, 2nd, ... by its
 contribution (\code{rank_1}, \code{rank_2}, ...), and its mean rank;
+\item \code{groups}: with \code{groups}, one row per group and per disease not in a
+group (the rows add up to the sum of all contributions): \code{group}, \code{diseases},
+\code{raw_contribution}, \code{contribution}, \code{lower}, \code{upper} (from the draws,
+else \code{NA}), \code{main}, \code{interaction} and \code{share}; \code{group_ranks}: with
+draws, as \code{ranks}, for these rows;
 \item \code{problems}: with \code{diagnose = TRUE}, a \code{cm_diagnosis} object:
 \code{flagged} (every disease with impact rows: raw, adjusted, the
 criterion and whether it is flagged), \code{inputs} (inputs with a
@@ -123,8 +138,8 @@ unrelated), \code{attributable} (\code{summary}: overall, disease-free,
 raw and adjusted attributable risk and the attributable fraction;
 \code{baseline_hazard}), \code{conflation} (the local row equations), \code{estimates},
 \code{heterogeneity}, \code{diagnostics}, \code{unknown_pairs}, \code{draws}, \code{ranks} (by
-share of the attributable risk), \code{problems}
-(with \code{diagnose = TRUE}), \code{notes}, \code{joint}, \code{model}, \code{method},
+share of the attributable risk), \code{groups} and \code{group_ranks} (with
+\code{groups}), \code{problems} (with \code{diagnose = TRUE}), \code{notes}, \code{joint}, \code{model}, \code{method},
 \code{outcome}, \code{units}, \code{overall_risk}, \code{risk_given} (\code{"overall"} or \code{"baseline"}) and
 \code{settings}. Risks are
 proportions of animals with the event during the period.
@@ -319,6 +334,19 @@ hold (\code{deconflate_infeasible}), as in \code{\link[=check_feasibility]{check
 \item \code{residual}: how far a fit was from converging
 (\code{deconflate_nonconvergence}).
 }
+}
+
+\section{Groups of diseases}{
+
+Forms of one disease (e.g. subclinical and clinical ketosis) have their
+own prevalences, associations and impacts in the literature, so they are
+best entered as separate diseases and added up afterwards with \code{groups}.
+Contributions are additive, so the group totals and the diseases not in a
+group add up to the aggregate (for event impacts, to the allocated
+attributable risk). How the
+forms overlap (e.g. clinical cases that also count as subclinical, or
+each animal counted in its worst form only) is set by the association
+row between them.
 }
 
 \examples{

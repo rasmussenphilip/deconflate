@@ -9,7 +9,7 @@ supp_tables <- function() {
     diseases = data.frame(disease = ids3, value = c(0.10, 0.15, 0.20)),
     associations = data.frame(disease = c("d1", "d1", "d2"), associated_with = c("d2", "d3", "d3"),
                               value = c(2, 1, 3)),
-    yield = data.frame(disease = ids3, value = c(2.5, 5, 7.5), units = "%")
+    yield = data.frame(disease = ids3, value = c(2.5, 5, 7.5))
   )
 }
 
@@ -30,11 +30,11 @@ input_dir <- function(name, tables = list()) {
 }
 
 test_that("cm_read_inputs() takes three named tables and returns a model", {
-  expect_equal(names(formals(cm_read_inputs)), c("diseases", "associations", "impacts", "..."))
+  expect_equal(names(formals(cm_read_inputs)), c("diseases", "associations", "impacts", "...", "outcome", "units"))
   expect_equal(names(formals(cm_check_inputs)), names(formals(cm_read_inputs)))
   tabs <- supp_tables()
   m <- cm_read_inputs(diseases = tabs$diseases, associations = tabs$associations,
-                      impacts = tabs$yield)
+                      impacts = tabs$yield, units = "%")
   expect_s3_class(m, "cm_model")
   expect_s3_class(attr(m, "problems"), "cm_problems")
   expect_equal(nrow(attr(m, "problems")), 0)
@@ -79,7 +79,7 @@ test_that("the template writes four files, read back as yield (additive) and cul
 
   # Yield: additive impacts, in percent of yield.
   y <- cm_read_inputs(diseases = f("diseases.csv"), associations = f("associations.csv"),
-                      impacts = f("yield.csv"))
+                      impacts = f("yield.csv"), outcome = "milk yield loss", units = "% of yield")
   expect_equal(nrow(attr(y, "problems")), 0)
   expect_equal(y$diseases$disease, c("LAM", "SCK", "MET"))
   expect_equal(names(y$diseases), c("disease", "prob", "value", "measure", "note"))
@@ -104,7 +104,7 @@ test_that("the template writes four files, read back as yield (additive) and cul
 
   # Culling: event impacts (hazard ratios and a risk ratio).
   cu <- cm_read_inputs(diseases = f("diseases.csv"), associations = f("associations.csv"),
-                       impacts = f("culling.csv"))
+                       impacts = f("culling.csv"), outcome = "culling")
   expect_equal(impact_kind(cu$impacts), "event")
   expect_equal(cu$impacts$measure, c("HR", "HR", "RR"))
   expect_equal(cu$impacts$value, c(1.74, 1.92, 1.45))
@@ -221,9 +221,10 @@ test_that("the shipped global dairy files match example_global_dairy()", {
   for (outcome in names(files)) {
     expect_equal(nrow(cm_check_inputs(diseases = f("diseases.csv"), associations = f("associations.csv"),
                                       impacts = f(files[[outcome]]))), 0, info = outcome)
-    m <- cm_read_inputs(diseases = f("diseases.csv"), associations = f("associations.csv"),
-                        impacts = f(files[[outcome]]))
     ref <- example_global_dairy(outcome)
+    m <- cm_read_inputs(diseases = f("diseases.csv"), associations = f("associations.csv"),
+                        impacts = f(files[[outcome]]), outcome = attr(ref$impacts, "outcome"),
+                        units = attr(ref$impacts, "units"))
     expect_equal(m$diseases$disease, ref$diseases$disease)
     expect_equal(m$diseases$measure, ref$diseases$measure)
     expect_equal(m$diseases$prob, ref$diseases$prob, tolerance = 1e-12)
@@ -431,7 +432,7 @@ test_that("retired association measures and count columns are errors", {
 
 test_that("event impact tables have a measure column and are checked", {
   tabs <- supp_tables()
-  ev <- data.frame(disease = ids3, value = c(1.5, 1.3, 0.04), measure = c("HR", "RR", "RD"), outcome = "culling")
+  ev <- data.frame(disease = ids3, value = c(1.5, 1.3, 0.04), measure = c("HR", "RR", "RD"))
   m <- cm_read_inputs(diseases = tabs$diseases, associations = tabs$associations, impacts = ev)
   expect_equal(attr(m$impacts, "kind"), "event")
   expect_equal(m$impacts$measure, c("HR", "RR", "RD"))
@@ -516,15 +517,15 @@ test_that("columns that are no longer read give a note, and the tables still loa
   }
   expect_true(has_problem(pr, "associations", NA, "source", severity = "note"))
   expect_true(has_problem(pr, "impacts", NA, "source", severity = "note"))
-  # The impact table's `label` is now called `outcome`: still read, with a note.
+  # The impact table's `label` is not read either: the note gives the argument.
   expect_true(has_problem(pr, "impacts", NA, "label", severity = "note"))
-  expect_true(any(grepl("Column `label` is now called `outcome`: rename it (read as the outcome).", pr$problem,
-                        fixed = TRUE)))
+  expect_true(any(grepl('Column `label` is no longer read: give it as `cm_read_inputs(outcome = "yield")`.',
+                        pr$problem, fixed = TRUE)))
   expect_false(any(pr$severity == "error"))
   expect_true(any(grepl("Column `label` is not used; put free text in `note`.", pr$problem, fixed = TRUE)))
   m <- suppressMessages(cm_read_inputs(diseases = d, associations = a, impacts = im))
   expect_equal(names(m$diseases), c("disease", "prob", "value", "measure", "note"))
-  expect_equal(attr(m$impacts, "outcome"), "yield")
+  expect_null(attr(m$impacts, "outcome"))
   # The same arguments of cm_diseases(), cm_associations() and cm_impacts().
   expect_message(dd <- cm_diseases("a", 0.1, label = "A"), "Argument `label` is not used; put free text in `note`.",
                  fixed = TRUE)
@@ -571,7 +572,7 @@ test_that("distributions are given in the rows of the values they describe", {
   assoc <- cbind(assoc, dist = c("lognormal_ci", NA, "pert", "lognormal_ci"),
                  p1 = c(2, NA, 2, 1.5), p2 = c(1.4, NA, 3, 0.8), p3 = c(2.9, NA, 4.5, 2.8))
   imp <- data.frame(disease = c(ids3, "d1;d2"), value = c(2.5, 5, 7.5, 0.5), adjusted_for = c(NA, NA, NA, "all"),
-                    units = "%", dist = c("normal", "pert", "fixed", "normal"),
+                    dist = c("normal", "pert", "fixed", "normal"),
                     p1 = c(2.5, 3, 7.5, 0.5), p2 = c(0.5, 5, NA, 0.1), p3 = c(NA, 8, NA, NA))
   pr <- cm_check_inputs(diseases = dis, associations = assoc, impacts = imp)
   expect_equal(nrow(pr), 0)
@@ -655,7 +656,7 @@ test_that("the five-disease example reads without problems and matches the refer
   expect_equal(nrow(pt), 10)
   expect_true(all(pt$status == "specified"))
   expect_setequal(unique(pt$measure), c("pooled", "OR", "RR", "RD", "prevalence", "phi"))
-  expect_equal(attr(y$impacts, "units"), "% of yield")
+  expect_null(attr(y$impacts, "units"))
 
   # Distributions from every table, mixed with point values.
   expect_setequal(names(y$distributions),
@@ -773,11 +774,11 @@ test_that("the n_draws = 0 note counts only the inputs with a distribution", {
   expect_false(any(grepl("n_draws = 0", deconflate(example_supplement(), n_draws = 0)$notes)))
 })
 
-test_that("the outcome and units of an impact table are optional, one of each per table", {
+test_that("the outcome and units are optional arguments, not columns", {
   d <- data.frame(disease = c("a", "b"), value = c(0.1, 0.2))
   a <- data.frame(disease = "a", associated_with = "b", value = 2)
-  im <- data.frame(disease = c("a", "b"), value = c(1, 2), outcome = "yield", units = "kg")
-  m <- cm_read_inputs(diseases = d, associations = a, impacts = im)
+  im <- data.frame(disease = c("a", "b"), value = c(1, 2))
+  m <- cm_read_inputs(diseases = d, associations = a, impacts = im, outcome = "yield", units = "kg")
   expect_equal(attr(m$impacts, "outcome"), "yield")
   expect_equal(attr(m$impacts, "units"), "kg")
   res <- deconflate(m)
@@ -785,29 +786,59 @@ test_that("the outcome and units of an impact table are optional, one of each pe
   expect_equal(res$units, "kg")
   expect_output(print(res), "yield [kg]", fixed = TRUE)
   # Without them, the printouts use general wording.
-  m0 <- cm_read_inputs(diseases = d, associations = a, impacts = im[, c("disease", "value")])
+  m0 <- cm_read_inputs(diseases = d, associations = a, impacts = im)
   expect_null(attr(m0$impacts, "outcome"))
   expect_null(deconflate(m0)$outcome)
   expect_output(print(m0), "Impacts: outcome not given (additive)", fixed = TRUE)
-  # An empty outcome is no outcome.
-  im$outcome <- NA
-  expect_null(attr(cm_read_inputs(diseases = d, impacts = im)$impacts, "outcome"))
-  # Several outcomes in one table: an error that says what to do.
-  im$outcome <- c("yield", "fertility")
-  pr <- cm_check_inputs(diseases = d, impacts = im)
-  expect_true(has_problem(pr, "impacts", NA, "outcome"))
-  expect_true(any(grepl("One outcome per table is allowed (found: yield, fertility). For several outcomes, keep one impact table per outcome",
+  expect_null(attr(cm_read_inputs(diseases = d, associations = a, impacts = im, outcome = "", units = NA)$impacts,
+                   "outcome"))
+  expect_error(cm_read_inputs(diseases = d, associations = a, impacts = im, units = c("kg", "g")),
+               class = "deconflate_invalid_input")
+  expect_error(cm_check_inputs(diseases = d, associations = a, impacts = im, outcome = list("x")),
+               class = "deconflate_invalid_input")
+  # Columns of earlier files: not read, with a note that gives the argument.
+  old <- cbind(im, outcome = "yield", units = "kg")
+  pr <- cm_check_inputs(diseases = d, associations = a, impacts = old)
+  expect_false(any(pr$severity == "error"))
+  expect_true(any(grepl('Column `outcome` is no longer read: give it as `cm_read_inputs(outcome = "yield")`.',
                         pr$problem, fixed = TRUE)))
-  # An outcome column wins over an old label column.
-  im$outcome <- "yield"
-  im$label <- "old"
-  pr <- cm_check_inputs(diseases = d, impacts = im)
-  expect_true(has_problem(pr, "impacts", NA, "label", severity = "note"))
-  expect_equal(attr(suppressMessages(cm_read_inputs(diseases = d, impacts = im))$impacts, "outcome"), "yield")
-  # The argument of cm_impacts(): `label` still works, with a message.
+  expect_true(any(grepl('Column `units` is no longer read: give it as `cm_read_inputs(units = "kg")`.',
+                        pr$problem, fixed = TRUE)))
+  mo <- suppressMessages(cm_read_inputs(diseases = d, associations = a, impacts = old))
+  expect_null(attr(mo$impacts, "outcome"))
+  expect_null(attr(mo$impacts, "units"))
+  # The arguments set them for such files too.
+  mo <- suppressMessages(cm_read_inputs(diseases = d, associations = a, impacts = old, units = "g"))
+  expect_equal(attr(mo$impacts, "units"), "g")
+  # An empty column gets the note without a value.
+  pr <- cm_check_inputs(diseases = d, associations = a, impacts = cbind(im, units = NA))
+  expect_true(any(grepl("Column `units` is no longer read: give it as `cm_read_inputs(units = ...)`.",
+                        pr$problem, fixed = TRUE)))
+  # A table with several outcomes or units is an error that says what to do.
+  pr <- cm_check_inputs(diseases = d, associations = a, impacts = cbind(im, outcome = c("yield", "fertility")))
+  expect_true(has_problem(pr, "impacts", NA, "outcome"))
+  expect_true(any(grepl("This table holds several outcomes (found: yield, fertility): keep one impact table per outcome",
+                        pr$problem, fixed = TRUE)))
+  pr <- cm_check_inputs(diseases = d, associations = a, impacts = cbind(im, units = c("kg", "days")))
+  expect_true(has_problem(pr, "impacts", NA, "units"))
+  # cm_impacts(): `label` still works, with a message.
   expect_message(ii <- cm_impacts(c("a", "b"), c(1, 2), label = "yield"),
                  "Argument `label` is now called `outcome`: write `outcome = ` instead.", fixed = TRUE)
   expect_equal(attr(ii, "outcome"), "yield")
   expect_error(cm_impacts(c("a", "b"), c(1, 2), outcome = c("x", "y")), class = "deconflate_invalid_input")
   expect_null(attr(cm_impacts(c("a", "b"), c(1, 2), outcome = "", units = NA), "outcome"))
+})
+
+test_that("the pig example reads without problems, one model per outcome", {
+  f <- function(x) extdata("pigs", x)
+  for (x in c("impacts_adg.csv", "impacts_environment.csv", "impacts_welfare.csv")) {
+    pr <- cm_check_inputs(diseases = f("diseases.csv"), associations = f("associations.csv"), impacts = f(x))
+    expect_equal(nrow(pr), 0L, info = x)
+    m <- cm_read_inputs(diseases = f("diseases.csv"), associations = f("associations.csv"), impacts = f(x))
+    expect_equal(m$diseases$disease, c("PRRS", "PCV2", "MHP", "SIV"))
+    expect_null(attr(m$impacts, "outcome"))
+    expect_equal(impact_kind(m$impacts), "additive")
+    pt <- pair_tables(m)
+    expect_equal(sum(pt$status == "unknown"), 1L)
+  }
 })

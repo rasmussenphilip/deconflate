@@ -1,7 +1,7 @@
-disease,among,adjusted_for,measure,value,outcome,study,dist,p1,p2,p3,p4,note
-LAM,,,HR,1.74,culling,Study 1,lognormal_ci,1.74,1.40,2.16,,"hazard ratio (crude); entering a published hazard ratio as a snapshot comparison is an assumption; lognormal_ci(estimate, lower, upper)"
-MAS,,LAM;SCK,HR,1.6,culling,Study 2,,,,,,hazard ratio stratified by LAM and SCK; point value
-MET,,,RR,1.23,culling,Study 3,pert,1.05,1.23,1.50,,"risk ratio of culling within the lactation (needs overall_risk for the same period); pert(min, mode, max)"
-SCK,,,OR,1.45,culling,Study 4,,,,,,odds ratio of culling within the lactation; point value
-RP,,all,RD,0.10,culling,Study 5,normal,0.10,0.03,,,"risk difference of culling within the lactation, stratified by all other diseases; normal(mean, sd)"
-LAM;MAS,,,HR,3.2,culling,Study 6,lognormal_ci,3.2,2.2,4.6,,cows with both LAM and MAS against cows with neither (crude hazard ratio): adds a LAM:MAS interaction on the log-hazard scale
+disease,among,adjusted_for,measure,value,study,dist,p1,p2,p3,p4,note
+LAM,,,HR,1.74,Study 1,lognormal_ci,1.74,1.40,2.16,,"culling; hazard ratio (crude); entering a published hazard ratio as a snapshot comparison is an assumption; lognormal_ci(estimate, lower, upper)"
+MAS,,LAM;SCK,HR,1.6,Study 2,,,,,,hazard ratio stratified by LAM and SCK; point value
+MET,,,RR,1.23,Study 3,pert,1.05,1.23,1.50,,"risk ratio of culling within the lactation (needs overall_risk for the same period); pert(min, mode, max)"
+SCK,,,OR,1.45,Study 4,,,,,,odds ratio of culling within the lactation; point value
+RP,,all,RD,0.10,Study 5,normal,0.10,0.03,,,"risk difference of culling within the lactation, stratified by all other diseases; normal(mean, sd)"
+LAM;MAS,,,HR,3.2,Study 6,lognormal_ci,3.2,2.2,4.6,,cows with both LAM and MAS against cows with neither (crude hazard ratio): adds a LAM:MAS interaction on the log-hazard scale

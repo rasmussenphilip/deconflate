@@ -184,7 +184,8 @@ lists each row with its fitted value:
 ```{r}
 five <- cm_read_inputs(diseases = file.path(ex, "diseases.csv"),
                        associations = file.path(ex, "associations.csv"),
-                       impacts = file.path(ex, "impacts_calving_interval.csv"))
+                       impacts = file.path(ex, "impacts_calving_interval.csv"),
+                       outcome = "calving interval increase", units = "days")
 res_ci <- deconflate(five, n_draws = 0)
 res_ci$heterogeneity
 ```
@@ -267,7 +268,8 @@ antagonistic LAM:SCK interaction:
 ```{r}
 welfare <- cm_read_inputs(diseases = file.path(ex, "diseases.csv"),
                           associations = file.path(ex, "associations.csv"),
-                          impacts = file.path(ex, "impacts_welfare.csv"))
+                          impacts = file.path(ex, "impacts_welfare.csv"),
+                          outcome = "welfare impact", units = "score points")
 res_w <- deconflate(welfare, n_draws = 0)
 res_w$adjusted
 res_w$totals
